@@ -96,9 +96,9 @@ extern int	backend_group LDAP_P((Backend *be,
  * ch_malloc.c
  */
 
-void * ch_malloc LDAP_P(( size_t size ));
-void * ch_realloc LDAP_P(( void *block, size_t size ));
-void * ch_calloc LDAP_P(( size_t nelem, size_t size ));
+void * ch_malloc LDAP_P(( ber_len_t size ));
+void * ch_realloc LDAP_P(( void *block, ber_len_t size ));
+void * ch_calloc LDAP_P(( ber_len_t nelem, ber_len_t size ));
 char * ch_strdup LDAP_P(( const char *string ));
 
 /*

@@ -258,7 +258,7 @@ ldap_controls_free( LDAPControl **controls )
 /*
  * Duplicate an array of LDAPControl
  */
-LDAPControl **ldap_controls_dup( const LDAPControl **controls )
+LDAPControl **ldap_controls_dup( LDAPControl **controls )
 {
 	LDAPControl **new;
 	int i;
@@ -300,7 +300,7 @@ LDAPControl **ldap_controls_dup( const LDAPControl **controls )
 /*
  * Duplicate a LDAPControl
  */
-LDAPControl *ldap_control_dup( const LDAPControl *c )
+LDAPControl *ldap_control_dup( LDAPControl *c )
 {
 	LDAPControl *new;
 

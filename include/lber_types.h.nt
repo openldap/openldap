@@ -15,8 +15,6 @@
 #ifndef _LBER_TYPES_H_NT
 #define _LBER_TYPES_H_NT
 
-#include <ldap_cdefs.h>
-
 /*
  * NT types:
  *
@@ -24,30 +22,22 @@
  *	bitsof(int)	== 4
  *	bitsof(long) == 4
  *
- *  typedef unsigned int sizeof;
+ *  typedef unsigned int size_t;
  *	typedef unsigned int SOCKET;
  *
  *	we use native C types to avoid sucking in system headers
  */
-LDAP_BEGIN_DECL
 
-/* use 'int' for boolean, enumerations, and integers */
+/* LBER boolean, enum, integers - 32 bits or larger*/
 #define LBER_INT_T	int
 
-typedef LBER_INT_T ber_int_t;
-typedef signed LBER_INT_T ber_sint_t;
-typedef unsigned LBER_INT_T ber_uint_t;
+/* LBER tags - 32 bits or larger */
+#define LBER_TAG_T	long
 
-/* use size_t for lengths */
-typedef unsigned int ber_len_t;	/* size_t is an unsigned int */
-typedef int ber_slen_t;			/* ssize_t is does not exist */
+/* LBER socket descriptor */
+#define LBER_SOCKET_T	unsigned int
 
-/* use 'long' for tags */
-typedef unsigned long ber_tag_t;
-
-/* use 'unsigned int' for descriptors */
-typedef unsigned int ber_socket_t; /* SOCKET is an unsigned int */
-
-LDAP_END_DECL
+/* LBER lengths - 32 bits or larger*/
+#define LBER_LEN_T		int
 
 #endif /* _LBER_TYPES_H_NT */

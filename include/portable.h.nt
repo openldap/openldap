@@ -23,14 +23,6 @@
 #define EXEEXT ".exe"
 #define DIRSEP "\\"
 
-/* these have to match lber types settings */
-#define LBER_INT_HTON(i)	AC_HTONL(i)
-#define LBER_INT_NTOH(i)	AC_NTOHL(i)
-#define LBER_LEN_HTON(l)	AC_HTONL(l)
-#define LBER_LEN_NTOH(l)	AC_NTOHL(l)
-#define LBER_TAG_HTON(t)	AC_HTONL(t)
-#define LBER_TAG_NTOH(t)	AC_NTOHL(t)
-
 #if defined( _DEBUG ) && !defined( LDAP_DEBUG )
 /* #define LDAP_MEMORY_DEBUG 1 */
 #define LDAP_DEBUG 1

@@ -13,13 +13,14 @@
 
 void *
 ch_malloc(
-    size_t	size
+    ber_len_t	size
 )
 {
 	void	*new;
 
 	if ( (new = (void *) malloc( size )) == NULL ) {
-		Debug( LDAP_DEBUG_ANY, "malloc of %lu bytes failed\n", size, 0, 0 );
+		Debug( LDAP_DEBUG_ANY, "malloc of %lu bytes failed\n",
+			(long) size, 0, 0 );
 		exit( 1 );
 	}
 
@@ -29,7 +30,7 @@ ch_malloc(
 void *
 ch_realloc(
     void		*block,
-    size_t	size
+    ber_len_t	size
 )
 {
 	void	*new;
@@ -39,7 +40,8 @@ ch_realloc(
 	}
 
 	if ( (new = (void *) realloc( block, size )) == NULL ) {
-		Debug( LDAP_DEBUG_ANY, "realloc of %lu bytes failed\n", size, 0, 0 );
+		Debug( LDAP_DEBUG_ANY, "realloc of %lu bytes failed\n",
+			(long) size, 0, 0 );
 		exit( 1 );
 	}
 
@@ -48,15 +50,15 @@ ch_realloc(
 
 void *
 ch_calloc(
-    size_t	nelem,
-    size_t	size
+    ber_len_t	nelem,
+    ber_len_t	size
 )
 {
 	void	*new;
 
 	if ( (new = (void *) calloc( nelem, size )) == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "calloc of %lu elems of %lu bytes failed\n",
-		  nelem, size, 0 );
+		  (long) nelem, (long) size, 0 );
 		exit( 1 );
 	}
 

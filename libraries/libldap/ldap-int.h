@@ -304,10 +304,10 @@ int ldap_check_cache LDAP_P(( LDAP *ld, ber_tag_t msgtype, BerElement *request )
  * in controls.c
  */
 LDAPControl *ldap_control_dup LDAP_P((
-	const LDAPControl *ctrl ));
+	LDAPControl *ctrl ));
 
 LDAPControl **ldap_controls_dup LDAP_P((
-	const LDAPControl **ctrls ));
+	LDAPControl **ctrls ));
 
 int ldap_int_get_controls LDAP_P((
 	BerElement *be,

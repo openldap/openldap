@@ -34,7 +34,7 @@
 
 #include "disptmpl.h"
 
-#include "ldap_defaults.h"
+#include "ldapconfig.h"
 
 
 int	dosyslog = 1;
@@ -411,7 +411,7 @@ do_search( LDAP *ld, char *buf )
 
 
 static int
-entry2textwrite( void *fp, char *buf, int len )
+entry2textwrite( void *fp, char *buf, ber_len_t len )
 {
 	return( fwrite( buf, len, 1, (FILE *)fp ) == 0 ? -1 : len );
 }

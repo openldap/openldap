@@ -23,6 +23,15 @@
 
 LDAP_BEGIN_DECL
 
+/* these have to match lber types settings */
+#define LBER_INT_HTON(i)	AC_HTONL(i)
+#define LBER_INT_NTOH(i)	AC_NTOHL(i)
+#define LBER_LEN_HTON(l)	AC_HTONL(l)
+#define LBER_LEN_NTOH(l)	AC_NTOHL(l)
+#define LBER_TAG_HTON(t)	AC_HTONL(t)
+#define LBER_TAG_NTOH(t)	AC_NTOHL(t)
+
+
 struct lber_options {
 	short lbo_valid;
 #define LBER_UNINITIALIZED		0x0
