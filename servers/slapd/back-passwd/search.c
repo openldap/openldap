@@ -102,7 +102,8 @@ passwd_back_search(
 		attr_merge( e, "objectClass", vals );
 	
 		if ( test_filter( be, conn, op, e, filter ) == 0 ) {
-			send_search_entry( be, conn, op, e, attrs, attrsonly, 0 );
+			send_search_entry( be, conn, op,
+				e, attrs, attrsonly, NULL, 0 );
 			matched = strdup( be->be_suffix[0] );
 			sent++;
 		}
@@ -123,7 +124,7 @@ passwd_back_search(
 				/* check time limit */
 				if ( slap_get_time() > stoptime ) {
 					send_ldap_result( conn, op, LDAP_TIMELIMIT_EXCEEDED,
-			    		NULL, NULL, NULL );
+			    		NULL, NULL, NULL, NULL );
 					endpwent();
 					return( 0 );
 				}
@@ -134,12 +135,13 @@ passwd_back_search(
 					/* check size limit */
 					if ( --slimit == -1 ) {
 						send_ldap_result( conn, op, LDAP_SIZELIMIT_EXCEEDED,
-				    		NULL, NULL, NULL );
+				    		NULL, NULL, NULL, NULL );
 						endpwent();
 						return( 0 );
 					}
 
-					send_search_entry( be, conn, op, e, attrs, attrsonly, 0 );
+					send_search_entry( be, conn, op,
+						e, attrs, attrsonly, NULL, 0 );
 					sent++;
 				}
 
@@ -176,7 +178,8 @@ passwd_back_search(
 		e = pw2entry( be, pw, rdn );
 
 		if ( test_filter( be, conn, op, e, filter ) == 0 ) {
-			send_search_entry( be, conn, op, e, attrs, attrsonly, 0 );
+			send_search_entry( be, conn, op,
+				e, attrs, attrsonly, NULL, 0 );
 			sent++;
 		}
 
@@ -185,10 +188,12 @@ passwd_back_search(
 
 done:
 	if( sent ) {
-		send_ldap_result( conn, op, LDAP_SUCCESS, NULL, NULL, NULL );
+		send_ldap_result( conn, op, LDAP_SUCCESS,
+			NULL, NULL, NULL, NULL );
 
 	} else {
-		send_ldap_result( conn, op, err, matched, NULL, NULL);
+		send_ldap_result( conn, op, err,
+			matched, NULL, NULL, NULL );
 	}
 
 	if( matched != NULL ) free( matched );

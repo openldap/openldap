@@ -40,7 +40,7 @@ perl_back_compare(
 	PerlBackend *perl_back = (PerlBackend *)be->be_private;
 
 	send_ldap_result( conn, op, LDAP_UNWILLING_TO_PERFORM,
-		NULL, "not yet implemented", NULL );
+		NULL, "not yet implemented", NULL, NULL );
 
 #ifdef notdef
 	ldap_pvt_thread_mutex_lock( &perl_interpreter_mutex );	
