@@ -42,7 +42,7 @@ LDAP_BEGIN_DECL
  * As such, the number will be above the old RFC but below 
  * whatever number does finally get assigned
  */
-#define LDAP_API_VERSION	2002
+#define LDAP_API_VERSION	2003
 #define LDAP_VENDOR_NAME	"OpenLDAP"
 /* We'll eventually release as 200 */
 #define LDAP_VENDOR_VERSION	192
