@@ -494,6 +494,7 @@ send_search_entry(
 	int		i, rc=-1, bytes;
 	struct acl	*acl;
 	char            *edn;
+	int		allattrs;
 
 	Debug( LDAP_DEBUG_TRACE, "=> send_search_entry (%s)\n", e->e_dn, 0, 0 );
 
@@ -538,20 +539,21 @@ send_search_entry(
 		goto error_return;
 	}
 
+	/* check for special all user attributes ("*") attribute */
+	allattrs = charray_inlist( attrs, LDAP_ALL_USER_ATTRIBUTES );
+
 	for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
 		regmatch_t       matches[MAXREMATCHES];
 
 		if ( attrs == NULL ) {
 			/* all addrs request, skip operational attributes */
-			if( !opattrs && oc_check_operational_attr( a->a_type )) {
+			if( !opattrs && oc_check_operational_attr( a->a_type ) ) {
 				continue;
 			}
 
 		} else {
 			/* specific addrs requested */
-			if ( !charray_inlist( attrs, a->a_type )
-				&& !charray_inlist( attrs, LDAP_ALL_USER_ATTRIBUTES ) )
-			{
+			if ( !allattrs && !charray_inlist( attrs, a->a_type ) ) {
 				continue;
 			}
 		}
