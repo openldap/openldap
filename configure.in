@@ -9,20 +9,151 @@ dnl Do not use AutoConf 2.12; it produces a configuration script
 dnl that causes an "internal 2K buffer" error on HPUX when run
 dnl with /bin/sh.  Autoconf 2.10 seems to be okay.
 AC_CONFIG_AUX_DIR(etc)
-AC_PREFIX_DEFAULT(/usr/local)
 AC_CONFIG_HEADER(include/portable.h)dnl
+dnl
+dnl Start Args
+AC_MSG_CHECKING(arguments)
+
+dnl server options
+CF_ARG_OPTION(ldapd,[  --enable-ldapd	enable building ldapd],[
+	BUILD_LDAPD=yes],[BUILD_LDAPD=no],no)dnl
+CF_ARG_OPTION(slapd,[  --enable-slapd	enable building slapd],[
+	BUILD_SLAPD=no],[BUILD_SLAPD=yes],yes)dnl
+CF_ARG_OPTION(slurpd,[  --enable-slurpd	enable building slurpd],[
+	BUILD_SLURPD=no],[BUILD_SLURPD=yes],yes)dnl
+
+dnl Backend options
+CF_ARG_OPTION(ldbm,[  --enable-ldbm		enable ldbm backend],[
+	BUILD_LDBM=no],[BUILD_LDBM=yes],yes)dnl
+CF_ARG_OPTION(passwd,[  --enable-passwd	enable passwd backend],[
+	BUILD_PASSWD=no],[BUILD_PASSWD=yes],yes)dnl
+CF_ARG_OPTION(shell,[  --enable-shell	enable shell backend],[
+	BUILD_SHELL=no],[BUILD_SHELL=yes],yes)dnl
+
+AC_ARG_WITH(ndbm,[  --with-ndbm		use NDB for LDBM backend],[
+	opt_ndbm=yes],[opt_ndbm=no])
+AC_ARG_WITH(gdbm,[  --with-gdbm		use GDBM for LDBM backend],[
+	opt_gdbm=yes],[opt_gdbm=no])
+AC_ARG_WITH(dbhash,[  --with-dbhash		use Berkeley DB Hash for LDBM backend],[
+	opt_dbhash=yes],[opt_dbhash=no])
+AC_ARG_WITH(dbbtree,[  --with-dbbtree	use Berkeley DB Btrees for LDBM backend],[
+	opt_dbbtree=yes],[opt_dbbtree=no])
+
+AC_MSG_RESULT(done)
+
+AC_MSG_CHECKING(LDBM preference)
+ldbm_prefer=any
+
+if test "$opt_ndbm" = yes ; then
+	ldbm_prefer=ndbm
+fi
+if test "$opt_gdbm" = yes ; then
+	ldbm_prefer=gdbm
+fi
+if test "$opt_dbhash" = yes ; then
+	ldbm_prefer=dbhash
+fi
+if test "$opt_dbbtree" = yes ; then
+	ldbm_prefer=dbbtree
+fi
+AC_MSG_RESULT($ldbm_prefer)
+
+if test "$BUILD_SLAPD" != "yes" ; then
+	BUILD_SLURPD="no"
+	BUILD_LDBM="no"
+	BUILD_PASSWD="no"
+	BUILD_SHELL="no"
+	ldbm_prefer="none"
+fi
+
+AC_SUBST(BUILD_LDAPD)
+AC_SUBST(BUILD_SLAPD)
+AC_SUBST(BUILD_SLURPD)
+
+AC_SUBST(BUILD_LDBM)
+AC_SUBST(BUILD_PASSWD)
+AC_SUBST(BUILD_SHELL)
+
+dnl End Args
 
 dnl Checks for programs.
 AC_PROG_CC
-AC_PROG_LN_S
-AC_PROG_MAKE_SET
-AC_PROG_RANLIB
+AC_PROG_GCC_TRADITIONAL
 
-# FreeBSD (and others) have crypt(3) in -lcrypt
-AC_CHECK_LIB(crypt, crypt)
+AC_PROG_LN_S
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_PROG_MAKE_SET
+
+AC_PATH_PROG(SENDMAIL, sendmail, /usr/lib/sendmail,
+	$PATH:/usr/libexec:/usr/lib:/usr/sbin:/usr/etc:etc)
+AC_PATH_PROG(EDITOR, vi, /usr/ucb/vi,
+	$PATH:/usr/ucb)
+AC_PATH_PROG(FINGER, finger, /usr/ucb/finger,
+	$PATH:/usr/ucb)
+
+ldbm_use="none"
+LIBDB=""
+
+if test "$BUILD_LDBM" = "yes" ; then
+	if test $ldbm_prefer = any -o $ldbm_prefer = dbbtree \
+			-o $ldbm_prefer = dbhash ; then
+		AC_CHECK_FUNC(dbopen,[
+			ldbm_use=$ldbm_prefer
+			ldbm_prefer=found],[
+			AC_CHECK_LIB(db,dbopen,[
+				ldbm_use=$ldbm_prefer
+				ldbm_prefer=found
+				LIBDB="-ldb"
+			]) 
+		])
+
+		if test $ldbm_prefer = found ; then
+			if test $ldbm_use = dbbhash ; then
+				AC_DEFINE(LDBM_USE_DBHASH,1)
+			else
+				AC_DEFINE(LDBM_USE_DBBTREE,1)
+			fi
+		fi
+	fi
+	if test $ldbm_prefer = any -o $ldbm_prefer = gdbm ; then
+		AC_CHECK_LIB(gdbm, gdbm_open,[
+			ldbm_use=$ldbm_prefer
+			ldbm_prefer=found
+			LIBDB="-lgdbm"
+			AC_DEFINE(LDBM_USE_GDBM,1)
+		]) 
+	fi
+	if test $ldbm_prefer = any -o $ldbm_prefer = ndbm ; then
+		AC_CHECK_LIB(dbm,dbm_open,[
+			ldbm_use=$ldbm_prefer
+			ldbm_prefer=found
+			LIBDB="-ldbm"
+			AC_DEFINE(LDBM_USE_NDBM,1)
+		]) 
+	fi
+
+	if test $ldbm_prefer != found ; then
+		AC_MSG_ERROR(could not find suitable db for $ldbm_prefer backend)
+	fi
+fi
+
+AC_SUBST(LIBDB)
+
+# ud needs termcap (should insert check here)
+LIBTERMCAP="-ltermcap"
+AC_SUBST(LIBTERMCAP)
 
 # FreeBSD has obsoleted re_comp(3) from -lc, needs -lcompat
 AC_CHECK_LIB(compat, re_comp) 
+
+# FreeBSD (and others) have crypt(3) in -lcrypt
+LIBCRYPT=
+AC_CHECK_FUNC(crypt, AC_DEFINE(HAVE_CRYPT), [
+	AC_CHECK_LIB(crypt, crypt, [LIBCRYPT="-lcrypt"
+	AC_DEFINE(HAVE_CRYPT)])
+])
+AC_SUBST(LIBCRYPT)
 
 dnl Checks for header files.
 AC_HEADER_DIRENT
@@ -52,7 +183,6 @@ AC_HEADER_TIME
 AC_STRUCT_TM
 
 dnl Checks for library functions.
-AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
@@ -73,11 +203,8 @@ AC_CHECK_FUNCS(		\
 	strtoul			\
 )
 
-AC_ARG_PROGRAM
-
 # Check Configuration
 CF_SYS_ERRLIST
-
 
 AC_OUTPUT( \
 include/ldapconfig.h \
@@ -98,13 +225,13 @@ libraries/libldbm/Makefile:etc/top.mk:libraries/libldbm/Makefile.in:etc/lib.mk \
 libraries/libldif/Makefile:etc/top.mk:libraries/libldif/Makefile.in:etc/lib.mk \
 libraries/liblthread/Makefile:etc/top.mk:libraries/liblthread/Makefile.in:etc/lib.mk \
 servers/Makefile:etc/top.mk:servers/Makefile.in:etc/dir.mk \
-servers/ldapd/Makefile:etc/top.mk:servers/ldapd/Makefile.in:etc/rules.mk \
-servers/slapd/Makefile:etc/top.mk:servers/slapd/Makefile.in:etc/rules.mk \
+servers/ldapd/Makefile:etc/top.mk:servers/ldapd/Makefile.in:etc/srv.mk \
+servers/slapd/Makefile:etc/top.mk:servers/slapd/Makefile.in:etc/srv.mk \
 servers/slapd/back-ldbm/Makefile:etc/top.mk:servers/slapd/back-ldbm/Makefile.in:etc/rules.mk \
 servers/slapd/back-passwd/Makefile:etc/top.mk:servers/slapd/back-passwd/Makefile.in:etc/rules.mk \
 servers/slapd/back-shell/Makefile:etc/top.mk:servers/slapd/back-shell/Makefile.in:etc/rules.mk \
 servers/slapd/tools/Makefile:etc/top.mk:servers/slapd/tools/Makefile.in:etc/rules.mk \
 servers/slapd/shell-backends/Makefile:etc/top.mk:servers/slapd/shell-backends/Makefile.in:etc/rules.mk \
-servers/slurpd/Makefile:etc/top.mk:servers/slurpd/Makefile.in:etc/rules.mk \
+servers/slurpd/Makefile:etc/top.mk:servers/slurpd/Makefile.in:etc/srv.mk \
 Makefile:etc/top.mk:Makefile.in:etc/dir.mk, \
 	[date > stamp-h])

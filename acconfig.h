@@ -17,6 +17,18 @@
 /* define this if sys_errlist is not defined in stdio.h or errno.h */
 #undef DECL_SYS_ERRLIST
 
+/* define this to use DB BTREES */
+#undef LDBM_USE_DBBTREE
+
+/* define this to use DB HASH */
+#undef LDBM_USE_DBHASH
+
+/* define this to use GNU DBM */
+#undef LDBM_USE_GDBM
+
+/* define this to use NDBM */
+#undef LDBM_USE_NDBM
+
 
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:

@@ -1,6 +1,9 @@
 /* ldbm.c - ldap dbm compatibility routines */
 
 #include <stdio.h>
+
+#ifdef LDAP_LDBM
+
 #include "ldbm.h"
 
 #ifdef LDBM_USE_GDBM
@@ -346,3 +349,4 @@ ldbm_errno( LDBM ldbm )
 #endif /* ndbm */
 #endif /* db */
 #endif /* gdbm */
+#endif /* ldbm */
