@@ -17,7 +17,7 @@ these steps:
 
     If you are reading this file, you probably have already done this!
 
- 2. copy Make-common.dist or Make-common.gmake to Make.common 
+ 2. copy Make-common.dist or Make-common.gmake to Make-common 
 
  3. edit the files Make-common and include/ldapconfig.h.edit to configure
     the software for your site (the files are well-commented):
