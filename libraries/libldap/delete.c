@@ -59,7 +59,7 @@ ldap_delete_ext(
 		return( ld->ld_errno );
 	}
 
-	if ( ber_printf( ber, "{its", /* leave open - '}' */
+	if ( ber_printf( ber, "{its", /* '}' */
 		++ld->ld_msgid, LDAP_REQ_DELETE, dn ) == -1 )
 	{
 		ld->ld_errno = LDAP_ENCODING_ERROR;
@@ -73,8 +73,7 @@ ldap_delete_ext(
 		return ld->ld_errno;
 	}
 
-	/* close '{' */
-	if ( ber_printf( ber, "}" ) == -1 ) {
+	if ( ber_printf( ber, /*{*/ "}" ) == -1 ) {
 		ld->ld_errno = LDAP_ENCODING_ERROR;
 		ber_free( ber, 1 );
 		return( ld->ld_errno );

@@ -16,7 +16,7 @@
 /* protected by connections_mutex */
 static ldap_pvt_thread_mutex_t connections_mutex;
 static Connection *connections = NULL;
-static long conn_nextid = 0;
+static unsigned long conn_nextid = 0;
 
 /* structure state (protected by connections_mutex) */
 #define SLAP_C_UNINITIALIZED	0x00	/* MUST BE ZERO (0) */
@@ -30,7 +30,7 @@ static long conn_nextid = 0;
 #define SLAP_C_BINDING			0x03	/* binding */
 #define SLAP_C_CLOSING			0x04	/* closing */
 
-static Connection* connection_get( int s );
+static Connection* connection_get( ber_socket_t s );
 
 static int connection_input( Connection *c );
 static void connection_close( Connection *c );
@@ -84,7 +84,7 @@ int connections_init(void)
  */
 int connections_destroy(void)
 {
-	int i;
+	ber_socket_t i;
 
 	/* should check return of every call */
 
@@ -114,7 +114,7 @@ int connections_destroy(void)
  */
 int connections_shutdown(void)
 {
-	int i;
+	ber_socket_t i;
 
 	ldap_pvt_thread_mutex_lock( &connections_mutex );
 
@@ -137,19 +137,19 @@ int connections_shutdown(void)
 	return 0;
 }
 
-static Connection* connection_get( int s )
+static Connection* connection_get( ber_socket_t s )
 {
 	/* connections_mutex should be locked by caller */
 
 	Connection *c;
 
 	Debug( LDAP_DEBUG_ARGS,
-		"connection_get(%d)\n",
-		s, 0, 0 );
+		"connection_get(%ld)\n",
+		(long) s, 0, 0 );
 
 	assert( connections != NULL );
 
-	if(s < 0) {
+	if(s == AC_SOCKET_INVALID) {
 		return NULL;
 	}
 
@@ -161,7 +161,7 @@ static Connection* connection_get( int s )
 #else
 	c = NULL;
 	{
-		int i;
+		ber_socket_t i;
 
 		for(i=0; i<dtblsize; i++) {
 			if( connections[i].c_struct_state == SLAP_C_UNINITIALIZED ) {
@@ -176,9 +176,9 @@ static Connection* connection_get( int s )
 				continue;
 			}
 
-			/* state can actually change from used -> unused by resched,
-			 * so don't assert details here.
-			 */
+			assert( connections[i].c_struct_state == SLAP_C_USED );
+			assert( connections[i].c_conn_state != SLAP_C_INVALID );
+			assert( ber_pvt_sb_in_use( connections[i].c_sb ) );
 
 			if( ber_pvt_sb_get_desc( connections[i].c_sb ) == s ) {
 				c = &connections[i];
@@ -193,7 +193,6 @@ static Connection* connection_get( int s )
 
 		if( c->c_struct_state != SLAP_C_USED ) {
 			/* connection must have been closed due to resched */
-
 			assert( c->c_conn_state == SLAP_C_INVALID );
 			assert( !ber_pvt_sb_in_use( c->c_sb ) );
 
@@ -223,18 +222,18 @@ static void connection_return( Connection *c )
 }
 
 long connection_init(
-	int s,
+	ber_socket_t s,
 	const char* name,
 	const char* addr)
 {
-	long id;
+	unsigned long id;
 	Connection *c;
 	assert( connections != NULL );
 
-	if( s < 0 ) {
+	if( s == AC_SOCKET_INVALID ) {
         Debug( LDAP_DEBUG_ANY,
-			"connection_init(%d): invalid.\n",
-			s, 0, 0 );
+			"connection_init(%ld): invalid.\n",
+			(long) s, 0, 0 );
 		return -1;
 	}
 
@@ -250,7 +249,7 @@ long connection_init(
 
 #else
 	{
-		int i;
+		unsigned int i;
 
 		c = NULL;
 
@@ -357,6 +356,9 @@ connection_destroy( Connection *c )
     assert( c->c_conn_state != SLAP_C_INVALID );
     assert( c->c_ops == NULL );
 
+    c->c_struct_state = SLAP_C_UNUSED;
+    c->c_conn_state = SLAP_C_INVALID;
+
 #ifdef LDAP_COMPAT30
     c->c_version = 0;
 #endif
@@ -393,9 +395,6 @@ connection_destroy( Connection *c )
 	}
 
    	ber_pvt_sb_destroy( c->c_sb );
-
-    c->c_conn_state = SLAP_C_INVALID;
-    c->c_struct_state = SLAP_C_UNUSED;
 }
 
 int connection_state_closing( Connection *c )
@@ -481,9 +480,9 @@ static void connection_close( Connection *c )
 	connection_destroy( c );
 }
 
-long connections_nextid(void)
+unsigned long connections_nextid(void)
 {
-	long id;
+	unsigned long id;
 	assert( connections != NULL );
 
 	ldap_pvt_thread_mutex_lock( &connections_mutex );
@@ -495,7 +494,7 @@ long connections_nextid(void)
 	return id;
 }
 
-Connection* connection_first( int *index )
+Connection* connection_first( ber_socket_t *index )
 {
 	assert( connections != NULL );
 	assert( index != NULL );
@@ -507,7 +506,7 @@ Connection* connection_first( int *index )
 	return connection_next(NULL, index);
 }
 
-Connection* connection_next( Connection *c, int *index )
+Connection* connection_next( Connection *c, ber_socket_t *index )
 {
 	assert( connections != NULL );
 	assert( index != NULL );
@@ -567,7 +566,7 @@ static void *
 connection_operation( void *arg_v )
 {
 	struct co_arg	*arg = arg_v;
-	int tag = arg->co_op->o_tag;
+	ber_tag_t tag = arg->co_op->o_tag;
 	Connection *conn = arg->co_conn;
 
 #ifdef LDAP_COUNTERS
@@ -676,7 +675,7 @@ connection_operation( void *arg_v )
 	return NULL;
 }
 
-int connection_read(int s)
+int connection_read(ber_socket_t s)
 {
 	int rc = 0;
 	Connection *c;
@@ -689,8 +688,8 @@ int connection_read(int s)
 
 	if( c == NULL ) {
 		Debug( LDAP_DEBUG_ANY,
-			"connection_read(%d): no connection!\n",
-			s, 0, 0 );
+			"connection_read(%ld): no connection!\n",
+			(long) s, 0, 0 );
 
 		slapd_remove(s, 0);
 
@@ -744,8 +743,9 @@ connection_input(
 )
 {
 	Operation *op;
-	unsigned long	tag, len;
-	long		msgid;
+	ber_tag_t	tag;
+	ber_len_t	len;
+	ber_int_t	msgid;
 	BerElement	*ber;
 
 	if ( conn->c_currentber == NULL && (conn->c_currentber = ber_alloc())
@@ -868,7 +868,7 @@ static int connection_op_activate( Connection *conn, Operation *op )
 	struct co_arg *arg;
 	char *tmpdn;
 	int status;
-	unsigned long tag = op->o_tag;
+	ber_tag_t tag = op->o_tag;
 
 	if ( conn->c_dn != NULL ) {
 		tmpdn = ch_strdup( conn->c_dn );
@@ -910,7 +910,7 @@ static int connection_op_activate( Connection *conn, Operation *op )
 	return status;
 }
 
-int connection_write(int s)
+int connection_write(ber_socket_t s)
 {
 	Connection *c;
 	assert( connections != NULL );
@@ -923,8 +923,8 @@ int connection_write(int s)
 
 	if( c == NULL ) {
 		Debug( LDAP_DEBUG_ANY,
-			"connection_write(%d): no connection!\n",
-			s, 0, 0 );
+			"connection_write(%ld): no connection!\n",
+			(long) s, 0, 0 );
 		slapd_remove(s, 0);
 		ldap_pvt_thread_mutex_unlock( &connections_mutex );
 		return -1;

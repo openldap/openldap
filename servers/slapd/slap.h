@@ -9,7 +9,6 @@
 #include <ac/syslog.h>
 #include <ac/regex.h>
 #include <ac/socket.h>
-#include <ldap_schema.h>
 
 #include "avl.h"
 
@@ -22,6 +21,8 @@
 
 #include "lber.h"
 #include "ldap.h"
+
+#include "ldap_schema.h"
 
 #include "ldap_pvt_thread.h"
 #include "ldif.h"
@@ -84,7 +85,7 @@ typedef struct ava {
  * represents a search filter
  */
 typedef struct filter {
-	unsigned long	f_choice;	/* values taken from ldap.h */
+	ber_tag_t	f_choice;	/* values taken from ldap.h */
 
 	union f_un_u {
 		/* present */
@@ -145,7 +146,7 @@ typedef struct attr {
  * the id used in the indexes to refer to an entry
  */
 typedef unsigned long	ID;
-#define NOID	((unsigned long)-1)
+#define NOID	((unsigned long)~0)
 
 /*
  * represents an entry in core
@@ -424,8 +425,10 @@ struct backend_info {
 		struct slap_conn *c, struct slap_op *o ));
 	int	(*bi_op_search) LDAP_P((BackendDB *bd,
 		struct slap_conn *c, struct slap_op *o,
-		char *base, int scope, int deref, int slimit, int tlimit,
-		Filter *f, char *filterstr, char **attrs, int attrsonly));
+		char *base, int scope, int deref,
+		int slimit, int tlimit,
+		Filter *f, char *filterstr, char **attrs,
+		int attrsonly));
 	int	(*bi_op_compare)LDAP_P((BackendDB *bd,
 		struct slap_conn *c, struct slap_op *o,
 		char *dn, Ava *ava));
@@ -445,7 +448,7 @@ struct backend_info {
 	/* Bug: be_op_abandon in unused! */
 	int	(*bi_op_abandon) LDAP_P((BackendDB *bd,
 		struct slap_conn *c, struct slap_op *o,
-		int msgid));
+		ber_int_t msgid));
 
 	/* Auxilary Functions */
 	int	(*bi_entry_release_rw) LDAP_P((BackendDB *bd, Entry *e, int rw));
@@ -464,18 +467,18 @@ struct backend_info {
  */
 
 typedef struct slap_op {
-	long	o_opid;		/* id of this operation		  */
-	long	o_msgid;	/* msgid of the request		  */
+	ber_int_t	o_opid;		/* id of this operation		  */
+	ber_int_t	o_msgid;	/* msgid of the request		  */
 
 	ldap_pvt_thread_t	o_tid;		/* thread handling this op	  */
 
 	BerElement	*o_ber;		/* ber of the request		  */
 
-	unsigned long	o_tag;		/* tag of the request		  */
+	ber_tag_t	o_tag;		/* tag of the request		  */
 	time_t		o_time;		/* time op was initiated	  */
 	char		*o_dn;		/* dn bound when op was initiated */
 	char		*o_ndn;		/* normalized dn bound when op was initiated */
-	int			o_authtype;	/* auth method used to bind dn	  */
+	ber_tag_t	o_authtype;	/* auth method used to bind dn	  */
 					/* values taken from ldap.h	  */
 					/* LDAP_AUTH_*			  */
 
@@ -507,15 +510,16 @@ typedef struct slap_conn {
 
 	/* only can be changed by connect_init */
 	time_t		c_starttime;	/* when the connection was opened */
-	long		c_connid;	/* id of this connection for stats*/
+	unsigned long		c_connid;	/* id of this connection for stats*/
 	char		*c_client_addr;	/* address of client */
 	char		*c_client_name;	/* name of client */
 
 	/* only can be changed by binding thread */
 	char	*c_cdn;		/* DN provided by the client */
 	char	*c_dn;		/* DN bound to this conn  */
-	int		c_protocol;	/* version of the LDAP protocol used by client */
-	int		c_authtype;	/* auth method used to bind c_dn  */
+	ber_int_t	c_protocol;	/* version of the LDAP protocol used by client */
+	ber_tag_t	c_authtype;	/* auth method used to bind c_dn  */
+
 #ifdef LDAP_COMPAT
 	int		c_version;	/* for compatibility w/ U-Mich 2.0 & 3.0 */
 #endif

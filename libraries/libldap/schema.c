@@ -29,8 +29,8 @@
 
 typedef struct safe_string {
 	char * val;
-	int size;
-	int pos;
+	ber_len_t size;
+	ber_len_t pos;
 	int at_whsp;
 } safe_string;
 
@@ -126,8 +126,6 @@ print_numericoid(safe_string *ss, char *s)
 {
 	if ( s )
 		return(append_to_safe_string(ss,s));
-	else
-		return(append_to_safe_string(ss,""));
 }
 
 /* This one is identical to print_qdescr */

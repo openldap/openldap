@@ -32,8 +32,11 @@ static void free_servers LDAP_P(( LDAPServer *srvlist ));
 static LDAPServer *dn2servers LDAP_P(( LDAP *ld, char *dn ));
 #endif /* LDAP_API_FEATURE_X_OPENLDAP_V2_DNS */
 
-static BerElement *re_encode_request LDAP_P(( LDAP *ld, BerElement *origber,
-    int msgid, char **dnp ));
+static BerElement *re_encode_request LDAP_P((
+	LDAP *ld,
+	BerElement *origber,
+    ber_int_t msgid,
+	char **dnp ));
 
 
 BerElement *
@@ -67,10 +70,10 @@ ldap_set_ber_options( LDAP *ld, BerElement *ber )
 }
 
 
-int
+ber_int_t
 ldap_send_initial_request(
 	LDAP *ld,
-	unsigned long msgtype,
+	ber_tag_t msgtype,
 	const char *dn,
 	BerElement *ber )
 {
@@ -150,8 +153,14 @@ ldap_send_initial_request(
 
 
 int
-ldap_send_server_request( LDAP *ld, BerElement *ber, int msgid, LDAPRequest
-	*parentreq, LDAPServer *srvlist, LDAPConn *lc, int bind )
+ldap_send_server_request(
+	LDAP *ld,
+	BerElement *ber,
+	ber_int_t msgid,
+	LDAPRequest *parentreq,
+	LDAPServer *srvlist,
+	LDAPConn *lc,
+	int bind )
 {
 	LDAPRequest	*lr;
 	int incparent;
@@ -775,20 +784,22 @@ ldap_append_referral( LDAP *ld, char **referralsp, char *s )
 
 
 static BerElement *
-re_encode_request( LDAP *ld, BerElement *origber, int msgid, char **dnp )
+re_encode_request( LDAP *ld, BerElement *origber, ber_int_t msgid, char **dnp )
 {
 /*
  * XXX this routine knows way too much about how the lber library works!
  */
-	unsigned long	along, tag;
-	long		ver;
+	ber_int_t	along;
+	ber_len_t	len;
+	ber_tag_t	tag;
+	ber_int_t	ver;
 	int		rc;
 	BerElement	tmpber, *ber;
 	char		*orig_dn;
 
 	Debug( LDAP_DEBUG_TRACE,
-	    "re_encode_request: new msgid %d, new dn <%s>\n",
-	    msgid, ( *dnp == NULL ) ? "NONE" : *dnp, 0 );
+	    "re_encode_request: new msgid %ld, new dn <%s>\n",
+	    (long) msgid, ( *dnp == NULL ) ? "NONE" : *dnp, 0 );
 
 	tmpber = *origber;
 
@@ -797,7 +808,7 @@ re_encode_request( LDAP *ld, BerElement *origber, int msgid, char **dnp )
 	 * followed by a sequence that is tagged with the operation code
 	 */
 	if ( ber_scanf( &tmpber, "{i", /*}*/ &along ) != LDAP_TAG_MSGID ||
-	    ( tag = ber_skip_tag( &tmpber, &along )) == LBER_DEFAULT ) {
+	    ( tag = ber_skip_tag( &tmpber, &len )) == LBER_DEFAULT ) {
                 ld->ld_errno = LDAP_DECODING_ERROR;
 		return( NULL );
 	}
@@ -807,7 +818,7 @@ re_encode_request( LDAP *ld, BerElement *origber, int msgid, char **dnp )
         }
 
 	/* bind requests have a version number before the DN & other stuff */
-	if ( tag == LDAP_REQ_BIND && ber_get_int( &tmpber, (long *)&ver ) ==
+	if ( tag == LDAP_REQ_BIND && ber_get_int( &tmpber, &ver ) ==
 	    LBER_DEFAULT ) {
                 ld->ld_errno = LDAP_DECODING_ERROR;
 		ber_free( ber, 1 );
@@ -858,7 +869,7 @@ re_encode_request( LDAP *ld, BerElement *origber, int msgid, char **dnp )
 
 
 LDAPRequest *
-ldap_find_request_by_msgid( LDAP *ld, int msgid )
+ldap_find_request_by_msgid( LDAP *ld, ber_int_t msgid )
 {
     	LDAPRequest	*lr;
 

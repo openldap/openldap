@@ -36,8 +36,14 @@
 
 #include "lber-int.h"
 
-static long BerRead LDAP_P(( Sockbuf *sb, char *buf, long len ));
-static int ber_realloc LDAP_P(( BerElement *ber, unsigned long len ));
+static ber_slen_t BerRead LDAP_P((
+	Sockbuf *sb,
+	char *buf,
+	ber_len_t len ));
+
+static int ber_realloc LDAP_P((
+	BerElement *ber,
+	ber_len_t len ));
 
 #define EXBUFSIZ	1024
 
@@ -49,11 +55,14 @@ static int ber_realloc LDAP_P(( BerElement *ber, unsigned long len ));
 # define MAX_BERBUFSIZE 65535
 #endif
 
-static long
-BerRead( Sockbuf *sb, char *buf, long len )
+static ber_slen_t
+BerRead(
+	Sockbuf *sb,
+	char *buf,
+	ber_len_t len )
 {
 	int	c;
-	long	nread = 0;
+	ber_slen_t	nread = 0;
 
 	assert( sb != NULL );
 	assert( buf != NULL );
@@ -74,10 +83,13 @@ BerRead( Sockbuf *sb, char *buf, long len )
 	return( nread );
 }
 
-long
-ber_read( BerElement *ber, char *buf, unsigned long len )
+ber_slen_t
+ber_read(
+	BerElement *ber,
+	char *buf,
+	ber_len_t len )
 {
-	unsigned long	actuallen, nleft;
+	ber_len_t	actuallen, nleft;
 
 	assert( ber != NULL );
 	assert( buf != NULL );
@@ -87,18 +99,18 @@ ber_read( BerElement *ber, char *buf, unsigned long len )
 	nleft = ber->ber_end - ber->ber_ptr;
 	actuallen = nleft < len ? nleft : len;
 
-	SAFEMEMCPY( buf, ber->ber_ptr, (size_t)actuallen );
+	SAFEMEMCPY( buf, ber->ber_ptr, actuallen );
 
 	ber->ber_ptr += actuallen;
 
-	return( (long)actuallen );
+	return( (ber_slen_t) actuallen );
 }
 
-long
+ber_slen_t
 ber_write(
 	BerElement *ber,
 	LDAP_CONST char *buf,
-	unsigned long len,
+	ber_len_t len,
 	int nosos )
 {
 	assert( ber != NULL );
@@ -113,7 +125,8 @@ ber_write(
 		}
 		SAFEMEMCPY( ber->ber_ptr, buf, (size_t)len );
 		ber->ber_ptr += len;
-		return( len );
+		return( (ber_slen_t) len );
+
 	} else {
 		if ( ber->ber_sos->sos_ptr + len > ber->ber_end ) {
 			if ( ber_realloc( ber, len ) != 0 )
@@ -122,14 +135,14 @@ ber_write(
 		SAFEMEMCPY( ber->ber_sos->sos_ptr, buf, (size_t)len );
 		ber->ber_sos->sos_ptr += len;
 		ber->ber_sos->sos_clen += len;
-		return( len );
+		return( (ber_slen_t) len );
 	}
 }
 
 static int
-ber_realloc( BerElement *ber, unsigned long len )
+ber_realloc( BerElement *ber, ber_len_t len )
 {
-	unsigned long	need, have, total;
+	ber_len_t	need, have, total;
 	Seqorset	*s;
 	long		off;
 	char		*oldbuf;
@@ -200,7 +213,8 @@ ber_free( BerElement *ber, int freebuf )
 int
 ber_flush( Sockbuf *sb, BerElement *ber, int freeit )
 {
-	long	nwritten, towrite, rc;	
+	ber_len_t	nwritten, towrite;
+	ber_slen_t	rc;	
 
 	assert( sb != NULL );
 	assert( ber != NULL );
@@ -383,14 +397,14 @@ int ber_flatten(
 
 	} else {
 		/* copy the berval */
-		ptrdiff_t len = ber->ber_ptr - ber->ber_buf;
+		ber_len_t len = ber->ber_ptr - ber->ber_buf;
 
 		if ( (bv->bv_val = (char *) LBER_MALLOC( len + 1 )) == NULL ) {
 			ber_bvfree( bv );
 			return( -1 );
 		}
 
-		SAFEMEMCPY( bv->bv_val, ber->ber_buf, (size_t)len );
+		SAFEMEMCPY( bv->bv_val, ber->ber_buf, len );
 		bv->bv_val[len] = '\0';
 		bv->bv_len = len;
 	}
@@ -461,8 +475,11 @@ get_tag( Sockbuf *sb )
  * a full packet is read.
  */
 
-unsigned long
-ber_get_next( Sockbuf *sb, unsigned long *len, BerElement *ber )
+ber_tag_t
+ber_get_next(
+	Sockbuf *sb,
+	ber_len_t *len,
+	BerElement *ber )
 {
 	assert( sb != NULL );
 	assert( len != NULL );
@@ -544,8 +561,8 @@ get_lenbyte:
 		}
 	}
 	if (PTR_IN_VAR(ber->ber_rwptr, ber->ber_len)) {
-		int res;
-		int to_go;
+		ber_slen_t res;
+		ber_slen_t to_go;
 		to_go = (char *) &ber->ber_len + sizeof( ber->ber_len ) -
 			ber->ber_rwptr;
 		assert( to_go > 0 );
@@ -555,7 +572,7 @@ get_lenbyte:
 		ber->ber_rwptr += res;
 		if (res==to_go) {
 			/* convert length. */
-			ber->ber_len = AC_NTOHL( ber->ber_len );
+			ber->ber_len = LBER_LEN_NTOH( ber->ber_len );
 			goto fill_buffer;
 		} else {
 #if defined( EWOULDBLOCK )
@@ -581,8 +598,8 @@ fill_buffer:
 		ber->ber_end = ber->ber_buf + ber->ber_len;
 	}
 	if ((ber->ber_rwptr>=ber->ber_buf) && (ber->ber_rwptr<ber->ber_end)) {
-		int res;
-		int to_go;
+		ber_slen_t res;
+		ber_slen_t to_go;
 		
 		to_go = ber->ber_end - ber->ber_rwptr;
 		assert( to_go > 0 );

@@ -77,9 +77,11 @@ do_modify(
 	    tag != LBER_DEFAULT;
 	    tag = ber_next_element( op->o_ber, &len, last ) )
 	{
+		ber_int_t mop;
+
 		(*modtail) = (LDAPModList *) ch_calloc( 1, sizeof(LDAPModList) );
 
-		if ( ber_scanf( op->o_ber, "{i{a[V]}}", &(*modtail)->ml_op,
+		if ( ber_scanf( op->o_ber, "{i{a[V]}}", &mop,
 		    &(*modtail)->ml_type, &(*modtail)->ml_bvalues )
 		    == LBER_ERROR )
 		{
@@ -92,6 +94,8 @@ do_modify(
 			return;
 		}
 
+		(*modtail)->ml_op = mop;
+		
 		if ( (*modtail)->ml_op != LDAP_MOD_ADD &&
 		    (*modtail)->ml_op != LDAP_MOD_DELETE &&
 		    (*modtail)->ml_op != LDAP_MOD_REPLACE )

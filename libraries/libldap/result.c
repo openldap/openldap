@@ -36,13 +36,13 @@
 #include "ldap-int.h"
 
 
-static int ldap_abandoned LDAP_P(( LDAP *ld, int msgid ));
-static int ldap_mark_abandoned LDAP_P(( LDAP *ld, int msgid ));
-static int wait4msg LDAP_P(( LDAP *ld, int msgid, int all, struct timeval *timeout,
+static int ldap_abandoned LDAP_P(( LDAP *ld, ber_int_t msgid ));
+static int ldap_mark_abandoned LDAP_P(( LDAP *ld, ber_int_t msgid ));
+static int wait4msg LDAP_P(( LDAP *ld, ber_int_t msgid, int all, struct timeval *timeout,
 	LDAPMessage **result ));
-static int try_read1msg LDAP_P(( LDAP *ld, int msgid, int all, Sockbuf *sb, LDAPConn *lc,
+static int try_read1msg LDAP_P(( LDAP *ld, ber_int_t msgid, int all, Sockbuf *sb, LDAPConn *lc,
 	LDAPMessage **result ));
-static unsigned long build_result_ber LDAP_P(( LDAP *ld, BerElement **bp, LDAPRequest *lr ));
+static ber_tag_t build_result_ber LDAP_P(( LDAP *ld, BerElement **bp, LDAPRequest *lr ));
 static void merge_error_info LDAP_P(( LDAP *ld, LDAPRequest *parentr, LDAPRequest *lr ));
 
 
@@ -150,7 +150,11 @@ ldap_result( LDAP *ld, int msgid, int all, struct timeval *timeout,
 }
 
 static int
-wait4msg( LDAP *ld, int msgid, int all, struct timeval *timeout,
+wait4msg(
+	LDAP *ld,
+	ber_int_t msgid,
+	int all,
+	struct timeval *timeout,
 	LDAPMessage **result )
 {
 	int		rc;
@@ -254,18 +258,24 @@ wait4msg( LDAP *ld, int msgid, int all, struct timeval *timeout,
 
 
 static int
-try_read1msg( LDAP *ld, int msgid, int all, Sockbuf *sb,
-    LDAPConn *lc, LDAPMessage **result )
+try_read1msg(
+	LDAP *ld,
+	ber_int_t msgid,
+	int all,
+	Sockbuf *sb,
+    LDAPConn *lc,
+	LDAPMessage **result )
 {
 	BerElement	*ber;
 	LDAPMessage	*new, *l, *prev, *tmp;
-	long		id;
-	unsigned long	tag, len;
+	ber_int_t	id;
+	ber_tag_t	tag;
+	ber_len_t	len;
 	int		foundit = 0;
 	LDAPRequest	*lr;
 	BerElement	tmpber;
 	int		rc, refer_cnt, hadref, simple_request;
-	unsigned long	lderr;
+	ber_int_t	lderr;
 
 	assert( ld != NULL );
 	assert( lc != NULL );
@@ -319,7 +329,7 @@ try_read1msg( LDAP *ld, int msgid, int all, Sockbuf *sb,
 	}
 
 	/* if it's been abandoned, toss it */
-	if ( ldap_abandoned( ld, (int)id ) ) {
+	if ( ldap_abandoned( ld, id ) ) {
 		ber_free( ber, 1 );
 		return( -2 );	/* continue looking */
 	}
@@ -533,11 +543,12 @@ lr->lr_res_matched ? lr->lr_res_matched : "" );
 }
 
 
-static unsigned long
+static ber_tag_t
 build_result_ber( LDAP *ld, BerElement **bp, LDAPRequest *lr )
 {
-	unsigned long	len, tag;
-	long		along;
+	ber_len_t	len;
+	ber_int_t	tag;
+	ber_int_t	along;
 	BerElement *ber;
 
 	*bp = NULL;
@@ -549,7 +560,7 @@ build_result_ber( LDAP *ld, BerElement **bp, LDAPRequest *lr )
 	}
 
 	if ( ber_printf( ber, "{it{ess}}", lr->lr_msgid,
-	    (unsigned long) lr->lr_res_msgtype, lr->lr_res_errno,
+	    lr->lr_res_msgtype, lr->lr_res_errno,
 	    lr->lr_res_matched ? lr->lr_res_matched : "",
 	    lr->lr_res_error ? lr->lr_res_error : "" ) == -1 ) {
 
@@ -701,7 +712,7 @@ ldap_msgdelete( LDAP *ld, int msgid )
  * return 1 if message msgid is waiting to be abandoned, 0 otherwise
  */
 static int
-ldap_abandoned( LDAP *ld, int msgid )
+ldap_abandoned( LDAP *ld, ber_int_t msgid )
 {
 	int	i;
 
@@ -717,7 +728,7 @@ ldap_abandoned( LDAP *ld, int msgid )
 
 
 static int
-ldap_mark_abandoned( LDAP *ld, int msgid )
+ldap_mark_abandoned( LDAP *ld, ber_int_t msgid )
 {
 	int	i;
 
@@ -744,7 +755,8 @@ int
 cldap_getmsg( LDAP *ld, struct timeval *timeout, BerElement *ber )
 {
 	int		rc;
-	unsigned long	tag, len;
+	ber_tag_t	tag;
+	ber_len_t	len;
 
 	if ( ! ber_pvt_sb_data_ready(&ld->ld_sb) ) {
 		rc = ldap_select1( ld, timeout );

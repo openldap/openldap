@@ -60,7 +60,8 @@ ldap_kerberos_bind1( LDAP *ld, LDAP_CONST char *dn )
 {
 	BerElement	*ber;
 	char		*cred;
-	int		rc, credlen;
+	int		rc;
+	ber_len_t credlen;
 #ifdef STR_TRANSLATION
 	int		str_translation_on;
 #endif /* STR_TRANSLATION */

@@ -1,0 +1,53 @@
+/*
+ * Copyright 1998,1999 The OpenLDAP Foundation, Redwood City, California, USA
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms are permitted only
+ * as authorized by the OpenLDAP Public License.  A copy of this
+ * license is available at http://www.OpenLDAP.org/license.html or
+ * in file LICENSE in the top-level directory of the distribution.
+ */
+
+/*
+ * LBER types for Windows NT
+ */
+
+#ifndef _LBER_TYPES_H_NT
+#define _LBER_TYPES_H_NT
+
+#include <ldap_cdefs.h>
+
+/*
+ * NT types:
+ *
+ *	bitsof(short) == 2
+ *	bitsof(int)	== 4
+ *	bitsof(long) == 4
+ *
+ *  typedef unsigned int sizeof;
+ *	typedef unsigned int SOCKET;
+ *
+ *	we use native C types to avoid sucking in system headers
+ */
+LDAP_BEGIN_DECL
+
+/* use 'int' for boolean, enumerations, and integers */
+#define LBER_INT_T	int
+
+typedef LBER_INT_T ber_int_t;
+typedef signed LBER_INT_T ber_sint_t;
+typedef unsigned LBER_INT_T ber_uint_t;
+
+/* use size_t for lengths */
+typedef unsigned int ber_len_t;	/* size_t is an unsigned int */
+typedef int ber_slen_t;			/* ssize_t is does not exist */
+
+/* use 'long' for tags */
+typedef unsigned long ber_tag_t;
+
+/* use 'unsigned int' for descriptors */
+typedef unsigned int ber_socket_t; /* SOCKET is an unsigned int */
+
+LDAP_END_DECL
+
+#endif /* _LBER_TYPES_H_NT */

@@ -18,7 +18,7 @@
 #include <ac/string.h>
 #include <ac/time.h>
 
-#include "ldap_defaults.h"
+#include "ldapconfig.h"
 #include "slap.h"
 
 #if defined( SLAPD_MONITOR_DN )
@@ -120,7 +120,7 @@ monitor_info( Connection *conn, Operation *op )
 	val.bv_len = strlen( buf );
 	attr_merge( e, "totalconnections", vals );
 
-	sprintf( buf, "%d", dtblsize );
+	sprintf( buf, "%ld", (long) dtblsize );
 	val.bv_val = buf;
 	val.bv_len = strlen( buf );
 	attr_merge( e, "dtablesize", vals );

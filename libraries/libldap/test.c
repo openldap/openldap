@@ -113,7 +113,7 @@ static int
 file_read( char *path, struct berval *bv )
 {
 	FILE		*fp;
-	long		rlen;
+	ber_slen_t	rlen;
 	int		eof;
 
 	if (( fp = fopen( path, "r" )) == NULL ) {
@@ -145,7 +145,7 @@ file_read( char *path, struct berval *bv )
 	eof = feof( fp );
 	fclose( fp );
 
-	if ( (unsigned long) rlen != bv->bv_len ) {
+	if ( (ber_len_t) rlen != bv->bv_len ) {
 		perror( path );
 		free( bv->bv_val );
 		return( -1 );
@@ -945,7 +945,7 @@ print_search_entry( LDAP *ld, LDAPMessage *res )
 					int	j, nonascii;
 
 					nonascii = 0;
-					for ( j = 0; (unsigned long) j < vals[i]->bv_len; j++ )
+					for ( j = 0; (ber_len_t) j < vals[i]->bv_len; j++ )
 						if ( !isascii( vals[i]->bv_val[j] ) ) {
 							nonascii = 1;
 							break;

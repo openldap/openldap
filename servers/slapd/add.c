@@ -46,7 +46,7 @@ do_add( Connection *conn, Operation *op )
 	 */
 
 	/* get the name */
-	if ( ber_scanf( ber, "{a", &dn ) == LBER_ERROR ) {
+	if ( ber_scanf( ber, "{a", /*}*/ &dn ) == LBER_ERROR ) {
 		Debug( LDAP_DEBUG_ANY, "ber_scanf failed\n", 0, 0, 0 );
 		send_ldap_result( conn, op, LDAP_PROTOCOL_ERROR, NULL,
 		    "decoding error" );

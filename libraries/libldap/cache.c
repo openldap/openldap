@@ -27,14 +27,14 @@ static int		cache_hash LDAP_P(( BerElement *ber ));
 static LDAPMessage	*msg_dup LDAP_P(( LDAPMessage *msg ));
 static int		request_cmp LDAP_P(( BerElement	*req1, BerElement *req2 ));
 static int		chain_contains_dn LDAP_P(( LDAPMessage *msg, LDAP_CONST char *dn ));
-static long		msg_size LDAP_P(( LDAPMessage *msg ));
+static ber_len_t	msg_size LDAP_P(( LDAPMessage *msg ));
 static void		check_cache_memused LDAP_P(( LDAPCache *lc ));
-static void		uncache_entry_or_req LDAP_P(( LDAP *ld, LDAP_CONST char *dn, int msgid ));
+static void		uncache_entry_or_req LDAP_P(( LDAP *ld, LDAP_CONST char *dn, ber_int_t msgid ));
 
 #endif
 
 int
-ldap_enable_cache( LDAP *ld, long timeout, long maxmem )
+ldap_enable_cache( LDAP *ld, long timeout, ber_len_t maxmem )
 {
 #ifndef LDAP_NOCACHE
 	if ( ld->ld_cache == NULLLDCACHE ) {
@@ -155,14 +155,14 @@ ldap_uncache_entry( LDAP *ld, LDAP_CONST char *dn )
 static void
 uncache_entry_or_req( LDAP *ld,
 	const char *dn,		/* if non-NULL, uncache entry */
-	int msgid )		/* request to uncache (if dn == NULL) */
+	ber_int_t msgid )		/* request to uncache (if dn == NULL) */
 {
 	int		i;
 	LDAPMessage	*m, *prev, *next;
 
 	Debug( LDAP_DEBUG_TRACE,
-	    "ldap_uncache_entry_or_req  dn %s  msgid %d  ld_cache %lx\n",
-	    dn, msgid, (long) ld->ld_cache );
+	    "ldap_uncache_entry_or_req  dn %s  msgid %ld  ld_cache %lx\n",
+	    dn, (long) msgid, (long) ld->ld_cache );
 
 	if ( ld->ld_cache == NULLLDCACHE ) {
 	    return;
@@ -211,11 +211,11 @@ uncache_entry_or_req( LDAP *ld,
 #endif
 
 void
-ldap_add_request_to_cache( LDAP *ld, unsigned long msgtype, BerElement *request )
+ldap_add_request_to_cache( LDAP *ld, ber_tag_t msgtype, BerElement *request )
 {
 #ifndef LDAP_NOCACHE
 	LDAPMessage	*new;
-	long		len;
+	ber_len_t	len;
 
 	Debug( LDAP_DEBUG_TRACE, "ldap_add_request_to_cache\n", 0, 0, 0 );
 
@@ -371,7 +371,7 @@ ldap_add_result_to_cache( LDAP *ld, LDAPMessage *result )
  * will find them.
  */
 int
-ldap_check_cache( LDAP *ld, unsigned long msgtype, BerElement *request )
+ldap_check_cache( LDAP *ld, ber_tag_t msgtype, BerElement *request )
 {
 #ifndef LDAP_NOCACHE
 	LDAPMessage	*m, *new, *prev, *next;
@@ -458,7 +458,7 @@ static int
 cache_hash( BerElement *ber )
 {
 	BerElement	bercpy;
-	unsigned long	len;
+	ber_len_t	len;
 
 	/*
          * just take the length of the packet and mod with # of buckets
@@ -481,7 +481,7 @@ static LDAPMessage *
 msg_dup( LDAPMessage *msg )
 {
 	LDAPMessage	*new;
-	long		len;
+	ber_len_t	len;
 
 	if (( new = (LDAPMessage *)LDAP_MALLOC( sizeof(LDAPMessage))) != NULL ) {
 		*new = *msg;	/* struct copy */
@@ -510,7 +510,7 @@ msg_dup( LDAPMessage *msg )
 static int
 request_cmp( BerElement *req1, BerElement *req2 )
 {
-	unsigned long	len;
+	ber_len_t	len;
 	BerElement	r1, r2;
 
 	r1 = *req1;	/* struct copies */
@@ -532,7 +532,7 @@ request_cmp( BerElement *req1, BerElement *req2 )
 	 * check remaining length and bytes if necessary
 	 */
 	if (( len = r1.ber_end - r1.ber_ptr ) !=
-		(unsigned long) (r2.ber_end - r2.ber_ptr) )
+		(ber_len_t) (r2.ber_end - r2.ber_ptr) )
 	{
 		return( -1 );	/* different lengths */
 	}
@@ -545,7 +545,7 @@ chain_contains_dn( LDAPMessage *msg, const char *dn )
 {
 	LDAPMessage	*m;
 	BerElement	ber;
-	long		msgid;
+	ber_int_t		msgid;
 	char		*s;
 	int		rc;
 
@@ -554,7 +554,7 @@ chain_contains_dn( LDAPMessage *msg, const char *dn )
 	 * first check the base or dn of the request
 	 */
 	ber = *msg->lm_ber;	/* struct copy */
-	if ( ber_scanf( &ber, "{i{a", &msgid, &s ) != LBER_ERROR ) {
+	if ( ber_scanf( &ber, "{i{a" /*}}*/, &msgid, &s ) != LBER_ERROR ) {
 	    rc = ( strcasecmp( dn, s ) == 0 ) ? 1 : 0;
 	    LDAP_FREE( s );
 	    if ( rc != 0 ) {
@@ -575,7 +575,7 @@ chain_contains_dn( LDAPMessage *msg, const char *dn )
 			continue;
 		}
 		ber = *m->lm_ber;	/* struct copy */
-		if ( ber_scanf( &ber, "{a", &s ) != LBER_ERROR ) {
+		if ( ber_scanf( &ber, "{a" /*}*/, &s ) != LBER_ERROR ) {
 			rc = ( strcasecmp( dn, s ) == 0 ) ? 1 : 0;
 			LDAP_FREE( s );
 		}
@@ -585,11 +585,11 @@ chain_contains_dn( LDAPMessage *msg, const char *dn )
 }
 
 
-static long
+static ber_len_t
 msg_size( LDAPMessage *msg )
 {
 	LDAPMessage	*m;
-	long		size;
+	ber_len_t	size;
 
 	size = 0;
 	for ( m = msg; m != NULLMSG; m = m->lm_chain ) {

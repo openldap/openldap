@@ -13,7 +13,7 @@
 
 void *
 ch_malloc(
-    unsigned long	size
+    size_t	size
 )
 {
 	void	*new;
@@ -29,7 +29,7 @@ ch_malloc(
 void *
 ch_realloc(
     void		*block,
-    unsigned long	size
+    size_t	size
 )
 {
 	void	*new;
@@ -48,8 +48,8 @@ ch_realloc(
 
 void *
 ch_calloc(
-    unsigned long	nelem,
-    unsigned long	size
+    size_t	nelem,
+    size_t	size
 )
 {
 	void	*new;

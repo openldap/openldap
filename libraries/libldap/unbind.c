@@ -166,7 +166,7 @@ ldap_send_unbind(
 	}
 
 	/* fill it in */
-	if ( ber_printf( ber, "{itn", ++ld->ld_msgid,
+	if ( ber_printf( ber, "{itn" /*}*/, ++ld->ld_msgid,
 	    LDAP_REQ_UNBIND ) == -1 ) {
 		ld->ld_errno = LDAP_ENCODING_ERROR;
 		ber_free( ber, 1 );
@@ -179,8 +179,7 @@ ldap_send_unbind(
 		return ld->ld_errno;
 	}
 
-	if ( ber_printf( ber, "}", ++ld->ld_msgid,
-	    LDAP_REQ_UNBIND ) == -1 ) {
+	if ( ber_printf( ber, /*{*/ "}", LDAP_REQ_UNBIND ) == -1 ) {
 		ld->ld_errno = LDAP_ENCODING_ERROR;
 		ber_free( ber, 1 );
 		return( ld->ld_errno );

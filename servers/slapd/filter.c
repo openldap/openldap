@@ -238,7 +238,7 @@ get_substring_filter(
 		(void) ber_skip_tag( ber, &len );
 	}
 #endif
-	if ( ber_scanf( ber, "{a", &f->f_sub_type ) == LBER_ERROR ) {
+	if ( ber_scanf( ber, "{a" /*}*/, &f->f_sub_type ) == LBER_ERROR ) {
 		return( LDAP_PROTOCOL_ERROR );
 	}
 	attr_normalize( f->f_sub_type );
