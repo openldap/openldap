@@ -6,17 +6,26 @@
 #define LDAP_SYSLOG
 
 #include <syslog.h>
+#include <sys/types.h>
+#include <regex.h>
+
 #include "avl.h"
 #include "lber.h"
 #include "ldap.h"
 #include "lthread.h"
 #include "ldif.h"
+#ifdef f_next
+#undef f_next /* name conflict between sys/file.h on SCO and struct filter */
+#endif
 
 #define DN_DNS	0
 #define DN_X500	1
 
 #define ON	1
 #define OFF	(-1)
+#define UNDEFINED 0
+
+#define MAXREMATCHES 10
 
 /*
  * represents an attribute value assertion (i.e., attr=value)
@@ -121,6 +130,11 @@ struct access {
 	char		*a_domainpat;
 	char		*a_dnattr;
 	long		a_access;
+
+#ifdef ACLGROUP
+    char		*a_group;
+#endif
+
 #define ACL_NONE	0x01
 #define ACL_COMPARE	0x02
 #define ACL_SEARCH	0x04
@@ -134,6 +148,7 @@ struct access {
 struct acl {
 	/* "to" part: the entries this acl applies to */
 	Filter		*acl_filter;
+	regex_t		acl_dnre;
 	char		*acl_dnpat;
 	char		**acl_attrs;
 
@@ -187,6 +202,10 @@ typedef struct backend {
 	IFP	be_config;	/* backend config routine	   	   */
 	IFP	be_init;	/* backend init routine			   */
 	IFP	be_close;	/* backend close routine		   */
+
+#ifdef ACLGROUP
+	IFP	be_group;	/* backend group member test               */
+#endif
 } Backend;
 
 /*
