@@ -493,7 +493,7 @@ static string_expand(
 	newbuf[0] = '\0';
 
 	flag = 0;
-	for ( dp = newbuf, sp = pat; size < 512 && *sp ; sp++) {
+	for ( dp = newbuf, sp = pat; size < bufsiz && *sp ; sp++) {
 		/* did we previously see a $ */
 		if (flag) {
 			if (*sp == '$') {
