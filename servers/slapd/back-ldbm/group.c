@@ -101,13 +101,13 @@ ldbm_back_group(
             bvMembers.bv_len = strlen( op_ndn );         
 
             if (value_find(objectClass->a_vals, &bvObjectClass,
-			   at_objectClass->sat_equality, 1) != 0) {
+			   at_objectClass->sat_equality) != 0) {
                 Debug( LDAP_DEBUG_TRACE,
 					"<= ldbm_back_group: failed to find %s in objectClass\n", 
                         objectclassValue, 0, 0 ); 
             }
             else if (value_find(member->a_vals, &bvMembers,
-				at_member->sat_equality, 1) != 0) {
+				at_member->sat_equality) != 0) {
                 Debug( LDAP_DEBUG_ACL,
 					"<= ldbm_back_group: \"%s\" not in \"%s\": %s\n", 
 					op_ndn, gr_ndn, groupattrName ); 
