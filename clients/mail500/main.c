@@ -46,7 +46,7 @@ char	*vacationhost = NULL;
 char	*errorsfrom = NULL;
 char	*mailfrom = NULL;
 char	*host = NULL;
-char	*ldaphost = LDAPHOST;
+char	*ldaphost = NULL;
 int	hostlen = 0;
 int	debug;
 
@@ -142,6 +142,16 @@ char	**argv;
 	FILE		*fp;
 	extern int	optind, errno;
 	extern char	*optarg;
+	FILE *getbase;
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
 
 	if ( (myname = strrchr( argv[0], '/' )) == NULL )
 		myname = strdup( argv[0] );

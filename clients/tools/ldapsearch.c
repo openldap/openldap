@@ -53,8 +53,8 @@ char	*s;
 
 static char	*binddn = LDAPSEARCH_BINDDN;
 static char	*passwd = NULL;
-static char	*base = LDAPSEARCH_BASE;
-static char	*ldaphost = LDAPHOST;
+static char	*base = NULL;
+static char	*ldaphost = NULL;
 static int	ldapport = LDAP_PORT;
 static char	*sep = DEFSEP;
 static char	*sortattr = NULL;
@@ -72,6 +72,25 @@ char	**argv;
     LDAP		*ld;
     extern char		*optarg;
     extern int		optind;
+	FILE *getbase;
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
+	if((getbase = fopen("/etc/defaultbase.ldap","r"))) {
+		base = malloc(1024);
+		fgets(base, 1024, getbase);
+		if(base[strlen(base) - 1] == '\n')
+			base[strlen(base) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!base)
+		base = LDAPSEARCH_BASE;
 
     infile = NULL;
     deref = verbose = allow_binary = not = kerberos = vals2tmp =

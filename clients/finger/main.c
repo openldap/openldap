@@ -37,7 +37,7 @@
 #endif /* USE_SYSCONF */
 
 int	dosyslog = 1;
-char	*ldaphost = LDAPHOST;
+char	*ldaphost = NULL;
 int	ldapport = LDAP_PORT;
 char	*base = FINGER_BASE;
 int	deref;
@@ -69,6 +69,16 @@ char	**argv;
 	int			peernamelen;
 	int			interactive = 0;
 	extern char		*optarg;
+	FILE *getbase;
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
 
 	deref = FINGER_DEREF;
 	while ( (i = getopt( argc, argv, "f:ilp:t:x:p:c:" )) != EOF ) {

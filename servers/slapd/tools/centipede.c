@@ -29,7 +29,7 @@ char	*srcldapbinddn;
 char	*srcldappasswd;
 char	*destldapbinddn;
 char	*destldappasswd;
-char	*ldapbase;
+char	*ldapbase = NULL;
 int		srcldapauthmethod;
 int		destldapauthmethod;
 int		verbose;
@@ -81,11 +81,29 @@ main( int argc, char **argv )
 	char		*s;
 	extern int	optind;
 	extern char	*optarg;
+	FILE *getbase;
 
 	ldapsrcurl = NULL;
 	ldapdesturl = NULL;
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
 	ldaphost = LDAPHOST;
+	if((getbase = fopen("/etc/defaultbase.ldap","r"))) {
+		ldapbase = malloc(1024);
+		fgets(ldapbase, 1024, getbase);
+		if(ldapbase[strlen(ldapbase) - 1] == '\n')
+			ldapbase[strlen(ldapbase) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldapbase)
 	ldapbase = DEFAULT_BASE;
+	
 	srcldapauthmethod = LDAP_AUTH_SIMPLE;
 	destldapauthmethod = LDAP_AUTH_SIMPLE;
 	srcldapbinddn = NULL;

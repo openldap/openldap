@@ -28,7 +28,7 @@ int derefaliases = 1;
 int sizelimit = RCPT500_SIZELIMIT;
 int rdncount = RCPT500_RDNCOUNT;
 int ldapport = 0;
-char *ldaphost = LDAPHOST;
+char *ldaphost = NULL;
 char *searchbase = RCPT500_BASE;
 char *dapuser = RCPT500_BINDDN;
 char *filterfile = FILTERFILE;
@@ -59,6 +59,16 @@ main( argc, argv )
 
     extern int		optind;
     extern char		*optarg;
+	FILE *getbase;
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
 
     *reply = '\0';
 

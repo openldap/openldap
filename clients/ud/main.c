@@ -543,6 +543,7 @@ initialize_client()
 	extern SIG_FN attn();			/* ^C signal handler */
 	extern char *getenv();
 	extern void Free();
+	FILE *getbase;
 
 #ifdef DEBUG
 	if (debug & D_TRACE)
@@ -618,7 +619,15 @@ initialize_client()
 		group_base = strdup(UD_WHERE_GROUPS_ARE_CREATED);
 	if (search_base == NULL)
 		search_base = strdup(UD_BASE);
-	if (server == NULL)
+
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		server = malloc(1024);
+		fgets(server, 1024, getbase);
+		if(server[strlen(server) - 1] == '\n')
+			server[strlen(server) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!server)
 		server = strdup(LDAPHOST);
 
 	/*

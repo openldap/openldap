@@ -42,7 +42,7 @@ int	dosyslog;
 int	inetd;
 int	dtblsize;
 
-char		*ldaphost = LDAPHOST;
+char		*ldaphost = NULL;
 int		ldapport = LDAP_PORT;
 int		searchaliases = 1;
 char		*helpfile = GO500GW_HELPFILE;
@@ -89,6 +89,17 @@ char	**argv;
 	extern char		*optarg;
 	extern char		**Argv;
 	extern int		Argc;
+	FILE *getbase;
+
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
 
 	/* for setproctitle */
         Argv = argv;

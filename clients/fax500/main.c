@@ -301,10 +301,23 @@ char	**argv;
 
 connect_to_x500()
 {
-	if ( (ld = ldap_open( LDAPHOST, LDAP_PORT )) == NULL ) {
+	char *ldaphost;
+	FILE *getbase;
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
+
+	if ( (ld = ldap_open( ldaphost, LDAP_PORT )) == NULL ) {
 		syslog( LOG_ALERT, "ldap_open failed" );
 		return( -1 );
 	}
+	free(ldaphost);
 	ld->ld_sizelimit = FAX_MAXAMBIGUOUS;
 	ld->ld_deref = LDAP_DEREF_ALWAYS;
 

@@ -30,8 +30,8 @@
 #define DEFAULT_SIZELIMIT	50
 
 int		debug;
-char		*ldaphost = LDAPHOST;
-char		*base = DEFAULT_BASE;
+char		*ldaphost = NULL;
+char		*base = NULL;
 int		deref;
 int		sizelimit;
 LDAPFiltDesc	*filtd;
@@ -64,6 +64,25 @@ main (argc, argv)
 					"facsimileTelephoneNumber", NULL };
 	extern char	*optarg;
 	extern int	optind;
+	FILE *getvar;
+	if((getvar = fopen("/etc/defaultbase.ldap","r"))) {
+		base = malloc(1024);
+		fgets(base, 1024, getvar);
+		if(base[strlen(base) - 1] == '\n')
+			base[strlen(base) - 1] = '\0';
+		fclose(getvar);
+	}
+	if(!base)
+		base = DEFAULT_BASE;
+	if((getvar = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getvar);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getvar);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
 
 	deref = LDAP_DEREF_ALWAYS;
 	while ( (i = getopt( argc, argv, "ab:d:f:x:z:" )) != EOF ) {

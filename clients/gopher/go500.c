@@ -42,7 +42,7 @@ int	dosyslog;
 int	inetd;
 int	dtblsize;
 
-char	*ldaphost = LDAPHOST;
+char	*ldaphost = NULL;
 char	*base = GO500_BASE;
 int	rdncount = GO500_RDNCOUNT;
 char	*filterfile = FILTERFILE;
@@ -82,10 +82,20 @@ char	**argv;
 	extern char		*optarg;
 	extern char		**Argv;
 	extern int		Argc;
+	FILE *getbase;
 
 	/* for setproctitle */
         Argv = argv;
         Argc = argc;
+	if((getbase = fopen("/etc/ldapserver","r"))) {
+		ldaphost = malloc(1024);
+		fgets(ldaphost, 1024, getbase);
+		if(ldaphost[strlen(ldaphost) - 1] == '\n')
+			ldaphost[strlen(ldaphost) - 1] = '\0';
+		fclose(getbase);
+	}
+	if(!ldaphost)
+		ldaphost = LDAPHOST;
 
 	while ( (i = getopt( argc, argv, "b:d:f:lp:c:t:x:I" )) != EOF ) {
 		switch( i ) {
