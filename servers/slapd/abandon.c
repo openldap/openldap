@@ -100,6 +100,7 @@ do_abandon(
 	LDAP_STAILQ_FOREACH( o, &conn->c_pending_ops, o_next ) {
 		if ( o->o_msgid == id ) {
 			LDAP_STAILQ_REMOVE( &conn->c_pending_ops, o, slap_op, o_next );
+			conn->c_n_ops_pending--;
 			slap_op_free( o );
 			goto done;
 		}

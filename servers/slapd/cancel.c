@@ -69,6 +69,7 @@ int cancel_extop(
 	LDAP_STAILQ_FOREACH( op, &conn->c_pending_ops, o_next ) {
 		if ( op->o_msgid == opid ) {
 			LDAP_STAILQ_REMOVE( &conn->c_pending_ops, op, slap_op, o_next );
+			conn->c_n_ops_pending--;
 			slap_op_free( op );
 			found = 1;
 			break;
