@@ -2,6 +2,10 @@ OpenLDAP Change Log
 
 Changes included in OpenLDAP Stable 
 	CVS Tag: OPENLDAP_STABLE
+	Fixed go500gw.c USE_SYSCONF compiling bug.
+
+Changes included in OpenLDAP Stable 
+	CVS Tag: OPENLDAP_STABLE_981207
 	Added build/mkdep $CC support
 	Fixed DCE Threading issues
 	Fixed ldif2index atol bug
