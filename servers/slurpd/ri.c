@@ -60,7 +60,11 @@ Ri_process(
     int		rc ;
     char	*errmsg;
 
+#ifdef SIGSTKFLT
+    (void) SIGNAL( SIGSTKFLT, (void *) do_nothing );
+#else
     (void) SIGNAL( SIGUSR1, (void *) do_nothing );
+#endif
     (void) SIGNAL( SIGPIPE, SIG_IGN );
     if ( ri == NULL ) {
 	Debug( LDAP_DEBUG_ANY, "Error: Ri_process: ri == NULL!\n", 0, 0, 0 );
@@ -129,6 +133,7 @@ Ri_process(
 	while ( !sglob->slurpd_shutdown &&
 		((new_re = re->re_getnext( re )) == NULL )) {
 	    if ( sglob->one_shot_mode ) {
+		rq->rq_unlock( rq );
 		return 0;
 	    }
 	    /* No work - wait on condition variable */
@@ -146,7 +151,8 @@ Ri_process(
 
 
 /*
- * Wake a replication thread which may be sleeping.  Send it a SIGUSR1.
+ * Wake a replication thread which may be sleeping.
+ * Send it a SIG(STKFLT|USR1).
  */
 static void
 Ri_wake(
@@ -156,8 +162,13 @@ Ri_wake(
     if ( ri == NULL ) {
 	return;
     }
+#ifdef SIGSTKFLT
+    pthread_kill( ri->ri_tid, SIGSTKFLT );
+    (void) SIGNAL( SIGSTKFLT, (void *) do_nothing );
+#else
     pthread_kill( ri->ri_tid, SIGUSR1 );
     (void) SIGNAL( SIGUSR1, (void *) do_nothing );
+#endif
 }
 
 
