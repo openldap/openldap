@@ -275,10 +275,8 @@ int value_add_fast LDAP_P(( struct berval ***vals, struct berval **addvals, int 
 	int naddvals, int *maxvals ));
 int value_add LDAP_P(( struct berval ***vals, struct berval **addvals ));
 void value_normalize LDAP_P(( struct berval *val, struct berval **nval, MatchingRule * mr ));
-int value_cmp LDAP_P(( struct berval *v1, struct berval *v2, int syntax,
-	int normalize ));
-int value_find LDAP_P(( struct berval **vals, struct berval *v, MatchingRule *mr,
-	int normalize ));
+int value_cmp LDAP_P(( struct berval *v1, struct berval *v2, MatchingRule *mr ));
+int value_find LDAP_P(( struct berval **vals, struct berval *v, MatchingRule *mr ));
 
 /*
  * suffixAlias.c
