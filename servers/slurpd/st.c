@@ -56,8 +56,7 @@ St_add(
 	pthread_mutex_unlock( &(st->st_mutex ));
 	return NULL;
     }
-    st->st_data[ ind ]  = ( Stel * ) ch_malloc( st->st_data,
-	    sizeof( Stel ));
+    st->st_data[ ind ]  = ( Stel * ) ch_malloc( sizeof( Stel ) );
     if ( st->st_data[ ind ] == NULL ) {
 	pthread_mutex_unlock( &(st->st_mutex ));
 	return NULL;
@@ -186,6 +185,7 @@ St_read(
 	return 0;
     }
     if (( rc = acquire_lock( sglob->slurpd_status_file, &fp, &lfp)) < 0 ) {
+	pthread_mutex_unlock( &(st->st_mutex ));
 	return 0;
     }
     while ( fgets( buf, sizeof( buf ), fp ) != NULL ) {
