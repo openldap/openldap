@@ -30,7 +30,7 @@ PID=$!
 
 echo "Testing slapd access control..."
 for i in 0 1 2 3 4 5; do
-	$LDAPSEARCH -L -b "$MONITOR" -h localhost -p $PORT \
+	$LDAPSEARCH -L -s base -b "$MONITOR" -h localhost -p $PORT \
 		'objectclass=*' > /dev/null 2>&1
 	RC=$?
 	if test $RC = 1 ; then
