@@ -1,0 +1,20 @@
+dn: c=US
+c: US
+objectclass: country
+
+dn: o=ABC, c=US
+o: ABC
+ref: ldap//hostA/	HostA
+ref: ldap//hostB/	HostB
+objectclass: referral
+objectclass: extensibleObject
+
+dn: o=XYZ, c=US
+o: XYZ
+ref: ldap//hostC/	HostC
+objectclass: referral
+objectclass: extensibleObject
+
+dn: o=University of Michigan, c=US
+o: University of Michigan
+objectclass: organization
