@@ -17,29 +17,41 @@
 /* define this if sys_errlist is not defined in stdio.h or errno.h */
 #undef DECL_SYS_ERRLIST
 
-/* define this to use LDAP LDBM backends */
-#undef LDAP_LDBM
-
-/* define this to use LDAP PASSWD backends */
-#undef LDAP_PASSWD
-
-/* define this to use LDAP SHELL backends */
-#undef LDAP_SHELL
-
-/* define this to use DB BTREES */
-#undef LDBM_USE_DBBTREE
-
-/* define this to use DB HASH */
-#undef LDBM_USE_DBHASH
-
-/* define this to use GNU DBM */
-#undef LDBM_USE_GDBM
-
-/* define this to use NDBM */
-#undef LDBM_USE_NDBM
-
 /* define this you have crypt */
 #undef HAVE_CRYPT
+
+/* define this for connectionless LDAP support */
+#undef LDAP_CONN_LESS
+
+/* define this to remove -lldap cache support */
+#undef LDAP_NOCACHE
+
+/* define this for phonetic support */
+#undef LDAP_PHONETIC
+
+/* define this for LDAP referrals support */
+#undef LDAP_REFERRALS
+
+/* define this to use SLAPD shell backend */
+#undef LDAP_SHELL
+
+/* define this to use SLAPD passwd backend */
+#undef LDAP_PASSWD
+
+/* define this to use SLAPD LDBM backend */
+#undef LDAP_LDBM
+
+/* define this to use DBBTREE w/ LDBM backend */
+#undef LDBM_USE_DBBTREE
+
+/* define this to use DBHASH w/ LDBM backend */
+#undef LDBM_USE_DBHASH
+
+/* define this to use GDBM w/ LDBM backend */
+#undef LDBM_USE_GDBM
+
+/* define this to use NDBM w/ LDBM backend */
+#undef LDBM_USE_NDBM
 
 
 /* Leave that blank line there!!  Autoheader needs it.

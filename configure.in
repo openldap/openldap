@@ -21,8 +21,11 @@ CF_ARG_OPTION(cache,[  --enable-cache	enable caching (yes)],[
 	LDAP_CACHE=no],[LDAP_CACHE=yes],yes)dnl
 CF_ARG_OPTION(referrals,[  --enable-referrals	enable referrals (yes)],[
 	LDAP_REFERRALS=no],[LDAP_REFERRALS=yes],yes)dnl
+
 CF_ARG_OPTION(cldap,[  --enable-clapd	enable connectionless ldap (no)],[
 	LDAP_CLDAP=yes],[LDAP_CLDAP=no],no)dnl
+CF_ARG_OPTION(phonetic,[  --enable-phonetic	enable phonetic/soundex  (no)],[
+	LDAP_PHONETIC=yes],[LDAP_PHONETIC=no],no)dnl
 
 dnl server options
 CF_ARG_OPTION(ldapd,[  --enable-ldapd	enable building ldapd (no)],[
@@ -58,7 +61,7 @@ AC_ARG_WITH(threads,[  --with-threads	use threads (yes)],[
 
 AC_MSG_RESULT(done)
 
-AC_MSG_CHECKING(LDBM preference)
+AC_MSG_CHECKING(LDBM preferences)
 ldbm_prefer=any
 
 if test "$opt_ndbm" = yes ; then
@@ -91,14 +94,39 @@ AC_SUBST(BUILD_LDBM)
 AC_SUBST(BUILD_PASSWD)
 AC_SUBST(BUILD_SHELL)
 
+LDAP_DEFS=
+
+if test "$LDAP_DEBUG" = "yes" ; then
+	LDAP_DEFS="$LDAP_DEFS -DLDAP_DEBUG"
+fi
+if test "$LDAP_REFERRALS" = "yes" ; then
+	AC_DEFINE(LDAP_REFERRALS)
+dnl	LDAP_DEFS="$LDAP_DEFS -DLDAP_REFERRALS"
+fi
+if test "$LDAP_CACHE" = "no" ; then
+	AC_DEFINE(LDAP_NOCACHE,1)
+	LDAP_DEFS="$LDAP_DEFS -DNO_CACHE"
+fi
+if test "$LDAP_CLDAP" = "yes" ; then
+	AC_DEFINE(LDAP_CONN_LESS,1)
+	LDAP_DEFS="$LDAP_DEFS -DCLDAP"
+fi
+if test "$LDAP_PHONETIC" = "yes" ; then
+	AC_DEFINE(LDAP_PHONETIC,1)
+	LDAP_DEFS="$LDAP_DEFS -DSOUNDEX"
+fi
+
 if test "$BUILD_LDBM" = "yes" ; then
 	AC_DEFINE(LDAP_LDBM,1)
+dnl	LDAP_DEFS="$LDAP_DEFS -DLDAP_LDBM"
 fi
 if test "$BUILD_PASSWD" = "yes" ; then
 	AC_DEFINE(LDAP_PASSWD,1)
+dnl	LDAP_DEFS="$LDAP_DEFS -DLDAP_PASSWD"
 fi
 if test "$BUILD_SHELL" = "yes" ; then
 	AC_DEFINE(LDAP_SHELL,1)
+dnl	LDAP_DEFS="$LDAP_DEFS -DLDAP_SHELL"
 fi
 
 dnl End Args
@@ -136,10 +164,12 @@ if test "$BUILD_LDBM" = "yes" ; then
 		])
 
 		if test $ldbm_prefer = found ; then
-			if test $ldbm_use = dbbhash ; then
+			if test $ldbm_use = dbhash ; then
 				AC_DEFINE(LDBM_USE_DBHASH,1)
+dnl				LDAP_DEFS="$LDAP_DEFS -DLDBM_USE_DBHASH"
 			else
 				AC_DEFINE(LDBM_USE_DBBTREE,1)
+dnl				LDAP_DEFS="$LDAP_DEFS -DLDBM_USE_DBBTREE"
 			fi
 		fi
 	fi
@@ -149,14 +179,16 @@ if test "$BUILD_LDBM" = "yes" ; then
 			ldbm_prefer=found
 			LIBDB="-lgdbm"
 			AC_DEFINE(LDBM_USE_GDBM,1)
+dnl			LDAP_DEFS="$LDAP_DEFS -DLDBM_USE_GDBM"
 		]) 
 	fi
 	if test $ldbm_prefer = any -o $ldbm_prefer = ndbm ; then
 		AC_CHECK_LIB(dbm,dbm_open,[
-			ldbm_use=$ldbm_prefer
+			ldbm_use=ndbm
 			ldbm_prefer=found
 			LIBDB="-ldbm"
 			AC_DEFINE(LDBM_USE_NDBM,1)
+dnl			LDAP_DEFS="$LDAP_DEFS -DLDBM_USE_NDBM"
 		]) 
 	fi
 
@@ -164,9 +196,12 @@ if test "$BUILD_LDBM" = "yes" ; then
 		AC_MSG_ERROR(could not find suitable db for $ldbm_prefer backend)
 	fi
 
-	AC_DEFINE(LDAP_LDBM)
+	if test $ldbm_use = ndbm ; then
+		AC_MSG_WARN(LDBM using NDBM, functionality will be limited)
+	fi
 fi
 
+AC_SUBST(LDAP_DEFS)
 AC_SUBST(LIBDB)
 
 # ud needs termcap (should insert check here)
@@ -259,7 +294,7 @@ servers/slapd/Makefile:etc/top.mk:servers/slapd/Makefile.in:etc/srv.mk \
 servers/slapd/back-ldbm/Makefile:etc/top.mk:servers/slapd/back-ldbm/Makefile.in:etc/srv.mk \
 servers/slapd/back-passwd/Makefile:etc/top.mk:servers/slapd/back-passwd/Makefile.in:etc/srv.mk \
 servers/slapd/back-shell/Makefile:etc/top.mk:servers/slapd/back-shell/Makefile.in:etc/srv.mk \
-servers/slapd/tools/Makefile:etc/top.mk:servers/slapd/tools/Makefile.in:etc/rules.mk \
+servers/slapd/tools/Makefile:etc/top.mk:servers/slapd/tools/Makefile.in \
 servers/slapd/shell-backends/Makefile:etc/top.mk:servers/slapd/shell-backends/Makefile.in:etc/srv.mk \
 servers/slurpd/Makefile:etc/top.mk:servers/slurpd/Makefile.in:etc/srv.mk \
 Makefile:etc/top.mk:Makefile.in:etc/dir.mk, \

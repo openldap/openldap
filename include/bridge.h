@@ -10,8 +10,8 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
-#ifndef _PORTABLE_H
-#define _PORTABLE_H
+#ifndef _BRIDGE_H
+#define _BRIDGE_H
 
 /*
  * portable.h for LDAP -- this is where we define common stuff to make
@@ -212,4 +212,4 @@
 extern char *strdup();
 #endif /* ultrix || nextstep */
 
-#endif /* _PORTABLE_H */
+#endif /* _BRIDGE_H */

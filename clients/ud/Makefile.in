@@ -8,9 +8,6 @@ PROGRAMS= ud
 
 XLIBS = $(LIBTERMCAP)
 
-DEFINES= -DCONFIG_FILE=\"$(sysconfdir)/ud.conf\" \
-		-DLDAP_FRIENDLY_MAP_FILE=\"$(sysconfdir)/ldapfriendly\"
-
 ud : version.o
 	$(CC) $(LDFLAGS) -o $@ version.o $(OBJS) $(LIBS)
 

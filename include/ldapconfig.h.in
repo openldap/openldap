@@ -41,10 +41,10 @@
 	/* default count of DN components to show in entry displays */
 #define DEFAULT_RDNCOUNT	2
 	/* default config file locations */
-#define FILTERFILE	"@libexecdir@/ldap/ldapfilter.conf"
-#define TEMPLATEFILE	"@libexecdir@/ldap/ldaptemplates.conf"
-#define SEARCHFILE	"@libexecdir@/ldap/ldapsearchprefs.conf"
-#define FRIENDLYFILE	"@libexecdir@/ldap/ldapfriendly"
+#define FILTERFILE		"@SYSCONFDIR@/ldap/ldapfilter.conf"
+#define TEMPLATEFILE	"@SYSCONFDIR@/ldap/ldaptemplates.conf"
+#define SEARCHFILE		"@SYSCONFDIR@/ldap/ldapsearchprefs.conf"
+#define FRIENDLYFILE	"@SYSCONFDIR@/ldap/ldapfriendly"
 
 /*
  * FINGER DEFINITIONS
@@ -115,7 +115,7 @@ Please try again later.\r\n"
 	/* who to bind as */
 #define GO500GW_BINDDN		NULL
 	/* where the helpfile lives */
-#define GO500GW_HELPFILE	"@libexecdir@/ldap/go500gw.help"
+#define GO500GW_HELPFILE	"@SYSCONFDIR@/ldap/go500gw.help"
 	/* port on which to listen */
 #define GO500GW_PORT		7777
 	/* timeout on all searches */
@@ -138,7 +138,7 @@ Please try again later.\r\n"
 	/* who to bind as */
 #define RCPT500_BINDDN		NULL
 	/* where the helpfile lives */
-#define RCPT500_HELPFILE	"@libexecdir@/ldap/rcpt500.help"
+#define RCPT500_HELPFILE	"@SYSCONFDIR@/ldap/rcpt500.help"
 	/* maximum number of matches returned */
 #define RCPT500_SIZELIMIT	50
 	/* address replies will appear to come from */
@@ -207,7 +207,7 @@ Please try again later.\r\n"
  * UD DEFINITIONS
  */
 	/* ud configuration file */
-#define UD_CONFIG_FILE		"@libexecdir@/ldap/ud.conf"
+#define UD_CONFIG_FILE		"@SYSCONFDIR@/ldap/ud.conf"
 	/* default editor */
 #define UD_DEFAULT_EDITOR	"@EDITOR@"
 	/* default bbasename of user config file */
@@ -249,15 +249,15 @@ Please try again later.\r\n"
  * SLAPD DEFINITIONS
  */
 	/* location of the default slapd config file */
-#define SLAPD_DEFAULT_CONFIGFILE	"@libexecdir@/ldap/slapd.conf"
+#define SLAPD_DEFAULT_CONFIGFILE	"@SYSCONFDIR@/ldap/slapd.conf"
 	/* default sizelimit on number of entries from a search */
 #define SLAPD_DEFAULT_SIZELIMIT		500
 	/* default timelimit to spend on a search */
 #define SLAPD_DEFAULT_TIMELIMIT		3600
 	/* location of the slapd pid file */
-#define SLAPD_PIDFILE			"@libexecdir@/ldap/slapd.pid"
+#define SLAPD_PIDFILE			"@SYSCONFDIR@/ldap/slapd.pid"
 	/* location of the slapd args file */
-#define SLAPD_ARGSFILE			"@libexecdir@/ldap/slapd.args"
+#define SLAPD_ARGSFILE			"@SYSCONFDIR@/ldap/slapd.args"
 	/* dn of the special "monitor" entry */
 #define SLAPD_MONITOR_DN		"cn=monitor"
 	/* dn of the special "config" entry */

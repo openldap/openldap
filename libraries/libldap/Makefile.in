@@ -17,9 +17,6 @@ OBJS	= bind.o open.o result.o error.o compare.o search.o \
 	getdn.o getentry.o getattr.o getvalues.o addentry.o \
 	request.o getdxbyname.o os-ip.o url.o charset.o
 
-DEFINES = -DFILTERFILE="\"$(sysconfdir)/ldapfilter.conf\"" \
-	-DTEMPLATEFILE="\"$(sysconfdir)/ldaptemplates.conf\""
-	
 LIBS = -L. -L../liblber -lldap -llber $(AC_LIBS)
 LIBLBER = ../liblber/liblber.a
 
