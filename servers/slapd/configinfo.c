@@ -10,18 +10,17 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
+#include "portable.h"
+
 #include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+
+#include <ac/string.h>
+#include <ac/socket.h>
+
+#include "ldap_defaults.h"
 #include "slap.h"
-#include "ldapconfig.h"
 
 #if defined( SLAPD_CONFIG_DN )
-
-extern int		nbackends;
-extern Backend		*backends;
-extern char		*default_referral;
 
 /*
  * no mutex protection in here - take our chances!
@@ -40,8 +39,11 @@ config_info( Connection *conn, Operation *op )
 	vals[1] = NULL;
 
 	e = (Entry *) ch_calloc( 1, sizeof(Entry) );
+
 	e->e_attrs = NULL;
-	e->e_dn = strdup( SLAPD_CONFIG_DN );
+	e->e_dn = ch_strdup( SLAPD_CONFIG_DN );
+	e->e_ndn = dn_normalize_case( ch_strdup( SLAPD_CONFIG_DN ));
+	e->e_private = NULL;
 
 	for ( i = 0; i < nbackends; i++ ) {
 		strcpy( buf, backends[i].be_type );
@@ -54,15 +56,8 @@ config_info( Connection *conn, Operation *op )
 		attr_merge( e, "database", vals );
 	}
 
-	if ( default_referral != NULL ) {
-		strcpy( buf, default_referral );
-		val.bv_val = buf;
-		val.bv_len = strlen( buf );
-		attr_merge( e, "database", vals );
-	}
-
-	send_search_entry( &backends[0], conn, op, e, NULL, 0 );
-	send_ldap_search_result( conn, op, LDAP_SUCCESS, NULL, NULL, 1 );
+	send_search_entry( &backends[0], conn, op, e, NULL, 0, 1 );
+	send_search_result( conn, op, LDAP_SUCCESS, NULL, NULL, NULL, 1 );
 
 	entry_free( e );
 }

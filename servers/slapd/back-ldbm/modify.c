@@ -1,19 +1,218 @@
 /* modify.c - ldbm backend modify routine */
 
+#include "portable.h"
+
 #include <stdio.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/socket.h>
+
+#include <ac/string.h>
+#include <ac/socket.h>
+#include <ac/time.h>
+
 #include "slap.h"
 #include "back-ldbm.h"
+#include "proto-back-ldbm.h"
 
-extern int		global_schemacheck;
-extern Entry		*dn2entry();
-extern Attribute	*attr_find();
+static void	add_lastmods(Operation *op, LDAPModList **ml);
 
-static int	add_values();
-static int	delete_values();
-static int	replace_values();
+
+static void
+add_lastmods( Operation *op, LDAPModList **modlist )
+{
+	char		buf[22];
+	struct berval	bv;
+	struct berval	*bvals[2];
+	LDAPModList		**m;
+	LDAPModList		*tmp;
+	struct tm	*ltm;
+	time_t		currenttime;
+
+	Debug( LDAP_DEBUG_TRACE, "add_lastmods\n", 0, 0, 0 );
+
+	bvals[0] = &bv;
+	bvals[1] = NULL;
+
+	/* remove any attempts by the user to modify these attrs */
+	for ( m = modlist; *m != NULL; m = &(*m)->ml_next ) {
+            if ( oc_check_no_usermod_attr( (*m)->ml_type ) ) {
+                Debug( LDAP_DEBUG_TRACE,
+					"add_lastmods: found no user mod attr: %s\n",
+					(*m)->ml_type, 0, 0 );
+                tmp = *m;
+                *m = (*m)->ml_next;
+                free( tmp->ml_type );
+                if ( tmp->ml_bvalues != NULL ) {
+                    ber_bvecfree( tmp->ml_bvalues );
+                }
+                free( tmp );
+                if (!*m)
+                    break;
+            }
+        }
+
+	if ( op->o_dn == NULL || op->o_dn[0] == '\0' ) {
+		bv.bv_val = "NULLDN";
+		bv.bv_len = strlen( bv.bv_val );
+	} else {
+		bv.bv_val = op->o_dn;
+		bv.bv_len = strlen( bv.bv_val );
+	}
+	tmp = (LDAPModList *) ch_calloc( 1, sizeof(LDAPModList) );
+	tmp->ml_type = ch_strdup( "modifiersname" );
+	tmp->ml_op = LDAP_MOD_REPLACE;
+	tmp->ml_bvalues = (struct berval **) ch_calloc(2, sizeof(struct berval *));
+	tmp->ml_bvalues[0] = ber_bvdup( &bv );
+	tmp->ml_next = *modlist;
+	*modlist = tmp;
+
+	currenttime = slap_get_time();
+	ldap_pvt_thread_mutex_lock( &gmtime_mutex );
+#ifndef LDAP_LOCALTIME
+	ltm = gmtime( &currenttime );
+	strftime( buf, sizeof(buf), "%Y%m%d%H%M%SZ", ltm );
+#else
+	ltm = localtime( &currenttime );
+	strftime( buf, sizeof(buf), "%y%m%d%H%M%SZ", ltm );
+#endif
+	ldap_pvt_thread_mutex_unlock( &gmtime_mutex );
+
+	bv.bv_val = buf;
+	bv.bv_len = strlen( bv.bv_val );
+	tmp = (LDAPModList *) ch_calloc( 1, sizeof(LDAPModList) );
+	tmp->ml_type = ch_strdup( "modifytimestamp" );
+	tmp->ml_op = LDAP_MOD_REPLACE;
+	tmp->ml_bvalues = (struct berval **) ch_calloc(2, sizeof(struct berval *));
+	tmp->ml_bvalues[0] = ber_bvdup( &bv );
+	tmp->ml_next = *modlist;
+	*modlist = tmp;
+
+}
+
+/* We need this function because of LDAP modrdn. If we do not 
+ * add this there would be a bunch of code replication here 
+ * and there and of course the likelihood of bugs increases.
+ * Juan C. Gomez (gomez@engr.sgi.com) 05/18/99
+ */ 
+
+int ldbm_modify_internal(
+    Backend	*be,
+    Connection	*conn,
+    Operation	*op,
+    char	*dn,
+    LDAPModList	*modlist,
+    Entry	*e 
+)
+{
+	int err;
+	LDAPMod		*mod;
+	LDAPModList	*ml;
+	Attribute	*a;
+
+	if ( ((be->be_lastmod == ON)
+	      || ((be->be_lastmod == UNDEFINED)&&(global_lastmod == ON)))
+	     && (be->be_update_ndn == NULL)) {
+
+	        /* XXX: It may be wrong, it changes mod time even if 
+		 * mod fails!
+		 */
+		add_lastmods( op, &modlist );
+
+	}
+
+
+	if ( (err = acl_check_modlist( be, conn, op, e, modlist ))
+	     != LDAP_SUCCESS ) {
+		send_ldap_result( conn, op, err, NULL, NULL, NULL );
+		return -1;
+	}
+
+	for ( ml = modlist; ml != NULL; ml = ml->ml_next ) {
+
+		mod = &ml->ml_mod;
+
+		switch ( mod->mod_op & ~LDAP_MOD_BVALUES ) {
+		case LDAP_MOD_ADD:
+			err = add_values( e, mod, op->o_ndn );
+			break;
+
+		case LDAP_MOD_DELETE:
+			err = delete_values( e, mod, op->o_ndn );
+			break;
+
+		case LDAP_MOD_REPLACE:
+			/* Need to remove all values from indexes before they
+			 * are lost.
+			 */
+		        if( e->e_attrs
+			    && ((a = attr_find( e->e_attrs, mod->mod_type ))
+			   != NULL) ) {
+
+			    (void) index_change_values( be,
+							mod->mod_type,
+							a->a_vals,
+							e->e_id,
+							__INDEX_DELETE_OP);
+			}
+
+			err = replace_values( e, mod, op->o_ndn );
+			break;
+
+		case LDAP_MOD_SOFTADD:
+ 			/* Avoid problems in index_add_mods()
+ 			 * We need to add index if necessary.
+ 			 */
+ 			mod->mod_op = LDAP_MOD_ADD;
+ 			if ( (err = add_values( e, mod, op->o_ndn ))
+ 				==  LDAP_TYPE_OR_VALUE_EXISTS ) {
+ 
+ 				err = LDAP_SUCCESS;
+ 				mod->mod_op = LDAP_MOD_SOFTADD;
+ 
+ 			}
+ 			break;
+		}
+
+		if ( err != LDAP_SUCCESS ) {
+			/* unlock entry, delete from cache */
+			send_ldap_result( conn, op, err, NULL, NULL, NULL );
+			return -1;
+		}
+	}
+
+	/* check that the entry still obeys the schema */
+	if ( global_schemacheck && oc_schema_check( e ) != 0 ) {
+		Debug( LDAP_DEBUG_ANY, "entry failed schema check\n", 0, 0, 0 );
+		send_ldap_result( conn, op, LDAP_OBJECT_CLASS_VIOLATION,
+			NULL, NULL, NULL );
+		return -1;
+	}
+
+	/* check for abandon */
+	ldap_pvt_thread_mutex_lock( &op->o_abandonmutex );
+	if ( op->o_abandon ) {
+		ldap_pvt_thread_mutex_unlock( &op->o_abandonmutex );
+		return -1;
+	}
+	ldap_pvt_thread_mutex_unlock( &op->o_abandonmutex );
+
+	/* modify indexes */
+	if ( index_add_mods( be, modlist, e->e_id ) != 0 ) {
+		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
+			NULL, NULL, NULL );
+		return -1;
+	}
+
+	/* check for abandon */
+	ldap_pvt_thread_mutex_lock( &op->o_abandonmutex );
+	if ( op->o_abandon ) {
+		ldap_pvt_thread_mutex_unlock( &op->o_abandonmutex );
+		return -1;
+	}
+	ldap_pvt_thread_mutex_unlock( &op->o_abandonmutex );
+
+	return 0;
+
+}/* int ldbm_modify_internal() */
+
 
 int
 ldbm_back_modify(
@@ -21,101 +220,48 @@ ldbm_back_modify(
     Connection	*conn,
     Operation	*op,
     char	*dn,
-    LDAPMod	*mods
+    LDAPModList	*modlist
 )
 {
 	struct ldbminfo	*li = (struct ldbminfo *) be->be_private;
-	char		*matched = NULL;
+	char		*matched;
 	Entry		*e;
-	int		i, err, modtype;
-	LDAPMod		*mod;
 
-	if ( (e = dn2entry( be, dn, &matched )) == NULL ) {
-		send_ldap_result( conn, op, LDAP_NO_SUCH_OBJECT, matched,
-		    NULL );
+	Debug(LDAP_DEBUG_ARGS, "ldbm_back_modify:\n", 0, 0, 0);
+
+	/* acquire and lock entry */
+	if ( (e = dn2entry_w( be, dn, &matched )) == NULL ) {
+		send_ldap_result( conn, op, LDAP_NO_SUCH_OBJECT,
+			matched, NULL, NULL );
 		if ( matched != NULL ) {
 			free( matched );
 		}
 		return( -1 );
 	}
-	/* lock entry */
 
-	if ( (err = acl_check_mods( be, conn, op, e, mods )) != LDAP_SUCCESS ) {
-		send_ldap_result( conn, op, err, NULL, NULL );
-		cache_return_entry( &li->li_cache, e );
-		return( -1 );
+	/* Modify the entry */
+	if ( ldbm_modify_internal( be, conn, op, dn, modlist, e ) != 0 ) {
+		goto error_return;
 	}
-
-	for ( mod = mods; mod != NULL; mod = mod->mod_next ) {
-		switch ( mod->mod_op & ~LDAP_MOD_BVALUES ) {
-		case LDAP_MOD_ADD:
-			err = add_values( e, mod, op->o_dn );
-			break;
-
-		case LDAP_MOD_DELETE:
-			err = delete_values( e, mod, op->o_dn );
-			break;
-
-		case LDAP_MOD_REPLACE:
-			err = replace_values( e, mod, op->o_dn );
-			break;
-		}
-
-		if ( err != LDAP_SUCCESS ) {
-			/* unlock entry, delete from cache */
-			send_ldap_result( conn, op, err, NULL, NULL );
-			cache_return_entry( &li->li_cache, e );
-			return( -1 );
-		}
-	}
-
-	/* check for abandon */
-	pthread_mutex_lock( &op->o_abandonmutex );
-	if ( op->o_abandon ) {
-		pthread_mutex_unlock( &op->o_abandonmutex );
-		cache_return_entry( &li->li_cache, e );
-		return( -1 );
-	}
-	pthread_mutex_unlock( &op->o_abandonmutex );
-
-	/* check that the entry still obeys the schema */
-	if ( global_schemacheck && oc_schema_check( e ) != 0 ) {
-		send_ldap_result( conn, op, LDAP_OBJECT_CLASS_VIOLATION, NULL,
-		    NULL );
-		cache_return_entry( &li->li_cache, e );
-		return( -1 );
-	}
-
-	/* modify indexes */
-	if ( index_add_mods( be, mods, e->e_id ) != 0 ) {
-		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL, NULL );
-		cache_return_entry( &li->li_cache, e );
-		return( -1 );
-	}
-
-	/* check for abandon */
-	pthread_mutex_lock( &op->o_abandonmutex );
-	if ( op->o_abandon ) {
-		pthread_mutex_unlock( &op->o_abandonmutex );
-		cache_return_entry( &li->li_cache, e );
-		return( -1 );
-	}
-	pthread_mutex_unlock( &op->o_abandonmutex );
 
 	/* change the entry itself */
 	if ( id2entry_add( be, e ) != 0 ) {
-		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL, NULL );
-		cache_return_entry( &li->li_cache, e );
-		return( -1 );
+		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
+			NULL, NULL, NULL );
+		goto error_return;
 	}
 
-	send_ldap_result( conn, op, LDAP_SUCCESS, NULL, NULL );
-	cache_return_entry( &li->li_cache, e );
-
+	send_ldap_result( conn, op, LDAP_SUCCESS,
+		NULL, NULL, NULL );
+	cache_return_entry_w( &li->li_cache, e );
 	return( 0 );
+
+error_return:;
+	cache_return_entry_w( &li->li_cache, e );
+	return( -1 );
 }
 
-static int
+int
 add_values(
     Entry	*e,
     LDAPMod	*mod,
@@ -143,7 +289,7 @@ add_values(
 	return( LDAP_SUCCESS );
 }
 
-static int
+int
 delete_values(
     Entry	*e,
     LDAPMod	*mod,
@@ -199,13 +345,18 @@ delete_values(
 	return( LDAP_SUCCESS );
 }
 
-static int
+int
 replace_values(
     Entry	*e,
     LDAPMod	*mod,
     char	*dn
 )
 {
+
+	/* XXX: BEFORE YOU GET RID OF PREVIOUS VALUES REMOVE FROM INDEX
+	 * FILES
+	 */
+
 	(void) attr_delete( &e->e_attrs, mod->mod_type );
 
 	if ( attr_merge( e, mod->mod_type, mod->mod_bvalues ) != 0 ) {
