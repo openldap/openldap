@@ -18,7 +18,7 @@
 
 #include "slap.h"
 
-int
+void
 do_compare(
     Connection	*conn,
     Operation	*op
@@ -27,17 +27,8 @@ do_compare(
 	char	*ndn;
 	Ava	ava;
 	Backend	*be;
-	int rc = LDAP_SUCCESS;
 
 	Debug( LDAP_DEBUG_TRACE, "do_compare\n", 0, 0, 0 );
-
-	if( op->o_bind_in_progress ) {
-		Debug( LDAP_DEBUG_ANY, "do_compare: SASL bind in progress.\n",
-			0, 0, 0 );
-		send_ldap_result( conn, op, LDAP_SASL_BIND_IN_PROGRESS, NULL,
-		    "SASL bind in progress" );
-		return LDAP_SASL_BIND_IN_PROGRESS;
-	}
 
 	/*
 	 * Parse the compare request.  It looks like this:
@@ -54,19 +45,9 @@ do_compare(
 	if ( ber_scanf( op->o_ber, "{a{ao}}", &ndn, &ava.ava_type,
 	    &ava.ava_value ) == LBER_ERROR ) {
 		Debug( LDAP_DEBUG_ANY, "ber_scanf failed\n", 0, 0, 0 );
-		send_ldap_disconnect( conn, op,
-			LDAP_PROTOCOL_ERROR, "decoding error" );
-		return -1;
+		send_ldap_result( conn, op, LDAP_PROTOCOL_ERROR, NULL, "" );
+		return;
 	}
-
-	if( ( rc = get_ctrls( conn, op, 1 )) != LDAP_SUCCESS ) {
-		free( ndn );
-		ava_free( &ava, 0 );
-		Debug( LDAP_DEBUG_ANY, "do_compare: get_ctrls failed\n", 0, 0, 0 );
-		return rc;
-	} 
-
-	value_normalize( ava.ava_value.bv_val, attr_syntax( ava.ava_type ) );
 
 	Debug( LDAP_DEBUG_ARGS, "do_compare: dn (%s) attr (%s) value (%s)\n",
 	    ndn, ava.ava_type, ava.ava_value.bv_val );
@@ -85,9 +66,9 @@ do_compare(
 		free( ndn );
 		ava_free( &ava, 0 );
 
-		send_ldap_result( conn, op, rc = LDAP_PARTIAL_RESULTS, NULL,
+		send_ldap_result( conn, op, LDAP_PARTIAL_RESULTS, NULL,
 		    default_referral );
-		return 1;
+		return;
 	}
 
 	/* alias suffix if approp */
@@ -96,12 +77,10 @@ do_compare(
 	if ( be->be_compare ) {
 		(*be->be_compare)( be, conn, op, ndn, &ava );
 	} else {
-		send_ldap_result( conn, op, rc = LDAP_UNWILLING_TO_PERFORM, NULL,
+		send_ldap_result( conn, op, LDAP_UNWILLING_TO_PERFORM, NULL,
 		    "Function not implemented" );
 	}
 
 	free( ndn );
 	ava_free( &ava, 0 );
-
-	return rc;
 }
