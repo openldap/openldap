@@ -198,9 +198,7 @@ send_search_entry(
 	Attribute	*a;
 	int		i, rc, bytes, sd;
 	struct acl	*acl;
-        char            *edn;
-
-
+	char            *edn;
 
 	Debug( LDAP_DEBUG_TRACE, "=> send_search_entry (%s)\n", e->e_dn, 0, 0 );
 
@@ -215,10 +213,11 @@ send_search_entry(
 
 #ifdef COMPAT30
 	if ( (ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER ))
-		== NULLBER ) {
+		== NULLBER )
 #else
-	if ( (ber = der_alloc()) == NULLBER ) {
+	if ( (ber = der_alloc()) == NULLBER )
 #endif
+	{
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL,
 			"ber_alloc" );
@@ -232,8 +231,10 @@ send_search_entry(
 		    LDAP_RES_SEARCH_ENTRY, e->e_dn );
 	} else
 #endif
-	rc = ber_printf( ber, "{it{s{", op->o_msgid,
-		LDAP_RES_SEARCH_ENTRY, e->e_dn );
+	{
+		rc = ber_printf( ber, "{it{s{", op->o_msgid,
+			LDAP_RES_SEARCH_ENTRY, e->e_dn );
+	}
 
 	if ( rc == -1 ) {
 		Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
@@ -245,15 +246,12 @@ send_search_entry(
 	}
 
 	for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
-#ifdef USEREGEX
 		regmatch_t       matches[MAXREMATCHES];
-#endif
 
 		if ( attrs != NULL && ! charray_inlist( attrs, a->a_type ) ) {
 			continue;
 		}
 
-#ifdef USEREGEX
 		/* the lastmod attributes are ignored by ACL checking */
 		if ( strcasecmp( a->a_type, "modifiersname" ) == 0 ||
 			strcasecmp( a->a_type, "modifytimestamp" ) == 0 ||
@@ -267,17 +265,9 @@ send_search_entry(
 			acl = acl_get_applicable( be, op, e, a->a_type, edn,
 				MAXREMATCHES, matches );
 		}
-#else
-		acl= acl_get_applicable( be, op, e, a->a_type, edn );
-#endif
 
-#ifdef USEREGEX
 		if ( ! acl_access_allowed( acl, be, conn, e, NULL, op, ACL_READ,
 			edn, matches ) ) 
-#else
-		if ( ! acl_access_allowed( acl, be, conn, e, NULL, op, ACL_READ,
-			edn ) ) 
-#endif
 		{
 			continue;
 		}
@@ -293,15 +283,9 @@ send_search_entry(
 
 		if ( ! attrsonly ) {
 			for ( i = 0; a->a_vals[i] != NULL; i++ ) {
-#ifdef USEREGEX
 				if ( a->a_syntax & SYNTAX_DN && 
 					! acl_access_allowed( acl, be, conn, e, a->a_vals[i], op,
 						ACL_READ, edn, matches) )
-#else
-				if ( a->a_syntax & SYNTAX_DN && 
-					! acl_access_allowed( acl, be, conn, e, a->a_vals[i], op,
-						ACL_READ, edn ) )
-#endif
 				{
 					continue;
 				}

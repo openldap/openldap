@@ -6,10 +6,8 @@
 #define LDAP_SYSLOG
 
 #include <syslog.h>
-
-#ifdef USEREGEX
+#include <sys/types.h>
 #include <regex.h>
-#endif
 
 #include "avl.h"
 #include "lber.h"
@@ -23,6 +21,8 @@
 #define ON	1
 #define OFF	(-1)
 #define UNDEFINED 0
+
+#define MAXREMATCHES 10
 
 /*
  * represents an attribute value assertion (i.e., attr=value)
@@ -127,9 +127,11 @@ struct access {
 	char		*a_domainpat;
 	char		*a_dnattr;
 	long		a_access;
-#ifdef USEREGEX
-        char            *a_group;
+
+#ifdef ACLGROUP
+    char		*a_group;
 #endif
+
 #define ACL_NONE	0x01
 #define ACL_COMPARE	0x02
 #define ACL_SEARCH	0x04
@@ -143,9 +145,7 @@ struct access {
 struct acl {
 	/* "to" part: the entries this acl applies to */
 	Filter		*acl_filter;
-#ifdef USEREGEX
-        regex_t          acl_dnre;
-#endif
+	regex_t		acl_dnre;
 	char		*acl_dnpat;
 	char		**acl_attrs;
 

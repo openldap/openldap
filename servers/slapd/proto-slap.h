@@ -8,17 +8,11 @@
 int access_allowed( Backend *be, Connection *conn, Operation *op, Entry *e,
 	char *attr, struct berval *val, char *dn, int  access );
 
-#ifdef USEREGEX
 struct acl * acl_get_applicable( Backend *be, Operation *op, Entry *e,
 	char *attr, char *edn, int nmatches, regmatch_t matches[] );
 int acl_access_allowed( struct acl *a, Backend *be, Connection *conn, Entry *e,
-	struct berval *val, Operation *op, int  access, char *edn, regmatch_t matches[] );
-#else
-struct acl * acl_get_applicable( Backend *be, Operation *op, Entry *e,
-	char *attr, char *edn );
-int acl_access_allowed( struct acl *a, Backend *be, Connection *conn, Entry *e,
-	struct berval *val, Operation *op, int  access, char *edn );
-#endif
+	struct berval *val, Operation *op, int  access, char *edn,
+	regmatch_t matches[] );
 
 int acl_check_mods( Backend *be, Connection *conn, Operation *op, Entry *e,
 	LDAPMod *mods );

@@ -14,5 +14,4 @@
 CC	= cc
 
 PLATFORMCFLAGS=	-Dfreebsd
-PLATFORMLIBS= -lcompat
 
