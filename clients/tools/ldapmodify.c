@@ -72,7 +72,7 @@ usage( const char *prog )
 {
     fprintf( stderr,
 		 "Add or modify entries from an LDAP server\n\n"
-	     "usage: %s [-abcknrvFM] [-d debug-level] [-P version] [-h ldaphost]\n"
+	     "usage: %s [-abcknrvF] [-M[M]] [-d debug-level] [-P version] [-h ldaphost]\n"
 	     "            [-p ldapport] [-D binddn] [-w passwd] [ -f file | < entryfile ]\n"
 	     "       a    - add values (default%s)\n"
 	     "       b    - read values from files (for binary attributes)\n"
