@@ -1,0 +1,27 @@
+SRCS	= search.c config.c
+OBJS	= search.o config.o
+
+XPROGRAMS= libback-passwd.a
+XINCLUDEDIR= -I..
+
+all:	FORCE
+	-@echo "$(SLAPD_BACKENDS)" | grep LDAP_PASSWD 2>&1 > /dev/null; \
+	if [ $$? = 0 ]; then \
+            $(MAKE) $(MFLAGS) CC=$(CC) libback-passwd.a; \
+	else \
+	    echo "Include -DLDAP_PASSWD in SLAPD_BACKENDS in the"; \
+	    echo "Make-common file to build the passwd backend"; \
+        fi
+
+libback-passwd.a:	version.o
+	$(AR) ruv $@ $(OBJS) version.o
+	@$(RANLIB) $@
+	@touch ../.backend
+
+version.c: $(OBJS)
+	$(RM) $@
+	(u=$${USER-root} v=`$(CAT) $(VERSIONFILE)` d=`$(PWD)` h=`$(HOSTNAME)` \
+	 t=`$(DATE)`; $(SED) -e "s|%WHEN%|$${t}|" \
+	-e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
+	-e "s|%VERSION%|$${v}|" \
+	< Version.c > $@)

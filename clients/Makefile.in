@@ -1,0 +1,5 @@
+# Master Makefile for Net Boolean LDAP
+# Copyright 1998 Net Boolean Incorporated
+# COPYING RESTRICTIONS APPLY, See COPYING file
+
+SUBDIRS= tools ud finger gopher mail500 fax500 rcpt500

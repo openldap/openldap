@@ -1,0 +1,35 @@
+SRCS	= idl.c add.c search.c cache.c dbcache.c dn2id.c id2entry.c \
+		index.c id2children.c nextid.c abandon.c compare.c \
+		modify.c modrdn.c delete.c init.c config.c bind.c attr.c \
+		filterindex.c unbind.c kerberos.c close.c
+OBJS	= idl.o add.o search.o cache.o dbcache.o dn2id.o id2entry.o \
+		index.o id2children.o nextid.o abandon.o compare.o \
+		modify.o modrdn.o delete.o init.o config.o bind.o attr.o \
+		filterindex.o unbind.o kerberos.o close.o
+
+XINCLUDEDIR = -I..
+XPROGRAMS = libback-ldbm.a
+
+all:	FORCE
+	-@echo "$(SLAPD_BACKENDS)" | grep LDAP_LDBM 2>&1 > /dev/null; \
+	if [ $$? = 0 ]; then \
+            $(MAKE) $(MFLAGS) libback-ldbm.a; \
+	else \
+	    echo "Include -DLDAP_LDBM in SLAPD_BACKENDS in the"; \
+	    echo "Make-common file to build the ldbm backend"; \
+        fi
+
+libback-ldbm.a:	version.o
+	$(AR) ruv $@ $(OBJS) version.o
+	@$(RANLIB) $@
+	@touch ../.backend
+
+version.c:	$(OBJS)
+	$(RM) $@
+	(u=$${USER-root} v=`$(CAT) $(VERSIONFILE)` d=`$(PWD)` \
+	 h=`$(HOSTNAME)` t=`$(DATE)`; \
+	 $(SED) -e "s|%WHEN%|$${t}|" \
+		-e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
+		-e "s|%VERSION%|$${v}|" \
+		< Version.c > $@)
+
