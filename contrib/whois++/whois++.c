@@ -73,7 +73,7 @@ char	**argv;
 
 	initialise();
 
-	sprintf( tailor, "%s/%stailor", ETCDIR, program );
+	sprintf( tailor, "%s/%stailor", RUNTIMECONFDIR, program );
 	if ( (tailorFile = fopen( tailor, "r" )) != NULL ) {
 		readConfiguration( tailorFile );
 		fclose( tailorFile );
