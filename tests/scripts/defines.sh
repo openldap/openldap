@@ -20,7 +20,11 @@ PASSWD=secret
 BABSDN="cn=Barbara Jensen, ou=Information Technology Division, ou=People, o=University of Michigan, c=US"
 BJORNSDN="cn=Bjorn Jensen, ou=Information Technology Division, ou=People, o=University of Michigan, c=US"
 JAJDN="cn=James A Jones 1, ou=Alumni Association, ou=People, o=University of Michigan, c=US"
+MASTERLOG=$DBDIR/master.log
+SLAVELOG=$DBDIR/slave.log
 SEARCHOUT=$DBDIR/ldapsearch.out
+SEARCHFLT=$DBDIR/ldapsearch.flt
+LDIFFLT=$DBDIR/ldif.flt
 MASTEROUT=$DBDIR/master.out
 SLAVEOUT=$DBDIR/slave.out
 TESTOUT=$DBDIR/ldapsearch.out
