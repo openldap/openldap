@@ -45,7 +45,7 @@ ldbm_back_delete(
 		return( -1 );
 	}
 
-	/* XXX delete from parent's id2children entry XXX */
+	/* delete from parent's id2children entry XXX */
 	pdn = dn_parent( be, dn );
 	matched = NULL;
 	p = dn2entry( be, pdn, &matched );
