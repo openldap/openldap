@@ -2,6 +2,7 @@ OpenLDAP 2.1 Change Log
 
 OpenLDAP 2.1.31 Engineering
 	Fixed slapd extended match memory leak (ITS#3146)
+	Fixed slapd abandon/cancel pending bug (ITS#3160)
 
 OpenLDAP 2.1.30 Release
 	Fixed slapd userdb checkpass bug (ITS#3048)
