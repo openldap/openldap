@@ -15,6 +15,7 @@ else
 	ACLCONF=$DATADIR/slapd-acl.conf
 	MASTERCONF=$DATADIR/slapd-repl-master.conf
 	SLAVECONF=$DATADIR/slapd-repl-slave.conf
+	REFSLAVECONF=$DATADIR/slapd-ref-slave.conf
 fi
 
 if test "$LDAP_PROTO" ; then
