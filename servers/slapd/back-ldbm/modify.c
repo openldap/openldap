@@ -281,7 +281,7 @@ add_values(
 		at = at_find( mod->mod_type );
 		for ( i = 0; mod->mod_bvalues[i] != NULL; i++ ) {
 			if ( value_find( a->a_vals, mod->mod_bvalues[i],
-			    at->sat_equality, 3 ) == 0 ) {
+			    at->sat_equality ) == 0 ) {
 				return( LDAP_TYPE_OR_VALUE_EXISTS );
 			}
 		}
@@ -304,6 +304,14 @@ delete_values(
 {
 	int		i, j, k, found;
 	Attribute	*a;
+	AttributeType	*at;
+
+	at = at_find( mod->mod_type );
+	if ( !at ) {
+		Debug( LDAP_DEBUG_ARGS, "unknown attribute type %s\n",
+		    mod->mod_type, 0, 0 );
+		return( LDAP_UNDEFINED_TYPE );
+	}
 
 	/* delete the entire attribute */
 	if ( mod->mod_bvalues == NULL ) {
@@ -325,7 +333,7 @@ delete_values(
 		found = 0;
 		for ( j = 0; a->a_vals[j] != NULL; j++ ) {
 			if ( value_cmp( mod->mod_bvalues[i], a->a_vals[j],
-			    a->a_syntax, 3 ) != 0 ) {
+			    at->sat_equality ) != 0 ) {
 				continue;
 			}
 			found = 1;
