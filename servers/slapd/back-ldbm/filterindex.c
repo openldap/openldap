@@ -17,13 +17,6 @@ static ID_BLOCK	*list_candidates( Backend *be, Filter *flist, int ftype );
 static ID_BLOCK	*substring_candidates( Backend *be, Filter *f );
 static ID_BLOCK	*extensible_candidates( Backend *be, Mra *mra );
 
-/*
- * test_filter - test a filter against a single entry.
- * returns	0	filter matched
- *		-1	filter did not match
- *		>0	an ldap error code
- */
-
 ID_BLOCK *
 index_candidates(
     Backend		*be,
@@ -302,12 +295,16 @@ substring_candidates(
 	int	i;
 	AttributeType	*at;
 	ID_BLOCK	*idl;
+	struct berval	*substrings;
 
 	Debug( LDAP_DEBUG_TRACE, "=> substring_candidates\n", 0, 0, 0 );
 
 	at = at_find( f->f_sub_type );
+	substrings = make_substrs_berval( &f->f_sub );
 	idl = index_candidates( be, at, global_mr_approx,
-				&f->f_sub_value );
+				substrings );
+
+	ber_bvfree( substrings );
 
 	Debug( LDAP_DEBUG_TRACE, "<= substring_candidates %ld\n",
 	    idl ? ID_BLOCK_NIDS(idl) : 0, 0, 0 );
