@@ -57,6 +57,14 @@ static ber_tag_t req2res( ber_tag_t tag )
 	case LDAP_REQ_UNBIND:
 		tag = LBER_SEQUENCE;
 		break;
+
+	case LDAP_REQ_SEARCH:
+		tag = LDAP_RES_SEARCH_RESULT;
+		break;
+
+	default:
+		assert( 0 );
+		tag = LBER_ERROR;
 	}
 	return tag;
 }
@@ -119,7 +127,6 @@ long send_ldap_ber(
 	ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
 	ldap_pvt_thread_mutex_unlock( &conn->c_write_mutex );
 
-	Debug( LDAP_DEBUG_TRACE, "<= send_ldap_ber\n", 0, 0, 0 );
 	return bytes;
 }
 
@@ -142,6 +149,9 @@ send_ldap_response(
 	long	bytes;
 
 	ber = ber_alloc_t( LBER_USE_DER );
+
+	Debug( LDAP_DEBUG_TRACE, "send_ldap_response: tag=%ld msgid=%ld err=%ld\n",
+		(long) tag, (long) msgid, (long) err );
 
 	if ( ber == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
@@ -286,6 +296,9 @@ send_ldap_result(
 		}
 	}
 
+	tag = req2res( op->o_tag );
+	msgid = (tag != LBER_SEQUENCE) ? op->o_msgid : 0;
+
 #ifdef LDAP_CONNECTIONLESS
 	if ( op->o_cldap ) {
 		ber_pvt_sb_udp_set_dst( &conn->c_sb, &op->o_clientaddr );
@@ -348,6 +361,9 @@ send_search_result(
 			refs = NULL;
 		}
 	}
+
+	tag = req2res( op->o_tag );
+	msgid = (tag != LBER_SEQUENCE) ? op->o_msgid : 0;
 
 #ifdef LDAP_CONNECTIONLESS
 	if ( op->o_cldap ) {
