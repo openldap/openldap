@@ -286,7 +286,7 @@ attr_syntax_config(
 	} else {
 		Debug( LDAP_DEBUG_ANY,
 	    "%s: line %d: unknown syntax \"%s\" in attribute line (ignored)\n",
-		    fname, lineno, 0 );
+		    fname, lineno, argv[lasti] );
 		Debug( LDAP_DEBUG_ANY,
     "possible syntaxes are \"cis\", \"ces\", \"tel\", \"dn\", or \"bin\"\n",
 		    0, 0, 0 );
