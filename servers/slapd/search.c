@@ -155,7 +155,6 @@ do_search(
 	    "conn=%d op=%d SRCH base=\"%s\" scope=%d filter=\"%s\"\n",
 	    conn->c_connid, op->o_opid, base, scope, fstr );
 
-#if defined( SLAPD_MONITOR_DN ) || defined( SLAPD_CONFIG_DN ) || defined( SLAPD_SCHEMA_DN )
 	if ( scope == LDAP_SCOPE_BASE ) {
 #if defined( SLAPD_MONITOR_DN )
 		if ( strcmp( base, SLAPD_MONITOR_DN ) == 0 ) {
@@ -163,30 +162,25 @@ do_search(
 			goto return_results;
 		}
 #endif
+
 #if defined( SLAPD_CONFIG_DN )
 		if ( strcmp( base, SLAPD_CONFIG_DN ) == 0 ) {
 			config_info( conn, op );
 			goto return_results;
 		}
 #endif
+
 #if defined( SLAPD_SCHEMA_DN )
 		if ( strcmp( base, SLAPD_SCHEMA_DN ) == 0 ) {
 			schema_info( conn, op, attrs, attrsonly );
 			goto return_results;
 		}
 #endif
-	}
-#endif /* monitor or config or schema dn */
 
-	if ( strcmp( base, LDAP_ROOT_DSE ) == 0 ) {
-		if( scope == LDAP_SCOPE_BASE ) {
+		if ( strcmp( base, LDAP_ROOT_DSE ) == 0 ) {
 			root_dse_info( conn, op, attrs, attrsonly );
-
-		} else {
-			send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-				NULL, NULL, default_referral, NULL );
+			goto return_results;
 		}
-		goto return_results;
 	}
 
 	/*

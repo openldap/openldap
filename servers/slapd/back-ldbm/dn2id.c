@@ -191,6 +191,7 @@ dn2entry_rw(
 	if( matched == NULL ) return NULL;
 
 	/* entry does not exist - see how much of the dn does exist */
+	/* dn_parent checks runs NULL if dn is suffix */
 	if ( (pdn = dn_parent( be, dn )) != NULL ) {
 		/* get entry with reader lock */
 		if ( (e = dn2entry_r( be, pdn, matched )) != NULL ) {

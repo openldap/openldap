@@ -320,7 +320,7 @@ acl_access_allowed(
 				b->a_dnattr, 0, 0);
 			/* see if asker is listed in dnattr */
 			if ( (at = attr_find( e->e_attrs, b->a_dnattr )) != NULL && 
-				value_find( at->a_vals, &bv, at->a_syntax, 1 ) == 0 )
+				value_find( at->a_vals, &bv, at->a_syntax, 3 ) == 0 )
 			{
 				if ( ACL_IS_SELF(b->a_access) && 
 					(val == NULL || value_cmp( &bv, val, at->a_syntax, 2 )) )

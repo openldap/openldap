@@ -89,7 +89,7 @@ value_normalize(
 	}
 
 	if ( syntax & SYNTAX_DN ) {
-		(void) dn_normalize( s );
+		(void) dn_normalize_case( s );
 		return;
 	}
 

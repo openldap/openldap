@@ -134,14 +134,14 @@ ldbm_back_search(
 	matched_dn = ch_strdup( e->e_ndn );
 	cache_return_entry_r( &li->li_cache, e );
 
-	/* null candidates means we could not find the base object */
 	if ( candidates == NULL ) {
-		/* return a NO SUCH OBJECT */
+		/* no candidates */
 		Debug( LDAP_DEBUG_TRACE, "no candidates\n", 0,
 		    0, 0 );
 
-		send_ldap_result( conn, op, LDAP_NO_SUCH_OBJECT,
-		    matched_dn, "no search candidates", NULL, NULL );
+		send_search_result( conn, op,
+			LDAP_SUCCESS,
+			NULL, NULL, NULL, NULL, 0 );
 
 		free( matched_dn );
 		return 1;
@@ -320,7 +320,7 @@ search_candidates(
 	Filter		*f, *rf, *af, *lf;
 
 	Debug(LDAP_DEBUG_TRACE, "search_candidates: base=\"%s\" s=%d d=%d\n",
-		e->e_dn, scope, deref );
+		e->e_ndn, scope, deref );
 
 	f = NULL;
 
