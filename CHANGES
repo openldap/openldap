@@ -4,7 +4,7 @@ Changes included in OpenLDAP Stable
 	CVS Tag: OPENLDAP_STABLE
 	Fixed DCE Threading issues
 
-Changes included in OpenLDAP Stable 
+Changes included in OpenLDAP 1.0.3
 	CVS Tag: OPENLDAP_STABLE_981105
 	Updated manual pages.
 	Fixed libldif/line64 bug
