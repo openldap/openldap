@@ -240,10 +240,20 @@ typedef struct slap_syntax {
 #define ssyn_oid			ssyn_syn.syn_oid
 #define ssyn_desc			ssyn_syn.syn_desc
 
-/* Put a value in some normalized form */
+/*
+ * Put an attribute value (NOT assertion value!) in some normalized
+ * form.  We do not have normalization functions for the assertion
+ * values.
+ */
 typedef int slap_mr_normalize_func LDAP_P((struct berval * val, struct berval **normalized));
 
-/* Check if evals in entry match value in filter */
+/*
+ * Check if evals in entry match value in filter, notice that the
+ * syntax of the fval needs not be the same as the syntax of the
+ * evals.  Returns 1 if true, 0 if false, will someday return -1 if
+ * undefined.
+ */
+
 typedef int slap_mr_check_func LDAP_P((
 	struct berval * fval,		/* Value in filter ava */
 	struct berval ** evals		/* Values in entry */
@@ -255,7 +265,7 @@ typedef int slap_mr_skeys_func LDAP_P((
 	struct berval *** svals		/* Returned search keys */
 ));
 
-/* Find keys to use in searching the indexes */
+/* Find keys to use in searching or creating the indexes */
 typedef int slap_mr_index_func LDAP_P((
 	struct berval ** svals,		/* Values for search keys */
 	struct berval *** ivals		/* Returned values for indexes */
@@ -267,7 +277,8 @@ typedef struct slap_matching_rule {
 	slap_mr_normalize_func		*smr_normalize;
 	slap_mr_check_func		*smr_compare;
 	slap_mr_skeys_func		*smr_skeys;
-	slap_mr_index_func		*smr_index;
+	slap_mr_index_func		*smr_sindex;
+	slap_mr_index_func		*smr_cindex;
 	Syntax				*smr_syntax;
 	struct slap_matching_rule	*smr_next;
 } MatchingRule;
