@@ -1080,7 +1080,6 @@ put_simple_vrFilter(
 
 		{
 			char *rule = strchr( str, ':' );
-			*rule++ = '\0';
 
 			if( rule == NULL ) {
 				/* must have attribute */
