@@ -50,9 +50,8 @@ bdb2i_back_search_internal(
 	ID		id;
 	Entry		*e;
 	Attribute	*ref;
+	struct berval **refs;
 	char		*matched = NULL;
-	int		rmaxsize, nrefs;
-	char		*rbuf, *rcur;
 	int		nentries = 0;
 	char		*realBase;
 
@@ -108,8 +107,8 @@ bdb2i_back_search_internal(
 		break;
 
 	default:
-		send_ldap_result( conn, op, LDAP_PROTOCOL_ERROR, "",
-		    "Bad scope" );
+		send_ldap_result( conn, op, LDAP_PROTOCOL_ERROR,
+			NULL, "Bad scope", NULL );
 		if( realBase != NULL) {
 			free( realBase );
 		}
@@ -118,7 +117,7 @@ bdb2i_back_search_internal(
 
 	/* null candidates means we could not find the base object */
 	if ( candidates == NULL ) {
-		send_ldap_result( conn, op, err, matched, "" );
+		send_ldap_result( conn, op, err, matched, NULL, NULL );
 		if ( matched != NULL ) {
 			free( matched );
 		}
@@ -132,12 +131,8 @@ bdb2i_back_search_internal(
 		free( matched );
 	}
 
-	rmaxsize = 0;
-	nrefs = 0;
-	rbuf = rcur = NULL;
-	MAKE_SPACE( sizeof("Referral:") + 1 );
-	strcpy( rbuf, "Referral:" );
-	rcur = strchr( rbuf, '\0' );
+	refs = NULL;
+
 	for ( id = bdb2i_idl_firstid( candidates ); id != NOID;
 	    id = bdb2i_idl_nextid( candidates, id ) ) {
 		/* check for abandon */
@@ -145,7 +140,7 @@ bdb2i_back_search_internal(
 		if ( op->o_abandon ) {
 			ldap_pvt_thread_mutex_unlock( &op->o_abandonmutex );
 			bdb2i_idl_free( candidates );
-			free( rbuf );
+			ber_bvecfree( refs );
 			if( realBase != NULL) {
 				free( realBase );
 			}
@@ -155,11 +150,10 @@ bdb2i_back_search_internal(
 
 		/* check time limit */
 		if ( tlimit != -1 && slap_get_time() > stoptime ) {
-			send_search_result( conn, op,
-			    LDAP_TIMELIMIT_EXCEEDED, NULL, nrefs > 0 ? rbuf :
-			    NULL, nentries );
+			send_search_result( conn, op, LDAP_TIMELIMIT_EXCEEDED,
+				NULL, NULL, refs, nentries );
 			bdb2i_idl_free( candidates );
-			free( rbuf );
+			ber_bvecfree( refs );
 			if( realBase != NULL) {
 				free( realBase );
 			}
@@ -183,27 +177,8 @@ bdb2i_back_search_internal(
 			strncmp( e->e_ndn, "REF=", 4 ) == 0 &&
 			(ref = attr_find( e->e_attrs, "ref" )) != NULL )
 		{
-			int	i;
-
-			if ( ref->a_vals == NULL ) {
-				Debug( LDAP_DEBUG_ANY, "null ref in (%s)\n", 
-					e->e_dn, 0, 0 );
-			} else {
-				if( op->o_protocol < LDAP_VERSION3 ) {
-					for ( i = 0; ref->a_vals[i] != NULL; i++ ) {
-						/* referral + newline + null */
-						MAKE_SPACE( ref->a_vals[i]->bv_len + 2 );
-						*rcur++ = '\n';
-						strncpy( rcur, ref->a_vals[i]->bv_val,
-						ref->a_vals[i]->bv_len );
-						rcur = rcur + ref->a_vals[i]->bv_len;
-						*rcur = '\0';
-						nrefs++;
-					}
-				} else {
-					send_search_reference( conn, op, ref->a_vals );
-				}
-			}
+			send_search_reference( be, conn, op,
+				e, ref->a_vals, &refs );
 
 		/* otherwise it's an entry - see if it matches the filter */
 		} else {
@@ -234,11 +209,10 @@ bdb2i_back_search_internal(
 					/* check size limit */
 					if ( --slimit == -1 ) {
 						bdb2i_cache_return_entry_r( &li->li_cache, e );
-						send_search_result( conn, op,
-							LDAP_SIZELIMIT_EXCEEDED, NULL,
-							nrefs > 0 ? rbuf : NULL, nentries );
+						send_search_result( conn, op, LDAP_SIZELIMIT_EXCEEDED,
+							NULL, NULL, refs, nentries );
 						bdb2i_idl_free( candidates );
-						free( rbuf );
+						ber_bvecfree( refs );
 
 						if( realBase != NULL) {
 							free( realBase );
@@ -278,7 +252,7 @@ bdb2i_back_search_internal(
 						case -1:	/* connection closed */
 							bdb2i_cache_return_entry_r( &li->li_cache, e );
 							bdb2i_idl_free( candidates );
-							free( rbuf );
+							ber_bvecfree( refs );
 
 							if( realBase != NULL) {
 								free( realBase );
@@ -298,14 +272,12 @@ bdb2i_back_search_internal(
 		ldap_pvt_thread_yield();
 	}
 	bdb2i_idl_free( candidates );
-	if ( nrefs > 0 ) {
-		send_search_result( conn, op, LDAP_REFERRALS, NULL,
-		    rbuf, nentries );
-	} else {
-		send_search_result( conn, op, LDAP_SUCCESS, NULL, NULL,
-		    nentries );
-	}
-	free( rbuf );
+
+	send_search_result( conn, op,
+		refs == NULL ? LDAP_SUCCESS : LDAP_REFERRAL,
+		NULL, NULL, refs, nentries );
+
+	ber_bvecfree( refs );
 
 	if( realBase != NULL) {
 		free( realBase );
@@ -339,8 +311,8 @@ bdb2_back_search(
 	bdb2i_start_timing( be->bd_info, &time1 );
 
 	if ( bdb2i_enter_backend_r( &lock ) != 0 ) {
-
-		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, "", "" );
+		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
+			NULL, NULL, NULL );
 		return( -1 );
 
 	}

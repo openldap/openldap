@@ -161,7 +161,7 @@ send_ldap_response(
 			text == NULL ? "" : text );
 
 		if( rc != -1 && ref != NULL ) {
-			rc = ber_printf( ber, "{v}", ref );
+			rc = ber_printf( ber, "{V}", ref );
 		}
 
 		if( rc != -1 && resoid != NULL ) {

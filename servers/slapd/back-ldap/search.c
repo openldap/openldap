@@ -116,7 +116,7 @@ fail:		return( ldap_back_op_result(lc, op) );
 	if (rc == -1)
 		goto fail;
 
-	send_search_result( conn, op, sres, match, err, i );
+	send_search_result( conn, op, sres, match, err, NULL, i );
 	if (match)
 		free(match);
 	if (err)
