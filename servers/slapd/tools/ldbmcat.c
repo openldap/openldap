@@ -3,6 +3,7 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include "portable.h"
 #include "ldbm.h"
 #include "../slap.h"
 

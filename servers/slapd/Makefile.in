@@ -2,6 +2,7 @@
 ## Makefile.in for slapd
 ##
 PROGRAMS=slapd
+XPROGRAMS=libbackends.a .backend
 SRCS	= main.c daemon.c connection.c search.c filter.c add.c charray.c \
 		attr.c entry.c config.c backend.c result.c operation.c \
 		dn.c compare.c modify.c delete.c modrdn.c ch_malloc.c \
@@ -20,7 +21,7 @@ OBJS	= main.o daemon.o connection.o search.o filter.o add.o charray.o \
 BUILD_OPT = "--enable-slapd"
 BUILD_SRV = @BUILD_SLAPD@
 
-srv-all: FORCE
+all-srv: FORCE
 	$(MAKE) $(MFLAGS) backendslib
 	$(MAKE) $(MFLAGS) slapd
 	(cd tools; $(MAKE) $(MFLAGS) all)
@@ -28,11 +29,11 @@ srv-all: FORCE
 backendslib:	FORCE
 	@for i in back-*; do \
 		if [ -d $$i ]; then \
-			echo; echo "  cd $$i; $(MAKE) $(MFLAGS) all"; \
+			echo " "; echo "  cd $$i; $(MAKE) $(MFLAGS) all"; \
 			( cd $$i; $(MAKE) $(MFLAGS) all ); \
 		fi; \
 	done; \
-	echo; \
+	echo " "; \
 	$(MAKE) $(MFLAGS) libbackends.a
 
 libbackends.a: .backend
@@ -59,6 +60,7 @@ libbackends.a: .backend
 	@ls -l libbackends.a
 
 LDAP_LIBS = -llber -lldbm -lavl -llthread -lldif
+XLIBS = $(LIBDB) $(LIBCRYPT)
 slapd: version.o
 	$(CC) $(LDFLAGS) -o slapd $(OBJS) version.o libbackends.a $(LIBS)
 
@@ -74,3 +76,11 @@ version.c: libbackends.a $(OBJS) \
 	-e "s|%WHOANDWHERE%|$${u}@$${h}:$${d}|" \
 	-e "s|%VERSION%|$${v}|" \
 	< Version.c > $@)
+
+clean: FORCE
+	@for i in back-* tools; do \
+		if [ -d $$i ] ; then \
+			echo; echo "  cd $$i; $(MAKE) $(MFLAGS) clean"; \
+			( cd $$i; $(MAKE) $(MFLAGS) clean ); \
+		fi; \
+	done

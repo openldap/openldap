@@ -7,17 +7,14 @@ OBJS	= idl.o add.o search.o cache.o dbcache.o dn2id.o id2entry.o \
 		modify.o modrdn.o delete.o init.o config.o bind.o attr.o \
 		filterindex.o unbind.o kerberos.o close.o
 
-XINCLUDEDIR = -I..
-XPROGRAMS = libback-ldbm.a
+BUILD_OPT = "--enable-ldbm"
+BUILD_SRV = @BUILD_LDBM@
 
-all:	FORCE
-	-@echo "$(SLAPD_BACKENDS)" | grep LDAP_LDBM 2>&1 > /dev/null; \
-	if [ $$? = 0 ]; then \
-            $(MAKE) $(MFLAGS) libback-ldbm.a; \
-	else \
-	    echo "Include -DLDAP_LDBM in SLAPD_BACKENDS in the"; \
-	    echo "Make-common file to build the ldbm backend"; \
-        fi
+XINCLUDEDIR = -I..
+PROGRAMS = libback-ldbm.a
+
+all-srv: FORCE
+	$(MAKE) $(MFLAGS) libback-ldbm.a
 
 libback-ldbm.a:	version.o
 	$(AR) ruv $@ $(OBJS) version.o

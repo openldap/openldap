@@ -3,6 +3,7 @@
 #ifndef _BACK_LDBM_H_
 #define _BACK_LDBM_H_
 
+#include "portable.h"
 #include "ldbm.h"
 
 #define DEFAULT_CACHE_SIZE	1000

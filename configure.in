@@ -74,6 +74,16 @@ AC_SUBST(BUILD_LDBM)
 AC_SUBST(BUILD_PASSWD)
 AC_SUBST(BUILD_SHELL)
 
+if test "$BUILD_LDBM" = "yes" ; then
+	AC_DEFINE(LDAP_LDBM,1)
+fi
+if test "$BUILD_PASSWD" = "yes" ; then
+	AC_DEFINE(LDAP_PASSWD,1)
+fi
+if test "$BUILD_SHELL" = "yes" ; then
+	AC_DEFINE(LDAP_SHELL,1)
+fi
+
 dnl End Args
 
 dnl Checks for programs.
@@ -136,6 +146,8 @@ if test "$BUILD_LDBM" = "yes" ; then
 	if test $ldbm_prefer != found ; then
 		AC_MSG_ERROR(could not find suitable db for $ldbm_prefer backend)
 	fi
+
+	AC_DEFINE(LDAP_LDBM)
 fi
 
 AC_SUBST(LIBDB)
@@ -227,11 +239,11 @@ libraries/liblthread/Makefile:etc/top.mk:libraries/liblthread/Makefile.in:etc/li
 servers/Makefile:etc/top.mk:servers/Makefile.in:etc/dir.mk \
 servers/ldapd/Makefile:etc/top.mk:servers/ldapd/Makefile.in:etc/srv.mk \
 servers/slapd/Makefile:etc/top.mk:servers/slapd/Makefile.in:etc/srv.mk \
-servers/slapd/back-ldbm/Makefile:etc/top.mk:servers/slapd/back-ldbm/Makefile.in:etc/rules.mk \
-servers/slapd/back-passwd/Makefile:etc/top.mk:servers/slapd/back-passwd/Makefile.in:etc/rules.mk \
-servers/slapd/back-shell/Makefile:etc/top.mk:servers/slapd/back-shell/Makefile.in:etc/rules.mk \
+servers/slapd/back-ldbm/Makefile:etc/top.mk:servers/slapd/back-ldbm/Makefile.in:etc/srv.mk \
+servers/slapd/back-passwd/Makefile:etc/top.mk:servers/slapd/back-passwd/Makefile.in:etc/srv.mk \
+servers/slapd/back-shell/Makefile:etc/top.mk:servers/slapd/back-shell/Makefile.in:etc/srv.mk \
 servers/slapd/tools/Makefile:etc/top.mk:servers/slapd/tools/Makefile.in:etc/rules.mk \
-servers/slapd/shell-backends/Makefile:etc/top.mk:servers/slapd/shell-backends/Makefile.in:etc/rules.mk \
+servers/slapd/shell-backends/Makefile:etc/top.mk:servers/slapd/shell-backends/Makefile.in:etc/srv.mk \
 servers/slurpd/Makefile:etc/top.mk:servers/slurpd/Makefile.in:etc/srv.mk \
 Makefile:etc/top.mk:Makefile.in:etc/dir.mk, \
 	[date > stamp-h])

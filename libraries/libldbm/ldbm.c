@@ -1,6 +1,7 @@
 /* ldbm.c - ldap dbm compatibility routines */
 
 #include <stdio.h>
+#include "portable.h"
 
 #ifdef LDAP_LDBM
 

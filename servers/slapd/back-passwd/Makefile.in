@@ -1,17 +1,14 @@
 SRCS	= search.c config.c
 OBJS	= search.o config.o
 
-XPROGRAMS= libback-passwd.a
+BUILD_OPT = "--enable-passwd"
+BUILD_SRV = @BUILD_PASSWD@
+
+PROGRAMS= libback-passwd.a
 XINCLUDEDIR= -I..
 
-all:	FORCE
-	-@echo "$(SLAPD_BACKENDS)" | grep LDAP_PASSWD 2>&1 > /dev/null; \
-	if [ $$? = 0 ]; then \
-            $(MAKE) $(MFLAGS) CC=$(CC) libback-passwd.a; \
-	else \
-	    echo "Include -DLDAP_PASSWD in SLAPD_BACKENDS in the"; \
-	    echo "Make-common file to build the passwd backend"; \
-        fi
+all-srv: 	FORCE	
+	$(MAKE) $(MFLAGS) libback-passwd.a
 
 libback-passwd.a:	version.o
 	$(AR) ruv $@ $(OBJS) version.o
