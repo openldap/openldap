@@ -152,10 +152,6 @@ main( int argc, char **argv )
 
 			len = strlen( line );
 			if ( buf == NULL || *buf == '\0' ) {
-<<<<<<< ldif2id2entry.c
-				sprintf( idbuf, "%d\n", id + 1 );
-				idlen = strlen( idbuf );
-=======
 				if (!isdigit(line[0])) {
 					sprintf( idbuf, "%d\n", id + 1 );
 					idlen = strlen( idbuf );
@@ -163,7 +159,6 @@ main( int argc, char **argv )
 					id = atol(line) - 1;
 					idlen = 0;
 				}
->>>>>>> 1.4.2.3
 			} else {
 				idlen = 0;
 			}
