@@ -16,9 +16,10 @@ fi
 echo "running defines.sh $SRCDIR $BACKEND"
 . $SRCDIR/scripts/defines.sh
 
-echo "Cleaning up in $DBDIR..."
+echo "Cleaning up in $DBDIR and $REPLDIR ..."
 
 rm -f $DBDIR/[!C]*
+rm -f $REPLDIR/[!C]*
 
 echo "Running ldif2ldbm to build slapd database..."
 $LDIF2LDBM -f $CONF -i $LDIF -e ../servers/slapd/tools
