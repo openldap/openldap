@@ -540,7 +540,9 @@ send_search_entry(
 	}
 
 	/* check for special all user attributes ("*") attribute */
-	allattrs = charray_inlist( attrs, LDAP_ALL_USER_ATTRIBUTES );
+	allattrs = attrs == NULL
+		? 1
+		: charray_inlist( attrs, LDAP_ALL_USER_ATTRIBUTES );
 
 	for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
 		regmatch_t       matches[MAXREMATCHES];
