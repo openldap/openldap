@@ -37,6 +37,7 @@ ldbm_back_search(
 {
 	struct ldbminfo	*li = (struct ldbminfo *) be->be_private;
 	int		rc, err;
+	char *text;
 	time_t		stoptime;
 	ID_BLOCK		*candidates;
 	ID		id;
@@ -49,19 +50,15 @@ ldbm_back_search(
 
 	Debug(LDAP_DEBUG_TRACE, "=> ldbm_back_search\n", 0, 0, 0);
 
-#ifdef SLAPD_ALIASES
 	/* get entry with reader lock */
 	if ( deref & LDAP_DEREF_FINDING ) {
-		e = alias_dn2entry_r( be, base, &matched, &err );
+		e = deref_dn_r( be, base, &err, &matched, &text );
 
 	} else {
 		e = dn2entry_r( be, base, &matched );
 		err = e != NULL ? LDAP_SUCCESS : LDAP_REFERRAL;
+		text = NULL;
 	}
-#else
-	e = dn2entry_r( be, base, &matched );
-	err = e != NULL ? LDAP_SUCCESS : LDAP_REFERRAL;
-#endif
 
 	if ( e == NULL ) {
 		char *matched_dn = NULL;
@@ -69,16 +66,18 @@ ldbm_back_search(
 
 		if ( matched != NULL ) {
 			matched_dn = ch_strdup( matched->e_dn );
+
 			refs = is_entry_referral( matched )
 				? get_entry_referrals( be, conn, op, matched )
 				: NULL;
+
 			cache_return_entry_r( &li->li_cache, matched );
 		} else {
 			refs = default_referral;
 		}
 
 		send_ldap_result( conn, op, err,
-			matched_dn, NULL, refs, NULL );
+			matched_dn, text, refs, NULL );
 
 		if( matched != NULL ) {
 			ber_bvecfree( refs );
@@ -94,7 +93,7 @@ ldbm_back_search(
 		struct berval **refs = get_entry_referrals( be,
 			conn, op, e );
 
-		cache_return_entry_r( &li->li_cache, matched );
+		cache_return_entry_r( &li->li_cache, e );
 
 		Debug( LDAP_DEBUG_TRACE, "entry is referral\n", 0,
 		    0, 0 );
@@ -181,18 +180,22 @@ ldbm_back_search(
 			goto loop_continue;
 		}
 
-#ifdef SLAPD_ALIASES
 		if ( deref & LDAP_DEREF_SEARCHING && is_entry_alias( e ) ) {
-			Entry *newe;
+			Entry *matched;
+			int err;
+			char *text;
 			
-			newe = alias2entry_r( be, e );
+			e = deref_entry_r( be, e, &err, &matched, &text );
 
-			if( newe == NULL ) {
+			if( e == NULL ) {
+				e = matched;
 				goto loop_continue;
 			}
 
-			cache_return_entry_r( &li->li_cache, e );
-			e = newe;
+			if( e->e_id == id ) {
+				/* circular loop */
+				goto loop_continue;
+			}
 
 			/* need to skip alias which deref into scope */
 			if( scope & LDAP_SCOPE_ONELEVEL ) {
@@ -214,7 +217,6 @@ ldbm_back_search(
 
 			scopeok = 1;
 		}
-#endif
 
 		/*
 		 * if it's a referral, add it to the list of referrals. only do
