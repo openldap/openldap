@@ -27,7 +27,8 @@ do_add( Connection *conn, Operation *op )
 {
 	BerElement	*ber = op->o_ber;
 	char		*dn, *last;
-	unsigned long	len, tag;
+	ber_len_t	len;
+	ber_tag_t	tag;
 	Entry		*e;
 	Backend		*be;
 

@@ -3,6 +3,8 @@
 
 #include <ldap_cdefs.h>
 
+LDAP_BEGIN_DECL
+
 /*
  * acl.c
  */
@@ -100,6 +102,8 @@ void * ch_malloc LDAP_P(( ber_len_t size ));
 void * ch_realloc LDAP_P(( void *block, ber_len_t size ));
 void * ch_calloc LDAP_P(( ber_len_t nelem, ber_len_t size ));
 char * ch_strdup LDAP_P(( const char *string ));
+void   ch_free LDAP_P(( void * ));
+#define free ch_free
 
 /*
  * charray.c
@@ -373,6 +377,8 @@ extern int send_search_entry LDAP_P((Backend *be, Connection *conn, Operation *o
 extern int str2result LDAP_P(( char *s, int *code, char **matched, char **info ));
 
 extern ber_socket_t dtblsize;
+
+LDAP_END_DECL
 
 #endif /* _proto_slap */
 

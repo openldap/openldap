@@ -26,6 +26,9 @@
 
 #include "ldap_pvt_thread.h"
 #include "ldif.h"
+
+LDAP_BEGIN_DECL
+
 #ifdef f_next
 #undef f_next /* name conflict between sys/file.h on SCO and struct filter */
 #endif
@@ -65,8 +68,6 @@
 #define SLAP_SCHERR_MR_NOT_FOUND	10
 #define SLAP_SCHERR_SYN_NOT_FOUND	11
 #define SLAP_SCHERR_MR_INCOMPLETE	12
-
-LDAP_BEGIN_DECL
 
 extern int slap_debug;
 
@@ -552,8 +553,8 @@ typedef struct slap_conn {
 #define Statslog( level, fmt, connid, opid, arg1, arg2, arg3 )
 #endif
 
-#include "proto-slap.h"
-
 LDAP_END_DECL
+
+#include "proto-slap.h"
 
 #endif /* _slap_h_ */

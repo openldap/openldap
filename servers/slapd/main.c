@@ -112,16 +112,14 @@ usage( char *name )
 
 time_t starttime;
 struct sockaddr_in	bind_addr;
-int tcps;
+ber_int_t tcps;
 
 #ifdef HAVE_WINSOCK
 void WINAPI ServiceMain( DWORD argc, LPTSTR *argv )
-{
 #else
 int main( int argc, char **argv )
-{
 #endif
-
+{
 	int		i;
 	int		inetd = 0;
 	int		rc;
@@ -443,7 +441,9 @@ stop:
 
     closelog();
 
+#ifndef HAVE_WINSOCK
 	return rc;
+#endif
 }
 
 

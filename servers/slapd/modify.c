@@ -30,7 +30,8 @@ do_modify(
 {
 	char		*ndn;
 	char		*last;
-	unsigned long	tag, len;
+	ber_tag_t	tag;
+	ber_len_t	len;
 	LDAPModList	*modlist;
 	LDAPModList	**modtail;
 #ifdef LDAP_DEBUG

@@ -58,12 +58,11 @@ send_ldap_result2(
 
 
 #ifdef LDAP_COMPAT30
-	if ( (ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER ))
-	    == NULLBER )
+	ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER );
 #else
-	if ( (ber = der_alloc()) == NULLBER )
+	ber = der_alloc();
 #endif
-	{
+	if ( ber == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
 		return;
 	}
@@ -146,8 +145,9 @@ send_ldap_result2(
 	ldap_pvt_thread_mutex_unlock( &num_sent_mutex );
 
 	Statslog( LDAP_DEBUG_STATS,
-	    "conn=%d op=%d RESULT err=%d tag=%lu nentries=%d\n", conn->c_connid,
-	    op->o_opid, err, tag, nentries );
+	    "conn=%ld op=%ld RESULT err=%ld tag=%lu nentries=%d\n",
+		(long) conn->c_connid, (long) op->o_opid,
+		(long) err, (long) tag, nentries );
 
 	return;
 }
@@ -156,7 +156,7 @@ void
 send_ldap_result(
     Connection	*conn,
     Operation	*op,
-    int		err,
+    ber_int_t	err,
     char	*matched,
     char	*text
 )
@@ -178,7 +178,7 @@ void
 send_ldap_search_result(
     Connection	*conn,
     Operation	*op,
-    int		err,
+    ber_int_t	err,
     char	*matched,
     char	*text,
     int		nentries
@@ -216,12 +216,12 @@ send_search_entry(
 	edn = e->e_ndn;
 
 #ifdef LDAP_COMPAT30
-	if ( (ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER ))
-		== NULLBER )
+	ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER );
 #else
-	if ( (ber = der_alloc()) == NULLBER )
+	ber = der_alloc();
 #endif
-	{
+
+	if ( ber == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL,
 			"ber_alloc" );

@@ -23,7 +23,7 @@ int deny_severity = LOG_NOTICE;
 
 /* globals */
 ber_socket_t dtblsize;
-static int tcps;
+static ber_socket_t tcps;
 
 #ifdef HAVE_WINSOCK2
 // in nt_main.c

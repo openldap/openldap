@@ -21,8 +21,24 @@ static char avl_version[] = "AVL library version 1.0\n";
 #include <stdio.h>
 #include <ac/stdlib.h>
 
-#define AVL_INTERNAL
 #include "avl.h"
+
+struct avlnode {
+	void*		avl_data;
+	struct avlnode	*avl_left;
+	struct avlnode	*avl_right;
+	signed int		avl_bf;
+};
+
+/* balance factor values */
+#define LH 	(-1)
+#define EH 	0
+#define RH 	1
+
+/* avl routines */
+#define avl_getone(x)	((x) == 0 ? 0 : (x)->avl_data)
+#define avl_onenode(x)	((x) == 0 || ((x)->avl_left == 0 && (x)->avl_right == 0))
+
 
 #define ROTATERIGHT(x)	{ \
 	Avlnode *tmp;\
@@ -356,7 +372,7 @@ ravl_delete( Avlnode **root, void* data, AVL_CMP fcmp, int *shorter )
 	void*	savedata;
 	Avlnode	*minnode, *savenode;
 
-	if ( *root == NULLAVL )
+	if ( *root == NULL )
 		return( 0 );
 
 	cmp = (*fcmp)( data, (*root)->avl_data );
@@ -388,7 +404,7 @@ ravl_delete( Avlnode **root, void* data, AVL_CMP fcmp, int *shorter )
 		 */
 
 		minnode = (*root)->avl_right;
-		while ( minnode->avl_left != NULLAVL )
+		while ( minnode->avl_left != NULL )
 			minnode = minnode->avl_left;
 
 		/* swap the data */
