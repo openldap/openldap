@@ -2,11 +2,13 @@ OpenLDAP Change Log
 
 Changes included in OpenLDAP Stable 
 	CVS Tag: OPENLDAP_STABLE
+	Added build/mkdep $CC support
 	Fixed DCE Threading issues
 	Fixed ldif2index atol bug
-	Added build/mkdep $CC support
+	Fixed mail500 bouncefrom bug
 	Fixed slapd/SCO f_next bug
 	Fixed slapd/attr debug print bug
+	Fixed slapd/ldbm id removal from parent's list of children
 	Fixed slapd lock release bugs
 	Fixed slapd/shell modify missing newline bug
 	Fixed slapd.h SCO f_next bug
