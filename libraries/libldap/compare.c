@@ -61,7 +61,7 @@ ldap_compare_ext(
 	assert( msgidp != NULL );
 
 	/* create a message to send */
-	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
+	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
 		return( LDAP_NO_MEMORY );
 	}
 

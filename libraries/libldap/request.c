@@ -44,7 +44,7 @@ ldap_alloc_ber_with_options( LDAP *ld )
 {
 	BerElement	*ber;
 
-    if (( ber = ber_alloc_t( ld->ld_lberoptions )) == NULLBER ) {
+    if (( ber = ber_alloc_t( ld->ld_lberoptions )) == NULL ) {
 		ld->ld_errno = LDAP_NO_MEMORY;
 #ifdef STR_TRANSLATION
 	} else {
@@ -514,15 +514,15 @@ ldap_dump_requests_and_responses( LDAP *ld )
 	}
 
 	fprintf( stderr, "** Response Queue:\n" );
-	if (( lm = ld->ld_responses ) == NULLMSG ) {
+	if (( lm = ld->ld_responses ) == NULL ) {
 		fprintf( stderr, "   Empty\n" );
 	}
-	for ( ; lm != NULLMSG; lm = lm->lm_next ) {
+	for ( ; lm != NULL; lm = lm->lm_next ) {
 		fprintf( stderr, " * msgid %d,  type %d\n",
 		    lm->lm_msgid, lm->lm_msgtype );
 		if (( l = lm->lm_chain ) != NULL ) {
 			fprintf( stderr, "   chained responses:\n" );
-			for ( ; l != NULLMSG; l = l->lm_chain ) {
+			for ( ; l != NULL; l = l->lm_chain ) {
 				fprintf( stderr,
 				    "  * msgid %d,  type %d\n",
 				    l->lm_msgid, l->lm_msgtype );
@@ -813,7 +813,7 @@ re_encode_request( LDAP *ld, BerElement *origber, ber_int_t msgid, char **dnp )
 		return( NULL );
 	}
 
-        if (( ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
+        if (( ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
                 return( NULL );
         }
 

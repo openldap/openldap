@@ -131,7 +131,7 @@ do_abandon(
 	err = 0;
 	if ( sendabandon ) {
 		/* create a message to send */
-		if ( (ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
+		if ( (ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
 			err = -1;
 			ld->ld_errno = LDAP_NO_MEMORY;
 

@@ -98,7 +98,7 @@ ldap_search_ext(
 	ber = ldap_build_search_req( ld, base, scope, filter, attrs,
 	    attrsonly, sctrls, cctrls, timelimit, sizelimit ); 
 
-	if ( ber == NULLBER ) {
+	if ( ber == NULL ) {
 		return ld->ld_errno;
 	}
 
@@ -184,7 +184,7 @@ ldap_search(
 	ber = ldap_build_search_req( ld, base, scope, filter, attrs,
 	    attrsonly, NULL, NULL, -1, -1 ); 
 
-	if ( ber == NULLBER ) {
+	if ( ber == NULL ) {
 		return( -1 );
 	}
 
@@ -247,8 +247,8 @@ ldap_build_search_req(
 	 */
 
 	/* create a message to send */
-	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
-		return( NULLBER );
+	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
+		return( NULL );
 	}
 
 	if ( base_in == NULL ) {
@@ -284,7 +284,7 @@ ldap_build_search_req(
 	if ( err == -1 ) {
 		ld->ld_errno = LDAP_ENCODING_ERROR;
 		ber_free( ber, 1 );
-		return( NULLBER );
+		return( NULL );
 	}
 
 	filter = LDAP_STRDUP( filter_in );
@@ -294,25 +294,25 @@ ldap_build_search_req(
 	if ( err  == -1 ) {
 		ld->ld_errno = LDAP_FILTER_ERROR;
 		ber_free( ber, 1 );
-		return( NULLBER );
+		return( NULL );
 	}
 
 	if ( ber_printf( ber, /*{*/ "{v}}", attrs ) == -1 ) {
 		ld->ld_errno = LDAP_ENCODING_ERROR;
 		ber_free( ber, 1 );
-		return( NULLBER );
+		return( NULL );
 	}
 
 	/* Put Server Controls */
 	if( ldap_int_put_controls( ld, sctrls, ber ) != LDAP_SUCCESS ) {
 		ber_free( ber, 1 );
-		return( NULLBER );
+		return( NULL );
 	}
 
 	if ( ber_printf( ber, /*{*/ "}", attrs ) == -1 ) {
 		ld->ld_errno = LDAP_ENCODING_ERROR;
 		ber_free( ber, 1 );
-		return( NULLBER );
+		return( NULL );
 	}
 
 	return( ber );

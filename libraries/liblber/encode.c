@@ -439,11 +439,11 @@ ber_start_seqorset(
 
 	new = (Seqorset *) LBER_CALLOC( 1, sizeof(Seqorset) );
 
-	if ( new == NULLSEQORSET )
+	if ( new == NULL )
 		return( -1 );
 
 	new->sos_ber = ber;
-	if ( ber->ber_sos == NULLSEQORSET )
+	if ( ber->ber_sos == NULL )
 		new->sos_first = ber->ber_ptr;
 	else
 		new->sos_first = ber->ber_sos->sos_ptr;
@@ -504,7 +504,7 @@ ber_put_seqorset( BerElement *ber )
 
 	len = (*sos)->sos_clen;
 	netlen = LBER_LEN_HTON( len );
-	if ( sizeof(long) > 4 && len > 0xffffffffUL )
+	if ( sizeof(ber_len_t) > 4 && len > 0xffffffffUL )
 		return( -1 );
 
 	if ( ber->ber_options & LBER_USE_DER ) {
@@ -513,7 +513,7 @@ ber_put_seqorset( BerElement *ber )
 		lenlen = FOUR_BYTE_LEN;
 	}
 
-	if ( (next = (*sos)->sos_next) == NULLSEQORSET ) {
+	if ( (next = (*sos)->sos_next) == NULL ) {
 		/* write the tag */
 		if ( (taglen = ber_put_tag( ber, (*sos)->sos_tag, 1 )) == -1 )
 			return( -1 );

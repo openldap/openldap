@@ -103,17 +103,17 @@ status_is_ok( Sockbuf *sb )
 #endif
 
 #ifdef USE_SASL
-static long
+static ber_len_t
 packet_length( char *buf )
 {
-   long size;
+   ber_len_t size;
 
    assert( buf != NULL );
 
-   size = (((unsigned long)buf[0])<<24)|
-     (((unsigned long)buf[1])<<16)|
-     (((unsigned long)buf[2])<<8)|
-     (((unsigned long)buf[3]));
+   size = (((ber_len_t)buf[0])<<24)|
+     (((ber_len_t)buf[1])<<16)|
+     (((ber_len_t)buf[2])<<8)|
+     (((ber_len_t)buf[3]));
    
    if ((size<0) || (size>MAX_BUF_SIZE))	{
       /* somebody is trying to mess me up. */

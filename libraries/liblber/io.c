@@ -61,7 +61,7 @@ BerRead(
 	char *buf,
 	ber_len_t len )
 {
-	int	c;
+	ber_slen_t	c;
 	ber_slen_t	nread = 0;
 
 	assert( sb != NULL );
@@ -176,7 +176,7 @@ ber_realloc( BerElement *ber, ber_len_t len )
 	if ( ber->ber_buf != oldbuf ) {
 		ber->ber_ptr = ber->ber_buf + (ber->ber_ptr - oldbuf);
 
-		for ( s = ber->ber_sos; s != NULLSEQORSET; s = s->sos_next ) {
+		for ( s = ber->ber_sos; s != NULL; s = s->sos_next ) {
 			off = s->sos_first - oldbuf;
 			s->sos_first = ber->ber_buf + off;
 
@@ -271,8 +271,8 @@ ber_alloc_t( int options )
 
 	ber = (BerElement *) LBER_CALLOC( 1, sizeof(BerElement) );
 
-	if ( ber == NULLBER )
-		return( NULLBER );
+	if ( ber == NULL )
+		return( NULL );
 
 	ber->ber_valid = LBER_VALID_BERELEMENT;
 	ber->ber_tag = LBER_DEFAULT;
@@ -350,13 +350,13 @@ ber_init( struct berval *bv )
 
 	ber = ber_alloc_t( 0 );
 
-	if( ber == NULLBER ) {
+	if( ber == NULL ) {
 		/* allocation failed */
 		return ( NULL );
 	}
 
 	/* copy the data */
-	if ( ( (unsigned int) ber_write ( ber, bv->bv_val, bv->bv_len, 0 )) != bv->bv_len ) {
+	if ( ( (ber_len_t) ber_write ( ber, bv->bv_val, bv->bv_len, 0 )) != bv->bv_len ) {
 		/* write failed, so free and return NULL */
 		ber_free( ber, 1 );
 		return( NULL );
@@ -431,11 +431,11 @@ ber_reset( BerElement *ber, int was_writing )
 
 #if 0
 /* return the tag - LBER_DEFAULT returned means trouble */
-static unsigned long
+static ber_tag_t
 get_tag( Sockbuf *sb )
 {
 	unsigned char	xbyte;
-	unsigned long	tag;
+	ber_tag_t	tag;
 	char		*tagp;
 	unsigned int	i;
 
@@ -446,11 +446,11 @@ get_tag( Sockbuf *sb )
 		return( LBER_DEFAULT );
 
 	if ( (xbyte & LBER_BIG_TAG_MASK) != LBER_BIG_TAG_MASK )
-		return( (unsigned long) xbyte );
+		return( (ber_tag_t) xbyte );
 
 	tagp = (char *) &tag;
 	tagp[0] = xbyte;
-	for ( i = 1; i < sizeof(long); i++ ) {
+	for ( i = 1; i < sizeof(ber_tag_t); i++ ) {
 		if ( ber_pvt_sb_read( sb, (char *) &xbyte, 1 ) != 1 )
 			return( LBER_DEFAULT );
 
@@ -461,11 +461,11 @@ get_tag( Sockbuf *sb )
 	}
 
 	/* tag too big! */
-	if ( i == sizeof(long) )
+	if ( i == sizeof(ber_tag_t) )
 		return( LBER_DEFAULT );
 
 	/* want leading, not trailing 0's */
-	return( tag >> (sizeof(long) - i - 1) );
+	return( tag >> (sizeof(ber_tag_t) - i - 1) );
 }
 #endif
 
@@ -548,7 +548,7 @@ get_lenbyte:
 			return LBER_DEFAULT;
 		if (c & 0x80U) {
 			int len = c & 0x7fU;
-			if ( (len==0) || ((unsigned) len>sizeof( ber->ber_len ) ) ) {
+			if ( (len==0) || ( len>sizeof( ber->ber_len ) ) ) {
 				errno = ERANGE;
 				return LBER_DEFAULT;
 			}

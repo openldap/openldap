@@ -77,7 +77,7 @@ struct ldapmsg {
 	struct ldapmsg	*lm_next;	/* next response */
 	time_t	lm_time;	/* used to maintain cache */
 };
-#define NULLMSG ((LDAPMessage *)NULL)
+
 /*
  * structure representing get/set'able options
  * which have global defaults.
@@ -182,7 +182,6 @@ typedef struct ldapcache {
 #define LDAP_CACHE_OPT_CACHENOERRS	0x00000001
 #define LDAP_CACHE_OPT_CACHEALLERRS	0x00000002
 }  LDAPCache;
-#define NULLLDCACHE ((LDAPCache *)NULL)
 
 /*
  * handy macro for checking if handle is connectionless

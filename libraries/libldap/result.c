@@ -40,8 +40,8 @@ static int ldap_abandoned LDAP_P(( LDAP *ld, ber_int_t msgid ));
 static int ldap_mark_abandoned LDAP_P(( LDAP *ld, ber_int_t msgid ));
 static int wait4msg LDAP_P(( LDAP *ld, ber_int_t msgid, int all, struct timeval *timeout,
 	LDAPMessage **result ));
-static int try_read1msg LDAP_P(( LDAP *ld, ber_int_t msgid, int all, Sockbuf *sb, LDAPConn *lc,
-	LDAPMessage **result ));
+static ber_tag_t try_read1msg LDAP_P(( LDAP *ld, ber_int_t msgid,
+	int all, Sockbuf *sb, LDAPConn *lc, LDAPMessage **result ));
 static ber_tag_t build_result_ber LDAP_P(( LDAP *ld, BerElement **bp, LDAPRequest *lr ));
 static void merge_error_info LDAP_P(( LDAP *ld, LDAPRequest *parentr, LDAPRequest *lr ));
 
@@ -87,15 +87,15 @@ ldap_result( LDAP *ld, int msgid, int all, struct timeval *timeout,
 	 * wait until it arrives or timeout occurs.
 	 */
 
-	*result = NULLMSG;
-	lastlm = NULLMSG;
-	for ( lm = ld->ld_responses; lm != NULLMSG; lm = nextlm ) {
+	*result = NULL;
+	lastlm = NULL;
+	for ( lm = ld->ld_responses; lm != NULL; lm = nextlm ) {
 		nextlm = lm->lm_next;
 
 		if ( ldap_abandoned( ld, lm->lm_msgid ) ) {
 			ldap_mark_abandoned( ld, lm->lm_msgid );
 
-			if ( lastlm == NULLMSG ) {
+			if ( lastlm == NULL ) {
 				ld->ld_responses = lm->lm_next;
 			} else {
 				lastlm->lm_next = nextlm;
@@ -115,12 +115,12 @@ ldap_result( LDAP *ld, int msgid, int all, struct timeval *timeout,
 			    && lm->lm_msgtype != LDAP_RES_SEARCH_ENTRY) )
 				break;
 
-			for ( tmp = lm; tmp != NULLMSG; tmp = tmp->lm_chain ) {
+			for ( tmp = lm; tmp != NULL; tmp = tmp->lm_chain ) {
 				if ( tmp->lm_msgtype == LDAP_RES_SEARCH_RESULT )
 					break;
 			}
 
-			if ( tmp == NULLMSG ) {
+			if ( tmp == NULL ) {
 				return( wait4msg( ld, msgid, all, timeout,
 				    result ) );
 			}
@@ -129,20 +129,20 @@ ldap_result( LDAP *ld, int msgid, int all, struct timeval *timeout,
 		}
 		lastlm = lm;
 	}
-	if ( lm == NULLMSG ) {
+	if ( lm == NULL ) {
 		return( wait4msg( ld, msgid, all, timeout, result ) );
 	}
 
-	if ( lastlm == NULLMSG ) {
-		ld->ld_responses = (all == 0 && lm->lm_chain != NULLMSG
+	if ( lastlm == NULL ) {
+		ld->ld_responses = (all == 0 && lm->lm_chain != NULL
 		    ? lm->lm_chain : lm->lm_next);
 	} else {
-		lastlm->lm_next = (all == 0 && lm->lm_chain != NULLMSG
+		lastlm->lm_next = (all == 0 && lm->lm_chain != NULL
 		    ? lm->lm_chain : lm->lm_next);
 	}
 	if ( all == 0 )
-		lm->lm_chain = NULLMSG;
-	lm->lm_next = NULLMSG;
+		lm->lm_chain = NULL;
+	lm->lm_next = NULL;
 
 	*result = lm;
 	ld->ld_errno = LDAP_SUCCESS;
@@ -257,7 +257,7 @@ wait4msg(
 }
 
 
-static int
+static ber_tag_t
 try_read1msg(
 	LDAP *ld,
 	ber_int_t msgid,
@@ -282,7 +282,7 @@ try_read1msg(
 	
 	Debug( LDAP_DEBUG_TRACE, "read1msg\n", 0, 0, 0 );
 
-    if ( lc->lconn_ber == NULLBER ) {
+    if ( lc->lconn_ber == NULL ) {
 		lc->lconn_ber = ldap_alloc_ber_with_options(ld);
 
 		if( lc->lconn_ber == NULL ) {
@@ -319,7 +319,7 @@ try_read1msg(
      * We read a complete message.
 	 * The connection should no longer need this ber.
 	 */
-    lc->lconn_ber = NULLBER;
+    lc->lconn_ber = NULL;
 
 	/* message id */
 	if ( ber_get_int( ber, &id ) == LBER_ERROR ) {
@@ -487,15 +487,15 @@ lr->lr_res_matched ? lr->lr_res_matched : "" );
 	 * search response.
 	 */
 
-	prev = NULLMSG;
-	for ( l = ld->ld_responses; l != NULLMSG; l = l->lm_next ) {
+	prev = NULL;
+	for ( l = ld->ld_responses; l != NULL; l = l->lm_next ) {
 		if ( l->lm_msgid == new->lm_msgid )
 			break;
 		prev = l;
 	}
 
 	/* not part of an existing search response */
-	if ( l == NULLMSG ) {
+	if ( l == NULL ) {
 		if ( foundit ) {
 			*result = new;
 			ld->ld_errno = LDAP_SUCCESS;
@@ -511,7 +511,7 @@ lr->lr_res_matched ? lr->lr_res_matched : "" );
 	    new->lm_msgid, new->lm_msgtype, 0 );
 
 	/* part of a search response - add to end of list of entries */
-	for ( tmp = l; tmp->lm_chain != NULLMSG &&
+	for ( tmp = l; tmp->lm_chain != NULL &&
 	    tmp->lm_chain->lm_msgtype == LDAP_RES_SEARCH_ENTRY;
 	    tmp = tmp->lm_chain )
 		;	/* NULL */
@@ -519,7 +519,7 @@ lr->lr_res_matched ? lr->lr_res_matched : "" );
 
 	/* return the whole chain if that's what we were looking for */
 	if ( foundit ) {
-		if ( prev == NULLMSG )
+		if ( prev == NULL )
 			ld->ld_responses = l->lm_next;
 		else
 			prev->lm_next = l->lm_next;
@@ -662,7 +662,7 @@ ldap_msgfree( LDAPMessage *lm )
 
 	Debug( LDAP_DEBUG_TRACE, "ldap_msgfree\n", 0, 0, 0 );
 
-	for ( ; lm != NULLMSG; lm = next ) {
+	for ( ; lm != NULL; lm = next ) {
 		next = lm->lm_chain;
 		type = lm->lm_msgtype;
 		ber_free( lm->lm_ber, 1 );
@@ -686,17 +686,17 @@ ldap_msgdelete( LDAP *ld, int msgid )
 
 	Debug( LDAP_DEBUG_TRACE, "ldap_msgdelete\n", 0, 0, 0 );
 
-	prev = NULLMSG;
-	for ( lm = ld->ld_responses; lm != NULLMSG; lm = lm->lm_next ) {
+	prev = NULL;
+	for ( lm = ld->ld_responses; lm != NULL; lm = lm->lm_next ) {
 		if ( lm->lm_msgid == msgid )
 			break;
 		prev = lm;
 	}
 
-	if ( lm == NULLMSG )
+	if ( lm == NULL )
 		return( -1 );
 
-	if ( prev == NULLMSG )
+	if ( prev == NULL )
 		ld->ld_responses = lm->lm_next;
 	else
 		prev->lm_next = lm->lm_next;
@@ -754,7 +754,7 @@ ldap_mark_abandoned( LDAP *ld, ber_int_t msgid )
 int
 cldap_getmsg( LDAP *ld, struct timeval *timeout, BerElement *ber )
 {
-	int		rc;
+	int	rc;
 	ber_tag_t	tag;
 	ber_len_t	len;
 
@@ -775,6 +775,6 @@ cldap_getmsg( LDAP *ld, struct timeval *timeout, BerElement *ber )
 		return( -1 );
 	}
 
-	return( tag );
+	return( 0 );
 }
 #endif /* LDAP_CONNECTIONLESS */

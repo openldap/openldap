@@ -67,7 +67,7 @@ struct berelement {
 	BERTranslateProc ber_decode_translate_proc;
 };
 #define BER_VALID(ber)	((ber)->ber_valid==LBER_VALID_BERELEMENT)
-#define NULLBER	((BerElement *) 0)
+
 
 #define ber_pvt_ber_bytes(ber)		((ber)->ber_ptr - (ber)->ber_buf)
 #define ber_pvt_ber_remaining(ber)	((ber)->ber_end - (ber)->ber_ptr)
@@ -169,7 +169,7 @@ struct seqorset {
 	char		*sos_ptr;
 	struct seqorset	*sos_next;
 };
-#define NULLSEQORSET	((Seqorset *) 0)
+
 
 /*
  * bprint.c

@@ -70,7 +70,7 @@ ldap_rename(
 	Debug( LDAP_DEBUG_TRACE, "ldap_rename\n", 0, 0, 0 );
 
 	/* create a message to send */
-	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
+	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
 		return( LDAP_NO_MEMORY );
 	}
 

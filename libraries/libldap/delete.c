@@ -54,7 +54,7 @@ ldap_delete_ext(
 	assert( msgidp != NULL );
 
 	/* create a message to send */
-	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
+	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
 		ld->ld_errno = LDAP_NO_MEMORY;
 		return( ld->ld_errno );
 	}

@@ -160,9 +160,7 @@ ber_getnint(
 	ber_int_t *num,
 	ber_len_t len )
 {
-	int	diff, sign, i;
-	ber_int_t	netnum;
-	char    *p;
+	unsigned char buf[sizeof(ber_int_t)];
 
 	assert( ber != NULL );
 	assert( num != NULL );
@@ -179,21 +177,26 @@ ber_getnint(
 	if ( len > sizeof(ber_int_t) )
 		return( -1 );
 
-	netnum = 0;
-	diff = sizeof(ber_int_t) - len;
-	/* read into the low-order bytes of netnum */
-	if ( (ber_len_t) ber_read( ber, ((char *) &netnum) + diff, len ) != len )
+	/* read into the low-order bytes of our buffer */
+	if ( (ber_len_t) ber_read( ber, buf, len ) != len ) {
 		return( -1 );
-
-        /* sign extend if necessary */
-        p = (char *) &netnum;
-        sign = (0x80 & *(p+diff) );
-        if ( sign && ((size_t) len < sizeof(ber_int_t)) ) {
-                for ( i = 0; i < diff; i++ ) {
-                        *(p+i) = (unsigned char) ~0;
-		}
 	}
-	*num = LBER_INT_NTOH( netnum );
+
+	if( len ) {
+		/* sign extend if necessary */
+		ber_len_t i;
+		ber_int_t netnum = 0x80 & buf[0] ? -1 : 0;
+
+		/* shift in the bytes */
+		for( i=0 ; i<len; i++ ) {
+			netnum = (netnum << 8 ) | buf[i];
+		}
+
+		*num = netnum;
+
+	} else {
+		*num = 0;
+	}
 
 	return( len );
 }

@@ -239,7 +239,7 @@ ber_sos_dump(
 
 	(*ber_pvt_log_print)( "*** sos dump ***\n" );
 
-	while ( sos != NULLSEQORSET ) {
+	while ( sos != NULL ) {
 		sprintf( buf, "ber_sos_dump: clen %ld first 0x%lx ptr 0x%lx\n",
 		    (long) sos->sos_clen,
 			(long) sos->sos_first,
