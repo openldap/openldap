@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include "../slap.h"
 #include "../back-ldbm/back-ldbm.h"
 
@@ -170,7 +172,11 @@ main( int argc, char **argv )
 		}
 		if ( line[0] == '\n' || stop && buf && *buf ) {
 			if ( *buf != '\n' ) {
-				id++;
+				if (isdigit(*buf)) {
+					id = atol(buf);
+				} else {
+					id++;
+				}
 				s = buf;
 				elineno = 0;
 				while ( (linep = str_getline( &s )) != NULL ) {

@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+
 #include "../slap.h"
 #include "../back-ldbm/back-ldbm.h"
 
@@ -150,8 +152,18 @@ main( int argc, char **argv )
 
 			len = strlen( line );
 			if ( buf == NULL || *buf == '\0' ) {
+<<<<<<< ldif2id2entry.c
 				sprintf( idbuf, "%d\n", id + 1 );
 				idlen = strlen( idbuf );
+=======
+				if (!isdigit(line[0])) {
+					sprintf( idbuf, "%d\n", id + 1 );
+					idlen = strlen( idbuf );
+				} else {
+					id = atol(line) - 1;
+					idlen = 0;
+				}
+>>>>>>> 1.4.2.3
 			} else {
 				idlen = 0;
 			}
@@ -172,11 +184,16 @@ main( int argc, char **argv )
 		}
 		if ( line[0] == '\n' || stop && buf && *buf ) {
 			if ( *buf != '\n' ) {
+				int len;
+
 				id++;
 				key.dptr = (char *) &id;
 				key.dsize = sizeof(ID);
 				data.dptr = buf;
-				data.dsize = strlen( buf ) + 1;
+				len = strlen(buf);
+				if (buf[len - 1] == '\n')
+					buf[--len] = '\0';
+				data.dsize = len + 1;
 				if ( ldbm_store( db->dbc_db, key, data,
 				    LDBM_INSERT ) != 0 ) {
 					perror( "id2entry ldbm_store" );
