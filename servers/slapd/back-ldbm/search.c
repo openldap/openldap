@@ -130,7 +130,8 @@ ldbm_back_search(
 		    scope, deref, manageDSAit );
 	}
 
-	matched_dn = ch_strdup( e->e_dn );
+	/* need normalized dn below */
+	matched_dn = ch_strdup( e->e_ndn );
 	cache_return_entry_r( &li->li_cache, e );
 
 	/* null candidates means we could not find the base object */
