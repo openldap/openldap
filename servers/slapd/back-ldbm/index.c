@@ -315,7 +315,7 @@ index_change_values(
 		       syn_canonical_name( at->sat_syntax ),
 		       mr_canonical_name( indexes[ind] ), 0 );
 
-		if ( indexes[ind]->smr_index( vals, &ivals ) == 0 ) {
+		if ( indexes[ind]->smr_cindex( vals, &ivals ) == 0 ) {
 
 			for ( i = 0; ivals[i] != NULL; i++ ) {
 
