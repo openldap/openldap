@@ -478,10 +478,12 @@ subtree_candidates(
 			f->f_next = NULL;
 			f->f_choice = LDAP_FILTER_AND;
 			f->f_and = (Filter *) ch_malloc( sizeof(Filter) );
-			f->f_and->f_choice = LDAP_FILTER_SUBSTRINGS;
-			f->f_and->f_sub_type = ch_strdup( "dn" );
-			build_substr_value( NULL, NULL, e->e_ndn,
-					    &f->f_and->f_sub_value);
+			f->f_and->f_choice = LDAP_FILTER_EXTENDED;
+			f->f_and->f_mrtype = ch_strdup( "*dn" );
+			f->f_and->f_mrrule = ch_strdup( "*dnsuffix" );
+			f->f_and->f_mrdnaddrs = 0;
+			f->f_and->f_mrvalue.bv_val = ch_strdup( base );
+			f->f_and->f_mrvalue.bv_len = strlen( base );
 			f->f_and->f_next = filter;
 			filter = f;
 		}
