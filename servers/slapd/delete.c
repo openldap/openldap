@@ -91,8 +91,8 @@ do_delete(
 				replog( be, LDAP_REQ_DELETE, ndn, NULL, 0 );
 			}
 		} else {
-			send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-				NULL, NULL, default_referral, NULL );
+			send_ldap_result( conn, op, rc = LDAP_REFERRAL, NULL, NULL,
+				be->be_update_refs ? be->be_update_refs : default_referral, NULL );
 		}
 	} else {
 		send_ldap_result( conn, op, rc = LDAP_UNWILLING_TO_PERFORM,

@@ -155,8 +155,8 @@ do_add( Connection *conn, Operation *op )
 
 		} else {
 			entry_free( e );
-			send_ldap_result( conn, op, rc = LDAP_REFERRAL, NULL,
-				NULL, default_referral, NULL );
+			send_ldap_result( conn, op, rc = LDAP_REFERRAL, NULL, NULL,
+				be->be_update_refs ? be->be_update_refs : default_referral, NULL );
 		}
 	} else {
 	    Debug( LDAP_DEBUG_ARGS, "    do_add: HHH\n", 0, 0, 0 );

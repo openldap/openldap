@@ -361,7 +361,7 @@ search_candidates(
 	af = NULL;
 #endif
 
-	if ( scope == LDAP_SCOPE_SUBTREE && !be_issuffix( be,  e->e_ndn ) ) {
+	if ( scope == LDAP_SCOPE_SUBTREE ) {
 		lf = (Filter *) ch_malloc( sizeof(Filter) );
 		lf->f_next = NULL;
 		lf->f_choice = LDAP_FILTER_AND;

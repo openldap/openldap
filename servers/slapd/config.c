@@ -466,6 +466,27 @@ read_config( char *fname )
 				(void) dn_normalize_case( be->be_update_ndn );
 			}
 
+		} else if ( strcasecmp( cargv[0], "updateref" ) == 0 ) {
+			if ( cargc < 2 ) {
+				Debug( LDAP_DEBUG_ANY,
+		    "%s: line %d: missing dn in \"updateref <ldapurl>\" line\n",
+				    fname, lineno, 0 );
+				return( 1 );
+			}
+			if ( be == NULL ) {
+				Debug( LDAP_DEBUG_ANY,
+"%s: line %d: updateref line must appear inside a database definition (ignored)\n",
+				    fname, lineno, 0 );
+			} else if ( be->be_update_ndn == NULL ) {
+				Debug( LDAP_DEBUG_ANY,
+"%s: line %d: updateref line must after updatedn (ignored)\n",
+				    fname, lineno, 0 );
+			} else {
+				vals[0]->bv_val = cargv[1];
+				vals[0]->bv_len = strlen( vals[0]->bv_val );
+				value_add( &be->be_update_refs, vals );
+			}
+
 		/* replication log file to which changes are appended */
 		} else if ( strcasecmp( cargv[0], "replogfile" ) == 0 ) {
 			if ( cargc < 2 ) {
