@@ -13,6 +13,7 @@ AC_CONFIG_HEADER(include/portable.h)dnl
 dnl
 dnl Start Args
 AC_MSG_CHECKING(arguments)
+AC_PREFIX_DEFAULT(/usr/local)
 
 dnl general options
 CF_ARG_OPTION(debug,[  --enable-debug	enable debugging (yes)],[
@@ -269,6 +270,13 @@ AC_CHECK_FUNCS(		\
 
 # Check Configuration
 CF_SYS_ERRLIST
+
+dnl need do this early
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
+test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
+
+SYSCONFDIR=`eval echo $sysconfdir`
+AC_SUBST(SYSCONFDIR)
 
 AC_OUTPUT( \
 include/ldapconfig.h \

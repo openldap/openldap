@@ -145,7 +145,7 @@ Please try again later.\r\n"
 #define RCPT500_FROM		"\"X.500 Query Program\" <X500-Query>"
 	/* command that will accept an RFC822 message text on standard
 	   input, and send it.  sendmail -t does this nicely. */
-#define RCPT500_PIPEMAILCMD	"/usr/lib/sendmail -t"
+#define RCPT500_PIPEMAILCMD	"@SENDMAIL@ -t"
         /* where to search */
 #define RCPT500_BASE             DEFAULT_BASE
 	/* attribute to use when sorting results */
