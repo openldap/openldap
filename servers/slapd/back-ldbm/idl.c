@@ -534,14 +534,12 @@ idl_insert_key(
 		/* is there a next block? */
 		if ( !first && !ID_BLOCK_NOID(idl, i + 1) ) {
 			/* read it in */
-			cont_alloc( &k2, &key );
 			cont_id( &k2, ID_BLOCK_ID(idl, i + 1) );
 			if ( (tmp2 = idl_fetch_one( be, db, k2 )) == NULL ) {
 				Debug( LDAP_DEBUG_ANY,
 				    "idl_insert_key: idl_fetch_one returned NULL\n",
 				    0, 0, 0 );
 				/* split the original block */
-				cont_free( &k2 );
 				goto split;
 			}
 
@@ -552,9 +550,6 @@ idl_insert_key(
 			 */
 			if (id < ID_BLOCK_ID(tmp, ID_BLOCK_NIDS(tmp) - 1)) {
 			    ID id2 = ID_BLOCK_ID(tmp, ID_BLOCK_NIDS(tmp) - 1);
-			    Datum k3;
-
-			    ldbm_datum_init( k3 );
 
 			    --ID_BLOCK_NIDS(tmp);
 			    /* This must succeed since we just popped one
@@ -562,15 +557,10 @@ idl_insert_key(
 			     */
 			    rc = idl_insert( &tmp, id, db->dbc_maxids );
 
-				k3.dptr = ch_malloc(k2.dsize);
-				k3.dsize = k2.dsize;
-				AC_MEMCPY(k3.dptr, k2.dptr, k3.dsize);
-			    if ( (rc = idl_store( be, db, k3, tmp )) != 0 ) {
+			    if ( (rc = idl_store( be, db, k2, tmp )) != 0 ) {
 				Debug( LDAP_DEBUG_ANY,
 			    "idl_insert_key: idl_store returned %d\n", rc, 0, 0 );
 			    }
-
-				free( k3.dptr );
 
 			    id = id2;
 			    /* This new id will necessarily be inserted
@@ -600,6 +590,7 @@ idl_insert_key(
 
 				idl_free( tmp );
 				idl_free( tmp2 );
+				cont_free( &k2 );
 				idl_free( idl );
 				return( 0 );
 
