@@ -231,8 +231,6 @@ return_results:;
 	if ( dn != NULL )
 		free( dn );
 
-	cache_set_state( &li->li_cache, e, 0 );
-
 	if (p != NULL) {
 		/* free parent and writer lock */
 		cache_return_entry_w( &li->li_cache, p ); 
@@ -242,6 +240,8 @@ return_results:;
 		/* release root lock */
 		pthread_mutex_unlock(&li->li_root_mutex);
 	}
+
+	cache_set_state( &li->li_cache, e, 0 );
 
 	/* free entry and writer lock */
 	cache_return_entry_w( &li->li_cache, e ); 
