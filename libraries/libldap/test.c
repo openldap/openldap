@@ -575,7 +575,7 @@ main( int argc, char **argv )
 				printf( "\nresult: msgtype %d msgid %d\n",
 				    msgtype, res->lm_msgid );
 				handle_result( ld, res );
-				res = NULLMSG;
+				res = NULL;
 				break;
 
 			case 'm':	/* remove */
@@ -618,7 +618,7 @@ main( int argc, char **argv )
 				printf( "\nresult: msgid %d\n",
 				    res->lm_msgid );
 				handle_result( ld, res );
-				res = NULLMSG;
+				res = NULL;
 			    }
 #endif /* LDAP_CONNECTIONLESS */
 			} else {
@@ -663,7 +663,7 @@ main( int argc, char **argv )
 			else {
 				printf( "\nresult: err %d\n", id );
 				handle_result( ld, res );
-				res = NULLMSG;
+				res = NULL;
 			}
 			free_list( types );
 			break;
@@ -912,7 +912,7 @@ print_search_entry( LDAP *ld, LDAPMessage *res )
 {
 	LDAPMessage	*e;
 
-	for ( e = ldap_first_entry( ld, res ); e != NULLMSG;
+	for ( e = ldap_first_entry( ld, res ); e != NULL;
 	    e = ldap_next_entry( ld, e ) )
 	{
 		BerElement	*ber = NULL;
@@ -972,6 +972,6 @@ print_search_entry( LDAP *ld, LDAPMessage *res )
 	}
 
 	if ( res->lm_msgtype == LDAP_RES_SEARCH_RESULT
-	    || res->lm_chain != NULLMSG )
+	    || res->lm_chain != NULL )
 		print_ldap_result( ld, res, "search" );
 }
