@@ -45,7 +45,7 @@ index_candidates(
 	}
 
 	idl = NULL;
-	assert( mr->smr_index != NULL );
+	assert( mr->smr_sindex != NULL );
 	/* Now take each piece and compute the indexing stems for it */
 	for ( i = 0; svals[i]; i++ ) {
 		struct berval	*isvals[2];
@@ -53,7 +53,7 @@ index_candidates(
 
 		isvals[0] = svals[i];
 		isvals[1] = NULL;
-		mr->smr_index( isvals, &ivals );
+		mr->smr_sindex( isvals, &ivals );
 		idl1 = NULL;
 		for ( j = 0; ivals[j]; j++ ) {
 			idl2 = index_read( be, at, mr,
