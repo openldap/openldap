@@ -425,7 +425,7 @@ cldap_parsemsg( LDAP *ld, int msgid, BerElement *ber,
 	    tag = ber_next_element( ber, &len, cookie )) {
 	if (( ldm = (LDAPMessage *)LDAP_CALLOC( 1, sizeof(LDAPMessage)))
 		== NULL || ( ldm->lm_ber = ldap_alloc_ber_with_options( ld ))
-		== NULLBER ) {
+		== NULL ) {
 	    rc = LDAP_NO_MEMORY;
 	    break;	/* return w/error*/
 	}
@@ -515,7 +515,7 @@ cldap_parsemsg( LDAP *ld, int msgid, BerElement *ber,
 
     /* dispose of any leftovers */
     if ( ldm != NULL ) {
-	if ( ldm->lm_ber != NULLBER ) {
+	if ( ldm->lm_ber != NULL ) {
 	    ber_free( ldm->lm_ber, 1 );
 	}
 	LDAP_FREE( ldm );

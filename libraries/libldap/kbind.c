@@ -77,7 +77,7 @@ ldap_kerberos_bind1( LDAP *ld, LDAP_CONST char *dn )
 	}
 
 	/* create a message to send */
-	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
+	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
 		LDAP_FREE( cred );
 		return( -1 );
 	}
@@ -171,7 +171,7 @@ ldap_kerberos_bind2( LDAP *ld, LDAP_CONST char *dn )
 	}
 
 	/* create a message to send */
-	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULLBER ) {
+	if ( (ber = ldap_alloc_ber_with_options( ld )) == NULL ) {
 		LDAP_FREE( cred );
 		return( -1 );
 	}

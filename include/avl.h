@@ -21,8 +21,8 @@
 /* avl.h - avl tree definitions */
 
 
-#ifndef _AVL_H
-#define _AVL_H
+#ifndef _AVL
+#define _AVL
 
 #include <ldap_cdefs.h>
 
@@ -33,6 +33,27 @@
 LDAP_BEGIN_DECL
 
 typedef struct avlnode Avlnode;
+
+#ifdef AVL_INTERNAL
+struct avlnode {
+	void*		avl_data;
+	signed int		avl_bf;
+	struct avlnode	*avl_left;
+	struct avlnode	*avl_right;
+};
+
+#define NULLAVL	((Avlnode *) NULL)
+
+/* balance factor values */
+#define LH 	(-1)
+#define EH 	0
+#define RH 	1
+
+/* avl routines */
+#define avl_getone(x)	((x) == 0 ? 0 : (x)->avl_data)
+#define avl_onenode(x)	((x) == 0 || ((x)->avl_left == 0 && (x)->avl_right == 0))
+
+#endif /* AVL_INTERNALS */
 
 typedef int		(*AVL_APPLY) LDAP_P((void *, void*));
 typedef int		(*AVL_CMP) LDAP_P((const void*, const void*));
@@ -83,4 +104,4 @@ avl_prefixapply LDAP_P((Avlnode *, void*, AVL_CMP, void*, AVL_CMP, void*, int));
 
 LDAP_END_DECL
 
-#endif /* _AVL_H */
+#endif /* _AVL */
