@@ -480,6 +480,12 @@ idl_insert_key(
 	/* select the block to try inserting into *//* XXX linear search XXX */
 	for ( i = 0; !ID_BLOCK_NOID(idl, i) && id > ID_BLOCK_ID(idl, i); i++ )
 		;	/* NULL */
+	
+	/* The ID already exists in the IDL, no insert needed */
+	if ( ID_BLOCK_ID( idl, i ) == id ) {
+		idl_free( idl );
+		return 0;
+	}
 
 	if ( i != 0 ) {
 		i--;
