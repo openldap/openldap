@@ -425,6 +425,7 @@ bdb2i_back_modrdn_internal(
 return_results:
 	if( new_dn != NULL ) free( new_dn );
 	if( new_ndn != NULL ) free( new_ndn );
+
 return_results_after:
 	/* NOTE:
 	 * new_dn and new_ndn are not deallocated because they are used by

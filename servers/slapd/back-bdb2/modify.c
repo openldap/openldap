@@ -188,11 +188,9 @@ bdb2i_back_modify_internal(
 
 	send_ldap_result( conn, op, LDAP_SUCCESS,
 		NULL, NULL, NULL, NULL );
-	bdb2i_cache_return_entry_w( &li->li_cache, e );
 	return( 0 );
 
 error_return:;
-	bdb2i_cache_return_entry_w( &li->li_cache, e );
 	return( -1 );
 }
 
@@ -278,6 +276,7 @@ bdb2_back_modify(
 	}
 
 	ret = bdb2i_back_modify_internal( be, conn, op, dn, modlist, e );
+	bdb2i_cache_return_entry_w( &li->li_cache, e );
 
 done:
 	(void) bdb2i_leave_backend_w( lock );
