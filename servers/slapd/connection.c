@@ -176,9 +176,9 @@ static Connection* connection_get( ber_socket_t s )
 				continue;
 			}
 
-			assert( connections[i].c_struct_state == SLAP_C_USED );
-			assert( connections[i].c_conn_state != SLAP_C_INVALID );
-			assert( ber_pvt_sb_in_use( connections[i].c_sb ) );
+			/* state can actually change from used -> unused by resched,
+			 * so don't assert details here.
+			 */
 
 			if( ber_pvt_sb_get_desc( connections[i].c_sb ) == s ) {
 				c = &connections[i];
@@ -193,6 +193,7 @@ static Connection* connection_get( ber_socket_t s )
 
 		if( c->c_struct_state != SLAP_C_USED ) {
 			/* connection must have been closed due to resched */
+
 			assert( c->c_conn_state == SLAP_C_INVALID );
 			assert( !ber_pvt_sb_in_use( c->c_sb ) );
 
@@ -356,9 +357,6 @@ connection_destroy( Connection *c )
     assert( c->c_conn_state != SLAP_C_INVALID );
     assert( c->c_ops == NULL );
 
-    c->c_struct_state = SLAP_C_UNUSED;
-    c->c_conn_state = SLAP_C_INVALID;
-
 #ifdef LDAP_COMPAT30
     c->c_version = 0;
 #endif
@@ -395,6 +393,9 @@ connection_destroy( Connection *c )
 	}
 
    	ber_pvt_sb_destroy( c->c_sb );
+
+    c->c_conn_state = SLAP_C_INVALID;
+    c->c_struct_state = SLAP_C_UNUSED;
 }
 
 int connection_state_closing( Connection *c )

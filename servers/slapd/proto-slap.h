@@ -338,8 +338,14 @@ extern int	slap_shutdown LDAP_P((int dbnum));
 extern int	slap_destroy LDAP_P((void));
 
 struct sockaddr_in;
+
+struct slapd_args {
+	struct sockaddr_in *addr;
+	int tcps;
+};
+
+extern int	slapd_daemon LDAP_P((struct slapd_args *args));
 extern int	set_socket LDAP_P((struct sockaddr_in *addr));
-extern int	slapd_daemon LDAP_P((int inetd, ber_socket_t tcps));
 
 extern void slapd_set_write LDAP_P((ber_socket_t s, int wake));
 extern void slapd_clr_write LDAP_P((ber_socket_t s, int wake));
