@@ -283,7 +283,7 @@ void send_search_result LDAP_P((
 
 int send_search_reference LDAP_P((
 	Backend *be, Connection *conn, Operation *op,
-	Entry *e, struct berval **refs,
+	Entry *e, struct berval **refs, int scope,
 	LDAPControl **ctrls,
 	struct berval ***v2refs ));
 

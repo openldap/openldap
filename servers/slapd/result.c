@@ -94,15 +94,14 @@ static void trim_refs_urls(
 }
 
 struct berval **get_entry_referrals(
-	Backend *be, Connection *conn, Operation *op, Entry *e )
+	Backend *be,
+	Connection *conn,
+	Operation *op,
+	Entry *e )
 {
 	Attribute *attr;
 	struct berval **refs;
 	unsigned i, j;
-
-	if( is_entry_referral( e ) ) {
-		return NULL;
-	}
 
 	attr = attr_find( e->e_attrs, "ref" );
 
@@ -368,6 +367,10 @@ send_ldap_result(
 		err, matched ?  matched : "", text ? text : "" );
 
 	assert( err != LDAP_PARTIAL_RESULTS );
+
+	if( op->o_tag != LDAP_REQ_SEARCH ) {
+		trim_refs_urls( ref );
+	}
 
 	if ( err == LDAP_REFERRAL ) {
 		if( ref == NULL ) {
@@ -642,6 +645,7 @@ send_search_reference(
     Operation	*op,
     Entry	*e,
 	struct berval **refs,
+	int scope,
 	LDAPControl **ctrls,
     struct berval ***v2refs
 )

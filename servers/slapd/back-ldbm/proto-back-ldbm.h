@@ -10,29 +10,15 @@ LDAP_BEGIN_DECL
 /*
  * alias.c
  */
-Entry *deref_alias_r LDAP_P((
-	Backend     *be,
-	Connection	*conn,
-	Operation	*op,
-	Entry       *e ));
-
-char *deref_dn LDAP_P((
-	Backend     *be,
-	Connection  *conn,
-	Operation   *op,
-	char        *dn ));
-
 Entry *alias_dn2entry_r LDAP_P((
 	Backend *be,
 	char *dn,
 	Entry **matched,
 	int *err ));
 
-Entry *alias_id2entry_r LDAP_P((
+Entry *alias2entry_r LDAP_P((
 	Backend *be,
-	ID id,
-	Entry **matched,
-	int *err ));
+	Entry *e ));
 
 /*
  * attr.c

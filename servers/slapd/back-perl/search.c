@@ -87,7 +87,7 @@ perl_back_search(
 
 				} else {
 					send_search_entry( be, conn, op,
-						e, attrs, attrsonly, NULL, 0 );
+						e, attrs, attrsonly, 0, NULL );
 							 
 					entry_free( e );
 				}
