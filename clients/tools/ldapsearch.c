@@ -22,9 +22,9 @@ usage( char *s )
     fprintf( stderr, "usage: %s [options] filter [attributes...]\nwhere:\n", s );
     fprintf( stderr, "    filter\tRFC-1558 compliant LDAP search filter\n" );
     fprintf( stderr, "    attributes\twhitespace-separated list of attributes to retrieve\n" );
+    fprintf( stderr, "\t\t*          -- all user attributes\n" );
     fprintf( stderr, "\t\tempty list -- all non-operational attributes\n" );
     fprintf( stderr, "\t\t1.1        -- no attributes\n" );
-    fprintf( stderr, "\t\t*          -- all attributes\n" );
     fprintf( stderr, "options:\n" );
     fprintf( stderr, "    -n\t\tshow what would be done but don't actually search\n" );
     fprintf( stderr, "    -v\t\trun in verbose mode (diagnostics to standard output)\n" );
