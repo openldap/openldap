@@ -129,6 +129,8 @@ int get_ctrls LDAP_P((
 	Operation *op,
 	int senderrors ));
 
+int get_manageDSAit LDAP_P(( Operation *op ));
+
 /*
  * config.c
  */
@@ -258,10 +260,15 @@ void replog LDAP_P(( Backend *be, int optype, char *dn, void *change, int flag )
  * result.c
  */
 
+struct berval **get_entry_referrals LDAP_P((
+	Backend *be, Connection *conn, Operation *op,
+	Entry *e ));
+
 void send_ldap_result LDAP_P((
 	Connection *conn, Operation *op,
 	int err, char *matched, char *text,
-	struct berval **refs ));
+	struct berval **refs,
+	LDAPControl **ctrls ));
 
 void send_ldap_disconnect LDAP_P((
 	Connection *conn, Operation *op,
@@ -271,16 +278,19 @@ void send_search_result LDAP_P((
 	Connection *conn, Operation *op,
 	int err, char *matched, char *text,
 	struct berval **refs,
+	LDAPControl **ctrls,
 	int nentries ));
 
 int send_search_reference LDAP_P((
 	Backend *be, Connection *conn, Operation *op,
 	Entry *e, struct berval **refs,
+	LDAPControl **ctrls,
 	struct berval ***v2refs ));
 
 int send_search_entry LDAP_P((
 	Backend *be, Connection *conn, Operation *op,
-	Entry *e, char **attrs, int attrsonly, int opattrs ));
+	Entry *e, char **attrs, int attrsonly, int opattrs,
+	LDAPControl **ctrls ));
 
 int str2result LDAP_P(( char *s,
 	int *code, char **matched, char **info ));
@@ -301,6 +311,10 @@ MatchingRule *mr_find LDAP_P((const char *mrname));
 int mr_add LDAP_P((LDAP_MATCHING_RULE *mr, slap_mr_normalize_func *normalize, slap_mr_compare_func *compare, const char **err));
 void schema_info LDAP_P((Connection *conn, Operation *op, char **attrs, int attrsonly));
 int schema_init LDAP_P((void));
+
+int is_entry_objectclass LDAP_P(( Entry *, char* objectclass ));
+#define is_entry_alias(e)		is_entry_objectclass((e), "ALIAS")
+#define is_entry_referral(e)	is_entry_objectclass((e), "REFERRAL")
 
 
 /*
@@ -329,11 +343,6 @@ int value_cmp LDAP_P(( struct berval *v1, struct berval *v2, int syntax,
 	int normalize ));
 int value_find LDAP_P(( struct berval **vals, struct berval *v, int syntax,
 	int normalize ));
-
-/*
- * suffixAlias.c
- */
-char *suffixAlias LDAP_P(( char *dn, Operation *op, Backend *be ));
 
 /*
  * user.c

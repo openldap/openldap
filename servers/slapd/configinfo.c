@@ -56,8 +56,10 @@ config_info( Connection *conn, Operation *op )
 		attr_merge( e, "database", vals );
 	}
 
-	send_search_entry( &backends[0], conn, op, e, NULL, 0, 1 );
-	send_search_result( conn, op, LDAP_SUCCESS, NULL, NULL, NULL, 1 );
+	send_search_entry( &backends[0], conn, op, e,
+		NULL, 0, 1, NULL );
+	send_search_result( conn, op, LDAP_SUCCESS,
+		NULL, NULL, NULL, NULL, 1 );
 
 	entry_free( e );
 }

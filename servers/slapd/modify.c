@@ -45,8 +45,8 @@ do_modify(
 	if( op->o_bind_in_progress ) {
 		Debug( LDAP_DEBUG_ANY, "do_modify: SASL bind in progress.\n",
 			0, 0, 0 );
-		send_ldap_result( conn, op, LDAP_SASL_BIND_IN_PROGRESS, NULL,
-		    "SASL bind in progress", NULL );
+		send_ldap_result( conn, op, LDAP_SASL_BIND_IN_PROGRESS,
+			NULL, "SASL bind in progress", NULL, NULL );
 		return LDAP_SASL_BIND_IN_PROGRESS;
 	}
 
@@ -112,7 +112,7 @@ do_modify(
 		    (*modtail)->ml_op != LDAP_MOD_REPLACE )
 		{
 			send_ldap_result( conn, op, LDAP_PROTOCOL_ERROR,
-			    NULL, "unrecognized modify operation", NULL );
+			    NULL, "unrecognized modify operation", NULL, NULL );
 			free( ndn );
 			modlist_free( modlist );
 			return LDAP_PROTOCOL_ERROR;
@@ -122,7 +122,7 @@ do_modify(
 			&& (*modtail)->ml_op != LDAP_MOD_DELETE )
 		{
 			send_ldap_result( conn, op, LDAP_PROTOCOL_ERROR,
-			    NULL, "unrecognized modify operation", NULL );
+			    NULL, "unrecognized modify operation", NULL, NULL );
 			free( ndn );
 			modlist_free( modlist );
 			return LDAP_PROTOCOL_ERROR;
@@ -162,12 +162,9 @@ do_modify(
 		free( ndn );
 		modlist_free( modlist );
 		send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-			NULL, NULL, default_referral );
+			NULL, NULL, default_referral, NULL );
 		return rc;
 	}
-
-	/* alias suffix if approp */
-	ndn = suffixAlias ( ndn, op, be );
 
 	/*
 	 * do the modify if 1 && (2 || 3)
@@ -187,11 +184,11 @@ do_modify(
 		/* send a referral */
 		} else {
 			send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-				NULL, NULL, default_referral );
+				NULL, NULL, default_referral, NULL );
 		}
 	} else {
 		send_ldap_result( conn, op, rc = LDAP_UNWILLING_TO_PERFORM,
-		    NULL, "Function not implemented", NULL );
+		    NULL, "Function not implemented", NULL, NULL );
 	}
 
 	free( ndn );

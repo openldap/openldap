@@ -53,8 +53,8 @@ do_modrdn(
 	if( op->o_bind_in_progress ) {
 		Debug( LDAP_DEBUG_ANY, "do_modrdn: SASL bind in progress.\n",
 			0, 0, 0 );
-		send_ldap_result( conn, op, LDAP_SASL_BIND_IN_PROGRESS, NULL,
-		    "SASL bind in progress", NULL );
+		send_ldap_result( conn, op, LDAP_SASL_BIND_IN_PROGRESS,
+			NULL, "SASL bind in progress", NULL, NULL );
 		return LDAP_SASL_BIND_IN_PROGRESS;
 	}
 
@@ -162,7 +162,7 @@ do_modrdn(
 			free( newSuperior );
 			free( nnewSuperior );
 			send_ldap_result( conn, op, LDAP_REFERRAL,
-				NULL, NULL, default_referral );
+				NULL, NULL, default_referral, NULL );
 			return 0;
 		}
 	}
@@ -184,7 +184,7 @@ do_modrdn(
 		free( newSuperior );
 		free( nnewSuperior );
 		send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-			NULL, NULL, default_referral );
+			NULL, NULL, default_referral, NULL );
 		return rc;
 	}
 
@@ -203,15 +203,11 @@ do_modrdn(
 		free( nnewSuperior );
 		
 		send_ldap_result( conn, op, rc = LDAP_AFFECTS_MULTIPLE_DSAS,
-			NULL, NULL, NULL );
+			NULL, NULL, NULL, NULL );
 	    
 		return rc;
 
 	}
-
-
-	/* alias suffix if approp */
-	ndn = suffixAlias( ndn, op, be );
 
 	/*
 	 * do the add if 1 && (2 || 3)
@@ -232,11 +228,11 @@ do_modrdn(
 			}
 		} else {
 			send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-				NULL, NULL, default_referral );
+				NULL, NULL, default_referral, NULL );
 		}
 	} else {
 		send_ldap_result( conn, op, rc = LDAP_UNWILLING_TO_PERFORM,
-			NULL, "Function not implemented", NULL );
+			NULL, "Function not implemented", NULL, NULL );
 	}
 
 	free( ndn );

@@ -69,29 +69,19 @@ static ber_tag_t req2res( ber_tag_t tag )
 	return tag;
 }
 
-void trim_refs(
-	struct berval **refs,
-	int trimurl )
+static void trim_refs_urls(
+	struct berval **refs )
 {
-	int i;
+	unsigned i;
 	assert( refs != NULL );
 
 	for( i=0; refs[i] != NULL; i++ ) {
-		unsigned long j;
 
-		/* trim URI label */
-		for( j=0; j<refs[i]->bv_len; j++ ) {
-			if( isspace(refs[i]->bv_val[j]) ) {
-				refs[i]->bv_val[j] = '\0';
-				refs[i]->bv_len = j;
-				break;
-			}
-		}
-
-		if(	trimurl && refs[i]->bv_len > sizeof("ldap://") &&
+		if(	refs[i]->bv_len > sizeof("ldap://") &&
 			strncasecmp( refs[i]->bv_val, "ldap://",
 				sizeof("ldap://")-1 ) == 0 )
 		{
+			unsigned j;
 			for( j=sizeof("ldap://"); j<refs[i]->bv_len ; j++ ) {
 				if( refs[i]->bv_val[j] = '/' ) {
 					refs[i]->bv_val[j] = '\0';
@@ -103,7 +93,63 @@ void trim_refs(
 	}
 }
 
-long send_ldap_ber(
+struct berval **get_entry_referrals(
+	Backend *be, Connection *conn, Operation *op, Entry *e )
+{
+	Attribute *attr;
+	struct berval **refs;
+	unsigned i, j;
+
+	if( is_entry_referral( e ) ) {
+		return NULL;
+	}
+
+	attr = attr_find( e->e_attrs, "ref" );
+
+	if( attr == NULL ) return NULL;
+
+	for( i=0; attr->a_vals[i] != NULL; i++ ) {
+		/* count references */
+	}
+
+	if( i < 1 ) return NULL;
+
+	refs = ch_malloc( i + 1 );
+
+	for( i=0, j=0; attr->a_vals[i] != NULL; i++ ) {
+		unsigned k;
+		struct berval *ref = ber_bvdup( attr->a_vals[i] );
+
+		/* trim the label */
+		for( k=0; k<ref->bv_len; k++ ) {
+			if( isspace(ref->bv_val[k]) ) {
+				ref->bv_val[k] = '\0';
+				ref->bv_len = k;
+				break;
+			}
+		}
+
+		if(	ref->bv_len > 0 ) {
+			refs[j++] = ref;
+
+		} else {
+			ber_bvfree( ref );
+		}
+	}
+
+	refs[j] = NULL;
+
+	if( j == 0 ) {
+		ber_bvecfree( refs );
+		refs = NULL;
+	}
+
+	/* we should check that a referral value exists... */
+
+	return refs;
+}
+
+static long send_ldap_ber(
 	Connection *conn,
 	BerElement *ber )
 {
@@ -174,12 +220,15 @@ send_ldap_response(
     char	*text,
 	struct berval	**ref,
 	char	*resoid,
-	struct berval	*resdata
+	struct berval	*resdata,
+	LDAPControl **ctrls
 )
 {
 	BerElement	*ber;
 	int		rc;
 	long	bytes;
+
+	assert( ctrls == NULL ); /* ctrls not implemented */
 
 	ber = ber_alloc_t( LBER_USE_DER );
 
@@ -290,7 +339,7 @@ send_ldap_disconnect(
 #endif
 	send_ldap_response( conn, op, tag, msgid,
 		err, NULL, text, NULL,
-		reqoid, NULL );
+		reqoid, NULL, NULL );
 
 	Statslog( LDAP_DEBUG_STATS,
 	    "conn=%ld op=%ld DISCONNECT err=%ld tag=%lu text=%s\n",
@@ -305,7 +354,8 @@ send_ldap_result(
     ber_int_t	err,
     char	*matched,
     char	*text,
-	struct berval **ref
+	struct berval **ref,
+	LDAPControl **ctrls
 )
 {
 	ber_tag_t tag;
@@ -318,10 +368,6 @@ send_ldap_result(
 		err, matched ?  matched : "", text ? text : "" );
 
 	assert( err != LDAP_PARTIAL_RESULTS );
-
-	if ( ref != NULL ) {
-		trim_refs( ref, 0 );
-	}
 
 	if ( err == LDAP_REFERRAL ) {
 		if( ref == NULL ) {
@@ -349,7 +395,7 @@ send_ldap_result(
 
 	send_ldap_response( conn, op, tag, msgid,
 		err, matched, text, ref,
-		NULL, NULL );
+		NULL, NULL, ctrls );
 
 	Statslog( LDAP_DEBUG_STATS,
 	    "conn=%ld op=%ld RESULT err=%ld tag=%lu text=%s\n",
@@ -370,6 +416,7 @@ send_search_result(
     char	*matched,
 	char	*text,
     struct berval **refs,
+	LDAPControl **ctrls,
     int		nentries
 )
 {
@@ -383,9 +430,7 @@ send_search_result(
 
 	assert( err != LDAP_PARTIAL_RESULTS );
 
-	if ( refs != NULL ) {
-		trim_refs( refs, 1 );
-	}
+	trim_refs_urls( refs );
 
 	if( op->o_protocol < LDAP_VERSION3 ) {
 		/* send references in search results */
@@ -419,7 +464,7 @@ send_search_result(
 
 	send_ldap_response( conn, op, tag, msgid,
 		err, matched, text, refs,
-		NULL, NULL );
+		NULL, NULL, ctrls );
 
 	Statslog( LDAP_DEBUG_STATS,
 	    "conn=%ld op=%ld SEARCH RESULT err=%ld tag=%lu text=%s\n",
@@ -437,7 +482,8 @@ send_search_entry(
     Entry	*e,
     char	**attrs,
     int		attrsonly,
-	int		opattrs
+	int		opattrs,
+	LDAPControl **ctrls
 )
 {
 	BerElement	*ber;
@@ -474,7 +520,7 @@ send_search_entry(
 	if ( ber == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-			NULL, "allocating BER error", NULL );
+			NULL, "allocating BER error", NULL, NULL );
 		goto error_return;
 	}
 
@@ -485,7 +531,7 @@ send_search_entry(
 		Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-		    NULL, "encoding dn error", NULL );
+		    NULL, "encoding dn error", NULL, NULL );
 		goto error_return;
 	}
 
@@ -520,7 +566,7 @@ send_search_entry(
 			Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
 			ber_free( ber, 1 );
 			send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-			    NULL, "encoding type error", NULL );
+			    NULL, "encoding type error", NULL, NULL );
 			goto error_return;
 		}
 
@@ -538,7 +584,7 @@ send_search_entry(
 					    "ber_printf failed\n", 0, 0, 0 );
 					ber_free( ber, 1 );
 					send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-						NULL, "encoding value error", NULL );
+						NULL, "encoding value error", NULL, NULL );
 					goto error_return;
 				}
 			}
@@ -548,7 +594,7 @@ send_search_entry(
 			Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
 			ber_free( ber, 1 );
 			send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-			    NULL, "encode end error", NULL );
+			    NULL, "encode end error", NULL, NULL );
 			goto error_return;
 		}
 	}
@@ -559,7 +605,7 @@ send_search_entry(
 		Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-			NULL, "encode entry end error", NULL );
+			NULL, "encode entry end error", NULL, NULL );
 		return( 1 );
 	}
 
@@ -596,6 +642,7 @@ send_search_reference(
     Operation	*op,
     Entry	*e,
 	struct berval **refs,
+	LDAPControl **ctrls,
     struct berval ***v2refs
 )
 {
@@ -644,7 +691,7 @@ send_search_reference(
 		Debug( LDAP_DEBUG_ANY,
 			"send_search_reference: ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-			NULL, "alloc BER error", NULL );
+			NULL, "alloc BER error", NULL, NULL );
 		return -1;
 	}
 
@@ -656,7 +703,7 @@ send_search_reference(
 			"send_search_reference: ber_printf failed\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
-			NULL, "encode dn error", NULL );
+			NULL, "encode dn error", NULL, NULL );
 		return -1;
 	}
 

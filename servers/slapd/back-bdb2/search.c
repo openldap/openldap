@@ -486,7 +486,7 @@ subtree_candidates(
 		f->f_or->f_avtype = ch_strdup( "objectclass" );
 		/* Patch to use normalized uppercase */
 		f->f_or->f_avvalue.bv_val = ch_strdup( "REFERRAL" );
-		f->f_or->f_avvalue.bv_len = strlen( "REFERRAL" );
+		f->f_or->f_avvalue.bv_len = sizeof( "REFERRAL" )-1;
 		filterarg_ptr = &f->f_or->f_next;
 		*filterarg_ptr = filter;
 		filter = f;
@@ -501,7 +501,7 @@ subtree_candidates(
 			f->f_and->f_sub_initial = NULL;
 			f->f_and->f_sub_any = NULL;
 			f->f_and->f_sub_final = ch_strdup( base );
-			value_normalize( f->f_and->f_sub_final, SYNTAX_CIS );
+			value_normalize( f->f_and->f_sub_final, SYNTAX_DN|SYNTAX_CIS );
 			f->f_and->f_next = filter;
 			filter = f;
 		}

@@ -35,7 +35,7 @@ do_delete(
 		Debug( LDAP_DEBUG_ANY, "do_delete: SASL bind in progress.\n",
 			0, 0, 0 );
 		send_ldap_result( conn, op, LDAP_SASL_BIND_IN_PROGRESS,
-			NULL, "SASL bind in progress", NULL );
+			NULL, "SASL bind in progress", NULL, NULL );
 		return LDAP_SASL_BIND_IN_PROGRESS;
 	}
 
@@ -72,12 +72,9 @@ do_delete(
 	if ( (be = select_backend( ndn )) == NULL ) {
 		free( ndn );
 		send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-			NULL, NULL, default_referral );
+			NULL, NULL, default_referral, NULL );
 		return rc;
 	}
-
-	/* alias suffix if approp */
-	ndn = suffixAlias( ndn, op, be );
 
 	/*
 	 * do the delete if 1 && (2 || 3)
@@ -95,11 +92,11 @@ do_delete(
 			}
 		} else {
 			send_ldap_result( conn, op, rc = LDAP_REFERRAL,
-				NULL, NULL, default_referral );
+				NULL, NULL, default_referral, NULL );
 		}
 	} else {
 		send_ldap_result( conn, op, rc = LDAP_UNWILLING_TO_PERFORM,
-			NULL, "Function not implemented", NULL );
+			NULL, "Function not implemented", NULL, NULL );
 	}
 
 	free( ndn );

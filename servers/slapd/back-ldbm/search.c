@@ -11,9 +11,13 @@
 #include "back-ldbm.h"
 #include "proto-back-ldbm.h"
 
-static ID_BLOCK	*base_candidates(Backend *be, Connection *conn, Operation *op, char *base, Filter *filter, char **attrs, int attrsonly, char **matched, int *err);
-static ID_BLOCK	*onelevel_candidates(Backend *be, Connection *conn, Operation *op, char *base, Filter *filter, char **attrs, int attrsonly, char **matched, int *err);
-static ID_BLOCK	*subtree_candidates(Backend *be, Connection *conn, Operation *op, char *base, Filter *filter, char **attrs, int attrsonly, char **matched, Entry *e, int *err, int lookupbase);
+static ID_BLOCK	*base_candidate(
+	Backend *be, Entry *e );
+
+static ID_BLOCK	*search_candidates(
+	Backend *be, Entry *e, Filter *filter,
+	int scope, int deref, int manageDSAit );
+
 
 int
 ldbm_back_search(
@@ -37,13 +41,71 @@ ldbm_back_search(
 	ID_BLOCK		*candidates;
 	ID		id;
 	Entry		*e;
-	Attribute	*ref;
-	struct berval **refs;
-	char		*matched = NULL;
+	struct berval **v2refs = NULL;
+	Entry	*matched = NULL;
+	char	*matched_dn = NULL;
 	int		nentries = 0;
-	char		*realBase;
+	int		manageDSAit = get_manageDSAit( op );
 
-	Debug(LDAP_DEBUG_ARGS, "=> ldbm_back_search\n", 0, 0, 0);
+	Debug(LDAP_DEBUG_TRACE, "=> ldbm_back_search\n", 0, 0, 0);
+
+	/* get entry with reader lock */
+	switch ( deref ) {
+#ifdef SLAPD_ALIASES
+	case LDAP_DEREF_FINDING:
+	case LDAP_DEREF_ALWAYS:
+		e = alias_dn2entry_r( be, base, &matched, &err );
+		break;
+#endif
+	default:
+		e = dn2entry_r( be, base, &matched );
+		err = e != NULL ? LDAP_SUCCESS : LDAP_REFERRAL;
+	}
+
+	if ( e == NULL ) {
+		char *matched_dn = NULL;
+		struct berval **refs = NULL;
+
+		if ( matched != NULL ) {
+			matched_dn = ch_strdup( matched->e_dn );
+			refs = is_entry_referral( matched )
+				? get_entry_referrals( be, conn, op, matched )
+				: NULL;
+			cache_return_entry_r( &li->li_cache, matched );
+		} else {
+			refs = default_referral;
+		}
+
+		send_ldap_result( conn, op, err,
+			matched_dn, NULL, refs, NULL );
+
+		if( matched != NULL ) {
+			ber_bvecfree( refs );
+			free( matched_dn );
+		}
+
+		return 1;
+	}
+
+	if (!manageDSAit && is_entry_referral( e ) ) {
+		/* entry is a referral, don't allow add */
+		char *matched_dn = ch_strdup( e->e_dn );
+		struct berval **refs = get_entry_referrals( be,
+			conn, op, e );
+
+		cache_return_entry_r( &li->li_cache, matched );
+
+		Debug( LDAP_DEBUG_TRACE, "entry is referral\n", 0,
+		    0, 0 );
+
+		send_ldap_result( conn, op, LDAP_REFERRAL,
+		    matched_dn, NULL, refs, NULL );
+
+		ber_bvecfree( refs );
+		free( matched_dn );
+
+		return 1;
+	}
 
 	if ( tlimit == 0 && be_isroot( be, op->o_ndn ) ) {
 		tlimit = -1;	/* allow root to set no limit */
@@ -52,6 +114,7 @@ ldbm_back_search(
 		    be->be_timelimit : tlimit;
 		stoptime = op->o_time + tlimit;
 	}
+
 	if ( slimit == 0 && be_isroot( be, op->o_ndn ) ) {
 		slimit = -1;	/* allow root to set no limit */
 	} else {
@@ -59,68 +122,29 @@ ldbm_back_search(
 		    be->be_sizelimit : slimit;
 	}
 
-	/*
-	 * check and apply aliasing where the dereferencing applies to
-	 * the subordinates of the base
-	 */
+	if ( scope == LDAP_SCOPE_BASE) {
+		candidates = base_candidate( be, e );
 
-	switch ( deref ) {
-	case LDAP_DEREF_FINDING:
-	case LDAP_DEREF_ALWAYS:
-		realBase = derefDN ( be, conn, op, base );
-		break;
-	default:
-		realBase = ch_strdup(base);
+	} else {
+		candidates = search_candidates( be, e, filter,
+		    scope, deref, manageDSAit );
 	}
 
-	(void) dn_normalize_case( realBase );
-
-	Debug( LDAP_DEBUG_TRACE, "using base \"%s\"\n",
-		realBase, 0, 0 );
-
-	switch ( scope ) {
-	case LDAP_SCOPE_BASE:
-		candidates = base_candidates( be, conn, op, realBase, filter,
-		    attrs, attrsonly, &matched, &err );
-		break;
-
-	case LDAP_SCOPE_ONELEVEL:
-		candidates = onelevel_candidates( be, conn, op, realBase, filter,
-		    attrs, attrsonly, &matched, &err );
-		break;
-
-	case LDAP_SCOPE_SUBTREE:
-		candidates = subtree_candidates( be, conn, op, realBase, filter,
-		    attrs, attrsonly, &matched, NULL, &err, 1 );
-		break;
-
-	default:
-		send_ldap_result( conn, op, LDAP_PROTOCOL_ERROR,
-			"", "Bad search scope", NULL );
-		if( realBase != NULL) {
-			free( realBase );
-		}
-		return( -1 );
-	}
+	matched_dn = ch_strdup( e->e_dn );
+	cache_return_entry_r( &li->li_cache, e );
 
 	/* null candidates means we could not find the base object */
 	if ( candidates == NULL ) {
-		send_ldap_result( conn, op, err,
-			matched, NULL, NULL );
-		if ( matched != NULL ) {
-			free( matched );
-		}
-		if( realBase != NULL) {
-			free( realBase );
-		}
-		return( -1 );
-	}
+		/* return a NO SUCH OBJECT */
+		Debug( LDAP_DEBUG_TRACE, "no candidates\n", 0,
+		    0, 0 );
 
-	if ( matched != NULL ) {
-		free( matched );
-	}
+		send_ldap_result( conn, op, LDAP_NO_SUCH_OBJECT,
+		    matched_dn, "no search candidates", NULL, NULL );
 
-	refs = NULL;
+		free( matched_dn );
+		return 1;
+	}
 
 	for ( id = idl_firstid( candidates ); id != NOID;
 	    id = idl_nextid( candidates, id ) ) {
@@ -130,10 +154,8 @@ ldbm_back_search(
 		if ( op->o_abandon ) {
 			ldap_pvt_thread_mutex_unlock( &op->o_abandonmutex );
 			idl_free( candidates );
-			ber_bvecfree( refs );
-			if( realBase != NULL) {
-				free( realBase );
-			}
+			ber_bvecfree( v2refs );
+			free( matched_dn );
 			return( 0 );
 		}
 		ldap_pvt_thread_mutex_unlock( &op->o_abandonmutex );
@@ -141,17 +163,27 @@ ldbm_back_search(
 		/* check time limit */
 		if ( tlimit != -1 && slap_get_time() > stoptime ) {
 			send_search_result( conn, op, LDAP_TIMELIMIT_EXCEEDED,
-				NULL, NULL, refs, nentries );
+				NULL, NULL, v2refs, NULL, nentries );
 			idl_free( candidates );
-			ber_bvecfree( refs );
-			if( realBase != NULL) {
-				free( realBase );
-			}
+			ber_bvecfree( v2refs );
+			free( matched_dn );
 			return( 0 );
 		}
 
 		/* get the entry with reader lock */
-		if ( (e = id2entry_r( be, id )) == NULL ) {
+		switch ( deref ) {
+#ifdef SLAPD_ALIASES
+		case LDAP_DEREF_SEARCHING:
+		case LDAP_DEREF_ALWAYS:
+			e = alias_id2entry_r( be, id, &matched, &err );
+		break;
+#endif
+		default:
+			e = dn2entry_r( be, base, &matched );
+			err = e != NULL ? LDAP_SUCCESS : LDAP_REFERRAL;
+		}
+
+		if ( e == NULL ) {
 			Debug( LDAP_DEBUG_ARGS, "candidate %ld not found\n",
 			       id, 0, 0 );
 			continue;
@@ -162,13 +194,15 @@ ldbm_back_search(
 		 * this for subtree searches, and don't check the filter
 		 * explicitly here since it's only a candidate anyway.
 		 */
-		if ( scope == LDAP_SCOPE_SUBTREE &&
-			e->e_ndn != NULL &&
-			strncmp( e->e_ndn, "REF=", 4 ) == 0 &&
-			(ref = attr_find( e->e_attrs, "ref" )) != NULL )
+		if ( !manageDSAit && scope != LDAP_SCOPE_BASE &&
+			is_entry_referral( e ) )
 		{
+			struct berval **refs = get_entry_referrals( be, conn, op, e );
+
 			send_search_reference( be, conn, op,
-				e, ref->a_vals, &refs );
+				e, refs, NULL, &v2refs );
+
+			ber_bvecfree( refs );
 
 		/* otherwise it's an entry - see if it matches the filter */
 		} else {
@@ -178,21 +212,22 @@ ldbm_back_search(
 				char	*dn;
 
 				/* check scope */
-				scopeok = 1;
 				if ( scope == LDAP_SCOPE_ONELEVEL ) {
 					if ( (dn = dn_parent( be, e->e_dn )) != NULL ) {
 						(void) dn_normalize_case( dn );
-						scopeok = (dn == realBase)
+						scopeok = (dn == matched_dn)
 							? 1
-							: (strcmp( dn, realBase ) ? 0 : 1 );
+							: (strcmp( dn, matched_dn ) ? 0 : 1 );
 						free( dn );
 					} else {
-						scopeok = (realBase == NULL || *realBase == '\0');
+						scopeok = (matched_dn == NULL || *matched_dn == '\0');
 					}
 				} else if ( scope == LDAP_SCOPE_SUBTREE ) {
 					dn = ch_strdup( e->e_ndn );
-					scopeok = dn_issuffix( dn, realBase );
+					scopeok = dn_issuffix( dn, matched_dn );
 					free( dn );
+				} else {
+					scopeok = 1;
 				}
 
 				if ( scopeok ) {
@@ -201,39 +236,16 @@ ldbm_back_search(
 						cache_return_entry_r( &li->li_cache, e );
 						send_search_result( conn, op,
 							LDAP_SIZELIMIT_EXCEEDED, NULL, NULL,
-							refs, nentries );
+							v2refs, NULL, nentries );
 						idl_free( candidates );
-						ber_bvecfree( refs );
-
-						if( realBase != NULL) {
-							free( realBase );
-						}
+						ber_bvecfree( v2refs );
+						free( matched_dn );
 						return( 0 );
 					}
 
-					/*
-					 * check and apply aliasing where the dereferencing applies to
-					 * the subordinates of the base
-					 */
-					switch ( deref ) {
-					case LDAP_DEREF_SEARCHING:
-					case LDAP_DEREF_ALWAYS:
-						{
-							Entry *newe = derefAlias_r( be, conn, op, e );
-							if ( newe == NULL ) { /* problem with the alias */
-								cache_return_entry_r( &li->li_cache, e );
-								e = NULL;
-							}
-							else if ( newe != e ) { /* reassign e */
-								cache_return_entry_r( &li->li_cache, e );
-								e = newe;
-							}	
-						}
-						break;
-					}
 					if (e) {
 						switch ( send_search_entry( be, conn, op, e,
-							attrs, attrsonly, 0 ) ) {
+							attrs, attrsonly, 0, NULL ) ) {
 						case 0:		/* entry sent ok */
 							nentries++;
 							break;
@@ -242,11 +254,8 @@ ldbm_back_search(
 						case -1:	/* connection closed */
 							cache_return_entry_r( &li->li_cache, e );
 							idl_free( candidates );
-							ber_bvecfree( refs );
-
-							if( realBase != NULL) {
-								free( realBase );
-							}
+							ber_bvecfree( v2refs );
+							free( matched_dn );
 							return( 0 );
 						}
 					}
@@ -264,204 +273,120 @@ ldbm_back_search(
 	idl_free( candidates );
 
 	send_search_result( conn, op,
-		refs == NULL ? LDAP_SUCCESS : LDAP_REFERRAL,
-		NULL, NULL, refs, nentries );
+		v2refs == NULL ? LDAP_SUCCESS : LDAP_REFERRAL,
+		NULL, NULL, v2refs, NULL, nentries );
 
-	ber_bvecfree( refs );
-
-	if( realBase != NULL) {
-		free( realBase );
-	}
+	ber_bvecfree( v2refs );
 
 	return( 0 );
 }
 
 static ID_BLOCK *
-base_candidates(
+base_candidate(
     Backend	*be,
-    Connection	*conn,
-    Operation	*op,
-    char	*base,
-    Filter	*filter,
-    char	**attrs,
-    int		attrsonly,
-    char	**matched,
-    int		*err
+	Entry	*e
 )
 {
-	struct ldbminfo	*li = (struct ldbminfo *) be->be_private;
 	ID_BLOCK		*idl;
-	Entry		*e;
 
-	Debug(LDAP_DEBUG_TRACE, "base_candidates: base: \"%s\"\n", base, 0, 0);
-
-	*err = LDAP_SUCCESS;
-
-	/* get entry with reader lock */
-	if ( (e = dn2entry_r( be, base, matched )) == NULL ) {
-		*err = LDAP_NO_SUCH_OBJECT;
-		return( NULL );
-	}
-
-	/* check for deleted */
+	Debug(LDAP_DEBUG_TRACE, "base_candidates: base: \"%s\"\n",
+		e->e_dn, 0, 0);
 
 	idl = idl_alloc( 1 );
 	idl_insert( &idl, e->e_id, 1 );
-
-
-	/* free reader lock */
-	cache_return_entry_r( &li->li_cache, e );
 
 	return( idl );
 }
 
 static ID_BLOCK *
-onelevel_candidates(
+search_candidates(
     Backend	*be,
-    Connection	*conn,
-    Operation	*op,
-    char	*base,
-    Filter	*filter,
-    char	**attrs,
-    int		attrsonly,
-    char	**matched,
-    int		*err
-)
-{
-	struct ldbminfo	*li = (struct ldbminfo *) be->be_private;
-	Entry		*e = NULL;
-	Filter		*f;
-	char		buf[20];
-	ID_BLOCK		*candidates;
-
-	Debug(LDAP_DEBUG_TRACE, "onelevel_candidates: base: \"%s\"\n", base, 0, 0);
-
-	*err = LDAP_SUCCESS;
-
-	/* get the base object with reader lock */
-	if ( base != NULL && *base != '\0' &&
-		(e = dn2entry_r( be, base, matched )) == NULL )
-	{
-		*err = LDAP_NO_SUCH_OBJECT;
-		return( NULL );
-	}
-
-	/*
-	 * modify the filter to be something like this:
-	 *
-	 *	parent=baseobject & originalfilter
-	 */
-
-	f = (Filter *) ch_malloc( sizeof(Filter) );
-	f->f_next = NULL;
-	f->f_choice = LDAP_FILTER_AND;
-	f->f_and = (Filter *) ch_malloc( sizeof(Filter) );
-	f->f_and->f_choice = LDAP_FILTER_EQUALITY;
-	f->f_and->f_ava.ava_type = ch_strdup( "id2children" );
-	sprintf( buf, "%ld", e != NULL ? e->e_id : 0 );
-	f->f_and->f_ava.ava_value.bv_val = ch_strdup( buf );
-	f->f_and->f_ava.ava_value.bv_len = strlen( buf );
-	f->f_and->f_next = filter;
-
-	/* from here, it's just like subtree_candidates */
-	candidates = subtree_candidates( be, conn, op, base, f, attrs,
-	    attrsonly, matched, e, err, 0 );
-
-	/* free up just the filter stuff we allocated above */
-	f->f_and->f_next = NULL;
-	filter_free( f );
-
-	/* free entry and reader lock */
-	if( e != NULL ) {
-		cache_return_entry_r( &li->li_cache, e );
-	}
-	return( candidates );
-}
-
-static ID_BLOCK *
-subtree_candidates(
-    Backend	*be,
-    Connection	*conn,
-    Operation	*op,
-    char	*base,
-    Filter	*filter,
-    char	**attrs,
-    int		attrsonly,
-    char	**matched,
     Entry	*e,
-    int		*err,
-    int		lookupbase
+    Filter	*filter,
+    int		scope,
+	int		deref,
+	int		manageDSAit
 )
 {
 	struct ldbminfo	*li = (struct ldbminfo *) be->be_private;
-	Filter		*f, **filterarg_ptr;
 	ID_BLOCK		*candidates;
+	Filter		*f, *rf, *af, *lf;
 
-	Debug(LDAP_DEBUG_TRACE, "subtree_candidates: base: \"%s\" %s\n",
-		base ? base : "NULL", lookupbase ? "lookupbase" : "", 0);
+	Debug(LDAP_DEBUG_TRACE, "search_candidates: base: \"%s\" %s\n",
+		e->e_dn, 0, 0 );
 
-	/*
-	 * get the base object - unless we already have it (from one-level).
-	 * also, unless this is a one-level search or a subtree search
-	 * starting at the very top of our subtree, we need to modify the
-	 * filter to be something like this:
-	 *
-	 *	dn=*baseobjectdn & (originalfilter | ref=*)
-	 *
-	 * the "objectclass=referral" part is used to select referrals to return
-	 */
-
-	*err = LDAP_SUCCESS;
 	f = NULL;
-	if ( lookupbase ) {
-		e = NULL;
 
-		if ( base != NULL && *base != '\0' &&
-			(e = dn2entry_r( be, base, matched )) == NULL )
-		{
-			*err = LDAP_NO_SUCH_OBJECT;
-			return( NULL );
-	 	}
-
-		if (e) {
-			cache_return_entry_r( &li->li_cache, e );
-		}
-
-		f = (Filter *) ch_malloc( sizeof(Filter) );
-		f->f_next = NULL;
-		f->f_choice = LDAP_FILTER_OR;
-		f->f_or = (Filter *) ch_malloc( sizeof(Filter) );
-		f->f_or->f_choice = LDAP_FILTER_EQUALITY;
-		f->f_or->f_avtype = ch_strdup( "objectclass" );
-		/* Patch to use normalized uppercase */
-		f->f_or->f_avvalue.bv_val = ch_strdup( "REFERRAL" );
-		f->f_or->f_avvalue.bv_len = strlen( "REFERRAL" );
-		filterarg_ptr = &f->f_or->f_next;
-		*filterarg_ptr = filter;
-		filter = f;
-
-		if ( ! be_issuffix( be, base ) ) {
-			f = (Filter *) ch_malloc( sizeof(Filter) );
-			f->f_next = NULL;
-			f->f_choice = LDAP_FILTER_AND;
-			f->f_and = (Filter *) ch_malloc( sizeof(Filter) );
-			f->f_and->f_choice = LDAP_FILTER_SUBSTRINGS;
-			f->f_and->f_sub_type = ch_strdup( "dn" );
-			f->f_and->f_sub_initial = NULL;
-			f->f_and->f_sub_any = NULL;
-			f->f_and->f_sub_final = ch_strdup( base );
-			value_normalize( f->f_and->f_sub_final, SYNTAX_CIS );
-			f->f_and->f_next = filter;
-			filter = f;
-		}
+	if( !manageDSAit ) {
+		/* match referrals */
+		rf = (Filter *) ch_malloc( sizeof(Filter) );
+		rf->f_next = NULL;
+		rf->f_choice = LDAP_FILTER_OR;
+		rf->f_or = (Filter *) ch_malloc( sizeof(Filter) );
+		rf->f_or->f_choice = LDAP_FILTER_EQUALITY;
+		rf->f_or->f_avtype = ch_strdup( "objectclass" );
+		rf->f_or->f_avvalue.bv_val = ch_strdup( "REFERRAL" );
+		rf->f_or->f_avvalue.bv_len = sizeof("REFERRAL")-1;
+		rf->f_or->f_next = filter;
+		f = rf;
+	} else {
+		rf = NULL;
+		f = filter;
 	}
 
-	candidates = filter_candidates( be, filter );
+	if( deref == LDAP_DEREF_SEARCHING || deref == LDAP_DEREF_ALWAYS ) {
+		/* match aliases */
+		af = (Filter *) ch_malloc( sizeof(Filter) );
+		af->f_next = NULL;
+		af->f_choice = LDAP_FILTER_OR;
+		af->f_or = (Filter *) ch_malloc( sizeof(Filter) );
+		af->f_or->f_choice = LDAP_FILTER_EQUALITY;
+		af->f_or->f_avtype = ch_strdup( "objectclass" );
+		af->f_or->f_avvalue.bv_val = ch_strdup( "ALIAS" );
+		af->f_or->f_avvalue.bv_len = sizeof("ALIAS")-1;
+		af->f_or->f_next = f;
+		f = af;
+	} else {
+		af = NULL;
+	}
 
-	/* free up just the parts we allocated above */
-	if ( f != NULL ) {
-		*filterarg_ptr = NULL;
-		filter_free( f );
+	lf = (Filter *) ch_malloc( sizeof(Filter) );
+	lf->f_next = NULL;
+	lf->f_choice = LDAP_FILTER_AND;
+	lf->f_and = (Filter *) ch_malloc( sizeof(Filter) );
+	lf->f_and->f_next = f;
+
+	if ( scope == LDAP_SCOPE_SUBTREE ) {
+		lf->f_and->f_choice = LDAP_FILTER_SUBSTRINGS;
+		lf->f_and->f_sub_type = ch_strdup( "dn" );
+		lf->f_and->f_sub_initial = NULL;
+		lf->f_and->f_sub_any = NULL;
+		lf->f_and->f_sub_final = ch_strdup( e->e_ndn );
+		value_normalize( lf->f_and->f_sub_final, SYNTAX_DN|SYNTAX_CIS );
+
+	} else {
+		char buf[16];
+		lf->f_and->f_choice = LDAP_FILTER_EQUALITY;
+		lf->f_and->f_ava.ava_type = ch_strdup( "id2children" );
+		sprintf( buf, "%ld", e != NULL ? e->e_id : 0 );
+		lf->f_and->f_ava.ava_value.bv_val = ch_strdup( buf );
+		lf->f_and->f_ava.ava_value.bv_len = strlen( buf );
+	}
+
+	candidates = filter_candidates( be, lf );
+
+	/* free up filter additions we allocated above */
+	lf->f_and->f_next = NULL;
+	filter_free( lf );
+
+	if( af != NULL ) {
+		af->f_or->f_next = NULL;
+		filter_free( af );
+	}
+
+	if( rf != NULL ) {
+		rf->f_or->f_next = NULL;
+		filter_free( rf );
 	}
 
 	return( candidates );

@@ -97,8 +97,10 @@ root_dse_info( Connection *conn, Operation *op, char **attrs, int attrsonly )
 		attr_merge( e, "ref", default_referral );
 	}
 
-	send_search_entry( &backends[0], conn, op, e, attrs, attrsonly, 1 );
-	send_search_result( conn, op, LDAP_SUCCESS, NULL, NULL, NULL, 1 );
+	send_search_entry( &backends[0], conn, op,
+		e, attrs, attrsonly, 1, NULL );
+	send_search_result( conn, op, LDAP_SUCCESS,
+		NULL, NULL, NULL, NULL, 1 );
 
 	entry_free( e );
 }
