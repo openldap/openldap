@@ -27,7 +27,7 @@ OBJS	= idl.o add.o search.o cache.o dbcache.o dn2id.o id2entry.o \
 		filterindex.o unbind.o kerberos.o close.o group.o
 
 INCLUDES= -I. -I.. -I$(HDIR) $(KRBINCLUDEFLAG)
-DEFINES = $(DEFS) $(LDAP_CRYPT) $(THREADS)
+DEFINES = $(DEFS) $(SERVERDEFS) $(THREADS)
 CFLAGS	= $(INCLUDES) $(THREADSINCLUDE) $(DEFINES) $(ACFLAGS)
 LDFLAGS	= -L$(LDIR) $(KRBLIBFLAG) $(LDAP_CRYPT_LIB)
 
