@@ -20,7 +20,6 @@ static void
 send_ldap_result2(
     Connection	*conn,
     Operation	*op,
-	int		disconnect,
     ber_int_t	err,
     char	*matched,
     char	*text,
@@ -31,55 +30,38 @@ send_ldap_result2(
 	int		rc;
 	ber_tag_t	tag;
 	ber_len_t	bytes;
-	int	msgid;
-
-	assert( !LDAP_API_ERROR( err ) );
 
 	if ( err == LDAP_PARTIAL_RESULTS && (text == NULL || *text == '\0') )
 		err = LDAP_NO_SUCH_OBJECT;
 
-	if( disconnect ) {
-		msgid = 0;	/* unsolicited */
-		if ( op->o_protocol > LDAP_VERSION3 ) {
-			tag = LDAP_RES_EXTENDED;
-		}
+	Debug( LDAP_DEBUG_TRACE, "send_ldap_result %d:%s:%s\n", err,
+		matched ?  matched : "",
+		text ? text : "" );
 
-#define LDAP_UNSOLICITED_ERROR(e) \
-	(  (e) == LDAP_PROTOCOL_ERROR \
-	|| (e) == LDAP_STRONG_AUTH_REQUIRED \
-	|| (e) == LDAP_UNAVAILABLE )
+	switch ( op->o_tag ) {
+	case LBER_DEFAULT:
+		tag = LBER_SEQUENCE;
+		break;
 
-		assert( LDAP_UNSOLICITED_ERROR( err ) );
+	case LDAP_REQ_SEARCH:
+		tag = LDAP_RES_SEARCH_RESULT;
+		break;
 
-	} else {
-		msgid = op->o_msgid;
+	case LDAP_REQ_DELETE:
+		tag = LDAP_RES_DELETE;
+		break;
 
-		switch ( op->o_tag ) {
-		case LDAP_REQ_ABANDON:
-		case LDAP_REQ_UNBIND:
-		case LBER_ERROR:
-			tag = LBER_SEQUENCE;
-			msgid = 0;
-			assert( LDAP_UNSOLICITED_ERROR( err ) );
-			break;
-
-		case LDAP_REQ_SEARCH:
-			tag = LDAP_RES_SEARCH_RESULT;
-			break;
-
-		case LDAP_REQ_DELETE:
-			tag = LDAP_RES_DELETE;
-			break;
-
-		default:
-			tag = op->o_tag + 1;
-			break;
-		}
+	default:
+		tag = op->o_tag + 1;
+		break;
 	}
 
 
-	ber = ber_alloc_t( LBER_USE_DER );
-
+#ifdef LDAP_COMPAT30
+	ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER );
+#else
+	ber = der_alloc();
+#endif
 	if ( ber == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
 		return;
@@ -87,21 +69,18 @@ send_ldap_result2(
 
 #ifdef LDAP_CONNECTIONLESS
 	if ( op->o_cldap ) {
-		rc = ber_printf( ber, "{is{t{ess}}}", msgid, "", tag,
+		rc = ber_printf( ber, "{is{t{ess}}}", op->o_msgid, "", tag,
 		    err, matched ? matched : "", text ? text : "" );
 	} else
 #endif
-	if( tag == LDAP_RES_EXTENDED ) {
-		rc = ber_printf( ber, "{it{esss}}",
-			msgid, tag, err,
-			"", text ? text : "",
-			LDAP_NOTICE_DISCONNECT );
-
-	} else {
-		rc = ber_printf( ber, "{it{ess}}",
-			msgid, tag, err,
-			matched ? matched : "", text ? text : "" );
-	}
+#ifdef LDAP_COMPAT30
+	if ( conn->c_version == 30 ) {
+		rc = ber_printf( ber, "{it{{ess}}}", op->o_msgid, tag, err,
+		    matched ? matched : "", text ? text : "" );
+	} else
+#endif
+		rc = ber_printf( ber, "{it{ess}}", op->o_msgid, tag, err,
+		    matched ? matched : "", text ? text : "" );
 
 	if ( rc == -1 ) {
 		Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
@@ -182,11 +161,6 @@ send_ldap_result(
     char	*text
 )
 {
-	assert( !LDAP_API_ERROR( err ) );
-
-	Debug( LDAP_DEBUG_TRACE, "send_ldap_result %d:%s:%s\n",
-		err, matched ?  matched : "", text ? text : "" );
-
 #ifdef LDAP_CONNECTIONLESS
 	if ( op->o_cldap ) {
 		ber_pvt_sb_udp_set_dst( &conn->c_sb, &op->o_clientaddr );
@@ -197,34 +171,7 @@ send_ldap_result(
 		    0 );
 	}
 #endif
-	send_ldap_result2( conn, op, 0, err, matched, text, 0 );
-}
-
-void
-send_ldap_disconnect(
-    Connection	*conn,
-    Operation	*op,
-    ber_int_t	err,
-    char	*text
-)
-{
-	assert( !LDAP_API_ERROR( err ) );
-
-	Debug( LDAP_DEBUG_TRACE,
-		"send_ldap_disconnect %d:%s\n",
-		err, text ? text : "", NULL );
-
-#ifdef LDAP_CONNECTIONLESS
-	if ( op->o_cldap ) {
-		ber_pvt_sb_udp_set_dst( &conn->c_sb, &op->o_clientaddr );
-		Debug( LDAP_DEBUG_TRACE, "UDP response to %s port %d\n", 
-		    inet_ntoa(((struct sockaddr_in *)
-		    &op->o_clientaddr)->sin_addr ),
-		    ((struct sockaddr_in *) &op->o_clientaddr)->sin_port,
-		    0 );
-	}
-#endif
-	send_ldap_result2( conn, op, 0, err, NULL, text, 0 );
+	send_ldap_result2( conn, op, err, matched, text, 0 );
 }
 
 void
@@ -237,10 +184,7 @@ send_ldap_search_result(
     int		nentries
 )
 {
-	Debug( LDAP_DEBUG_TRACE, "send_ldap_search_result %d:%s:%s\n",
-		err, matched ?  matched : "", text ? text : "" );
-
-	send_ldap_result2( conn, op, 0, err, matched, text, nentries );
+	send_ldap_result2( conn, op, err, matched, text, nentries );
 }
 
 int
@@ -250,8 +194,7 @@ send_search_entry(
     Operation	*op,
     Entry	*e,
     char	**attrs,
-    int		attrsonly,
-	int		opattrs
+    int		attrsonly
 )
 {
 	BerElement	*ber;
@@ -261,17 +204,6 @@ send_search_entry(
 	char            *edn;
 
 	Debug( LDAP_DEBUG_TRACE, "=> send_search_entry (%s)\n", e->e_dn, 0, 0 );
-
-#if defined( SLAPD_SCHEMA_DN )
-	{
-		/* this could be backend specific */
-		struct	berval	val;
-		val.bv_val = SLAPD_SCHEMA_DN;
-		val.bv_len = strlen( val.bv_val );
-		attr_merge( e, "subschemaSubentry", vals );
-		ldap_memfree( val.bv_val );
-	}
-#endif
 
 	if ( ! access_allowed( be, conn, op, e,
 		"entry", NULL, ACL_READ ) )
@@ -283,7 +215,11 @@ send_search_entry(
 
 	edn = e->e_ndn;
 
-	ber = ber_alloc_t( LBER_USE_DER );
+#ifdef LDAP_COMPAT30
+	ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER );
+#else
+	ber = der_alloc();
+#endif
 
 	if ( ber == NULL ) {
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
@@ -292,8 +228,16 @@ send_search_entry(
 		goto error_return;
 	}
 
-	rc = ber_printf( ber, "{it{s{", op->o_msgid,
-		LDAP_RES_SEARCH_ENTRY, e->e_dn );
+#ifdef LDAP_COMPAT30
+	if ( conn->c_version == 30 ) {
+		rc = ber_printf( ber, "{it{{s{", op->o_msgid,
+		    LDAP_RES_SEARCH_ENTRY, e->e_dn );
+	} else
+#endif
+	{
+		rc = ber_printf( ber, "{it{s{", op->o_msgid,
+			LDAP_RES_SEARCH_ENTRY, e->e_dn );
+	}
 
 	if ( rc == -1 ) {
 		Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
@@ -306,23 +250,24 @@ send_search_entry(
 	for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
 		regmatch_t       matches[MAXREMATCHES];
 
-		if ( attrs == NULL ) {
-			/* all addrs request, skip operational attributes */
-			if( !opattrs && oc_check_operational_attr( a->a_type )) {
-				continue;
-			}
-
-		} else {
-			/* specific addrs requested */
-			if ( !charray_inlist( attrs, a->a_type )
-				&& !charray_inlist( attrs, LDAP_ALL_USER_ATTRIBUTES ) )
-			{
-				continue;
-			}
+		/* FIXME: Type normalization, subtypes, options */
+		if ( attrs != NULL && ! charray_inlist( attrs, a->a_type ) ) {
+			continue;
 		}
 
-		acl = acl_get_applicable( be, op, e, a->a_type,
-			MAXREMATCHES, matches );
+		/* the lastmod attributes are ignored by ACL checking */
+		if ( strcasecmp( a->a_type, "modifiersname" ) == 0 ||
+			strcasecmp( a->a_type, "modifytimestamp" ) == 0 ||
+			strcasecmp( a->a_type, "creatorsname" ) == 0 ||
+			strcasecmp( a->a_type, "createtimestamp" ) == 0 ) 
+		{
+			Debug( LDAP_DEBUG_ACL, "LASTMOD attribute: %s access DEFAULT\n",
+				a->a_type, 0, 0 );
+			acl = NULL;
+		} else {
+			acl = acl_get_applicable( be, op, e, a->a_type,
+				MAXREMATCHES, matches );
+		}
 
 		if ( ! acl_access_allowed( acl, be, conn, e,
 			NULL, op, ACL_READ, edn, matches ) ) 
@@ -340,12 +285,23 @@ send_search_entry(
 
 		if ( ! attrsonly ) {
 			for ( i = 0; a->a_vals[i] != NULL; i++ ) {
+				/* 
+				 * FIXME: What is exactly trying to do
+				 * here and why, oh, why?  It is
+				 * filtering specific values if it was
+				 * a dn-valued attribute.  Did this
+				 * ever work in the presence of
+				 * multiple backends?  And what was
+				 * the purpose anyway?
+				 */
+				/*
 				if ( a->a_syntax & SYNTAX_DN && 
 					! acl_access_allowed( acl, be, conn, e, a->a_vals[i], op,
 						ACL_READ, edn, matches) )
 				{
 					continue;
 				}
+				*/
 
 				if (( rc = ber_printf( ber, "O", a->a_vals[i] )) == -1 ) {
 					Debug( LDAP_DEBUG_ANY,
@@ -368,7 +324,12 @@ send_search_entry(
 		}
 	}
 
-	rc = ber_printf( ber, /*{{{*/ "}}}" );
+#ifdef LDAP_COMPAT30
+	if ( conn->c_version == 30 ) {
+		rc = ber_printf( ber, /*{{{{{*/ "}}}}" );
+	} else
+#endif
+		rc = ber_printf( ber, /*{{{{*/ "}}}" );
 
 	if ( rc == -1 ) {
 		Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
