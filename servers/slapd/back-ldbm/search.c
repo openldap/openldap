@@ -6,14 +6,13 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "back-ldbm.h"
+#include "proto-back-ldbm.h"
 
 extern time_t		currenttime;
 extern pthread_mutex_t	currenttime_mutex;
 
 extern ID		dn2id();
 extern IDList		*idl_alloc();
-extern Entry		*id2entry();
-extern Entry		*dn2entry();
 extern Attribute	*attr_find();
 extern IDList		*filter_candidates();
 extern char		*ch_realloc();
@@ -140,7 +139,7 @@ ldbm_back_search(
 		pthread_mutex_unlock( &currenttime_mutex );
 
 		/* get the entry */
-		if ( (e = id2entry( be, id )) == NULL ) {
+		if ( (e = id2entry_r( be, id )) == NULL ) {
 			Debug( LDAP_DEBUG_ARGS, "candidate %d not found\n", id,
 			    0, 0 );
 			continue;
@@ -263,15 +262,17 @@ base_candidates(
 	Entry		*e;
 
 	*err = LDAP_SUCCESS;
-	if ( (e = dn2entry( be, base, matched )) == NULL ) {
+	if ( (e = dn2entry_r( be, base, matched )) == NULL ) {
 		*err = LDAP_NO_SUCH_OBJECT;
 		return( NULL );
 	}
 
+        /* check for deleted */
+
 	idl = idl_alloc( 1 );
 	idl_insert( &idl, e->e_id, 1 );
 
-	cache_return_entry( &li->li_cache, e );
+	cache_return_entry_r( &li->li_cache, e );
 
 	return( idl );
 }
@@ -298,8 +299,7 @@ onelevel_candidates(
 	*err = LDAP_SUCCESS;
 	e = NULL;
 	/* get the base object */
-	if ( base != NULL && *base != '\0' && (e = dn2entry( be, base,
-	    matched )) == NULL ) {
+	if ( base != NULL && *base != '\0' && (e = dn2entry_r( be, base, matched )) == NULL ) {
 		*err = LDAP_NO_SUCH_OBJECT;
 		return( NULL );
 	}
@@ -329,6 +329,9 @@ onelevel_candidates(
 	f->f_and->f_next = NULL;
 	filter_free( f );
 
+	if ( e != NULL ) {
+		cache_return_entry_r( &li->li_cache, e );
+	}
 	return( candidates );
 }
 
@@ -365,8 +368,7 @@ subtree_candidates(
 	*err = LDAP_SUCCESS;
 	f = NULL;
 	if ( lookupbase ) {
-		if ( base != NULL && *base != '\0' && (e = dn2entry( be, base,
-		    matched )) == NULL ) {
+		if ( base != NULL && *base != '\0' && (e = dn2entry_r( be, base, matched )) == NULL ) {
 			*err = LDAP_NO_SUCH_OBJECT;
 			return( NULL );
 	 	}
@@ -377,8 +379,9 @@ subtree_candidates(
 		f->f_or = (Filter *) ch_malloc( sizeof(Filter) );
 		f->f_or->f_choice = LDAP_FILTER_EQUALITY;
 		f->f_or->f_avtype = strdup( "objectclass" );
-		f->f_or->f_avvalue.bv_val = strdup( "referral" );
-		f->f_or->f_avvalue.bv_len = strlen( "referral" );
+		/* Patch to use normalized uppercase */
+		f->f_or->f_avvalue.bv_val = strdup( "REFERRAL" );
+		f->f_or->f_avvalue.bv_len = strlen( "REFERRAL" );
 		f->f_or->f_next = filter;
 		filter = f;
 
@@ -407,7 +410,7 @@ subtree_candidates(
 	}
 
 	if ( e != NULL ) {
-		cache_return_entry( &li->li_cache, e );
+		cache_return_entry_r( &li->li_cache, e );
 	}
 
 	return( candidates );

@@ -6,8 +6,8 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "back-ldbm.h"
+#include "proto-back-ldbm.h"
 
-extern Entry	*dn2entry();
 extern char	*dn_parent();
 
 int
@@ -27,7 +27,7 @@ ldbm_back_modrdn(
 	Entry		*e, *e2;
 
 	matched = NULL;
-	if ( (e = dn2entry( be, dn, &matched )) == NULL ) {
+	if ( (e = dn2entry_w( be, dn, &matched )) == NULL ) {
 		send_ldap_result( conn, op, LDAP_NO_SUCH_OBJECT, matched, "" );
 		if ( matched != NULL ) {
 			free( matched );
@@ -62,12 +62,12 @@ ldbm_back_modrdn(
 	(void) dn_normalize( newdn );
 
 	matched = NULL;
-	if ( (e2 = dn2entry( be, newdn, &matched )) != NULL ) {
+	if ( (e2 = dn2entry_w( be, newdn, &matched )) != NULL ) {
 		free( newdn );
 		free( pdn );
 		send_ldap_result( conn, op, LDAP_ALREADY_EXISTS, NULL, NULL );
-		cache_return_entry( &li->li_cache, e2 );
-		cache_return_entry( &li->li_cache, e );
+		cache_return_entry_w( &li->li_cache, e2 );
+		cache_return_entry_w( &li->li_cache, e );
 		return( -1 );
 	}
 	if ( matched != NULL ) {
@@ -80,8 +80,8 @@ ldbm_back_modrdn(
 		pthread_mutex_unlock( &op->o_abandonmutex );
 		free( newdn );
 		free( pdn );
-		cache_return_entry( &li->li_cache, e2 );
-		cache_return_entry( &li->li_cache, e );
+		cache_return_entry_w( &li->li_cache, e2 );
+		cache_return_entry_w( &li->li_cache, e );
 		return( -1 );
 	}
 	pthread_mutex_unlock( &op->o_abandonmutex );
@@ -91,7 +91,7 @@ ldbm_back_modrdn(
 		free( newdn );
 		free( pdn );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL, NULL );
-		cache_return_entry( &li->li_cache, e );
+		cache_return_entry_w( &li->li_cache, e );
 		return( -1 );
 	}
 
@@ -100,7 +100,7 @@ ldbm_back_modrdn(
 		free( newdn );
 		free( pdn );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL, NULL );
-		cache_return_entry( &li->li_cache, e );
+		cache_return_entry_w( &li->li_cache, e );
 		return( -1 );
 	}
 
@@ -125,7 +125,7 @@ ldbm_back_modrdn(
 		return( -1 );
 	}
 	free( pdn );
-	cache_return_entry( &li->li_cache, e );
+	cache_return_entry_w( &li->li_cache, e );
 	send_ldap_result( conn, op, LDAP_SUCCESS, NULL, NULL );
 
 	return( 0 );

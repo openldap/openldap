@@ -56,6 +56,7 @@ struct cache {
 	Avlnode		*c_idtree;
 	Entry		*c_lruhead;	/* lru - add accessed entries here */
 	Entry		*c_lrutail;	/* lru - rem lru entries from here */
+        Entry           *c_freelist;
 	pthread_mutex_t	c_mutex;
 };
 
@@ -102,6 +103,7 @@ struct ldbminfo {
 	struct cache		li_cache;
 	Avlnode			*li_attrs;
 	int			li_dbcachesize;
+	int			li_flush_wrt;
 	struct dbcache		li_dbcache[MAXDBCACHE];
 	pthread_mutex_t		li_dbcache_mutex;
 	pthread_cond_t		li_dbcache_cv;

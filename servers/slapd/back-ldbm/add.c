@@ -6,11 +6,11 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "back-ldbm.h"
+#include "proto-back-ldbm.h"
 
 extern int	global_schemacheck;
 extern char	*dn_parent();
 extern char	*dn_normalize();
-extern Entry	*dn2entry();
 
 int
 ldbm_back_add(
@@ -27,8 +27,8 @@ ldbm_back_add(
 
 	dn = dn_normalize( strdup( e->e_dn ) );
 	matched = NULL;
-	if ( (p = dn2entry( be, dn, &matched )) != NULL ) {
-		cache_return_entry( &li->li_cache, p );
+	if ( (p = dn2entry_r( be, dn, &matched )) != NULL ) {
+		cache_return_entry_r( &li->li_cache, p );
 		entry_free( e );
 		free( dn );
 		send_ldap_result( conn, op, LDAP_ALREADY_EXISTS, "", "" );
@@ -39,9 +39,16 @@ ldbm_back_add(
 	}
 	/* XXX race condition here til we cache_add_entry_lock below XXX */
 
+
 	if ( global_schemacheck && oc_schema_check( e ) != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, "entry failed schema check\n", 0, 0,
 		    0 );
+                /* release writer lock */
+                pthread_rdwr_wunlock_np(&e->e_rdwr);
+                
+                /* XXX this should be ok, no other thread should have access
+                 * because e hasn't been added to the cache yet
+                 */
 		entry_free( e );
 		free( dn );
 		send_ldap_result( conn, op, LDAP_OBJECT_CLASS_VIOLATION, "",
@@ -61,6 +68,12 @@ ldbm_back_add(
 		Debug( LDAP_DEBUG_ANY, "cache_add_entry_lock failed\n", 0, 0,
 		    0 );
 		next_id_return( be, e->e_id );
+                /* release writer lock */
+                pthread_rdwr_wunlock_np(&e->e_rdwr);
+                
+                /* XXX this should be ok, no other thread should have access
+                 * because e hasn't been added to the cache yet
+                 */
 		entry_free( e );
 		free( dn );
 		send_ldap_result( conn, op, LDAP_ALREADY_EXISTS, "", "" );
@@ -76,7 +89,7 @@ ldbm_back_add(
 	if ( (pdn = dn_parent( be, dn )) != NULL ) {
 		/* no parent */
 		matched = NULL;
-		if ( (p = dn2entry( be, pdn, &matched )) == NULL ) {
+		if ( (p = dn2entry_r( be, pdn, &matched )) == NULL ) {
 			send_ldap_result( conn, op, LDAP_NO_SUCH_OBJECT,
 			    matched, "" );
 			if ( matched != NULL ) {
@@ -116,8 +129,7 @@ ldbm_back_add(
 	if ( id2children_add( be, p, e ) != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, "id2children_add failed\n", 0,
 		    0, 0 );
-		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, "",
-		    "" );
+		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, "", "" );
 		goto error_return;
 	}
 
@@ -157,17 +169,21 @@ ldbm_back_add(
 	if ( pdn != NULL )
 		free( pdn );
 	cache_set_state( &li->li_cache, e, 0 );
-	cache_return_entry( &li->li_cache, e );
+	cache_return_entry_w( &li->li_cache, e );
+	cache_return_entry_r( &li->li_cache, p );
 	return( 0 );
 
 error_return:;
+        /* release writer lock */
+        pthread_rdwr_wunlock_np(&e->e_rdwr);
+
 	if ( dn != NULL )
 		free( dn );
 	if ( pdn != NULL )
 		free( pdn );
 	next_id_return( be, e->e_id );
 	cache_delete_entry( &li->li_cache, e );
-	cache_return_entry( &li->li_cache, e );
+	cache_return_entry_r( &li->li_cache, p );
 
 	return( -1 );
 }

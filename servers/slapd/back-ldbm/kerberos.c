@@ -13,7 +13,6 @@
 #define LDAP_KRB_PRINCIPAL	"ldapserver"
 
 extern char		*ldap_srvtab;
-extern Entry		*dn2entry();
 extern Attribute	*attr_find();
 
 krbv4_ldap_auth(

@@ -66,6 +66,29 @@ cache_return_entry( struct cache *cache, Entry *e )
 	pthread_mutex_unlock( &cache->c_mutex );
 }
 
+static void
+cache_return_entry_rw( struct cache *cache, Entry *e, int rw )
+{
+        if (rw)
+                pthread_rdwr_wunlock_np(&e->e_rdwr);
+        else
+                pthread_rdwr_runlock_np(&e->e_rdwr);
+        cache_return_entry(cache, e);
+}
+
+void
+cache_return_entry_r( struct cache *cache, Entry *e )
+{
+        cache_return_entry_rw(cache, e, 0);
+}
+
+void
+cache_return_entry_w( struct cache *cache, Entry *e )
+{
+        cache_return_entry_rw(cache, e, 1);
+}
+
+
 #define LRU_DELETE( cache, e ) { \
 	if ( e->e_lruprev != NULL ) { \
 		e->e_lruprev->e_lrunext = e->e_lrunext; \
@@ -168,6 +191,9 @@ cache_add_entry_lock(
                     == 0 && cache->c_cursize > cache->c_maxsize ) {
 			e = cache->c_lrutail;
 
+                        /* XXX check for writer lock - should also check no readers pending */
+                        assert(pthread_rdwr_wchk_np(&e->e_rdwr));
+
 			/* delete from cache and lru q */
 			rc = cache_delete_entry_internal( cache, e );
 
@@ -195,7 +221,14 @@ cache_find_entry_dn(
 	/* set cache mutex */
 	pthread_mutex_lock( &cache->c_mutex );
 
+        /* initialize reader/writer lock */
+        pthread_rdwr_init_np(&e.e_rdwr, NULL);
+
+        /* acquire writer lock - XXX check for deadlock */
+        pthread_rdwr_wlock_np(&e.e_rdwr);
+
 	e.e_dn = dn;
+
 	if ( (ep = (Entry *) avl_find( cache->c_dntree, &e, cache_entrydn_cmp ))
 	    != NULL ) {
 		/*
@@ -213,7 +246,10 @@ cache_find_entry_dn(
 		/* lru */
 		LRU_DELETE( cache, ep );
 		LRU_ADD( cache, ep );
-	}
+	};
+
+        /* free writer lock */
+        pthread_rdwr_wunlock_np(&e.e_rdwr);
 
 	/* free cache mutex */
 	pthread_mutex_unlock( &cache->c_mutex );
@@ -237,7 +273,14 @@ cache_find_entry_id(
 	/* set cache mutex */
 	pthread_mutex_lock( &cache->c_mutex );
 
+        /* initialize reader/writer lock */
+        pthread_rdwr_init_np(&e.e_rdwr, NULL);
+
+        /* acquire writer lock - XXX check for deadlock */
+        pthread_rdwr_wlock_np(&e.e_rdwr);
+
 	e.e_id = id;
+
 	if ( (ep = (Entry *) avl_find( cache->c_idtree, &e, cache_entryid_cmp ))
 	    != NULL ) {
 		/*
@@ -256,6 +299,9 @@ cache_find_entry_id(
 		LRU_DELETE( cache, ep );
 		LRU_ADD( cache, ep );
 	}
+
+        /* free writer lock */
+        pthread_rdwr_wunlock_np(&e.e_rdwr);
 
 	/* free cache mutex */
 	pthread_mutex_unlock( &cache->c_mutex );
@@ -281,6 +327,9 @@ cache_delete_entry(
 )
 {
 	int	rc;
+
+        /* XXX check for writer lock - should also check no readers pending */
+        assert(pthread_rdwr_wchk_np(&e->e_rdwr));
 
 	/* set cache mutex */
 	pthread_mutex_lock( &cache->c_mutex );

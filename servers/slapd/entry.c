@@ -46,6 +46,8 @@ str2entry( char	*s )
 	Debug( LDAP_DEBUG_TRACE, "=> str2entry\n", s, 0, 0 );
 
 	e = (Entry *) ch_calloc( 1, sizeof(Entry) );
+        /* initialize reader/writer lock */
+        pthread_rdwr_init_np(&e->e_rdwr, NULL);
 
 	/* check to see if there's an id included */
 	next = s;
@@ -112,6 +114,7 @@ str2entry( char	*s )
 	}
 
 	Debug( LDAP_DEBUG_TRACE, "<= str2entry 0x%x\n", e, 0, 0 );
+
 	return( e );
 }
 
@@ -186,6 +189,9 @@ entry_free( Entry *e )
 {
 	int		i;
 	Attribute	*a, *next;
+
+        /* XXX check that no reader/writer locks exist */
+        assert(!pthread_rdwr_wchk_np(&e->e_rdwr)&&!pthread_rdwr_rchk_np(&e->e_rdwr));
 
 	if ( e->e_dn != NULL ) {
 		free( e->e_dn );

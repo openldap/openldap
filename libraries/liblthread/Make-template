@@ -15,8 +15,8 @@
 
 LDAPSRC	= ../..
 
-SRCS	= thread.c stack.c
-OBJS	= thread.o stack.o
+SRCS	= rdwr.c thread.c stack.c
+OBJS	= rdwr.o thread.o stack.o
 
 HDIR	= ../../include
 
@@ -60,10 +60,3 @@ depend:	FORCE
 links:
 	@$(LN) .src/*.[ch] .
 
-# DO NOT DELETE THIS LINE -- mkdep uses it.
-# DO NOT PUT ANYTHING AFTER THIS LINE, IT WILL GO AWAY.
-
-thread.o: thread.c ../../include/lthread.h
-stack.o: stack.c ../../include/lber.h ../../include/ldap.h
-
-# IF YOU PUT ANYTHING HERE IT WILL GO AWAY

@@ -6,6 +6,7 @@
 #include <sys/socket.h>
 #include "slap.h"
 #include "back-ldbm.h"
+#include "proto-back-ldbm.h"
 
 extern struct dbcache	*ldbm_cache_open();
 extern Entry		*cache_find_entry_dn();
@@ -20,9 +21,10 @@ dn2id_add(
     ID		id
 )
 {
-	int		rc;
+	int		rc, flags;
 	struct dbcache	*db;
 	Datum		key, data;
+	struct ldbminfo *li = (struct ldbminfo *) be->be_private;
 
 	Debug( LDAP_DEBUG_TRACE, "=> dn2id_add( \"%s\", %ld )\n", dn, id, 0 );
 
@@ -41,7 +43,10 @@ dn2id_add(
 	data.dptr = (char *) &id;
 	data.dsize = sizeof(ID);
 
-	rc = ldbm_cache_store( db, key, data, LDBM_INSERT );
+	flags = LDBM_INSERT;
+	if ( li->li_flush_wrt ) flags |= LDBM_SYNC;
+
+	rc = ldbm_cache_store( db, key, data, flags );
 
 	free( dn );
 	ldbm_cache_close( be, db );
@@ -62,10 +67,10 @@ dn2id(
 	ID		id;
 	Datum		key, data;
 
-	Debug( LDAP_DEBUG_TRACE, "=> dn2id( \"%s\" )\n", dn, 0, 0 );
 
 	dn = strdup( dn );
 	dn_normalize_case( dn );
+	Debug( LDAP_DEBUG_TRACE, "=> dn2id( \"%s\" )\n", dn, 0, 0 );
 
 	/* first check the cache */
 	if ( (e = cache_find_entry_dn( &li->li_cache, dn )) != NULL ) {
@@ -145,11 +150,12 @@ dn2id_delete(
  * entry.
  */
 
-Entry *
+static Entry *
 dn2entry(
     Backend	*be,
     char	*dn,
-    char	**matched
+    char	**matched,
+    int         rw
 )
 {
 	struct ldbminfo *li = (struct ldbminfo *) be->be_private;
@@ -157,8 +163,7 @@ dn2entry(
 	Entry		*e;
 	char		*pdn;
 
-	if ( (id = dn2id( be, dn )) != NOID && (e = id2entry( be, id ))
-	    != NULL ) {
+	if ( (id = dn2id( be, dn )) != NOID && (e = id2entry( be, id, rw )) != NULL ) {
 		return( e );
 	}
 	*matched = NULL;
@@ -170,7 +175,7 @@ dn2entry(
 
 	/* entry does not exist - see how much of the dn does exist */
 	if ( (pdn = dn_parent( be, dn )) != NULL ) {
-		if ( (e = dn2entry( be, pdn, matched )) != NULL ) {
+		if ( (e = dn2entry( be, pdn, matched, 0 )) != NULL ) {
 			*matched = pdn;
 			cache_return_entry( &li->li_cache, e );
 		} else {
@@ -180,3 +185,39 @@ dn2entry(
 
 	return( NULL );
 }
+
+#if 0
+                if (e->e_state == ENTRY_STATE_DELETED)
+                        continue;
+
+                if (strcmp(dn, e->e_dn) != 0)
+                        continue;
+
+                /* return locked entry entry */
+                return(e);
+        }
+}
+#endif
+
+Entry *
+dn2entry_r(
+    Backend	*be,
+    char	*dn,
+    char	**matched
+)
+{
+        return(dn2entry(be, dn, matched, 0));
+}
+
+Entry *
+dn2entry_w(
+    Backend	*be,
+    char	*dn,
+    char	**matched
+)
+{
+        return(dn2entry(be, dn, matched, 1));
+}
+
+
+

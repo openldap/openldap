@@ -6,10 +6,16 @@
 #define LDAP_SYSLOG
 
 #include <syslog.h>
+#include <sys/types.h>
+#include <regex.h>
+#undef NDEBUG
+#include <assert.h>
+
 #include "avl.h"
 #include "lber.h"
 #include "ldap.h"
 #include "lthread.h"
+#include "lthread_rdwr.h"
 #include "ldif.h"
 
 #define DN_DNS	0
@@ -17,6 +23,9 @@
 
 #define ON	1
 #define OFF	(-1)
+#define UNDEFINED 0
+
+#define MAXREMATCHES 10
 
 /*
  * represents an attribute value assertion (i.e., attr=value)
@@ -97,6 +106,9 @@ typedef unsigned long	ID;
  * represents an entry in core
  */
 typedef struct entry {
+        pthread_rdwr_t  e_rdwr;         /* reader/writer lock             */
+        /*struct entry    *e_nextfree;    /* for freelist                   */
+
 	char		*e_dn;		/* DN of this entry 		  */
 	Attribute	*e_attrs;	/* list of attributes + values    */
 
@@ -121,6 +133,11 @@ struct access {
 	char		*a_domainpat;
 	char		*a_dnattr;
 	long		a_access;
+
+#ifdef ACLGROUP
+    char		*a_group;
+#endif
+
 #define ACL_NONE	0x01
 #define ACL_COMPARE	0x02
 #define ACL_SEARCH	0x04
@@ -134,6 +151,7 @@ struct access {
 struct acl {
 	/* "to" part: the entries this acl applies to */
 	Filter		*acl_filter;
+	regex_t		acl_dnre;
 	char		*acl_dnpat;
 	char		**acl_attrs;
 
@@ -187,6 +205,10 @@ typedef struct backend {
 	IFP	be_config;	/* backend config routine	   	   */
 	IFP	be_init;	/* backend init routine			   */
 	IFP	be_close;	/* backend close routine		   */
+
+#ifdef ACLGROUP
+	IFP	be_group;	/* backend group member test               */
+#endif
 } Backend;
 
 /*
