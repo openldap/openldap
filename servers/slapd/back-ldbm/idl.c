@@ -533,13 +533,16 @@ idl_insert_key(
 
 		/* is there a next block? */
 		if ( !first && !ID_BLOCK_NOID(idl, i + 1) ) {
+			Datum k3;
 			/* read it in */
-			cont_id( &k2, ID_BLOCK_ID(idl, i + 1) );
-			if ( (tmp2 = idl_fetch_one( be, db, k2 )) == NULL ) {
+			cont_alloc( &k3, &key );
+			cont_id( &k3, ID_BLOCK_ID(idl, i + 1) );
+			if ( (tmp2 = idl_fetch_one( be, db, k3 )) == NULL ) {
 				Debug( LDAP_DEBUG_ANY,
 				    "idl_insert_key: idl_fetch_one returned NULL\n",
 				    0, 0, 0 );
 				/* split the original block */
+				cont_free( &k3 );
 				goto split;
 			}
 
@@ -573,7 +576,7 @@ idl_insert_key(
 			    db->dbc_maxids )) ) {
 			case 1:		/* id inserted first in block */
 				rc = idl_change_first( be, db, key, idl,
-				    i + 1, k2, tmp2 );
+				    i + 1, k3, tmp2 );
 				/* FALL */
 
 			case 2:		/* id already there - how? */
@@ -588,6 +591,7 @@ idl_insert_key(
 					    id, 0, 0 );
 				}
 
+				cont_free( &k3 );
 				idl_free( tmp );
 				idl_free( tmp2 );
 				cont_free( &k2 );
@@ -598,6 +602,7 @@ idl_insert_key(
 				break;
 			}
 
+			cont_free( &k3 );
 			idl_free( tmp2 );
 		}
 
