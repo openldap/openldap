@@ -16,8 +16,10 @@
  * slapd/slurpd locking conventions.
  */
 
+#include "portable.h"
+
 #include <stdio.h>
-#include <string.h>
+#include "ldap_string.h"
 #include <stdlib.h>
 #include <ctype.h>
 

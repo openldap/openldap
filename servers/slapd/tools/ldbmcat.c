@@ -1,9 +1,10 @@
+#include "portable.h"
+
 #include <stdio.h>
-#include <string.h>
+#include "ldap_string.h"
 #include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "portable.h"
 #include "ldbm.h"
 #include "../slap.h"
 

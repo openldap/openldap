@@ -1,8 +1,9 @@
+#include "portable.h"
+
 #include <stdio.h>
 #include <ldbm.h>
 #include <lber.h>
 #include <ldap.h>
-#include "portable.h"
 
 #define CACHE_SIZE	1000000
 #define MODE		0600

@@ -16,6 +16,8 @@
  *	Simon Fraser University, Academic Computing Services
  */
 
+#include "portable.h"
+
 #include <stdio.h>
 #include <sys/types.h>
 #if defined(NeXT)
@@ -43,7 +45,9 @@
 #include <lber.h>
 #include <ldap.h>
 #include <ldapconfig.h>
-#include "portable.h"
+
+#include "bridge.h"
+
 #include "ud.h"
 
 #ifndef lint
@@ -722,3 +726,22 @@ SIG_FN chwinsz()
 	(void) signal(SIGWINCH, chwinsz);
 }
 #endif
+
+#if defined(NO_CACHE)
+
+void ldap_uncache_entry( LDAP *ld, char *dn )
+{
+
+}
+
+int ldap_enable_cache( LDAP *ld, long timeout, long maxmem )
+{
+  return 0;
+}
+
+void ldap_flush_cache( LDAP *ld )
+{
+
+}
+
+#endif /* NO_CACHE */

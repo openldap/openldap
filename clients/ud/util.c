@@ -10,9 +10,11 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
+#include "portable.h"
+
 #include <stdio.h>
 #include <signal.h>
-#include <string.h>
+#include "ldap_string.h"
 #ifdef DOS
 #include <malloc.h>
 #endif
@@ -25,16 +27,18 @@
 #include <lber.h>
 #include <ldap.h>
 #include <ldapconfig.h>
-#if !defined(DOS) && !defined( VMS)
+#if !defined(DOS) && !defined(VMS)
 #include <sys/types.h>
 #endif
-#include "portable.h"
+
 #ifdef USE_TERMIOS
 #include <termios.h>
 #else /* USE_TERMIOS */
 #include <sgtty.h>
 #endif /* USE_TERMIOS */
 #include "ud.h"
+
+#include "bridge.h"
 
 #if defined(VMS)
 #define getch getchar
@@ -226,8 +230,6 @@ FILE *where;
 fatal(s)
 char *s;
 {
-	void exit();
-
 	if (errno != 0)
 		perror(s);
 #ifdef KERBEROS

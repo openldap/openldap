@@ -60,11 +60,8 @@ chlog2replog: chlog2replog.o ../lock.o ../ch_malloc.o
 ldif2index:	ldif2index.o ../libbackends.a $(OBJS2)
 	$(CC) $(LDFLAGS) -o $@ ldif2index.o $(OBJS2) ../libbackends.a $(LIBS)
 
-ldif2ldbm:	ldif2ldbm.sed.o ../libbackends.a $(OBJS2)
-	$(CC) $(LDFLAGS) -o $@ ldif2ldbm.sed.o $(OBJS2) ../libbackends.a $(LIBS)
-
-ldif2ldbm.sed.c: ldif2ldbm.c
-	$(SED) -e 's;%ETCDIR%;$(sysconfdir)/ldap;' ldif2ldbm.c > ldif2ldbm.sed.c
+ldif2ldbm:	ldif2ldbm.o ../libbackends.a $(OBJS2)
+	$(CC) $(LDFLAGS) -o $@ ldif2ldbm.o $(OBJS2) ../libbackends.a $(LIBS)
 
 ldif2id2entry:	ldif2id2entry.o ../libbackends.a $(OBJS2)
 	$(CC) $(LDFLAGS) -o $@ ldif2id2entry.o $(OBJS2) ../libbackends.a $(LIBS)

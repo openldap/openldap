@@ -10,9 +10,13 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
+#include "portable.h"
+
 #include <stdio.h>
-#include <string.h>
-#include <dirent.h>
+
+#include "ldap_string.h"
+#include "ldap_dirent.h"
+
 #include <stdlib.h>
 #include <ctype.h>
 #include <sys/types.h>

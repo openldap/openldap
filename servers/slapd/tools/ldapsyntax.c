@@ -10,15 +10,19 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
+#include "portable.h"
+
 #include <stdio.h>
-#include <string.h>
+#include "ldap_string.h"
 #include <ctype.h>
+
 #include <quipu/commonarg.h>
 #include <quipu/attrvalue.h>
 #include <quipu/ds_error.h>
 #include <quipu/ds_search.h>
 /* #include <quipu/dap2.h> */
 #include <quipu/dua.h>
+
 #include <sys/types.h>
 
 #include "lber.h"

@@ -10,8 +10,10 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
-#ifndef _BRIDGE_H
-#define _BRIDGE_H
+/* This file SHOULD go away !!! */
+
+#ifndef _LDAP_BRIDGE_H
+#define _LDAP_BRIDGE_H
 
 /*
  * portable.h for LDAP -- this is where we define common stuff to make
@@ -212,4 +214,4 @@
 extern char *strdup();
 #endif /* ultrix || nextstep */
 
-#endif /* _BRIDGE_H */
+#endif /* _LDAP_BRIDGE_H */

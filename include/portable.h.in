@@ -18,6 +18,10 @@
 /* Define to empty if the keyword does not work.  */
 #undef const
 
+/* Define to the type of elements in the array set by `getgroups'.
+   Usually this is either `int' or `gid_t'.  */
+#undef GETGROUPS_T
+
 /* Define to `int' if <sys/types.h> doesn't define.  */
 #undef gid_t
 
@@ -38,6 +42,9 @@
 
 /* Define if you have the wait3 system call.  */
 #undef HAVE_WAIT3
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+#undef mode_t
 
 /* Define to `long' if <sys/types.h> doesn't define.  */
 #undef off_t
@@ -108,6 +115,9 @@
 /* Define if you have the gettimeofday function.  */
 #undef HAVE_GETTIMEOFDAY
 
+/* Define if you have the memcpy function.  */
+#undef HAVE_MEMCPY
+
 /* Define if you have the mktime function.  */
 #undef HAVE_MKTIME
 
@@ -122,6 +132,9 @@
 
 /* Define if you have the strerror function.  */
 #undef HAVE_STRERROR
+
+/* Define if you have the strrchr function.  */
+#undef HAVE_STRRCHR
 
 /* Define if you have the strstr function.  */
 #undef HAVE_STRSTR
@@ -180,6 +193,4 @@
 /* Define if you have the compat library (-lcompat).  */
 #undef HAVE_LIBCOMPAT
 
-
-#include "bridge.h"
 #endif /* _LDAP_PORTABLE_H */

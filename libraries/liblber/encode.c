@@ -20,9 +20,11 @@
 #if defined(NeXT) || defined(VMS)
 #include <stdlib.h>
 #else /* next || vms */
+#ifndef __FreeBSD__
 #include <malloc.h>
+#endif
 #endif /* next || vms */
-#if defined( BC31 ) || defined( _WIN32 )
+#if defined( BC31 ) || defined( _WIN32 ) || defined( sunos5 )
 #include <stdarg.h>
 #else /* BC31 || _WIN32 */
 #include <varargs.h>
@@ -520,7 +522,7 @@ ber_put_set( BerElement *ber )
 /* VARARGS */
 int
 ber_printf(
-#if defined( MACOS ) || defined( _WIN32 ) || defined( BC31 )
+#if defined( MACOS ) || defined( _WIN32 ) || defined( BC31 ) || defined( sunos5 )
 	BerElement *ber, char *fmt, ... )
 #else /* MACOS || _WIN32 || BC31 */
 	va_alist )
@@ -528,22 +530,22 @@ va_dcl
 #endif /* MACOS || _WIN32 || BC31 */
 {
 	va_list		ap;
-#if !defined( MACOS ) && !defined( _WIN32 ) && !defined( BC31 )
+#if !defined( MACOS ) && !defined( _WIN32 ) && !defined( BC31 ) && !defined( sunos5 )
 	BerElement	*ber;
 	char		*fmt;
-#endif /* !MACOS && !_WIN32 && !BC31 */
+#endif /* !MACOS && !_WIN32 && !BC31 && !sunos5 */
 	char		*s, **ss;
 	struct berval	**bv;
 	int		rc, i;
 	unsigned long	len;
 
-#if defined( MACOS ) || defined( _WIN32 ) || defined( BC31 )
+#if defined( MACOS ) || defined( _WIN32 ) || defined( BC31 ) || defined( sunos5 )
 	va_start( ap, fmt );
-#else /* MACOS || _WIN32 || BC31 */
+#else /* MACOS || _WIN32 || BC31 || defined( sunos5 ) */
 	va_start( ap );
 	ber = va_arg( ap, BerElement * );
 	fmt = va_arg( ap, char * );
-#endif /* MACOS || _WIN32 || BC31 */
+#endif /* MACOS || _WIN32 || BC31 || defined( sunos5 ) */
 
 	for ( rc = 0; *fmt && rc != -1; fmt++ ) {
 		switch ( *fmt ) {

@@ -1,17 +1,17 @@
+#include "portable.h"
 #include <stdio.h>
-#include <string.h>
+#include "ldap_string.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/param.h>
 #include "../slap.h"
 #include "../back-ldbm/back-ldbm.h"
+#include "ldapconfig.h"
 
-#define DEFAULT_CONFIGFILE	"%ETCDIR%/slapd.conf"
-#define DEFAULT_ETCDIR		"%ETCDIR%"
 #define INDEXCMD		"ldif2index"
 #define ID2ENTRYCMD		"ldif2id2entry"
-#define ID2CHILDRENCMD		"ldif2id2children"
-#define MAXARGS      		100
+#define ID2CHILDRENCMD	"ldif2id2children"
+#define MAXARGS      	100
 
 extern void		attr_index_config();
 extern char		*str_getline();
@@ -74,8 +74,8 @@ main( int argc, char **argv )
 	Avlnode		*avltypes = NULL;
 	extern char	*optarg;
 
-	etcdir = DEFAULT_ETCDIR;
-	tailorfile = DEFAULT_CONFIGFILE;
+	etcdir = DEFAULT_SBINDIR;
+	tailorfile = SLAPD_DEFAULT_CONFIGFILE;
 	dbnum = -1;
 	while ( (i = getopt( argc, argv, "d:e:f:i:j:n:" )) != EOF ) {
 		switch ( i ) {
@@ -135,7 +135,7 @@ main( int argc, char **argv )
 			fprintf( stderr, "No ldbm database found in config file\n" );
 			exit( 1 );
 		}
-	} else if ( dbnum < 0 || dbnum > nbackends ) {
+	} else if ( dbnum < 0 || dbnum > (nbackends-1) ) {
 		fprintf( stderr, "Database number selected via -n is out of range\n" );
 		fprintf( stderr, "Must be in the range 1 to %d (number of databases in the config file)\n", nbackends );
 		exit( 1 );
@@ -157,7 +157,7 @@ main( int argc, char **argv )
 	args[i++] = "-f";
 	args[i++] = tailorfile;
 	args[i++] = "-n";
-	sprintf( buf2, "%d", dbnum );
+	sprintf( buf2, "%d", dbnum+1 );
 	args[i++] = buf2;
 	if ( ldap_debug ) {
 		sprintf( buf3, "%d", ldap_debug );
@@ -179,7 +179,7 @@ main( int argc, char **argv )
 	args[i++] = "-f";
 	args[i++] = tailorfile;
 	args[i++] = "-n";
-	sprintf( buf2, "%d", dbnum );
+	sprintf( buf2, "%d", dbnum+1 );
 	args[i++] = buf2;
 	if ( ldap_debug ) {
 		sprintf( buf3, "%d", ldap_debug );
@@ -201,7 +201,7 @@ main( int argc, char **argv )
 	args[i++] = "-f";
 	args[i++] = tailorfile;
 	args[i++] = "-n";
-	sprintf( buf2, "%d", dbnum );
+	sprintf( buf2, "%d", dbnum+1 );
 	args[i++] = buf2;
 	if ( ldap_debug ) {
 		sprintf( buf3, "%d", ldap_debug );

@@ -1,10 +1,12 @@
 /* centipede.c - generate and install indexing information (view w/tabstop=4) */
 
-#include <stdio.h>
 #include "portable.h"
-#include <string.h>
+
+#include <stdio.h>
+#include "ldap_string.h"
 #include <ctype.h>
-#include <sys/time.h>
+#include "ldap_time.h"
+
 #include <lber.h>
 #include <ldap.h>
 #include <ldapconfig.h>

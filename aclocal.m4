@@ -1,3 +1,4 @@
+dnl --------------------------------------------------------------------
 dnl Restricted form of AC_ARG_ENABLE that ensures user doesn't give bogus
 dnl values.
 dnl
@@ -18,12 +19,7 @@ ifelse($3,,[    :]dnl
   $4
 ])dnl
   ])])dnl
-dnl
-dnl Allow user to disable a normally-on option.
-dnl
-dnl AC_DEFUN([CF_ARG_DISABLE],[CF_ARG_OPTION($1,[$2 (default: on)],[$3],[$4],yes))dnl
-dnl
-dnl
+dnl --------------------------------------------------------------------
 dnl Check for declaration of sys_errlist in one of stdio.h and errno.h.
 dnl Declaration of sys_errlist on BSD4.4 interferes with our declaration.
 dnl Reported by Keith Bostic.

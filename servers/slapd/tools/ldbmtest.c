@@ -1,21 +1,23 @@
+#include "portable.h"
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/time.h>
+#include "ldap_time.h"
 #include <sys/resource.h>
-#include <sys/wait.h>
+#include "ldap_wait.h"
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <limits.h>
-#include "portable.h"
+
+#include "bridge.h"
+
 #include "ldapconfig.h"
 #include "../slap.h"
 #include "../back-ldbm/back-ldbm.h"
-
-#define EDITOR	"/usr/ucb/vi"
 
 extern IDList		*idl_fetch();
 extern Backend		*select_backend();

@@ -20,13 +20,15 @@
 #if defined(NeXT) || defined(VMS)
 #include <stdlib.h>
 #else /* next || vms */
+#ifndef __FreeBSD__
 #include <malloc.h>
+#endif
 #endif /* next || vms */
-#if defined(BC31) || defined(_WIN32)
+#if defined(BC31) || defined(_WIN32) || defined(sunos5)
 #include <stdarg.h>
-#else /* BC31 || _WIN32 */
+#else /* BC31 || _WIN32 || defined(sunos5) */
 #include <varargs.h>
-#endif /* BC31 || _WIN32 */
+#endif /* BC31 || _WIN32 || defined(sunos5) */
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -155,6 +157,7 @@ ber_getnint( BerElement *ber, long *num, int len )
 {
 	int	diff, sign, i;
 	long	netnum;
+	char    *p;
 
 	/*
 	 * The tag and length have already been stripped off.  We should
@@ -172,11 +175,12 @@ ber_getnint( BerElement *ber, long *num, int len )
 	if ( ber_read( ber, ((char *) &netnum) + diff, len ) != len )
 		return( -1 );
 
-	/* sign extend if necessary */
-	sign = ((0x80 << ((len - 1) * 8)) & netnum);
-	if ( sign && len < sizeof(long) ) {
-		for ( i = sizeof(long) - 1; i > len - 1; i-- ) {
-			netnum |= (0xffL << (i * 8));
+        /* sign extend if necessary */
+        p = (char *) &netnum;
+        sign = (0x80 & *(p+diff) );
+        if ( sign && len < sizeof(long) ) {
+                for ( i = 0; i < diff; i++ ) {
+                        *(p+i) = 0xff;
 		}
 	}
 	*num = LBER_NTOHL( netnum );
@@ -383,7 +387,7 @@ ber_next_element( BerElement *ber, unsigned long *len, char *last )
 /* VARARGS */
 unsigned long
 ber_scanf(
-#if defined( MACOS ) || defined( BC31 ) || defined( _WIN32 )
+#if defined( MACOS ) || defined( BC31 ) || defined( _WIN32 ) || defined(sunos5)
 	BerElement *ber, char *fmt, ... )
 #else
 	va_alist )
@@ -391,7 +395,7 @@ va_dcl
 #endif
 {
 	va_list		ap;
-#if !defined( MACOS ) && !defined( BC31 ) && !defined( _WIN32 )
+#if !defined( MACOS ) && !defined( BC31 ) && !defined( _WIN32 ) && !defined(sunos5)
 	BerElement	*ber;
 	char		*fmt;
 #endif
@@ -402,7 +406,7 @@ va_dcl
 	long		*l, rc, tag;
 	unsigned long	len;
 
-#if defined( MACOS ) || defined( BC31 ) || defined( _WIN32 )
+#if defined( MACOS ) || defined( BC31 ) || defined( _WIN32 ) || defined(sunos5)
 	va_start( ap, fmt );
 #else
 	va_start( ap );

@@ -1,12 +1,13 @@
 #include "portable.h"
 
 #include <stdio.h>
-#include <string.h>
+#include "ldap_string.h"
 #include <sys/types.h>
 #include <sys/socket.h>
 #include "../slap.h"
 
-#define DEFAULT_CONFIGFILE      "/usr/local/etc/slapd.conf"
+#include "ldapconfig.h"
+
 #define MAXARGS      		100
 
 extern void	attr_index_config();
@@ -61,7 +62,7 @@ main( int argc, char **argv )
 	extern char	*optarg;
 
 	inputfile = NULL;
-	tailorfile = DEFAULT_CONFIGFILE;
+	tailorfile = SLAPD_DEFAULT_CONFIGFILE;
 	dbnum = -1;
 	while ( (i = getopt( argc, argv, "d:f:i:n:" )) != EOF ) {
 		switch ( i ) {

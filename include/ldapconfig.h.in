@@ -27,6 +27,12 @@
 	/* default place to start searching */
 #define DEFAULT_BASE	"o=Your Organization Name, c=US"
 
+#define EDITOR		"@EDITOR@"
+
+#define DEFAULT_SCONFDIR	"@SCONFDIR@/ldap"
+#define	DEFAULT_SBINDIR		"@SBINDIR@"
+#define	DEFAULT_LIBEXECDIR	"@LIBEXECDIR@"
+
 /*********************************************************************
  *                                                                   *
  * You probably do not need to edit anything below this point        *
