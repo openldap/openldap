@@ -200,7 +200,7 @@ ldbm_back_bind(
 
 		if ( krbv4_ldap_auth( be, cred, &ad ) != LDAP_SUCCESS ) {
 			send_ldap_result( conn, op, LDAP_INVALID_CREDENTIALS,
-			    NULL, NULL );
+			    NULL, NULL, NULL );
 			rc = 1;
 			goto return_results;
 		}
@@ -208,7 +208,8 @@ ldbm_back_bind(
 		if ( ! access_allowed( be, conn, op, e,
 			"krbname", NULL, ACL_AUTH ) )
 		{
-			send_ldap_result( conn, op, LDAP_INSUFFICIENT_ACCESS, "", "" );
+			send_ldap_result( conn, op, LDAP_INSUFFICIENT_ACCESS,
+				NULL, NULL, NULL );
 			rc = 1;
 			goto return_results;
 		}
@@ -226,7 +227,7 @@ ldbm_back_bind(
 				break;
 			}
 			send_ldap_result( conn, op, LDAP_INAPPROPRIATE_AUTH,
-			    NULL, NULL );
+			    NULL, NULL, NULL );
 			rc = 1;
 			goto return_results;
 
@@ -238,7 +239,7 @@ ldbm_back_bind(
 
 			if ( value_find( a->a_vals, &krbval, a->a_syntax, 3 ) != 0 ) {
 				send_ldap_result( conn, op,
-				    LDAP_INVALID_CREDENTIALS, NULL, NULL );
+				    LDAP_INVALID_CREDENTIALS, NULL, NULL, NULL );
 				rc = 1;
 				goto return_results;
 			}
@@ -247,7 +248,7 @@ ldbm_back_bind(
 		break;
 
 	case LDAP_AUTH_KRBV42:
-		send_ldap_result( conn, op, LDAP_SUCCESS, NULL, NULL );
+		send_ldap_result( conn, op, LDAP_SUCCESS, NULL, NULL, NULL );
 		/* stop front end from sending result */
 		rc = 1;
 		goto return_results;

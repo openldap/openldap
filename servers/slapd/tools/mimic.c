@@ -29,7 +29,8 @@ send_ldap_result(
 	Operation   *op,
 	int     err,
 	char    *matched,
-	char    *text
+	char    *text,
+	struct berval **refs
 )        
 {
 	assert(0);
@@ -42,6 +43,7 @@ send_search_result(
 	int     err,
 	char    *matched,
 	char    *text,
+	struct berval **refs,
 	int		nentries
 )        
 {
@@ -58,6 +60,19 @@ send_search_entry(
 	int		attrsonly,
 	int		opattrs
 )        
+{
+	assert(0);
+	return -1;
+}
+
+int send_search_reference(
+	Backend *be,
+	Connection  *conn, 
+	Operation   *op,
+	Entry	*e,
+	struct berval **refs,
+	struct berval ***v2refs
+)
 {
 	assert(0);
 	return -1;
