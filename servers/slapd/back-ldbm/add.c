@@ -20,22 +20,19 @@ ldbm_back_add(
 )
 {
 	struct ldbminfo	*li = (struct ldbminfo *) be->be_private;
-	char		*dn = NULL, *pdn;
+	char		*pdn;
 	Entry		*p = NULL;
 	int			rootlock = 0;
 	int			rc = -1; 
 
-	dn = dn_normalize( ch_strdup( e->e_dn ) );
-
-	Debug(LDAP_DEBUG_ARGS, "==> ldbm_back_add: %s\n", dn, 0, 0);
+	Debug(LDAP_DEBUG_ARGS, "==> ldbm_back_add: %s\n", e->e_ndn, 0, 0);
 
 	/* nobody else can add until we lock our parent */
 	pthread_mutex_lock(&li->li_add_mutex);
 
-	if ( ( dn2id( be, dn ) ) != NOID ) {
+	if ( ( dn2id( be, e->e_ndn ) ) != NOID ) {
 		pthread_mutex_unlock(&li->li_add_mutex);
 		entry_free( e );
-		free( dn );
 		send_ldap_result( conn, op, LDAP_ALREADY_EXISTS, "", "" );
 		return( -1 );
 	}
@@ -47,7 +44,6 @@ ldbm_back_add(
 			0, 0, 0 );
 
 		entry_free( e );
-		free( dn );
 		send_ldap_result( conn, op, LDAP_OBJECT_CLASS_VIOLATION, "",
 		    "" );
 		return( -1 );
@@ -59,7 +55,7 @@ ldbm_back_add(
 	 * add the entry.
 	 */
 
-	if ( (pdn = dn_parent( be, dn )) != NULL ) {
+	if ( (pdn = dn_parent( be, e->e_ndn )) != NULL ) {
 		char *matched = NULL;
 
 		/* get parent with writer lock */
@@ -75,7 +71,6 @@ ldbm_back_add(
 			}
 
 			entry_free( e );
-			free( dn );
 			free( pdn );
 			return -1;
 		}
@@ -101,7 +96,6 @@ ldbm_back_add(
 			cache_return_entry_w( &li->li_cache, p ); 
 
 			entry_free( e );
-			free( dn );
 			return -1;
 		}
 
@@ -115,7 +109,6 @@ ldbm_back_add(
 			    "", "" );
 
 			entry_free( e );
-			free( dn );
 			return -1;
 		}
 
@@ -144,7 +137,6 @@ ldbm_back_add(
 			0, 0, 0 );
 
 		entry_free(e);
-		free( dn );
 
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, "", "" );
 		return( -1 );
@@ -173,7 +165,6 @@ ldbm_back_add(
                 
 		entry_rdwr_unlock(e, 1);;
 		entry_free( e );
-		free( dn );
 
 		send_ldap_result( conn, op, LDAP_ALREADY_EXISTS, "", "" );
 		return( -1 );
@@ -206,7 +197,7 @@ ldbm_back_add(
 	}
 
 	/* dn2id index */
-	if ( dn2id_add( be, dn, e->e_id ) != 0 ) {
+	if ( dn2id_add( be, e->e_ndn, e->e_id ) != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, "dn2id_add failed\n", 0,
 		    0, 0 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, "", "" );
@@ -218,7 +209,7 @@ ldbm_back_add(
 	if ( id2entry_add( be, e ) != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, "id2entry_add failed\n", 0,
 		    0, 0 );
-		(void) dn2id_delete( be, dn );
+		(void) dn2id_delete( be, e->e_ndn );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, "", "" );
 
 		goto return_results;
@@ -228,9 +219,6 @@ ldbm_back_add(
 	rc = 0;
 
 return_results:;
-	if ( dn != NULL )
-		free( dn );
-
 	if (p != NULL) {
 		/* free parent and writer lock */
 		cache_return_entry_w( &li->li_cache, p ); 

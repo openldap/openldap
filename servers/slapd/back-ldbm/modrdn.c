@@ -51,7 +51,7 @@ ldbm_back_modrdn(
 	}
 #endif
 
-	if ( (pdn = dn_parent( be, dn )) != NULL ) {
+	if ( (pdn = dn_parent( be, e->e_ndn )) != NULL ) {
 		/* parent + rdn + separator(s) + null */
 		if( (p = dn2entry_w( be, pdn, &matched )) == NULL) {
 			Debug( LDAP_DEBUG_TRACE, "parent does not exist\n",
