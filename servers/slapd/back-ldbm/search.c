@@ -144,6 +144,7 @@ ldbm_back_search(
 			NULL, NULL, NULL, NULL, 0 );
 
 		rc = 1;
+		goto done;
 	}
 
 	for ( id = idl_firstid( candidates ); id != NOID;

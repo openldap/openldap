@@ -167,8 +167,7 @@ ldbm_back_bind(
 	}
 
 	if ( is_entry_referral( e ) ) {
-		/* parent is a referral, don't allow add */
-		/* parent is an alias, don't allow add */
+		/* entry is a referral, don't allow bind */
 		struct berval **refs = get_entry_referrals( be,
 			conn, op, e );
 

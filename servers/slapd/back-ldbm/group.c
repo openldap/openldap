@@ -118,8 +118,8 @@ ldbm_back_group(
 	}
 
 	Debug( LDAP_DEBUG_ACL,
-		"<= ldbm_back_group: found objectClass and %s\n",
-		groupattrName, 0, 0 ); 
+		"<= ldbm_back_group: found objectClass %s and %s\n",
+		objectclassValue, groupattrName, 0 ); 
 
 	bv.bv_val = op_ndn;
 	bv.bv_len = strlen( op_ndn );         
