@@ -28,6 +28,9 @@
 #include <sys/select.h>
 #endif /* aix */
 
+#include "portable.h"
+#include "ldapconfig.h"
+
 #ifdef USE_SYSCONF
 #include <unistd.h>
 #endif /* USE_SYSCONF */
@@ -35,9 +38,6 @@
 #include "lber.h"
 #include "ldap.h"
 #include "disptmpl.h"
-
-#include "portable.h"
-#include "ldapconfig.h"
 
 int	debug;
 int	dosyslog;
