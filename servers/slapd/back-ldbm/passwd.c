@@ -80,7 +80,7 @@ ldbm_back_exop_passwd(
 
 	if( dn == NULL || dn[0] == '\0' ) {
 		*text = "No password is associated with the Root DSE";
-		rc = LDAP_OPERATIONS_ERROR;
+		rc = LDAP_UNWILLING_TO_PERFORM;
 		goto done;
 	}
 
