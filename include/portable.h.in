@@ -166,6 +166,9 @@
 /* Define if you have the <sgtty.h> header file.  */
 #undef HAVE_SGTTY_H
 
+/* Define if you have the <stddef.h> header file.  */
+#undef HAVE_STDDEF_H
+
 /* Define if you have the <sys/dir.h> header file.  */
 #undef HAVE_SYS_DIR_H
 
@@ -192,5 +195,9 @@
 
 /* Define if you have the compat library (-lcompat).  */
 #undef HAVE_LIBCOMPAT
+
+#ifdef HAVE_STDDEF_H
+#	include <stddef.h>
+#endif
 
 #endif /* _LDAP_PORTABLE_H */
