@@ -20,7 +20,8 @@ ldbm_back_delete(
 {
 	struct ldbminfo	*li = (struct ldbminfo *) be->be_private;
 	char		*matched = NULL;
-	Entry		*e;
+	char		*pdn = NULL;
+	Entry		*e, *p;
 
 	if ( (e = dn2entry( be, dn, &matched )) == NULL ) {
 		send_ldap_result( conn, op, LDAP_NO_SUCH_OBJECT, matched, "" );
@@ -45,6 +46,15 @@ ldbm_back_delete(
 	}
 
 	/* XXX delete from parent's id2children entry XXX */
+	pdn = dn_parent( be, dn );
+	matched = NULL;
+	p = dn2entry( be, pdn, &matched );
+	if ( id2children_remove( be, p, e ) != 0 ) {
+		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, "","" );
+		cache_return_entry( &li->li_cache, e );
+		return( -1 );
+	}
+
 
 	/* delete from dn2id mapping */
 	if ( dn2id_delete( be, e->e_dn ) != 0 ) {
