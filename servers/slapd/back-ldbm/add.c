@@ -24,7 +24,6 @@ ldbm_back_add(
 	Entry		*p = NULL;
 	int			rootlock = 0;
 	int			rc; 
-/*	int		manageDSAit = get_manageDSAit( op ); */
 
 	Debug(LDAP_DEBUG_ARGS, "==> ldbm_back_add: %s\n", e->e_dn, 0, 0);
 
