@@ -45,6 +45,7 @@ LDIFORDERED=$DATADIR/test-ordered.ldif
 MONITOR="cn=monitor"
 BASEDN="o=University of Michigan, c=US"
 MANAGERDN="cn=Manager, o=University of Michigan, c=US"
+UPDATEDN="cn=Replica, o=University of Michigan, c=US"
 PASSWD=secret
 BABSDN="cn=Barbara Jensen, ou=Information Technology Division, ou=People, o=University of Michigan, c=US"
 BJORNSDN="cn=Bjorn Jensen, ou=Information Technology Division, ou=People, o=University of Michigan, c=US"
