@@ -41,6 +41,8 @@
 #define OWNER		"owner"
 #define OWNERS		"owners"
 
+#define MAIL500_BOUNCEFROM "<>"
+
 LDAP	*ld;
 char	*vacationhost = NULL;
 char	*errorsfrom = NULL;
@@ -734,7 +736,8 @@ do_group( e, dn, to, nto, togroups, ngroups, err, nerr )
 		/* else from the moderator - fall through and deliver it */
 	}
 
-	if ( has_attributes( e, "rfc822ErrorsTo", "errorsTo" ) ) {
+	if (strcmp(MAIL500_BOUNCEFROM, mailfrom) != 0 &&
+	    has_attributes( e, "rfc822ErrorsTo", "errorsTo" ) ) {
 		add_group( dn, togroups, ngroups );
 
 		return( 0 );
@@ -1140,12 +1143,16 @@ send_errors( err, nerr )
 	WAITSTATUSTYPE	status;
 #endif
 
+	if ( strcmp( MAIL500_BOUNCEFROM, mailfrom ) == 0 ) {
+	    mailfrom = errorsfrom;
+	}
+
 	argv[0] = MAIL500_SENDMAIL;
 	argv[1] = "-oMrX.500";
 	argv[2] = "-odi";
 	argv[3] = "-oi";
 	argv[4] = "-f";
-	argv[5] = errorsfrom;
+	argv[5] = MAIL500_BOUNCEFROM;
 	argv[6] = mailfrom;
 	argv[7] = NULL;
 
