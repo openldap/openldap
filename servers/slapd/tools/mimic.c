@@ -85,6 +85,7 @@ int send_search_reference(
 	Operation   *op,
 	Entry	*e,
 	struct berval **refs,
+	int scope,
 	LDAPControl **ctrls,
 	struct berval ***v2refs
 )

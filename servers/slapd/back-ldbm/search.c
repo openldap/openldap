@@ -49,6 +49,7 @@ ldbm_back_search(
 
 	Debug(LDAP_DEBUG_TRACE, "=> ldbm_back_search\n", 0, 0, 0);
 
+#ifdef SLAPD_ALIASES
 	/* get entry with reader lock */
 	if ( deref & LDAP_DEREF_FINDING ) {
 		e = alias_dn2entry_r( be, base, &matched, &err );
@@ -57,6 +58,10 @@ ldbm_back_search(
 		e = dn2entry_r( be, base, &matched );
 		err = e != NULL ? LDAP_SUCCESS : LDAP_REFERRAL;
 	}
+#else
+	e = dn2entry_r( be, base, &matched );
+	err = e != NULL ? LDAP_SUCCESS : LDAP_REFERRAL;
+#endif
 
 	if ( e == NULL ) {
 		char *matched_dn = NULL;
@@ -176,6 +181,7 @@ ldbm_back_search(
 			goto loop_continue;
 		}
 
+#ifdef SLAPD_ALIASES
 		if ( deref & LDAP_DEREF_SEARCHING && is_entry_alias( e ) ) {
 			Entry *newe;
 			
@@ -208,6 +214,7 @@ ldbm_back_search(
 
 			scopeok = 1;
 		}
+#endif
 
 		/*
 		 * if it's a referral, add it to the list of referrals. only do
