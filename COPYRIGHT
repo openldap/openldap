@@ -1,9 +1,16 @@
-Copyright (c) 1992-1996 Regents of the University of Michigan.
+Copyright 1998 Net Boolean Incorporated
 All rights reserved.
 
 Redistribution and use in source and binary forms are permitted
 provided that this notice is preserved and that due credit is given
-to the University of Michigan at Ann Arbor. The name of the University
-may not be used to endorse or promote products derived from this
-software without specific prior written permission. This software
-is provided ``as is'' without express or implied warranty.
+to the authors. The name of the Net Boolean Incorporated may not be
+used to endorse or promote products derived from this software
+without specific prior written permission. This software is
+provided ``as is'' without express or implied warranty.
+
+This work is derived, in part, from University of Michigan LDAPv3.3.
+Please see the file UM-Copyright for details.
+
+This work also contains patches and fixes from public sources
+(primarily the Internet Community).
+

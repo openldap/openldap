@@ -27,9 +27,9 @@
 #include "slurp.h"
 #include "globals.h"
 
-#ifndef SYSERRLIST_IN_STDIO
+#ifdef DECL_SYS_ERRLIST
 extern char *sys_errlist[];
-#endif /* SYSERRLIST_IN_STDIO */
+#endif /* DECL_SYS_ERRLIST */
 
 
 /*

@@ -44,9 +44,9 @@ extern void Re_dump( Re *re );
 extern void Re_dump();
 #endif /* NEEDPROTOS */
 
-
+#ifdef	DECL_SYS_ERRLIST
 extern char *sys_errlist[];
-
+#endif /* DECL_SYS_ERRLIST
 
 /*
  * Lock the replication queue.

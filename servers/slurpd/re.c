@@ -31,7 +31,9 @@
 extern char *str_getline( char **next );
 extern void ch_free( char *p );
 
+#ifdef	DECL_SYS_ERRLIST
 extern char *sys_errlist[];
+#endif /* DECL_SYS_ERRLIST */
 
 /* Forward references */
 static Rh 	*get_repl_hosts( char *, int *, char ** );

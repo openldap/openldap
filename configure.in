@@ -1,45 +1,45 @@
-dnl Process this file with autoconf to produce a configure script.
-AC_INIT(build/unproto/error.c)
+dnl 
+dnl Configure.in
+dnl
+AC_INIT(include/ldap.h)
+dnl
+dnl
+AC_PREREQ(2.10)dnl Required Autoconf version
+dnl Do not use AutoConf 2.12; it produces a configuration script
+dnl that causes an "internal 2K buffer" error on HPUX when run
+dnl with /bin/sh.  Autoconf 2.10 seems to be okay.
+AC_CONFIG_AUX_DIR(etc)
+AC_PREFIX_DEFAULT(/usr/local)
+AC_CONFIG_HEADER(include/portable.h)dnl
 
 dnl Checks for programs.
-AC_PROG_CXX
-AC_PROG_AWK
 AC_PROG_CC
-AC_PROG_CPP
-AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
-dnl Checks for libraries.
-dnl Replace `main' with a function in -lavl:
-AC_CHECK_LIB(avl, main)
-dnl Replace `main' with a function in -lcrypt:
-AC_CHECK_LIB(crypt, main)
-dnl Replace `main' with a function in -llber:
-AC_CHECK_LIB(lber, main)
-dnl Replace `main' with a function in -lldap:
-AC_CHECK_LIB(ldap, main)
-dnl Replace `main' with a function in -lldbm:
-AC_CHECK_LIB(ldbm, main)
-dnl Replace `main' with a function in -lldif:
-AC_CHECK_LIB(ldif, main)
-dnl Replace `main' with a function in -llthread:
-AC_CHECK_LIB(lthread, main)
-dnl Replace `main' with a function in -lm:
-AC_CHECK_LIB(m, main)
-dnl Replace `main' with a function in -lresolv:
-AC_CHECK_LIB(resolv, main)
-dnl Replace `main' with a function in -lt:
-AC_CHECK_LIB(t, main)
-dnl Replace `main' with a function in -ltermcap:
-AC_CHECK_LIB(termcap, main)
+# FreeBSD (and others) have crypt(3) in -lcrypt
+AC_CHECK_LIB(crypt, crypt)
+
+# FreeBSD has obsoleted re_comp(3) from -lc, needs -lcompat
+AC_CHECK_LIB(compat, re_comp) 
 
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h limits.h malloc.h sgtty.h sys/file.h sys/ioctl.h sys/time.h syslog.h termio.h unistd.h)
+AC_CHECK_HEADERS( \
+	fcntl.h		\
+	limits.h	\
+	malloc.h	\
+	sgtty.h		\
+	sys/file.h	\
+	sys/ioctl.h	\
+	sys/time.h	\
+	syslog.h	\
+	termio.h	\
+	unistd.h	\
+)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -58,6 +58,53 @@ AC_TYPE_SIGNAL
 AC_FUNC_STRFTIME
 AC_FUNC_VPRINTF
 AC_FUNC_WAIT3
-AC_CHECK_FUNCS(gethostname gettimeofday mktime re_comp select socket strdup strerror strstr strtod strtol strtoul)
 
-AC_OUTPUT(libraries/libldbm/Makefile build/Makefile libraries/msdos/Makefile clients/tools/Makefile doc/man/man5/Makefile build/platforms/Makefile servers/Makefile clients/fax500/Makefile doc/guides/Makefile contrib/whois++/Makefile doc/man/Makefile contrib/saucer/Makefile Makefile servers/ldapd/Makefile libraries/macintosh/Makefile clients/ud/Makefile include/Makefile tests/Makefile servers/slapd/back-ldbm/Makefile servers/slapd/back-passwd/Makefile libraries/libavl/Makefile libraries/liblber/Makefile libraries/Makefile libraries/vms/Makefile clients/gopher/Makefile doc/Makefile clients/finger/Makefile libraries/libldap/Makefile libraries/liblthread/Makefile libraries/msdos/winsock/makefile servers/slapd/back-shell/Makefile servers/slapd/tools/Makefile servers/slapd/Makefile doc/rfc/Makefile build/platforms/vms/Makefile clients/rcpt500/Makefile servers/slapd/shell-backends/Makefile doc/man/man1/Makefile clients/mail500/Makefile doc/man/man8/Makefile libraries/libldif/Makefile servers/slurpd/Makefile doc/man/man3/Makefile clients/Makefile build/unproto/Makefile)
+AC_CHECK_FUNCS(		\
+	gethostname		\
+	gettimeofday	\
+	mktime			\
+	select			\
+	socket			\
+	strdup			\
+	strerror		\
+	strstr			\
+	strtod			\
+	strtol			\
+	strtoul			\
+)
+
+AC_ARG_PROGRAM
+
+# Check Configuration
+CF_SYS_ERRLIST
+
+
+AC_OUTPUT( \
+include/ldapconfig.h \
+include/Makefile:etc/top.mk:include/Makefile.in	\
+clients/Makefile:etc/top.mk:clients/Makefile.in:etc/dir.mk \
+clients/tools/Makefile:etc/top.mk:clients/tools/Makefile.in:etc/rules.mk \
+clients/ud/Makefile:etc/top.mk:clients/ud/Makefile.in:etc/rules.mk \
+clients/fax500/Makefile:etc/top.mk:clients/fax500/Makefile.in:etc/rules.mk \
+clients/finger/Makefile:etc/top.mk:clients/finger/Makefile.in:etc/rules.mk \
+clients/gopher/Makefile:etc/top.mk:clients/gopher/Makefile.in:etc/rules.mk \
+clients/mail500/Makefile:etc/top.mk:clients/mail500/Makefile.in:etc/rules.mk \
+clients/rcpt500/Makefile:etc/top.mk:clients/rcpt500/Makefile.in:etc/rules.mk \
+libraries/Makefile:etc/top.mk:libraries/Makefile.in:etc/dir.mk 	\
+libraries/libavl/Makefile:etc/top.mk:libraries/libavl/Makefile.in:etc/lib.mk \
+libraries/liblber/Makefile:etc/top.mk:libraries/liblber/Makefile.in:etc/lib.mk \
+libraries/libldap/Makefile:etc/top.mk:libraries/libldap/Makefile.in:etc/lib.mk \
+libraries/libldbm/Makefile:etc/top.mk:libraries/libldbm/Makefile.in:etc/lib.mk \
+libraries/libldif/Makefile:etc/top.mk:libraries/libldif/Makefile.in:etc/lib.mk \
+libraries/liblthread/Makefile:etc/top.mk:libraries/liblthread/Makefile.in:etc/lib.mk \
+servers/Makefile:etc/top.mk:servers/Makefile.in:etc/dir.mk \
+servers/ldapd/Makefile:etc/top.mk:servers/ldapd/Makefile.in:etc/rules.mk \
+servers/slapd/Makefile:etc/top.mk:servers/slapd/Makefile.in:etc/rules.mk \
+servers/slapd/back-ldbm/Makefile:etc/top.mk:servers/slapd/back-ldbm/Makefile.in:etc/rules.mk \
+servers/slapd/back-passwd/Makefile:etc/top.mk:servers/slapd/back-passwd/Makefile.in:etc/rules.mk \
+servers/slapd/back-shell/Makefile:etc/top.mk:servers/slapd/back-shell/Makefile.in:etc/rules.mk \
+servers/slapd/tools/Makefile:etc/top.mk:servers/slapd/tools/Makefile.in:etc/rules.mk \
+servers/slapd/shell-backends/Makefile:etc/top.mk:servers/slapd/shell-backends/Makefile.in:etc/rules.mk \
+servers/slurpd/Makefile:etc/top.mk:servers/slurpd/Makefile.in:etc/rules.mk \
+Makefile:etc/top.mk:Makefile.in:etc/dir.mk, \
+	[date > stamp-h])

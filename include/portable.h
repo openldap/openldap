@@ -1,3 +1,5 @@
+/* include/portable.h.  Generated automatically by configure.  */
+/* include/portable.h.in.  Generated automatically from configure.in by autoheader.  */
 /*
  * Copyright (c) 1994 Regents of the University of Michigan.
  * All rights reserved.
@@ -10,206 +12,142 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
-#ifndef _PORTABLE_H
-#define _PORTABLE_H
-
-/*
- * portable.h for LDAP -- this is where we define common stuff to make
- * life easier on various Unix systems.
- *
- * Unless you are porting LDAP to a new platform, you should not need to
- * edit this file.
- */
+#ifndef _LDAP_PORTABLE_H
+#define _LDAP_PORTABLE_H
 
 
-#ifndef SYSV
-#if defined( hpux ) || defined( sunos5 ) || defined ( sgi ) || defined( SVR4 )
-#define SYSV
-#endif
-#endif
+/* Define to empty if the keyword does not work.  */
+/* #undef const */
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+/* #undef gid_t */
+
+/* Define if you don't have vprintf but do have _doprnt.  */
+/* #undef HAVE_DOPRNT */
+
+/* Define if your struct stat has st_blksize.  */
+#define HAVE_ST_BLKSIZE 1
+
+/* Define if you have the strftime function.  */
+#define HAVE_STRFTIME 1
+
+/* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
+#define HAVE_SYS_WAIT_H 1
+
+/* Define if you have the vprintf function.  */
+#define HAVE_VPRINTF 1
+
+/* Define if you have the wait3 system call.  */
+#define HAVE_WAIT3 1
+
+/* Define to `long' if <sys/types.h> doesn't define.  */
+/* #undef off_t */
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+/* #undef pid_t */
+
+/* Define as the return type of signal handlers (int or void).  */
+#define RETSIGTYPE void
+
+/* Define to `unsigned' if <sys/types.h> doesn't define.  */
+/* #undef size_t */
+
+/* Define if you have the ANSI C header files.  */
+#define STDC_HEADERS 1
+
+/* Define if you can safely include both <sys/time.h> and <time.h>.  */
+#define TIME_WITH_SYS_TIME 1
+
+/* Define if your <sys/time.h> declares struct tm.  */
+/* #undef TM_IN_SYS_TIME */
+
+/* Define to `int' if <sys/types.h> doesn't define.  */
+/* #undef uid_t */
+
+/* define this if sys_errlist is not defined in stdio.h or errno.h */
+/* #undef DECL_SYS_ERRLIST */
+
+/* Define if you have the gethostname function.  */
+#define HAVE_GETHOSTNAME 1
+
+/* Define if you have the gettimeofday function.  */
+#define HAVE_GETTIMEOFDAY 1
+
+/* Define if you have the mktime function.  */
+#define HAVE_MKTIME 1
+
+/* Define if you have the select function.  */
+#define HAVE_SELECT 1
+
+/* Define if you have the socket function.  */
+#define HAVE_SOCKET 1
+
+/* Define if you have the strdup function.  */
+#define HAVE_STRDUP 1
+
+/* Define if you have the strerror function.  */
+#define HAVE_STRERROR 1
+
+/* Define if you have the strstr function.  */
+#define HAVE_STRSTR 1
+
+/* Define if you have the strtod function.  */
+#define HAVE_STRTOD 1
+
+/* Define if you have the strtol function.  */
+#define HAVE_STRTOL 1
+
+/* Define if you have the strtoul function.  */
+#define HAVE_STRTOUL 1
+
+/* Define if you have the <dirent.h> header file.  */
+#define HAVE_DIRENT_H 1
+
+/* Define if you have the <fcntl.h> header file.  */
+#define HAVE_FCNTL_H 1
+
+/* Define if you have the <limits.h> header file.  */
+#define HAVE_LIMITS_H 1
+
+/* Define if you have the <malloc.h> header file.  */
+/* #undef HAVE_MALLOC_H */
+
+/* Define if you have the <ndir.h> header file.  */
+/* #undef HAVE_NDIR_H */
+
+/* Define if you have the <sgtty.h> header file.  */
+#define HAVE_SGTTY_H 1
+
+/* Define if you have the <sys/dir.h> header file.  */
+/* #undef HAVE_SYS_DIR_H */
+
+/* Define if you have the <sys/file.h> header file.  */
+#define HAVE_SYS_FILE_H 1
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#define HAVE_SYS_IOCTL_H 1
+
+/* Define if you have the <sys/ndir.h> header file.  */
+/* #undef HAVE_SYS_NDIR_H */
+
+/* Define if you have the <sys/time.h> header file.  */
+#define HAVE_SYS_TIME_H 1
+
+/* Define if you have the <syslog.h> header file.  */
+#define HAVE_SYSLOG_H 1
+
+/* Define if you have the <termio.h> header file.  */
+/* #undef HAVE_TERMIO_H */
+
+/* Define if you have the <unistd.h> header file.  */
+#define HAVE_UNISTD_H 1
+
+/* Define if you have the compat library (-lcompat).  */
+#define HAVE_LIBCOMPAT 1
+
+/* Define if you have the crypt library (-lcrypt).  */
+#define HAVE_LIBCRYPT 1
 
 
-/*
- * under System V, use sysconf() instead of getdtablesize
- */
-#if !defined( USE_SYSCONF ) && defined( SYSV )
-#define USE_SYSCONF
-#endif
-
-
-/*
- * under System V, daemons should use setsid() instead of detaching from their
- * tty themselves
- */
-#if !defined( USE_SETSID ) && defined( SYSV )
-#define USE_SETSID
-#endif
-
-
-/*
- * System V has socket options in filio.h
- */
-#if !defined( NEED_FILIO ) && defined( SYSV ) && !defined( hpux )
-#define NEED_FILIO
-#endif
-
-/*
- * use lockf() under System V
- */
-#if !defined( USE_LOCKF ) && ( defined( SYSV ) || defined( aix ))
-#define USE_LOCKF
-#endif
-
-/*
- * on many systems, we should use waitpid() instead of waitN()
- */
-#if !defined( USE_WAITPID ) && ( defined( SYSV ) || defined( sunos4 ) || defined( ultrix ) || defined( aix ))
-#define USE_WAITPID
-#endif
-
-
-/*
- * define the wait status argument type
- */
-#if ( defined( SunOS ) && SunOS < 40 ) || defined( nextstep )
-#define WAITSTATUSTYPE	union wait
-#else
-#define WAITSTATUSTYPE	int
-#endif
-
-/*
- * define the flags for wait
- */
-#ifdef sunos5
-#define WAIT_FLAGS	( WNOHANG | WUNTRACED | WCONTINUED )
-#else
-#define WAIT_FLAGS	( WNOHANG | WUNTRACED )
-#endif
-
-
-/*
- * defined the options for openlog (syslog)
- */
-#ifdef ultrix
-#define OPENLOG_OPTIONS		LOG_PID
-#else
-#define OPENLOG_OPTIONS		( LOG_PID | LOG_NOWAIT )
-#endif
-
-
-/*
- * some systems don't have the BSD re_comp and re_exec routines
- */
-#ifndef NEED_BSDREGEX
-#if defined( SYSV ) || defined( VMS ) || defined( netbsd ) || defined( freebsd ) || defined( linux )
-#define NEED_BSDREGEX
-#endif
-#endif
-
-/*
- * many systems do not have the setpwfile() library routine... we just
- * enable use for those systems we know have it.
- */
-#ifndef HAVE_SETPWFILE
-#if defined( sunos4 ) || defined( ultrix ) || defined( __osf__ )
-#define HAVE_SETPWFILE
-#endif
-#endif
-
-/*
- * Are sys_errlist and sys_nerr declared in stdio.h?
- */
-#ifndef SYSERRLIST_IN_STDIO
-#if defined( freebsd ) 
-#define SYSERRLIST_IN_STDIO
-#endif
-#endif
-
-/*
- * for select()
- */
-#if !defined(FD_SET) && !defined(WINSOCK)
-#define NFDBITS         32
-#define FD_SETSIZE      32
-#define FD_SET(n, p)    ((p)->fds_bits[(n)/NFDBITS] |= (1 << ((n) % NFDBITS)))
-#define FD_CLR(n, p)    ((p)->fds_bits[(n)/NFDBITS] &= ~(1 << ((n) % NFDBITS)))
-#define FD_ISSET(n, p)  ((p)->fds_bits[(n)/NFDBITS] & (1 << ((n) % NFDBITS)))
-#define FD_ZERO(p)      bzero((char *)(p), sizeof(*(p)))
-#endif /* FD_SET */
-
-#if defined( hpux ) && defined( __STDC__ )
-/*
- * Under HP/UX, select seems to want (int *) instead of fd_set.  Non-ANSI
- * compilers don't like recursive macros, so ignore the problem if __STDC__
- * is not defined.
- */
-#define select(a,b,c,d,e) select(a, (int *)b, (int *)c, (int *)d, e)
-#endif /* hpux && __STDC__ */
-
-
-/*
- * for signal() -- what do signal handling functions return?
- */
-#ifndef SIG_FN
-#ifdef sunos5
-#   define SIG_FN void          /* signal-catching functions return void */
-#else /* sunos5 */
-# ifdef BSD
-#  if (BSD >= 199006) || defined(NeXT) || defined(__osf__) || defined(sun) || defined(ultrix) || defined(apollo) || defined(POSIX_SIGNALS)
-#   define SIG_FN void          /* signal-catching functions return void */
-#  else
-#   define SIG_FN int           /* signal-catching functions return int */
-#  endif
-# else /* BSD */
-#  define SIG_FN void           /* signal-catching functions return void */
-# endif /* BSD */
-#endif /* sunos5 */
-#endif /* SIG_FN */
-
-/*
- * call signal or sigset (signal does not block the signal while
- * in the handler on sys v and sigset does not exist on bsd)
- */
-#ifdef SYSV
-#define SIGNAL sigset
-#else
-#define SIGNAL signal
-#endif
-
-/*
- * toupper and tolower macros are different under bsd and sys v
- */
-#if defined( SYSV ) && !defined( hpux )
-#define TOUPPER(c)	(isascii(c) && islower(c) ? _toupper(c) : c)
-#define TOLOWER(c)	(isascii(c) && isupper(c) ? _tolower(c) : c)
-#else
-#define TOUPPER(c)	(isascii(c) && islower(c) ? toupper(c) : c)
-#define TOLOWER(c)	(isascii(c) && isupper(c) ? tolower(c) : c)
-#endif
-
-/*
- * put a cover on the tty-related ioctl calls we need to use
- */
-#if defined( NeXT ) || (defined(SunOS) && SunOS < 40)
-#define TERMIO_TYPE struct sgttyb
-#define TERMFLAG_TYPE int
-#define GETATTR( fd, tiop )	ioctl((fd), TIOCGETP, (caddr_t)(tiop))
-#define SETATTR( fd, tiop )	ioctl((fd), TIOCSETP, (caddr_t)(tiop))
-#define GETFLAGS( tio )		(tio).sg_flags
-#define SETFLAGS( tio, flags )	(tio).sg_flags = (flags)
-#else
-#define USE_TERMIOS
-#define TERMIO_TYPE struct termios
-#define TERMFLAG_TYPE tcflag_t
-#define GETATTR( fd, tiop )	tcgetattr((fd), (tiop))
-#define SETATTR( fd, tiop )	tcsetattr((fd), TCSANOW /* 0 */, (tiop))
-#define GETFLAGS( tio )		(tio).c_lflag
-#define SETFLAGS( tio, flags )	(tio).c_lflag = (flags)
-#endif
-
-
-#if defined( ultrix ) || defined( nextstep )
-extern char *strdup();
-#endif /* ultrix || nextstep */
-
-#endif /* _PORTABLE_H */
+#include "bridge.h"
+#endif /* _LDAP_PORTABLE_H */

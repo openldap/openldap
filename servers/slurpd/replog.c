@@ -52,9 +52,9 @@ int file_nonempty();
 #endif /* NEEDPROTOS */
 
 
-#ifndef SYSERRLIST_IN_STDIO
+#ifdef DECL_SYS_ERRLIST
 extern char *sys_errlist[];
-#endif
+#endif /* DECL_SYS_ERRLIST */
 
 /*
  * Forward declarations
