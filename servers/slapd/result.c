@@ -1,5 +1,6 @@
 /* result.c - routines to send ldap results, errors, and referrals */
 
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -8,7 +9,7 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <signal.h>
-#include "portable.h"
+#include "bridge.h"
 #include "slap.h"
 
 #ifndef SYSERRLIST_IN_STDIO
@@ -121,7 +122,11 @@ send_ldap_result2(
 		pthread_mutex_lock( &active_threads_mutex );
 		active_threads--;
 		conn->c_writewaiter = 1;
+#ifdef SIGSTKFLT
+		pthread_kill( listener_tid, SIGSTKFLT );
+#else
 		pthread_kill( listener_tid, SIGUSR1 );
+#endif
 		pthread_cond_wait( &conn->c_wcv, &active_threads_mutex );
 		pthread_mutex_unlock( &active_threads_mutex );
 

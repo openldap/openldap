@@ -11,6 +11,9 @@
 # -------------------------------------------------------------------------
 # you will probably not need to edit anything below this point
 # -------------------------------------------------------------------------
-CC	= gcc
+CC	= cc
 
 PLATFORMCFLAGS=	-Dfreebsd
+
+# uncomment this line if using for LDAP_CRYPT
+#PLATFORMLIBS=	-lcrypt

@@ -3,9 +3,9 @@
 #include "portable.h"
 
 #include <stdio.h>
-#include "ldap_string.h"
+#include <ac/string.h>
 #include <ctype.h>
-#include "ldap_time.h"
+#include <ac/time.h>
 
 #include <lber.h>
 #include <ldap.h>

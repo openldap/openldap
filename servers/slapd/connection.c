@@ -1,3 +1,4 @@
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -5,7 +6,7 @@
 #include <sys/socket.h>
 #include <errno.h>
 #include <signal.h>
-#include "portable.h"
+#include "bridge.h"
 #include "slap.h"
 
 extern Operation	*op_add();
@@ -203,7 +204,7 @@ connection_activity(
 
 	pthread_attr_init( &attr );
 	pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
-	if ( pthread_create( &arg->co_op->o_tid, attr,
+	if ( pthread_create( &arg->co_op->o_tid, &attr,
 	    (void *) connection_operation, (void *) arg ) != 0 ) {
 		Debug( LDAP_DEBUG_ANY, "pthread_create failed\n", 0, 0, 0 );
 	} else {

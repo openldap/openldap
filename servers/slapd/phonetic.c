@@ -1,12 +1,13 @@
 /* phonetic.c - routines to do phonetic matching */
 
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "portable.h"
+#include "bridge.h"
 #include "slap.h"
 
 #if !defined(METAPHONE) && !defined(SOUNDEX)

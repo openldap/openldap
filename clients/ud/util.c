@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 #include <signal.h>
-#include "ldap_string.h"
+#include <ac/string.h>
 #ifdef DOS
 #include <malloc.h>
 #endif
@@ -30,15 +30,13 @@
 #if !defined(DOS) && !defined(VMS)
 #include <sys/types.h>
 #endif
-
+#include "bridge.h"
 #ifdef USE_TERMIOS
 #include <termios.h>
 #else /* USE_TERMIOS */
 #include <sgtty.h>
 #endif /* USE_TERMIOS */
 #include "ud.h"
-
-#include "bridge.h"
 
 #if defined(VMS)
 #define getch getchar

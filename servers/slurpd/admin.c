@@ -16,12 +16,15 @@
  */
 
 
+#include "portable.h"
+
 #include <stdio.h>
 #include <signal.h>
 
 #include "slurp.h"
 #include "globals.h"
 
+#include "bridge.h"
 
 /*
  * Eventually, do_admin will be the entry point for performing

@@ -1,3 +1,11 @@
+
+/* Revision history
+ *
+ * 5-Jun-96	hodges
+ *	Added locking of new_conn_mutex when traversing the c[] array.
+ */
+
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -12,7 +20,7 @@
 #include <sys/select.h>
 #endif
 #include "slap.h"
-#include "portable.h"
+#include "bridge.h"
 #include "ldapconfig.h"
 #ifdef NEED_FILIO
 #include <sys/filio.h>
@@ -48,7 +56,7 @@ static void	set_shutdown();
 static void	do_nothing();
 
 void
-daemon(
+slapd_daemon(
     int	port
 )
 {
@@ -68,7 +76,12 @@ daemon(
 #else /* USE_SYSCONF */
         dtblsize = getdtablesize();
 #endif /* USE_SYSCONF */
-
+	/*
+	 * Add greg@greg.rim.or.jp
+	 */
+	if(dtblsize > FD_SETSIZE) {
+		dtblsize = FD_SETSIZE;
+	}
 	c = (Connection *) ch_calloc( 1, dtblsize * sizeof(Connection) );
 
 	for ( i = 0; i < dtblsize; i++ ) {
@@ -127,9 +140,18 @@ daemon(
 	}
 
 	(void) SIGNAL( SIGPIPE, SIG_IGN );
+#ifdef SIGSTKFLT
+	(void) SIGNAL( SIGSTKFLT, (void *) do_nothing );
+#else
 	(void) SIGNAL( SIGUSR1, (void *) do_nothing );
+#endif
+#ifdef SIGSTKFLT
+	(void) SIGNAL( SIGUNUSED, (void *) set_shutdown );
+#else
 	(void) SIGNAL( SIGUSR2, (void *) set_shutdown );
+#endif
 	(void) SIGNAL( SIGTERM, (void *) set_shutdown );
+	(void) SIGNAL( SIGINT, (void *) set_shutdown );
 	(void) SIGNAL( SIGHUP, (void *) set_shutdown );
 
 	Debug( LDAP_DEBUG_ANY, "slapd starting\n", 0, 0, 0 );
@@ -164,6 +186,8 @@ daemon(
 		Debug( LDAP_DEBUG_CONNS,
 		    "listening for connections on %d, activity on:",
 		    tcps, 0, 0 );
+
+		pthread_mutex_lock( &new_conn_mutex );
 		for ( i = 0; i < dtblsize; i++ ) {
 			if ( c[i].c_sb.sb_sd != -1 ) {
 				FD_SET( c[i].c_sb.sb_sd, &readfds );
@@ -176,6 +200,7 @@ daemon(
 			}
 		}
 		Debug( LDAP_DEBUG_CONNS, "\n", 0, 0, 0 );
+		pthread_mutex_unlock( &new_conn_mutex );
 
 		zero.tv_sec = 0;
 		zero.tv_usec = 0;
@@ -349,15 +374,28 @@ set_shutdown()
 {
 	Debug( LDAP_DEBUG_ANY, "slapd got shutdown signal\n", 0, 0, 0 );
 	slapd_shutdown = 1;
+#ifdef SIGSTKFLT
+	pthread_kill( listener_tid, SIGSTKFLT );
+#else
 	pthread_kill( listener_tid, SIGUSR1 );
+#endif
+#ifdef SIGUNUSED
+	(void) SIGNAL( SIGUNUSED, (void *) set_shutdown );
+#else
 	(void) SIGNAL( SIGUSR2, (void *) set_shutdown );
+#endif
 	(void) SIGNAL( SIGTERM, (void *) set_shutdown );
+	(void) SIGNAL( SIGINT, (void *) set_shutdown );
 	(void) SIGNAL( SIGHUP, (void *) set_shutdown );
 }
 
 static void
 do_nothing()
 {
-	Debug( LDAP_DEBUG_TRACE, "slapd got SIGUSR1\n", 0, 0, 0 );
+	Debug( LDAP_DEBUG_TRACE, "slapd got do_nothing signal\n", 0, 0, 0 );
+#ifdef SIGSTKFLT
+	(void) SIGNAL( SIGSTKFLT, (void *) do_nothing );
+#else
 	(void) SIGNAL( SIGUSR1, (void *) do_nothing );
+#endif
 }

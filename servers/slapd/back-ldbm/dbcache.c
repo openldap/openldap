@@ -1,5 +1,6 @@
 /* ldbmcache.c - maintain a cache of open ldbm files */
 
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/time.h>
@@ -8,7 +9,7 @@
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include "portable.h"
+#include "bridge.h"
 #include "slap.h"
 #include "ldapconfig.h"
 #include "back-ldbm.h"

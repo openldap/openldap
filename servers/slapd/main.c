@@ -1,3 +1,4 @@
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -6,11 +7,11 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include "portable.h"
+#include "bridge.h"
 #include "slap.h"
 #include "ldapconfig.h"
 
-extern void	daemon();
+extern void	slapd_daemon();
 extern int	lber_debug;
 
 extern char Versionstr[];
@@ -184,7 +185,7 @@ main( argc, argv )
 		pthread_attr_init( &attr );
 		pthread_attr_setdetachstate( &attr, PTHREAD_CREATE_DETACHED );
 
-		if ( pthread_create( &listener_tid, attr, (void *) daemon,
+		if ( pthread_create( &listener_tid, &attr, (void *) slapd_daemon,
 		    (void *) port ) != 0 ) {
 			Debug( LDAP_DEBUG_ANY,
 			    "listener pthread_create failed\n", 0, 0, 0 );

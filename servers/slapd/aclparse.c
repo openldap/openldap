@@ -1,6 +1,6 @@
 /* acl.c - routines to parse and check acl's */
 
-
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -9,7 +9,7 @@
 #include <netdb.h>
 #include "regex.h"
 #include "slap.h"
-#include "portable.h"
+#include "bridge.h"
 
 extern Filter		*str2filter();
 extern char		*re_comp();

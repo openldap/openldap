@@ -6,9 +6,9 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "ldap_time.h"
+#include <ac/time.h>
 #include <sys/resource.h>
-#include "ldap_wait.h"
+#include <ac/wait.h>
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <limits.h>

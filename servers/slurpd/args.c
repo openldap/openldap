@@ -14,6 +14,8 @@
  * args.c - process command-line arguments, and set appropriate globals.
  */
 
+#include "portable.h"
+
 #include <stdio.h>
 #include <string.h>
 
@@ -22,6 +24,8 @@
 
 #include "slurp.h"
 #include "globals.h"
+
+#include "bridge.h"
 
 
 static int

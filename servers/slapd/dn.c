@@ -1,12 +1,13 @@
 /* dn.c - routines for dealing with distinguished names */
 
+#include "portable.h"
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include "portable.h"
+#include "bridge.h"
 #include "slap.h"
 
 static char	**dn_explode();

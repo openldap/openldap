@@ -1,6 +1,6 @@
 #include "portable.h"
 #include <stdio.h>
-#include "ldap_string.h"
+#include <ac/string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/param.h>

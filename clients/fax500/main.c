@@ -10,7 +10,7 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
-
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -24,7 +24,7 @@
 #include <sys/socket.h>
 #include <sysexits.h>
 #include <ldapconfig.h>
-#include "portable.h"
+#include "bridge.h"
 
 #include "lber.h"
 #include "ldap.h"

@@ -6,13 +6,14 @@
  * All Rights Reserved
  */
 
+#include "portable.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <syslog.h>
 #include <string.h>
 #include <ctype.h>
 
-#include "portable.h"
+#include "bridge.h"
 #include "ldapconfig.h"
 #include "rcpt500.h"
 

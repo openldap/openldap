@@ -1,5 +1,6 @@
 /* attr.c - routines for dealing with attributes */
 
+#include "portable.h"
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
@@ -9,7 +10,7 @@
 #include <sys/socket.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include "portable.h"
+#include "bridge.h"
 #include "slap.h"
 
 extern char	**charray_dup();

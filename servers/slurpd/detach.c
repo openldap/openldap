@@ -10,6 +10,7 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
+#include "portable.h"
 #include <stdio.h>
 #include <sys/types.h>
 #ifdef SVR4
@@ -19,7 +20,7 @@
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <signal.h>
-#include "portable.h"
+#include "bridge.h"
 
 #ifdef USE_SYSCONF
 #include <unistd.h>

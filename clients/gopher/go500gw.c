@@ -10,6 +10,8 @@
  * is provided ``as is'' without express or implied warranty.
  */
 
+#include "portable.h"
+
 #include "lber.h"
 #include "ldap.h"
 #include "disptmpl.h"
@@ -30,7 +32,7 @@
 #ifdef aix
 #include <sys/select.h>
 #endif /* aix */
-#include "portable.h"
+#include "bridge.h"
 #include "ldapconfig.h"
 
 #ifdef USE_SYSCONF
