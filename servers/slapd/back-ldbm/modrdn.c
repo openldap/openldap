@@ -377,7 +377,7 @@ ldbm_back_modrdn(
 		       "ldbm_back_modrdn: can't figure out type(s)/value(s) of newrdn\n",
 		       0, 0, 0 );
 
-		send_ldap_result( conn, op, LDAP_INVALID_DN,
+		send_ldap_result( conn, op, LDAP_INVALID_DN_SYNTAX,
 			NULL, "unable to parse type(s)/value(s) used in RDN", NULL, NULL );
 		goto return_results;		
 	}
