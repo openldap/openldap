@@ -123,77 +123,19 @@ oc_check_required( Entry *e, char *ocname )
 	return( NULL );
 }
 
-static char *oc_usermod_attrs[] = {
-	/*
-	 * OpenLDAP doesn't support any user modification of
-	 * operational attributes.
-	 */
-	NULL
-};
-
-static char *oc_operational_attrs[] = {
-	/*
-	 * these are operational attributes that *could* be
-	 * modified by users if we supported such.
-	 */
-	"objectClasses",
-	"attributeTypes",
-	"matchingRules",
-	"matchingRuleUse",
-	"dITStructureRules",
-	"dITContentRules",
-	"nameForms",
-	"ldapSyntaxes",
-	NULL
-
-};
-
-/* this list should be extensible  */
-static char *oc_no_usermod_attrs[] = {
-	/*
-	 * Operational and 'no user modification' attributes
-	 */
-
-	/* RFC2252, 3.2.1 */
-	"creatorsName",
-	"createTimestamp",
-	"modifiersName",
-	"modifyTimestamp",
-	"subschemaSubentry",
-
-	NULL
-};
-
-
 /*
  * check to see if attribute is 'operational' or not.
+ * this function should be externalized...
  */
-int
-oc_check_operational_attr( char *type )
+static int
+oc_check_operational( char *type )
 {
-	return charray_inlist( oc_operational_attrs, type )
-		|| charray_inlist( oc_usermod_attrs, type )
-		|| charray_inlist( oc_no_usermod_attrs, type );
+	return ( strcasecmp( type, "modifiersname" ) == 0 ||
+		strcasecmp( type, "modifytimestamp" ) == 0 ||
+		strcasecmp( type, "creatorsname" ) == 0 ||
+		strcasecmp( type, "createtimestamp" ) == 0 )
+		? 1 : 0;
 }
-
-/*
- * check to see if attribute can be user modified or not.
- */
-int
-oc_check_usermod_attr( char *type )
-{
-	return charray_inlist( oc_usermod_attrs, type );
-}
-
-/*
- * check to see if attribute is 'no user modification' or not.
- */
-int
-oc_check_no_usermod_attr( char *type )
-{
-	return charray_inlist( oc_no_usermod_attrs, type );
-}
-
 
 static int
 oc_check_allowed( char *type, struct berval **ocl )
@@ -211,12 +153,7 @@ oc_check_allowed( char *type, struct berval **ocl )
 		return( 0 );
 	}
 
-	/*
-	 * All operational attributions are allowed by schema rules.
-	 * However, we only check attributions which are stored in the
-	 * the directory regardless if they are user or non-user modified.
-	 */
-	if ( oc_check_usermod_attr( type ) || oc_check_no_usermod_attr( type ) ) {
+	if ( oc_check_operational( type ) ) {
 		return( 0 );
 	}
 
@@ -692,7 +629,10 @@ int
 mr_add(
     LDAP_MATCHING_RULE		*mr,
     slap_mr_normalize_func	*normalize,
-    slap_mr_compare_func	*compare,
+    slap_mr_check_func		*compare,
+    slap_mr_skeys_func		*skeys,
+    slap_mr_index_func		*sindex,
+    slap_mr_index_func		*cindex,
     const char		**err
 )
 {
@@ -704,6 +644,9 @@ mr_add(
 	memcpy( &smr->smr_mrule, mr, sizeof(LDAP_MATCHING_RULE));
 	smr->smr_normalize = normalize;
 	smr->smr_compare = compare;
+	smr->smr_skeys = skeys;
+	smr->smr_sindex = sindex;
+	smr->smr_cindex = cindex;
 	if ( smr->smr_syntax_oid ) {
 		if ( (syn = syn_find(smr->smr_syntax_oid)) ) {
 			smr->smr_syntax = syn;
@@ -718,6 +661,8 @@ mr_add(
 	code = mr_insert(smr,err);
 	return code;
 }
+
+static slap_mr_normalize_func case_exact_normalize;
 
 static int
 case_exact_normalize(
@@ -757,14 +702,25 @@ case_exact_normalize(
 	return 0;
 }
 
+static slap_mr_check_func case_exact_compare;
+
 static int
 case_exact_compare(
-	struct berval *val1,
-	struct berval *val2
+	struct berval *fval,
+	struct berval **evals
 )
 {
-	return strcmp( val1->bv_val, val2->bv_val );
+	int i;
+
+	for ( i = 0; evals[i]; i++ ) {
+		if ( !strcmp( fval->bv_val, evals[i]->bv_val ) ) {
+		     return 1;
+		}
+	}
+	return 0;
 }
+
+static slap_mr_normalize_func case_ignore_normalize;
 
 int
 case_ignore_normalize(
@@ -804,13 +760,22 @@ case_ignore_normalize(
 	return 0;
 }
 
+static slap_mr_check_func case_ignore_compare;
+
 static int
 case_ignore_compare(
-	struct berval *val1,
-	struct berval *val2
+	struct berval *fval,
+	struct berval **evals
 )
 {
-	return strcasecmp( val1->bv_val, val2->bv_val );
+	int i;
+
+	for ( i = 0; evals[i]; i++ ) {
+		if ( !strcasecmp( fval->bv_val, evals[i]->bv_val ) ) {
+		     return 1;
+		}
+	}
+	return 0;
 }
 
 int
@@ -841,7 +806,11 @@ int
 register_matching_rule(
 	char * desc,
 	slap_mr_normalize_func *normalize,
-	slap_mr_compare_func *compare )
+	slap_mr_check_func *compare,
+	slap_mr_skeys_func *skeys,
+	slap_mr_index_func *sindex,
+	slap_mr_index_func *cindex
+)
 {
 	LDAP_MATCHING_RULE *mr;
 	int		code;
@@ -853,7 +822,7 @@ register_matching_rule(
 		    ldap_scherr2str(code), err, desc );
 		return( -1 );
 	}
-	code = mr_add( mr, normalize, compare, &err );
+	code = mr_add( mr, normalize, compare, skeys, sindex, cindex, &err );
 	if ( code ) {
 		Debug( LDAP_DEBUG_ANY, "Error in register_syntax: %s for %s in %s\n",
 		    scherr2str(code), err, desc );
@@ -915,7 +884,10 @@ struct syntax_defs_rec syntax_defs[] = {
 struct mrule_defs_rec {
 	char *mrd_desc;
 	slap_mr_normalize_func *mrd_normalize;
-	slap_mr_compare_func *mrd_compare;
+	slap_mr_check_func *mrd_compare;
+	slap_mr_skeys_func *mrd_skeys;
+	slap_mr_index_func *mrd_sindex;
+	slap_mr_index_func *mrd_cindex;
 };
 
 /*
@@ -1007,7 +979,10 @@ schema_init( void )
 		    ( mrule_defs[i].mrd_normalize ?
 		      mrule_defs[i].mrd_normalize : case_ignore_normalize ),
 		    ( mrule_defs[i].mrd_compare ?
-		      mrule_defs[i].mrd_compare : case_ignore_compare ) );
+		      mrule_defs[i].mrd_compare : case_ignore_compare ),
+		    mrule_defs[i].mrd_skeys,
+		    mrule_defs[i].mrd_sindex,
+		    mrule_defs[i].mrd_cindex );
 		if ( res ) {
 			fprintf( stderr, "schema_init: Error registering matching rule %s\n",
 				 mrule_defs[i].mrd_desc );
@@ -1114,12 +1089,12 @@ schema_info( Connection *conn, Operation *op, char **attrs, int attrsonly )
 
 	val.bv_val = ch_strdup( "top" );
 	val.bv_len = strlen( val.bv_val );
-	attr_merge( e, "objectClass", vals );
+	attr_merge( e, "objectclass", vals );
 	ldap_memfree( val.bv_val );
 
 	val.bv_val = ch_strdup( "subschema" );
 	val.bv_len = strlen( val.bv_val );
-	attr_merge( e, "objectClass", vals );
+	attr_merge( e, "objectclass", vals );
 	ldap_memfree( val.bv_val );
 
 	if ( syn_schema_info( e ) ) {
@@ -1143,7 +1118,7 @@ schema_info( Connection *conn, Operation *op, char **attrs, int attrsonly )
 		return;
 	}
 	
-	send_search_entry( &backends[0], conn, op, e, attrs, attrsonly, 0 );
+	send_search_entry( &backends[0], conn, op, e, attrs, attrsonly );
 	send_ldap_search_result( conn, op, LDAP_SUCCESS, NULL, NULL, 1 );
 
 	entry_free( e );
