@@ -180,13 +180,13 @@ ldbm_back_search(
 		break;
 #endif
 		default:
-			e = dn2entry_r( be, base, &matched );
+			e = id2entry_r( be, id );
 			err = e != NULL ? LDAP_SUCCESS : LDAP_REFERRAL;
 		}
 
 		if ( e == NULL ) {
 			Debug( LDAP_DEBUG_ARGS, "candidate %ld not found\n",
-			       id, 0, 0 );
+				id, 0, 0 );
 			continue;
 		}
 
@@ -214,7 +214,7 @@ ldbm_back_search(
 
 				/* check scope */
 				if ( scope == LDAP_SCOPE_ONELEVEL ) {
-					if ( (dn = dn_parent( be, e->e_dn )) != NULL ) {
+					if ( (dn = dn_parent( be, e->e_ndn )) != NULL ) {
 						(void) dn_normalize_case( dn );
 						scopeok = (dn == matched_dn)
 							? 1
@@ -260,7 +260,13 @@ ldbm_back_search(
 							return( 0 );
 						}
 					}
+				} else {
+					Debug( LDAP_DEBUG_TRACE, "candidate %ld scope not okay\n",
+						id, 0, 0 );
 				}
+			} else {
+				Debug( LDAP_DEBUG_TRACE, "candidate %ld does match filter\n",
+					id, 0, 0 );
 			}
 		}
 
@@ -313,8 +319,8 @@ search_candidates(
 	ID_BLOCK		*candidates;
 	Filter		*f, *rf, *af, *lf;
 
-	Debug(LDAP_DEBUG_TRACE, "search_candidates: base: \"%s\" %s\n",
-		e->e_dn, 0, 0 );
+	Debug(LDAP_DEBUG_TRACE, "search_candidates: base=\"%s\" s=%d d=%d\n",
+		e->e_dn, scope, deref );
 
 	f = NULL;
 
@@ -335,6 +341,7 @@ search_candidates(
 		f = filter;
 	}
 
+#ifdef SLAPD_ALIASES
 	if( deref == LDAP_DEREF_SEARCHING || deref == LDAP_DEREF_ALWAYS ) {
 		/* match aliases */
 		af = (Filter *) ch_malloc( sizeof(Filter) );
@@ -350,35 +357,53 @@ search_candidates(
 	} else {
 		af = NULL;
 	}
+#else
+	af = NULL;
+#endif
 
-	lf = (Filter *) ch_malloc( sizeof(Filter) );
-	lf->f_next = NULL;
-	lf->f_choice = LDAP_FILTER_AND;
-	lf->f_and = (Filter *) ch_malloc( sizeof(Filter) );
-	lf->f_and->f_next = f;
+	if ( scope == LDAP_SCOPE_SUBTREE && !be_issuffix( be,  e->e_ndn ) ) {
+		lf = (Filter *) ch_malloc( sizeof(Filter) );
+		lf->f_next = NULL;
+		lf->f_choice = LDAP_FILTER_AND;
+		lf->f_and = (Filter *) ch_malloc( sizeof(Filter) );
 
-	if ( scope == LDAP_SCOPE_SUBTREE ) {
 		lf->f_and->f_choice = LDAP_FILTER_SUBSTRINGS;
 		lf->f_and->f_sub_type = ch_strdup( "dn" );
 		lf->f_and->f_sub_initial = NULL;
 		lf->f_and->f_sub_any = NULL;
 		lf->f_and->f_sub_final = ch_strdup( e->e_ndn );
-		value_normalize( lf->f_and->f_sub_final, SYNTAX_DN|SYNTAX_CIS );
 
-	} else {
+		lf->f_and->f_next = f;
+		f = lf;
+
+	} else if ( scope == LDAP_SCOPE_ONELEVEL ) {
 		char buf[16];
+
+		lf = (Filter *) ch_malloc( sizeof(Filter) );
+		lf->f_next = NULL;
+		lf->f_choice = LDAP_FILTER_AND;
+		lf->f_and = (Filter *) ch_malloc( sizeof(Filter) );
+
 		lf->f_and->f_choice = LDAP_FILTER_EQUALITY;
 		lf->f_and->f_ava.ava_type = ch_strdup( "id2children" );
 		sprintf( buf, "%ld", e != NULL ? e->e_id : 0 );
 		lf->f_and->f_ava.ava_value.bv_val = ch_strdup( buf );
 		lf->f_and->f_ava.ava_value.bv_len = strlen( buf );
+
+		lf->f_and->f_next = f;
+		f = lf;
+
+	} else {
+		lf = NULL;
 	}
 
-	candidates = filter_candidates( be, lf );
+	candidates = filter_candidates( be, f );
 
 	/* free up filter additions we allocated above */
-	lf->f_and->f_next = NULL;
-	filter_free( lf );
+	if( lf != NULL ) {
+		lf->f_and->f_next = NULL;
+		filter_free( lf );
+	}
 
 	if( af != NULL ) {
 		af->f_or->f_next = NULL;
