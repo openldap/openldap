@@ -113,7 +113,9 @@ typedef struct filter {
 		/* substrings */
 		struct sub {
 			char	*f_un_sub_type;
-			struct berval	f_un_sub_value;
+			char	*f_un_sub_initial;
+			char	**f_un_sub_any;
+			char	*f_un_sub_final;
 		} f_un_sub;
 	} f_un;
 #define f_type		f_un.f_un_type
@@ -131,7 +133,9 @@ typedef struct filter {
 #define f_list		f_un.f_un_complex
 #define f_sub		f_un.f_un_sub
 #define f_sub_type	f_un.f_un_sub.f_un_sub_type
-#define f_sub_value	f_un.f_un_sub.f_un_sub_value
+#define f_sub_initial	f_un.f_un_sub.f_un_sub_initial
+#define f_sub_any	f_un.f_un_sub.f_un_sub_any
+#define f_sub_final	f_un.f_un_sub.f_un_sub_final
 	struct filter	*f_next;
 } Filter;
 
