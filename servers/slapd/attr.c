@@ -175,25 +175,6 @@ attr_delete(
 	return( 0 );
 }
 
-#define DEFAULT_SYNTAX	SYNTAX_CIS
-
-/*
- * attr_syntax - return the syntax of attribute type
- */
-
-int
-attr_syntax( char *type )
-{
-	AttributeType	*sat;
-
-	sat = at_find(type);
-	if ( sat ) {
-		return( sat->sat_syntax_compat );
-	}
-
-	return( DEFAULT_SYNTAX );
-}
-
 /*
  * attr_syntax_config - process an attribute syntax config line
  */
@@ -515,27 +496,6 @@ at_add(
 			*err = sat->sat_syntax_oid;
 			return SLAP_SCHERR_SYN_NOT_FOUND;
 		}
-		if ( !strcmp(at->at_syntax_oid,
-			     "1.3.6.1.4.1.1466.115.121.1.15") ) {
-			if ( at->at_equality_oid &&
-			     !strcmp(at->at_equality_oid, "2.5.13.5") ) {
-				sat->sat_syntax_compat = SYNTAX_CES;
-			} else {
-				sat->sat_syntax_compat = SYNTAX_CIS;
-			}
-		} else if ( !strcmp(at->at_syntax_oid,
-				    "1.3.6.1.4.1.1466.115.121.1.50") ) {
-			sat->sat_syntax_compat = SYNTAX_CIS | SYNTAX_TEL;
-		} else if ( !strcmp(at->at_syntax_oid,
-				    "1.3.6.1.4.1.1466.115.121.1.12") ) {
-			sat->sat_syntax_compat = SYNTAX_CIS | SYNTAX_DN;
-		} else if ( !strcmp(at->at_syntax_oid, "1.3.6.1.4.1.1466.115.121.1.5") ) {
-			sat->sat_syntax_compat = SYNTAX_BIN;
-		} else {
-			sat->sat_syntax_compat = DEFAULT_SYNTAX;
-		}
-	} else {
-		sat->sat_syntax_compat = DEFAULT_SYNTAX;
 	}
 
 	if ( sat->sat_equality_oid ) {
@@ -589,15 +549,9 @@ at_add(
 
 
 char *
-at_canonical_name( char * a_type )
+at_canonical_name( AttributeType * atp )
 {
-	AttributeType	*atp;
-
-	if ( (atp=at_find(a_type)) == NULL ) {
-
-		return a_type;
-
-	} else  if ( atp->sat_names 
+	if ( atp->sat_names
 		     && atp->sat_names[0]
 		     && (*(atp->sat_names[0]) != '\0') ) {
 	    
@@ -608,8 +562,8 @@ at_canonical_name( char * a_type )
 		return atp->sat_oid;
 		
 	} else {
-
-		return a_type;
+		/* Should not happen */
+		return NULL;
 
 	}
 
