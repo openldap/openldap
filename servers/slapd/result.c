@@ -69,6 +69,39 @@ static ber_tag_t req2res( ber_tag_t tag )
 	return tag;
 }
 
+void trim_refs(
+	struct berval **refs,
+	int trimurl )
+{
+	int i;
+	assert( refs != NULL );
+
+	for( i=0; refs[i] != NULL; i++ ) {
+		unsigned long j;
+
+		/* trim URI label */
+		for( j=0; j<refs[i]->bv_len; j++ ) {
+			if( isspace(refs[i]->bv_val[j]) ) {
+				refs[i]->bv_val[j] = '\0';
+				refs[i]->bv_len = j;
+				break;
+			}
+		}
+
+		if(	trimurl && refs[i]->bv_len > sizeof("ldap://") &&
+			strncasecmp( refs[i]->bv_val, "ldap://",
+				sizeof("ldap://")-1 ) == 0 )
+		{
+			for( j=sizeof("ldap://"); j<refs[i]->bv_len ; j++ ) {
+				if( refs[i]->bv_val[j] = '/' ) {
+					refs[i]->bv_val[j] = '\0';
+					refs[i]->bv_len = j;
+					break;
+				}
+			}
+		}
+	}
+}
 
 long send_ldap_ber(
 	Connection *conn,
@@ -286,6 +319,10 @@ send_ldap_result(
 
 	assert( err != LDAP_PARTIAL_RESULTS );
 
+	if ( ref != NULL ) {
+		trim_refs( ref, 0 );
+	}
+
 	if ( err == LDAP_REFERRAL ) {
 		if( ref == NULL ) {
 			err = LDAP_NO_SUCH_OBJECT;
@@ -345,6 +382,10 @@ send_search_result(
 		err, matched ?  matched : "", text ? text : "" );
 
 	assert( err != LDAP_PARTIAL_RESULTS );
+
+	if ( refs != NULL ) {
+		trim_refs( refs, 1 );
+	}
 
 	if( op->o_protocol < LDAP_VERSION3 ) {
 		/* send references in search results */
