@@ -33,9 +33,13 @@ add_lastmods( Operation *op, LDAPModList **modlist )
 
 	/* remove any attempts by the user to modify these attrs */
 	for ( m = modlist; *m != NULL; m = &(*m)->ml_next ) {
-            if ( oc_check_no_usermod_attr( (*m)->ml_type ) ) {
+            if ( strcasecmp( (*m)->ml_type, "modifytimestamp" ) == 0 || 
+				strcasecmp( (*m)->ml_type, "modifiersname" ) == 0 ||
+				strcasecmp( (*m)->ml_type, "createtimestamp" ) == 0 || 
+				strcasecmp( (*m)->ml_type, "creatorsname" ) == 0 ) {
+
                 Debug( LDAP_DEBUG_TRACE,
-					"add_lastmods: found no user mod attr: %s\n",
+					"add_lastmods: found lastmod attr: %s\n",
 					(*m)->ml_type, 0, 0 );
                 tmp = *m;
                 *m = (*m)->ml_next;
@@ -106,6 +110,7 @@ int ldbm_modify_internal(
 	LDAPMod		*mod;
 	LDAPModList	*ml;
 	Attribute	*a;
+	AttributeType	*at;
 
 	if ( ((be->be_lastmod == ON)
 	      || ((be->be_lastmod == UNDEFINED)&&(global_lastmod == ON)))
@@ -146,8 +151,9 @@ int ldbm_modify_internal(
 			    && ((a = attr_find( e->e_attrs, mod->mod_type ))
 			   != NULL) ) {
 
+			    at = at_find( mod->mod_type );
 			    (void) index_change_values( be,
-							mod->mod_type,
+							at,
 							a->a_vals,
 							e->e_id,
 							__INDEX_DELETE_OP);
@@ -268,12 +274,14 @@ add_values(
 {
 	int		i;
 	Attribute	*a;
+	AttributeType	*at;
 
 	/* check if the values we're adding already exist */
 	if ( (a = attr_find( e->e_attrs, mod->mod_type )) != NULL ) {
+		at = at_find( mod->mod_type );
 		for ( i = 0; mod->mod_bvalues[i] != NULL; i++ ) {
 			if ( value_find( a->a_vals, mod->mod_bvalues[i],
-			    a->a_syntax, 3 ) == 0 ) {
+			    at->sat_equality, 3 ) == 0 ) {
 				return( LDAP_TYPE_OR_VALUE_EXISTS );
 			}
 		}

@@ -15,7 +15,7 @@ static ID_BLOCK	*presence_candidates( Backend *be, char *type );
 static ID_BLOCK	*approx_candidates( Backend *be, Ava *ava );
 static ID_BLOCK	*list_candidates( Backend *be, Filter *flist, int ftype );
 static ID_BLOCK	*substring_candidates( Backend *be, Filter *f );
-static ID_BLOCK	*substring_comp_candidates( Backend *be, char *type, char *val, int prepost );
+static ID_BLOCK	*extensible_candidates( Backend *be, Mra *mra );
 
 /*
  * test_filter - test a filter against a single entry.
@@ -23,6 +23,66 @@ static ID_BLOCK	*substring_comp_candidates( Backend *be, char *type, char *val, 
  *		-1	filter did not match
  *		>0	an ldap error code
  */
+
+ID_BLOCK *
+index_candidates(
+    Backend		*be,
+    AttributeType	*at,
+    MatchingRule	*mr,
+    struct berval	*val
+)
+{
+	struct berval	*vals[2];
+	struct berval	**svals;
+	int		i, j;
+	ID_BLOCK	*idl, *idl1, *idl2, *tmp;
+
+	/*
+	 * First, decompose the value into its constituents.  If the
+	 * matching rule does not know how to do it, then it is
+	 * understood to be just one constituent and identical to our
+	 * input.
+	 */
+	if ( mr->smr_skeys ) {
+		mr->smr_skeys( val, &svals );
+	} else {
+		vals[0] = val;
+		vals[1] = NULL;
+		svals = vals;
+	}
+
+	idl = NULL;
+	assert( mr->smr_index != NULL );
+	/* Now take each piece and compute the indexing stems for it */
+	for ( i = 0; svals[i]; i++ ) {
+		struct berval	*isvals[2];
+		struct berval	**ivals;
+
+		isvals[0] = svals[i];
+		isvals[1] = NULL;
+		mr->smr_index( isvals, &ivals );
+		idl1 = NULL;
+		for ( j = 0; ivals[j]; j++ ) {
+			idl2 = index_read( be, at, mr,
+					  ivals[j]->bv_val );
+			tmp = idl1;
+			idl1 = idl_intersection( be, idl1, idl2 );
+			idl_free( idl2 );
+			idl_free( tmp );
+		}
+		tmp = idl;
+		idl = idl_union( be, idl, idl1 );
+		idl_free( idl1 );
+		idl_free( tmp );
+		ber_bvecfree( ivals );
+	}
+
+	if ( mr->smr_skeys ) {
+		ber_bvecfree( svals );
+	}
+	return( idl );
+}
+
 
 ID_BLOCK *
 filter_candidates(
@@ -66,6 +126,11 @@ filter_candidates(
 		result = approx_candidates( be, &f->f_ava );
 		break;
 
+	case LDAP_FILTER_EXTENDED:
+		Debug( LDAP_DEBUG_FILTER, "\tEXTENSIBLE\n", 0, 0, 0 );
+		result = extensible_candidates( be, &f->f_mra );
+		break;
+
 	case LDAP_FILTER_AND:
 		Debug( LDAP_DEBUG_FILTER, "\tAND\n", 0, 0, 0 );
 		result = list_candidates( be, f->f_and, LDAP_FILTER_AND );
@@ -99,13 +164,19 @@ ava_candidates(
 )
 {
 	ID_BLOCK	*idl;
+	AttributeType	*at;
 
 	Debug( LDAP_DEBUG_TRACE, "=> ava_candidates 0x%x\n", type, 0, 0 );
 
 	switch ( type ) {
 	case LDAP_FILTER_EQUALITY:
-		idl = index_read( be, ava->ava_type, INDEX_EQUALITY,
-		    ava->ava_value.bv_val );
+		at = at_find( ava->ava_type );
+		if ( at && at->sat_equality ) {
+			idl = index_candidates( be, at, at->sat_equality,
+					  &ava->ava_value );
+		} else {
+			idl = NULL;
+		}
 		break;
 
 	case LDAP_FILTER_GE:
@@ -132,9 +203,31 @@ presence_candidates(
 
 	Debug( LDAP_DEBUG_TRACE, "=> presence_candidates\n", 0, 0, 0 );
 
-	idl = index_read( be, type, 0, "*" );
+	idl = index_read( be, at_find( type ), 0, "*" );
 
 	Debug( LDAP_DEBUG_TRACE, "<= presence_candidates %ld\n",
+	    idl ? ID_BLOCK_NIDS(idl) : 0, 0, 0 );
+	return( idl );
+}
+
+static ID_BLOCK *
+extensible_candidates(
+    Backend	*be,
+    Mra		*mra
+)
+{
+	AttributeType	*at;
+	MatchingRule	*mr;
+	ID_BLOCK	*idl;
+
+	Debug( LDAP_DEBUG_TRACE, "=> extensible_candidates\n", 0, 0, 0 );
+
+	at = at_find( mra->mra_type );
+	mr = mr_find( mra->mra_rule );
+	idl = index_candidates( be, at, mr, &mra->mra_value );
+	/* FIXME: what about mra->mra_dnattrs */
+
+	Debug( LDAP_DEBUG_TRACE, "<= extensible_candidates %ld\n",
 	    idl ? ID_BLOCK_NIDS(idl) : 0, 0, 0 );
 	return( idl );
 }
@@ -145,31 +238,14 @@ approx_candidates(
     Ava		*ava
 )
 {
-	char	*w, *c;
-	ID_BLOCK	*idl, *tmp;
+	AttributeType	*at;
+	ID_BLOCK	*idl;
 
 	Debug( LDAP_DEBUG_TRACE, "=> approx_candidates\n", 0, 0, 0 );
 
-	idl = NULL;
-	for ( w = first_word( ava->ava_value.bv_val ); w != NULL;
-	    w = next_word( w ) ) {
-		c = phonetic( w );
-		if ( (tmp = index_read( be, ava->ava_type, INDEX_APPROX, c ))
-		    == NULL ) {
-			free( c );
-			idl_free( idl );
-			Debug( LDAP_DEBUG_TRACE, "<= approx_candidates NULL\n",
-			    0, 0, 0 );
-			return( NULL );
-		}
-		free( c );
-
-		if ( idl == NULL ) {
-			idl = tmp;
-		} else {
-			idl = idl_intersection( be, idl, tmp );
-		}
-	}
+	at = at_find( ava->ava_type );
+	idl = index_candidates( be, at, global_mr_approx,
+				&ava->ava_value );
 
 	Debug( LDAP_DEBUG_TRACE, "<= approx_candidates %ld\n",
 	    idl ? ID_BLOCK_NIDS(idl) : 0, 0, 0 );
@@ -224,130 +300,16 @@ substring_candidates(
 )
 {
 	int	i;
-	ID_BLOCK	*idl, *tmp, *tmp2;
+	AttributeType	*at;
+	ID_BLOCK	*idl;
 
 	Debug( LDAP_DEBUG_TRACE, "=> substring_candidates\n", 0, 0, 0 );
 
-	idl = NULL;
-
-	/* initial */
-	if ( f->f_sub_initial != NULL ) {
-		if ( (int) strlen( f->f_sub_initial ) < SUBLEN - 1 ) {
-			idl = idl_allids( be );
-		} else if ( (idl = substring_comp_candidates( be, f->f_sub_type,
-		    f->f_sub_initial, '^' )) == NULL ) {
-			return( NULL );
-		}
-	}
-
-	/* final */
-	if ( f->f_sub_final != NULL ) {
-		if ( (int) strlen( f->f_sub_final ) < SUBLEN - 1 ) {
-			tmp = idl_allids( be );
-		} else if ( (tmp = substring_comp_candidates( be, f->f_sub_type,
-		    f->f_sub_final, '$' )) == NULL ) {
-			idl_free( idl );
-			return( NULL );
-		}
-
-		if ( idl == NULL ) {
-			idl = tmp;
-		} else {
-			tmp2 = idl;
-			idl = idl_intersection( be, idl, tmp );
-			idl_free( tmp );
-			idl_free( tmp2 );
-		}
-	}
-
-	for ( i = 0; f->f_sub_any != NULL && f->f_sub_any[i] != NULL; i++ ) {
-		if ( (int) strlen( f->f_sub_any[i] ) < SUBLEN ) {
-			tmp = idl_allids( be );
-		} else if ( (tmp = substring_comp_candidates( be, f->f_sub_type,
-		    f->f_sub_any[i], 0 )) == NULL ) {
-			idl_free( idl );
-			return( NULL );
-		}
-
-		if ( idl == NULL ) {
-			idl = tmp;
-		} else {
-			tmp2 = idl;
-			idl = idl_intersection( be, idl, tmp );
-			idl_free( tmp );
-			idl_free( tmp2 );
-		}
-	}
+	at = at_find( f->f_sub_type );
+	idl = index_candidates( be, at, global_mr_approx,
+				&f->f_sub_value );
 
 	Debug( LDAP_DEBUG_TRACE, "<= substring_candidates %ld\n",
-	    idl ? ID_BLOCK_NIDS(idl) : 0, 0, 0 );
-	return( idl );
-}
-
-static ID_BLOCK *
-substring_comp_candidates(
-    Backend	*be,
-    char	*type,
-    char	*val,
-    int		prepost
-)
-{
-	int	i, len;
-	ID_BLOCK	*idl, *tmp, *tmp2;
-	char	*p;
-	char	buf[SUBLEN + 1];
-
-	Debug( LDAP_DEBUG_TRACE, "=> substring_comp_candidates\n", 0, 0, 0 );
-
-	len = strlen( val );
-	idl = NULL;
-
-	/* prepend ^ for initial substring */
-	if ( prepost == '^' ) {
-		buf[0] = '^';
-		for ( i = 0; i < SUBLEN - 1; i++ ) {
-			buf[i + 1] = val[i];
-		}
-		buf[SUBLEN] = '\0';
-
-		if ( (idl = index_read( be, type, INDEX_SUB, buf )) == NULL ) {
-			return( NULL );
-		}
-	} else if ( prepost == '$' ) {
-		p = val + len - SUBLEN + 1;
-		for ( i = 0; i < SUBLEN - 1; i++ ) {
-			buf[i] = p[i];
-		}
-		buf[SUBLEN - 1] = '$';
-		buf[SUBLEN] = '\0';
-
-		if ( (idl = index_read( be, type, INDEX_SUB, buf )) == NULL ) {
-			return( NULL );
-		}
-	}
-
-	for ( p = val; p < (val + len - SUBLEN + 1); p++ ) {
-		for ( i = 0; i < SUBLEN; i++ ) {
-			buf[i] = p[i];
-		}
-		buf[SUBLEN] = '\0';
-
-		if ( (tmp = index_read( be, type, INDEX_SUB, buf )) == NULL ) {
-			idl_free( idl );
-			return( NULL );
-		}
-
-		if ( idl == NULL ) {
-			idl = tmp;
-		} else {
-			tmp2 = idl;
-			idl = idl_intersection( be, idl, tmp );
-			idl_free( tmp );
-			idl_free( tmp2 );
-		}
-	}
-
-	Debug( LDAP_DEBUG_TRACE, "<= substring_comp_candidates %ld\n",
 	    idl ? ID_BLOCK_NIDS(idl) : 0, 0, 0 );
 	return( idl );
 }

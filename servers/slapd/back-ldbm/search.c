@@ -264,7 +264,7 @@ ldbm_back_search(
 					}
 					if (e) {
 						switch ( send_search_entry( be, conn, op, e,
-							attrs, attrsonly, 0 ) ) {
+							attrs, attrsonly ) ) {
 						case 0:		/* entry sent ok */
 							nentries++;
 							break;
@@ -480,10 +480,8 @@ subtree_candidates(
 			f->f_and = (Filter *) ch_malloc( sizeof(Filter) );
 			f->f_and->f_choice = LDAP_FILTER_SUBSTRINGS;
 			f->f_and->f_sub_type = ch_strdup( "dn" );
-			f->f_and->f_sub_initial = NULL;
-			f->f_and->f_sub_any = NULL;
-			f->f_and->f_sub_final = ch_strdup( base );
-			value_normalize( f->f_and->f_sub_final, SYNTAX_CIS );
+			build_substr_value( NULL, NULL, e->e_ndn,
+					    &f->f_and->f_sub_value);
 			f->f_and->f_next = filter;
 			filter = f;
 		}

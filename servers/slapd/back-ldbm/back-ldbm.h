@@ -96,20 +96,8 @@ struct dbcache {
 /* for the cache of attribute information (which are indexed, etc.) */
 struct attrinfo {
 	char	*ai_type;	/* type name (cn, sn, ...)	*/
-	int	ai_indexmask;	/* how the attr is indexed	*/
-#define INDEX_PRESENCE	0x01
-#define INDEX_EQUALITY	0x02
-#define INDEX_APPROX	0x04
-#define INDEX_SUB	0x08
-#define INDEX_UNKNOWN	0x10
-#define INDEX_FROMINIT	0x20
-	int	ai_syntaxmask;	/* what kind of syntax		*/
-/* ...from slap.h...
-#define SYNTAX_CIS      0x01
-#define SYNTAX_CES      0x02
-#define SYNTAX_BIN      0x04
-   ... etc. ...
-*/
+	int	ai_predef;	/* internal predefined pseudo-attr */
+	MatchingRule	**ai_indexes;	/* Indexes to keep		*/
 };
 
 #define MAXDBCACHE	10

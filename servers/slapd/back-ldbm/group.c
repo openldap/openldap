@@ -12,6 +12,7 @@
 #include "proto-back-ldbm.h"
 
 
+#ifdef SLAPD_ACLGROUPS
 /* return 0 IFF op_dn is a value in member attribute
  * of entry with gr_dn AND that entry has an objectClass
  * value of groupOfNames
@@ -31,6 +32,8 @@ ldbm_back_group(
         char        *matched;
         Attribute   *objectClass;
         Attribute   *member;
+        AttributeType   *at_objectClass;
+        AttributeType   *at_member;
         int          rc;
 
 	Debug( LDAP_DEBUG_TRACE,
@@ -77,6 +80,8 @@ ldbm_back_group(
          */
         
         rc = 1;
+	at_objectClass = at_find( "objectClass" );
+	at_member = at_find( "member" );
         if ((objectClass = attr_find(e->e_attrs, "objectclass")) == NULL)  {
             Debug( LDAP_DEBUG_TRACE, "<= ldbm_back_group: failed to find objectClass\n", 0, 0, 0 ); 
         }
@@ -95,12 +100,14 @@ ldbm_back_group(
             bvMembers.bv_val = op_ndn;
             bvMembers.bv_len = strlen( op_ndn );         
 
-            if (value_find(objectClass->a_vals, &bvObjectClass, SYNTAX_CIS, 1) != 0) {
+            if (value_find(objectClass->a_vals, &bvObjectClass,
+			   at_objectClass->sat_equality, 1) != 0) {
                 Debug( LDAP_DEBUG_TRACE,
 					"<= ldbm_back_group: failed to find %s in objectClass\n", 
                         objectclassValue, 0, 0 ); 
             }
-            else if (value_find(member->a_vals, &bvMembers, SYNTAX_CIS, 1) != 0) {
+            else if (value_find(member->a_vals, &bvMembers,
+				at_member->sat_equality, 1) != 0) {
                 Debug( LDAP_DEBUG_ACL,
 					"<= ldbm_back_group: \"%s\" not in \"%s\": %s\n", 
 					op_ndn, gr_ndn, groupattrName ); 
@@ -121,4 +128,5 @@ ldbm_back_group(
 	Debug( LDAP_DEBUG_ARGS, "ldbm_back_group: rc: %d\n", rc, 0, 0 ); 
 	return(rc);
 }
+#endif /* SLAPD_ACLGROUPS */
 

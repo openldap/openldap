@@ -25,8 +25,7 @@ char *derefDN LDAP_P((
  * attr.c
  */
 
-void attr_masks LDAP_P(( struct ldbminfo *li, char *type, int *indexmask,
- int *syntaxmask ));
+void attr_indexes LDAP_P(( struct ldbminfo *li, AttributeType *at, MatchingRule ***indexes ));
 void attr_index_config LDAP_P(( struct ldbminfo *li, char *fname, int lineno,
  int argc, char **argv, int init ));
 #ifdef SLAP_CLEANUP
@@ -128,12 +127,12 @@ ID idl_nextid LDAP_P(( ID_BLOCK *idl, ID id ));
 
 int index_add_entry LDAP_P(( Backend *be, Entry *e ));
 int index_add_mods LDAP_P(( Backend *be, LDAPModList *ml, ID id ));
-ID_BLOCK * index_read LDAP_P(( Backend *be, char *type, int indextype, char *val ));
+ID_BLOCK * index_read LDAP_P(( Backend *be, AttributeType *at, MatchingRule *mr, char *val ));
 /* Possible operations supported (op) by index_change_values() */
 #define __INDEX_ADD_OP		0x0001
 #define __INDEX_DELETE_OP	0x0002
 int index_change_values LDAP_P(( Backend *be,
-				 char *type,
+				 AttributeType *at,
 				 struct berval **vals,
 				 ID  id,
 				 unsigned int op ));

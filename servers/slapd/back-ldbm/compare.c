@@ -24,6 +24,7 @@ ldbm_back_compare(
 	char		*matched;
 	Entry		*e;
 	Attribute	*a;
+	AttributeType	*at;
 	int		rc;
 
 	/* get entry with reader lock */
@@ -49,7 +50,13 @@ ldbm_back_compare(
 		goto return_results;
 	}
 
-	if ( value_find( a->a_vals, &ava->ava_value, a->a_syntax, 1 ) == 0 ) 
+	if ( (at = at_find( ava->ava_type )) == NULL ) {
+		send_ldap_result( conn, op, LDAP_NO_SUCH_ATTRIBUTE, "", "" );
+		rc = 1;
+		goto return_results;
+	}
+
+	if ( value_find( a->a_vals, &ava->ava_value, at->sat_equality, 1 ) == 0 ) 
 		send_ldap_result( conn, op, LDAP_COMPARE_TRUE, "", "" );
 	else
 		send_ldap_result( conn, op, LDAP_COMPARE_FALSE, "", "" );
