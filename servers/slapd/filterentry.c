@@ -276,25 +276,32 @@ static int test_mra_filter(
 			/* check search access */
 			if ( !access_allowed( be, conn, op, e,
 				a->a_desc, &value, ACL_SEARCH, NULL ) ) {
+				ch_free( value.bv_val );
 				continue;
 			}
+
+			rc = LDAP_SUCCESS;
 
 			/* check match */
 			for ( bv = a->a_vals; bv->bv_val != NULL; bv++ ) {
 				int ret;
-				int rc;
 	
 				rc = value_match( &ret, a->a_desc, mra->ma_rule,
 					SLAP_MR_ASSERTION_SYNTAX_MATCH,
 					bv, &value, &text );
 	
 				if( rc != LDAP_SUCCESS ) {
-					return rc;
+					break;
 				}
 	
 				if ( ret == 0 ) {
-					return LDAP_COMPARE_TRUE;
+					rc = LDAP_COMPARE_TRUE;
+					break;
 				}
+			}
+			ch_free( value.bv_val );
+			if ( rc != LDAP_SUCCESS ) {
+				return rc;
 			}
 		}
 	}
@@ -311,6 +318,8 @@ static int test_mra_filter(
 			return LDAP_INVALID_SYNTAX;
 		}
 
+		rc = LDAP_COMPARE_FALSE;
+
 		/* for each AVA of each RDN ... */
 		for ( iRDN = 0; dn[ 0 ][ iRDN ]; iRDN++ ) {
 			LDAPRDN		*rdn = dn[ 0 ][ iRDN ];
@@ -320,7 +329,6 @@ static int test_mra_filter(
 				struct berval	*bv = &ava->la_value, value;
 				AttributeDescription *ad = (AttributeDescription *)ava->la_private;
 				int ret;
-				int rc;
 				const char *text;
 
 				assert( ad );
@@ -350,6 +358,7 @@ static int test_mra_filter(
 					/* check search access */
 					if ( !access_allowed( be, conn, op, e,
 						ad, &value, ACL_SEARCH, NULL ) ) {
+						ch_free( value.bv_val );
 						continue;
 					}
 				}
@@ -358,18 +367,23 @@ static int test_mra_filter(
 				rc = value_match( &ret, ad, mra->ma_rule,
 					SLAP_MR_ASSERTION_SYNTAX_MATCH,
 					bv, &value, &text );
+				
+				if ( value.bv_val != mra->ma_value.bv_val ) {
+					ch_free( value.bv_val );
+				}
 
 				if( rc != LDAP_SUCCESS ) {
-					ldap_dnfree( dn );
-					return rc;
+					break;
 				}
 
 				if ( ret == 0 ) {
-					ldap_dnfree( dn );
-					return LDAP_COMPARE_TRUE;
+					rc = LDAP_COMPARE_TRUE;
+					break;
 				}
 			}
 		}
+		ldap_dnfree( dn );
+		return rc;
 	}
 
 	return LDAP_COMPARE_FALSE;
