@@ -56,7 +56,7 @@ ldbm_back_compare(
 		goto return_results;
 	}
 
-	if ( value_find( a->a_vals, &ava->ava_value, at->sat_equality, 1 ) == 0 ) 
+	if ( value_find( a->a_vals, &ava->ava_value, at->sat_equality ) == 0 )
 		send_ldap_result( conn, op, LDAP_COMPARE_TRUE, "", "" );
 	else
 		send_ldap_result( conn, op, LDAP_COMPARE_FALSE, "", "" );
