@@ -6,6 +6,11 @@
 #define LDAP_SYSLOG
 
 #include <syslog.h>
+
+#ifdef USEREGEX
+#include <regex.h>
+#endif
+
 #include "avl.h"
 #include "lber.h"
 #include "ldap.h"
@@ -122,6 +127,9 @@ struct access {
 	char		*a_domainpat;
 	char		*a_dnattr;
 	long		a_access;
+#ifdef USEREGEX
+        char            *a_group;
+#endif
 #define ACL_NONE	0x01
 #define ACL_COMPARE	0x02
 #define ACL_SEARCH	0x04
@@ -135,6 +143,9 @@ struct access {
 struct acl {
 	/* "to" part: the entries this acl applies to */
 	Filter		*acl_filter;
+#ifdef USEREGEX
+        regex_t          acl_dnre;
+#endif
 	char		*acl_dnpat;
 	char		**acl_attrs;
 
@@ -188,6 +199,10 @@ typedef struct backend {
 	IFP	be_config;	/* backend config routine	   	   */
 	IFP	be_init;	/* backend init routine			   */
 	IFP	be_close;	/* backend close routine		   */
+
+#ifdef ACLGROUP
+	IFP	be_group;	/* backend group member test               */
+#endif
 } Backend;
 
 /*

@@ -1,7 +1,7 @@
 #include "portable.h"
 
 #if defined( MACOS ) || defined( DOS ) || defined( _WIN32 ) || defined( NEED_BSDREGEX )
-#include "regex.h"
+#include "compat_regex.h"
 
 /*
  * regex - Regular expression pattern matching  and replacement
@@ -20,9 +20,8 @@
  * see Henry Spencer's regexp routines, or GNU Emacs pattern
  * matching module.
  *
- * Modification history:
+ * Vendor Modification history:
  *
- * $Log: regex.c,v $
  * Revision 1.12  1996/04/25  16:20:59  mcs
  * make re_exec() match "" with ".*" and similar patterns
  * hopefully this change doesn't break anything else!

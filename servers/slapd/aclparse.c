@@ -7,12 +7,19 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+
+#include <unistd.h>
+
+#ifdef sunos5
+#include "regexpr.h"
+#else
 #include "regex.h"
+#endif
+
 #include "slap.h"
 #include "portable.h"
 
 extern Filter		*str2filter();
-extern char		*re_comp();
 extern struct acl	*global_acl;
 extern char		**str2charray();
 extern char		*dn_upcase();
@@ -24,6 +31,64 @@ static void		acl_usage();
 #ifdef LDAP_DEBUG
 static void		print_acl();
 static void		print_access();
+#endif
+
+#ifdef USEREGEX
+int
+regtest(char *fname, int lineno, char *pat) {
+	int e;
+	regex_t re;
+
+	char buf[512];
+	int size;
+
+	char *sp;
+	char *dp;
+	int  flag;
+
+	sp = pat;
+	dp = buf;
+	size = 0;
+	buf[0] = '\0';
+
+	for (size = 0, flag = 0; (size < 512) && *sp; sp++) {
+		if (flag) {
+			if (*sp == '$'|| (*sp >= '0' && *sp <= '9')) {
+				*dp++ = *sp;
+				size++;
+			}
+			flag = 0;
+
+		} else {
+			if (*sp == '$') {
+				flag = 1;
+			} else {
+				*dp++ = *sp;
+				size++;
+			}
+		}
+	}
+
+	*dp = '\0';
+	if (size >= 511) {
+		fprintf( stderr,
+			"%s: line %d: regular expression \"%s\" too large\n",
+			fname, lineno, pat, 0 );
+		acl_usage();
+	}
+
+	if ((e = regcomp(&re, buf, REG_EXTENDED|REG_ICASE))) {
+		char buf[512];
+		regerror(e, &re, buf, 512);
+		fprintf( stderr,
+			"%s: line %d: regular expression \"%s\" bad because of %s\n",
+			fname, lineno, pat, buf );
+		acl_usage();
+		return(0);
+	}
+	regfree(&re);
+	return(1);
+}
 #endif
 
 void
@@ -58,6 +123,19 @@ parse_acl(
 				}
 
 				if ( strcasecmp( argv[i], "*" ) == 0 ) {
+#ifdef USEREGEX
+					int e;
+					if ((e = regcomp( &a->acl_dnre, ".*",
+						REG_EXTENDED|REG_ICASE)))
+					{
+						char buf[512];
+						regerror(e, &a->acl_dnre, buf, 512);
+						fprintf( stderr,
+							"%s: line %d: regular expression \"%s\" bad because of %s\n",
+							fname, lineno, right, buf );
+						acl_usage();
+					}
+#endif
 					a->acl_dnpat = strdup( ".*" );
 					continue;
 				}
@@ -79,14 +157,31 @@ parse_acl(
 						acl_usage();
 					}
 				} else if ( strcasecmp( left, "dn" ) == 0 ) {
+#ifdef USEREGEX
+					int e;
+					if ((e = regcomp(&a->acl_dnre, right,
+						REG_EXTENDED|REG_ICASE))) {
+						char buf[512];
+						regerror(e, &a->acl_dnre, buf, 512);
+						fprintf( stderr,
+							"%s: line %d: regular expression \"%s\" bad because of %s\n",
+							fname, lineno, right, buf );
+						acl_usage();
+
+					} else {
+						a->acl_dnpat = dn_upcase(strdup( right ));
+					}
+#else 
 					if ( (e = re_comp( right )) != NULL ) {
 						fprintf( stderr,
-		"%s: line %d: regular expression \"%s\" bad because of %s\n",
-						    fname, lineno, right, e );
+							"%s: line %d: regular expression \"%s\" bad because of %s\n",
+							fname, lineno, right, e );
 						acl_usage();
+
+					} else {
+						a->acl_dnpat = dn_upcase( strdup( right ) );
 					}
-					a->acl_dnpat = dn_upcase( strdup(
-					    right ) );
+#endif
 				} else if ( strncasecmp( left, "attr", 4 )
 				    == 0 ) {
 					char	**alist;
@@ -131,38 +226,65 @@ parse_acl(
 			} else if ( strcasecmp( argv[i], "self" ) == 0 ) {
 				b->a_dnpat = strdup( "self" );
 			} else if ( strcasecmp( left, "dn" ) == 0 ) {
+#ifdef USEREGEX
+				regtest(fname, lineno, right);
+#else
 				if ( (e = re_comp( right )) != NULL ) {
-					fprintf( stderr,
-			"%s: line %d: regular expression \"%s\" bad: %s\n",
+					fprintf( stderr, "%s: line %d: regular expression \"%s\" bad: %s\n",
 					    fname, lineno, right, e );
 					acl_usage();
 				}
+#endif
 				b->a_dnpat = dn_upcase( strdup( right ) );
 			} else if ( strcasecmp( left, "dnattr" )
 			    == 0 ) {
 				b->a_dnattr = strdup( right );
-			} else if ( strcasecmp( left, "domain" )
+
+#ifdef ACLGROUP
+			} else if ( strcasecmp( left, "group" )
 			    == 0 ) {
 				char	*s;
-
+#ifdef USEREGEX
+				regtest(fname, lineno, right);
+#else
 				if ( (e = re_comp( right )) != NULL ) {
-					fprintf( stderr,
-			"%s: line %d: regular expression \"%s\" bad: %s\n",
+					fprintf( stderr, "%s: line %d: regular expression \"%s\" bad: %s\n",
 					    fname, lineno, right, e );
 					acl_usage();
 				}
+#endif
+				b->a_group = dn_upcase(strdup( right ));
+#endif
+			} else if ( strcasecmp( left, "domain" )
+			    == 0 ) {
+				char	*s;
+#ifdef USEREGEX
+				regtest(fname, lineno, right);
+#else
+				if ( (e = re_comp( right )) != NULL ) {
+					fprintf( stderr,
+						"%s: line %d: regular expression \"%s\" bad: %s\n",
+					    fname, lineno, right, e );
+					acl_usage();
+				}
+#endif
 				b->a_domainpat = strdup( right );
+
 				/* normalize the domain */
 				for ( s = b->a_domainpat; *s; s++ ) {
 					*s = TOLOWER( *s );
 				}
 			} else if ( strcasecmp( left, "addr" ) == 0 ) {
+#ifdef USEREGEX
+				regtest(fname, lineno, right);
+#else
 				if ( (e = re_comp( right )) != NULL ) {
 					fprintf( stderr,
-			"%s: line %d: regular expression \"%s\" bad: %s\n",
+						"%s: line %d: regular expression \"%s\" bad: %s\n",
 					    fname, lineno, right, e );
 					acl_usage();
 				}
+#endif
 				b->a_addrpat = strdup( right );
 			} else {
 				fprintf( stderr,
@@ -198,16 +320,15 @@ parse_acl(
 
 	/* if we have no real access clause, complain and do nothing */
 	if ( a == NULL ) {
-	
 			fprintf( stderr,
-		    "%s: line %d: warning: no access clause(s) specified in access line\n",
+				"%s: line %d: warning: no access clause(s) specified in access line\n",
 			    fname, lineno );
 
 	} else {
 	
 		if ( a->acl_access == NULL ) {
 			fprintf( stderr,
-		    "%s: line %d: warning: no by clause(s) specified in access line\n",
+		    	"%s: line %d: warning: no by clause(s) specified in access line\n",
 			    fname, lineno );
 		}
 

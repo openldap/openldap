@@ -121,7 +121,13 @@ send_ldap_result2(
 		pthread_mutex_lock( &active_threads_mutex );
 		active_threads--;
 		conn->c_writewaiter = 1;
+
+#ifdef SIGSTKFLT
+		pthread_kill( listener_tid, SIGSTKFLT );
+#else
 		pthread_kill( listener_tid, SIGUSR1 );
+#endif
+
 		pthread_cond_wait( &conn->c_wcv, &active_threads_mutex );
 		pthread_mutex_unlock( &active_threads_mutex );
 
@@ -192,6 +198,9 @@ send_search_entry(
 	Attribute	*a;
 	int		i, rc, bytes, sd;
 	struct acl	*acl;
+        char            *edn;
+
+
 
 	Debug( LDAP_DEBUG_TRACE, "=> send_search_entry (%s)\n", e->e_dn, 0, 0 );
 
@@ -202,15 +211,18 @@ send_search_entry(
 		return( 1 );
 	}
 
+	edn = dn_normalize_case( strdup( e->e_dn ) );
+
 #ifdef COMPAT30
 	if ( (ber = ber_alloc_t( conn->c_version == 30 ? 0 : LBER_USE_DER ))
-	    == NULLBER ) {
+		== NULLBER ) {
 #else
 	if ( (ber = der_alloc()) == NULLBER ) {
 #endif
 		Debug( LDAP_DEBUG_ANY, "ber_alloc failed\n", 0, 0, 0 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL,
-		    "ber_alloc" );
+			"ber_alloc" );
+		free(edn);
 		return( 1 );
 	}
 
@@ -220,26 +232,53 @@ send_search_entry(
 		    LDAP_RES_SEARCH_ENTRY, e->e_dn );
 	} else
 #endif
-		rc = ber_printf( ber, "{it{s{", op->o_msgid,
-		    LDAP_RES_SEARCH_ENTRY, e->e_dn );
+	rc = ber_printf( ber, "{it{s{", op->o_msgid,
+		LDAP_RES_SEARCH_ENTRY, e->e_dn );
 
 	if ( rc == -1 ) {
 		Debug( LDAP_DEBUG_ANY, "ber_printf failed\n", 0, 0, 0 );
 		ber_free( ber, 1 );
 		send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR, NULL,
 		    "ber_printf dn" );
+		free(edn);
 		return( 1 );
 	}
 
 	for ( a = e->e_attrs; a != NULL; a = a->a_next ) {
+#ifdef USEREGEX
+		regmatch_t       matches[MAXREMATCHES];
+#endif
+
 		if ( attrs != NULL && ! charray_inlist( attrs, a->a_type ) ) {
 			continue;
 		}
 
-		acl = acl_get_applicable( be, op, e, a->a_type );
+#ifdef USEREGEX
+		/* the lastmod attributes are ignored by ACL checking */
+		if ( strcasecmp( a->a_type, "modifiersname" ) == 0 ||
+			strcasecmp( a->a_type, "modifytimestamp" ) == 0 ||
+			strcasecmp( a->a_type, "creatorsname" ) == 0 ||
+			strcasecmp( a->a_type, "createtimestamp" ) == 0 ) 
+		{
+			Debug( LDAP_DEBUG_ACL, "LASTMOD attribute: %s access DEFAULT\n",
+				a->a_type, 0, 0 );
+			acl = NULL;
+		} else {
+			acl = acl_get_applicable( be, op, e, a->a_type, edn,
+				MAXREMATCHES, matches );
+		}
+#else
+		acl= acl_get_applicable( be, op, e, a->a_type, edn );
+#endif
 
-		if ( ! acl_access_allowed( acl, be, conn, e, NULL, op,
-		    ACL_READ ) ) {
+#ifdef USEREGEX
+		if ( ! acl_access_allowed( acl, be, conn, e, NULL, op, ACL_READ,
+			edn, matches ) ) 
+#else
+		if ( ! acl_access_allowed( acl, be, conn, e, NULL, op, ACL_READ,
+			edn ) ) 
+#endif
+		{
 			continue;
 		}
 
@@ -248,14 +287,21 @@ send_search_entry(
 			ber_free( ber, 1 );
 			send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
 			    NULL, "ber_printf type" );
+			free(edn);
 			return( 1 );
 		}
 
 		if ( ! attrsonly ) {
 			for ( i = 0; a->a_vals[i] != NULL; i++ ) {
-				if ( a->a_syntax & SYNTAX_DN &&
-				    ! acl_access_allowed( acl, be, conn, e,
-				    a->a_vals[i], op, ACL_READ ) )
+#ifdef USEREGEX
+				if ( a->a_syntax & SYNTAX_DN && 
+					! acl_access_allowed( acl, be, conn, e, a->a_vals[i], op,
+						ACL_READ, edn, matches) )
+#else
+				if ( a->a_syntax & SYNTAX_DN && 
+					! acl_access_allowed( acl, be, conn, e, a->a_vals[i], op,
+						ACL_READ, edn ) )
+#endif
 				{
 					continue;
 				}
@@ -270,6 +316,7 @@ send_search_entry(
 					send_ldap_result( conn, op,
 					    LDAP_OPERATIONS_ERROR, NULL,
 					    "ber_printf value" );
+                                        free(edn);
 					return( 1 );
 				}
 			}
@@ -280,9 +327,12 @@ send_search_entry(
 			ber_free( ber, 1 );
 			send_ldap_result( conn, op, LDAP_OPERATIONS_ERROR,
 			    NULL, "ber_printf type end" );
+                        free(edn);
 			return( 1 );
 		}
 	}
+
+	free(edn);
 
 #ifdef COMPAT30
 	if ( conn->c_version == 30 ) {
