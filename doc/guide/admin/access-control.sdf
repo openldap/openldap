@@ -852,6 +852,50 @@ The ACLs above will only allow binding using rootdn from localhost and
 192.168.0.0/24.
 
 
+H3: Controlling the LDAP Proxied Authorization Control
+
+The Proxied Authorization Control allows a client to request that an
+operation be processed under a provided authorization identity instead of
+under the current authentication identity associated with the connection.
+
+This facility is controlled by the {{EX:authz-policy}} configuration
+option and by the {{EX:authzTo}} and {{EX:authzFrom}} attributes.
+It can be further controlled by applying access control to those attributes.
+
+A client application might bind as cn=Client,o=MyOrganization whose entry
+looks like this:
+
+>    dn: cn=Client,o=MyOrganization
+>    cn: Client
+>    objectClass: organizationalRole
+>    objectClass: simpleSecurityObject
+>    objectClass: top
+>    userPassword: {SSHA}someSSHAdata
+>    authzTo: dn.regex:^cn=[^,]+,ou=People,o=MyOrganization$
+
+To make use of the proxy facility, the client needs at least {{EX:auth}}
+privilege on the {{EX:authzTo}} attribute:
+
+>    access to dn.exact=cn=Client,o=MyOrganization attr=authzTo
+>      by self auth
+>      by * break
+
+This access would be automatically granted if cn=Client,o=MyOrganization
+has {{EX:read}} privilege on its own entry.
+
+Now if you want to lock down the use of this powerful account, you might
+write an ACL like this:
+
+>    access to dn.exact=cn=Client,o=MyOrganization attr=authzTo
+>      by self peername.regex=192\.168\.0\..*  ssf=256 auth
+>      by * none
+
+Now, cn=Client,o=MyOrganization can only make use of the proxy authorization
+control if it has connected from an appropriate IP address using
+a sufficient level of cryptographic protection. No other IDs can even
+see the authzTo attribute.
+
+
 H3: Managing access with Groups
 
 There are a few ways to do this. One approach is illustrated here. Consider the

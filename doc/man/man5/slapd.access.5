@@ -1083,9 +1083,11 @@ attribute).
 Some internal operations and some
 .B controls
 require specific access privileges.
-The
+
+.LP
+The SASL
 .B authzID
-mapping and the 
+mapping and the LDAP
 .B proxyAuthz
 control require
 .B auth (=x)
@@ -1099,6 +1101,11 @@ privileges are also required on the
 attribute of the authorizing identity and/or on the 
 .B authzFrom
 attribute of the authorized identity.
+In both cases, it is the authorizing identity that requires the privileges
+(i.e. the identity that has authenticated and is now trying to do
+some operation using another entity's permissions).
+
+.LP
 In general, when an internal lookup is performed for authentication
 or authorization purposes, search-specific privileges (see the access
 requirements for the search operation illustrated above) are relaxed to
