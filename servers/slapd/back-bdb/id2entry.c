@@ -271,12 +271,17 @@ int bdb_entry_release(
 					bdb_cache_return_entry_rw( bdb->bi_dbenv, &bdb->bi_cache,
 						e, rw, &bli->bli_lock );
 					prev->bli_next = bli->bli_next;
-					op->o_tmpfree( bli, op->o_tmpmemctx );
+					/* Cleanup, or let caller know we unlocked */
+					if (bli->bli_flag & BLI_DONTFREE)
+						bli->bli_flag = 0;
+					else
+						op->o_tmpfree( bli, op->o_tmpmemctx );
 					break;
 				}
 			}
 			if ( !boi->boi_locks ) {
-				op->o_tmpfree( boi, op->o_tmpmemctx );
+				if ( !(boi->boi_flag & BOI_DONTFREE))
+					op->o_tmpfree( boi, op->o_tmpmemctx );
 				op->o_private = NULL;
 			}
 		}

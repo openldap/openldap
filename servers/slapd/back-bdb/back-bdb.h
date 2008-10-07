@@ -212,18 +212,22 @@ struct bdb_info {
 
 struct bdb_lock_info {
 	struct bdb_lock_info *bli_next;
-	ID		bli_id;
 	DB_LOCK	bli_lock;
+	ID		bli_id;
+	int		bli_flag;
 };
+#define	BLI_DONTFREE	1
 
 struct bdb_op_info {
 	BackendDB*	boi_bdb;
 	DB_TXN*		boi_txn;
+	struct bdb_lock_info *boi_locks;	/* used when no txn */
 	u_int32_t	boi_err;
 	u_int32_t	boi_locker;
-	int		boi_acl_cache;
-	struct bdb_lock_info *boi_locks;	/* used when no txn */
+	char		boi_acl_cache;
+	char		boi_flag;
 };
+#define	BOI_DONTFREE	1
 
 #define	DB_OPEN(db, file, name, type, flags, mode) \
 	((db)->open)(db, file, name, type, flags, mode)
