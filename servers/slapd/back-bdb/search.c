@@ -832,20 +832,50 @@ fetch_entry_retry:
 		if ( !manageDSAit && op->oq_search.rs_scope != LDAP_SCOPE_BASE
 			&& is_entry_referral( e ) )
 		{
+			struct bdb_op_info bois, *boi2;
+			struct bdb_lock_info blis;
 			BerVarray erefs = get_entry_referrals( op, e );
 			rs->sr_ref = referral_rewrite( erefs, &e->e_name, NULL,
 				op->oq_search.rs_scope == LDAP_SCOPE_ONELEVEL
 					? LDAP_SCOPE_BASE : LDAP_SCOPE_SUBTREE );
 
-			/* free reader lock */
-#ifdef SLAP_ZONE_ALLOC
-			slap_zn_runlock(bdb->bi_cache.c_zctx, e);
-#endif
-			bdb_cache_return_entry_r( bdb->bi_dbenv,
-				&bdb->bi_cache, e , &lock );
-			e = NULL;
+			/* Must set lockinfo so that entry_release will work */
+			if (!opinfo) {
+				boi2 = &bois;
+				op->o_private = boi2;
+				bois.boi_bdb = op->o_bd;
+				bois.boi_txn = NULL;
+				bois.boi_locker = locker;
+				bois.boi_err = 0;
+				bois.boi_locks = &blis;
+				blis.bli_next = NULL;
+				bois.boi_flag = BOI_DONTFREE;
+			} else {
+				boi2 = opinfo;
+				blis.bli_next = boi2->boi_locks;
+				boi2->boi_locks = &blis;
+			}
+			blis.bli_id = e->e_id;
+			blis.bli_lock = lock;
+			blis.bli_flag = BLI_DONTFREE;
+
+			rs->sr_flags = REP_ENTRY_MUSTRELEASE;
 
 			send_search_reference( op, rs );
+
+			if ( blis.bli_flag ) {
+#ifdef SLAP_ZONE_ALLOC
+				slap_zn_runlock(bdb->bi_cache.c_zctx, e);
+#endif
+				bdb_cache_return_entry_r(bdb->bi_dbenv,
+					&bdb->bi_cache, e, &lock);
+				op->o_private = opinfo;
+				if ( opinfo ) {
+					opinfo->boi_locks = blis.bli_next;
+				}
+			}
+			rs->sr_entry = NULL;
+			e = NULL;
 
 			ber_bvarray_free( rs->sr_ref );
 			ber_bvarray_free( erefs );
