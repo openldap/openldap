@@ -33,15 +33,20 @@ monitor_back_compare( Operation *op, SlapReply *rs )
 	Entry           *e, *matched = NULL;
 	Attribute	*a;
 	int		rc;
+	AclCheck	ak;
+
+	ak.ak_state = NULL;
 
 	/* get entry with reader lock */
 	monitor_cache_dn2entry( op, rs, &op->o_req_ndn, &e, &matched );
 	if ( e == NULL ) {
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		if ( matched ) {
-			if ( !access_allowed_mask( op, matched,
-					slap_schema.si_ad_entry,
-					NULL, ACL_DISCLOSE, NULL, NULL ) )
+			ak.ak_e = matched;
+			ak.ak_desc = slap_schema.si_ad_entry;
+			ak.ak_val = NULL;
+			ak.ak_access = ACL_DISCLOSE;
+			if ( !access_allowed( op, &ak ))
 			{
 				/* do nothing */ ;
 			} else {
@@ -57,8 +62,11 @@ monitor_back_compare( Operation *op, SlapReply *rs )
 		return rs->sr_err;
 	}
 
-	rs->sr_err = access_allowed( op, e, op->oq_compare.rs_ava->aa_desc,
-			&op->oq_compare.rs_ava->aa_value, ACL_COMPARE, NULL );
+	ak.ak_e = e;
+	ak.ak_desc = op->oq_compare.rs_ava->aa_desc;
+	ak.ak_val = &op->oq_compare.rs_ava->aa_value;
+	ak.ak_access = ACL_COMPARE;
+	rs->sr_err = access_allowed( op, &ak );
 	if ( !rs->sr_err ) {
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		goto return_results;
@@ -94,8 +102,10 @@ return_results:;
 		break;
 
 	default:
-		if ( !access_allowed_mask( op, e, slap_schema.si_ad_entry,
-				NULL, ACL_DISCLOSE, NULL, NULL ) )
+		ak.ak_desc = slap_schema.si_ad_entry;
+		ak.ak_val = NULL;
+		ak.ak_access = ACL_DISCLOSE;
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		}

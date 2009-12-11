@@ -37,6 +37,7 @@ monitor_back_modify( Operation *op, SlapReply *rs )
 	monitor_info_t	*mi = ( monitor_info_t * )op->o_bd->be_private;
 	Entry		*matched;
 	Entry		*e;
+	AclCheck	ak;
 
 	Debug(LDAP_DEBUG_ARGS, "monitor_back_modify:\n", 0, 0, 0);
 
@@ -45,9 +46,12 @@ monitor_back_modify( Operation *op, SlapReply *rs )
 	if ( e == NULL ) {
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		if ( matched ) {
-			if ( !access_allowed_mask( op, matched,
-					slap_schema.si_ad_entry,
-					NULL, ACL_DISCLOSE, NULL, NULL ) )
+			ak.ak_e = matched;
+			ak.ak_desc = slap_schema.si_ad_entry;
+			ak.ak_val = NULL;
+			ak.ak_access = ACL_DISCLOSE;
+			ak.ak_state = NULL;
+			if ( !access_allowed( op, &ak ))
 			{
 				/* do nothing */ ;
 			} else {
@@ -73,8 +77,12 @@ monitor_back_modify( Operation *op, SlapReply *rs )
 	}
 
 	if ( rc != LDAP_SUCCESS ) {
-		if ( !access_allowed_mask( op, e, slap_schema.si_ad_entry,
-				NULL, ACL_DISCLOSE, NULL, NULL ) )
+		ak.ak_e = e;
+		ak.ak_desc = slap_schema.si_ad_entry;
+		ak.ak_val = NULL;
+		ak.ak_access = ACL_DISCLOSE;
+		ak.ak_state = NULL;
+		if ( !access_allowed( op, &ak ))
 		{
 			rc = LDAP_NO_SUCH_OBJECT;
 		}

@@ -164,19 +164,21 @@ monitor_back_search( Operation *op, SlapReply *rs )
 	monitor_info_t	*mi = ( monitor_info_t * )op->o_bd->be_private;
 	int		rc = LDAP_SUCCESS;
 	Entry		*e = NULL, *matched = NULL;
-	slap_mask_t	mask;
+	AclCheck	ak;
 
 	Debug( LDAP_DEBUG_TRACE, "=> monitor_back_search\n", 0, 0, 0 );
 
-
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_state = NULL;
 	/* get entry with reader lock */
 	monitor_cache_dn2entry( op, rs, &op->o_req_ndn, &e, &matched );
 	if ( e == NULL ) {
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		if ( matched ) {
-			if ( !access_allowed_mask( op, matched,
-					slap_schema.si_ad_entry,
-					NULL, ACL_DISCLOSE, NULL, NULL ) )
+			ak.ak_e = matched;
+			ak.ak_access = ACL_DISCLOSE;
+			if ( !access_allowed( op, &ak ))
 			{
 				/* do nothing */ ;
 			} else {
@@ -195,12 +197,13 @@ monitor_back_search( Operation *op, SlapReply *rs )
 
 	/* NOTE: __NEW__ "search" access is required
 	 * on searchBase object */
-	if ( !access_allowed_mask( op, e, slap_schema.si_ad_entry,
-				NULL, ACL_SEARCH, NULL, &mask ) )
+	ak.ak_e = e;
+	ak.ak_access = ACL_SEARCH;
+	if ( !access_allowed( op, &ak ))
 	{
 		monitor_cache_release( mi, e );
 
-		if ( !ACL_GRANT( mask, ACL_DISCLOSE ) ) {
+		if ( !ACL_GRANT( ak.ak_mask, ACL_DISCLOSE ) ) {
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		} else {
 			rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
