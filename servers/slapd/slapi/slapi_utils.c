@@ -2558,11 +2558,11 @@ int slapi_access_allowed( Slapi_PBlock *pb, Slapi_Entry *e, char *attr,
 	struct berval *val, int access )
 {
 	int rc;
-	slap_access_t slap_access;
-	AttributeDescription *ad = NULL;
 	const char *text;
+	AclCheck ak;
 
-	rc = slap_str2ad( attr, &ad, &text );
+	ak.ak_desc = NULL;
+	rc = slap_str2ad( attr, &ak.ak_desc, &text );
 	if ( rc != LDAP_SUCCESS ) {
 		return rc;
 	}
@@ -2573,22 +2573,22 @@ int slapi_access_allowed( Slapi_PBlock *pb, Slapi_Entry *e, char *attr,
 	 */
 	switch ( access & SLAPI_ACL_ALL ) {
 	case SLAPI_ACL_COMPARE:
-		slap_access = ACL_COMPARE;
+		ak.ak_access = ACL_COMPARE;
 		break;
 	case SLAPI_ACL_SEARCH:
-		slap_access = ACL_SEARCH;
+		ak.ak_access = ACL_SEARCH;
 		break;
 	case SLAPI_ACL_READ:
-		slap_access = ACL_READ;
+		ak.ak_access = ACL_READ;
 		break;
 	case SLAPI_ACL_WRITE:
-		slap_access = ACL_WRITE;
+		ak.ak_access = ACL_WRITE;
 		break;
 	case SLAPI_ACL_DELETE:
-		slap_access = ACL_WDEL;
+		ak.ak_access = ACL_WDEL;
 		break;
 	case SLAPI_ACL_ADD:
-		slap_access = ACL_WADD;
+		ak.ak_access = ACL_WADD;
 		break;
 	case SLAPI_ACL_SELF:  /* not documented */
 	case SLAPI_ACL_PROXY: /* not documented */
@@ -2599,7 +2599,10 @@ int slapi_access_allowed( Slapi_PBlock *pb, Slapi_Entry *e, char *attr,
 
 	assert( pb->pb_op != NULL );
 
-	if ( access_allowed( pb->pb_op, e, ad, val, slap_access, NULL ) ) {
+	ak.ak_e = e;
+	ak.ak_val = val;
+	ak.ak_state = NULL;
+	if ( access_allowed( pb->pb_op, &ak )) {
 		return LDAP_SUCCESS;
 	}
 
@@ -2997,11 +3000,7 @@ int slapi_notify_condvar( Slapi_CondVar *cvar, int notify_all )
 }
 
 int slapi_int_access_allowed( Operation *op,
-	Entry *entry,
-	AttributeDescription *desc,
-	struct berval *val,
-	slap_access_t access,
-	AccessControlState *state )
+	AclCheck *ak )
 {
 	int rc, slap_access = 0;
 	slapi_acl_callback_t *pGetPlugin, *tmpPlugin;
@@ -3013,9 +3012,9 @@ int slapi_int_access_allowed( Operation *op,
 		return 1;
 	}
 
-	switch ( access ) {
+	switch ( ak->ak_access ) {
 	case ACL_COMPARE:
-                slap_access |= SLAPI_ACL_COMPARE;
+		slap_access |= SLAPI_ACL_COMPARE;
 		break;
 	case ACL_SEARCH:
 		slap_access |= SLAPI_ACL_SEARCH;
@@ -3049,8 +3048,8 @@ int slapi_int_access_allowed( Operation *op,
 		 * 0	access denied
 		 * 1	access granted
 		 */
-		rc = (*pGetPlugin)( pb, entry, desc->ad_cname.bv_val,
-				    val, slap_access, (void *)state );
+		rc = (*pGetPlugin)( pb, ak->ak_e, ak->ak_desc->ad_cname.bv_val,
+				    ak->ak_val, slap_access, (void *)ak->ak_state );
 		if ( rc == 0 ) {
 			break;
 		}

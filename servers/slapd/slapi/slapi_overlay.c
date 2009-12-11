@@ -714,12 +714,7 @@ cleanup:
 static int
 slapi_over_access_allowed(
 	Operation		*op,
-	Entry			*e,
-	AttributeDescription	*desc,
-	struct berval		*val,
-	slap_access_t		access,
-	AccessControlState	*state,
-	slap_mask_t		*maskp )
+	AclCheck		*ak )
 {
 	int			rc;
 	Slapi_PBlock		*pb;
@@ -734,7 +729,7 @@ slapi_over_access_allowed(
 
 	pb = SLAPI_OPERATION_PBLOCK( op );
 
-	rc = slapi_int_access_allowed( op, e, desc, val, access, state );
+	rc = slapi_int_access_allowed( op, ak );
 	if ( rc ) {
 		rc = SLAP_CB_CONTINUE;
 	}

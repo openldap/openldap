@@ -44,6 +44,7 @@ bdb_add(Operation *op, SlapReply *rs )
 	LDAPControl **postread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
 	int num_ctrls = 0;
+	AclCheck	ak;
 
 #ifdef LDAP_X_TXN
 	int settle = 0;
@@ -221,8 +222,12 @@ retry:	/* transaction retry */
 		goto return_results;
 	}
 
-	rs->sr_err = access_allowed( op, p,
-		children, NULL, ACL_WADD, NULL );
+	ak.ak_e = p;
+	ak.ak_desc = children;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_WADD;
+	ak.ak_state = NULL;
+	rs->sr_err = access_allowed( op, &ak );
 
 	if ( ! rs->sr_err ) {
 		switch( opinfo.boi_err ) {
@@ -318,8 +323,9 @@ retry:	/* transaction retry */
 	}
 	p = NULL;
 
-	rs->sr_err = access_allowed( op, op->ora_e,
-		entry, NULL, ACL_WADD, NULL );
+	ak.ak_e = op->ora_e;
+	ak.ak_desc = entry;
+	rs->sr_err = access_allowed( op, &ak );
 
 	if ( ! rs->sr_err ) {
 		switch( opinfo.boi_err ) {

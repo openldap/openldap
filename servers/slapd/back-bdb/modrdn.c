@@ -64,6 +64,8 @@ bdb_modrdn( Operation	*op, SlapReply *rs )
 	int settle = 0;
 #endif
 
+	AclCheck	ak;
+
 	Debug( LDAP_DEBUG_TRACE, "==>" LDAP_XSTRING(bdb_modrdn) "(%s,%s,%s)\n",
 		op->o_req_dn.bv_val,op->oq_modrdn.rs_newrdn.bv_val,
 		op->oq_modrdn.rs_newSup ? op->oq_modrdn.rs_newSup->bv_val : "NULL" );
@@ -226,7 +228,12 @@ retry:	/* transaction retry */
 	}
 
 	/* check write on old entry */
-	rs->sr_err = access_allowed( op, e, entry, NULL, ACL_WRITE, NULL );
+	ak.ak_e = e;
+	ak.ak_desc = entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_WRITE;
+	ak.ak_state = NULL;
+	rs->sr_err = access_allowed( op, &ak );
 	if ( ! rs->sr_err ) {
 		switch( opinfo.boi_err ) {
 		case DB_LOCK_DEADLOCK:
@@ -337,11 +344,10 @@ retry:	/* transaction retry */
 	}
 
 	/* check parent for "children" acl */
-	rs->sr_err = access_allowed( op, p,
-		children, NULL,
-		op->oq_modrdn.rs_newSup == NULL ?
-			ACL_WRITE : ACL_WDEL,
-		NULL );
+	ak.ak_e = p;
+	ak.ak_desc = children;
+	ak.ak_access = op->oq_modrdn.rs_newSup == NULL ?  ACL_WRITE : ACL_WDEL;
+	rs->sr_err = access_allowed( op, &ak );
 
 	if ( !p_ndn.bv_len )
 		p = NULL;
@@ -449,8 +455,9 @@ retry:	/* transaction retry */
 				(void *) np, (long) np->e_id, 0 );
 
 			/* check newSuperior for "children" acl */
-			rs->sr_err = access_allowed( op, np, children,
-				NULL, ACL_WADD, NULL );
+			ak.ak_e = np;
+			ak.ak_access = ACL_WADD;
+			rs->sr_err = access_allowed( op, &ak );
 
 			if( ! rs->sr_err ) {
 				switch( opinfo.boi_err ) {
@@ -499,8 +506,9 @@ retry:	/* transaction retry */
 				np = (Entry *)&slap_entry_root;
 
 				/* check parent for "children" acl */
-				rs->sr_err = access_allowed( op, np,
-					children, NULL, ACL_WADD, NULL );
+				ak.ak_e = np;
+				ak.ak_access = ACL_WADD;
+				rs->sr_err = access_allowed( op, &ak );
 
 				np = NULL;
 

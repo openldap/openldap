@@ -323,7 +323,6 @@ bdb_search( Operation *op, SlapReply *rs )
 	EntryInfo	*ei;
 	AttributeName	*attrs;
 	struct berval	realbase = BER_BVNULL;
-	slap_mask_t	mask;
 	time_t		stoptime;
 	int		manageDSAit;
 	int		tentries = 0;
@@ -334,6 +333,7 @@ bdb_search( Operation *op, SlapReply *rs )
 	struct	bdb_op_info	*opinfo = NULL;
 	DB_TXN			*ltid = NULL;
 	OpExtra *oex;
+	AclCheck	ak;
 
 	Debug( LDAP_DEBUG_TRACE, "=> " LDAP_XSTRING(bdb_search) "\n", 0, 0, 0);
 	attrs = op->oq_search.rs_attrs;
@@ -420,6 +420,10 @@ dn2entry_retry:
 		}
 	}
 
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_state = NULL;
+
 	if ( e == NULL ) {
 		struct berval matched_dn = BER_BVNULL;
 
@@ -428,9 +432,9 @@ dn2entry_retry:
 
 			/* return referral only if "disclose"
 			 * is granted on the object */
-			if ( ! access_allowed( op, matched,
-						slap_schema.si_ad_entry,
-						NULL, ACL_DISCLOSE, NULL ) )
+			ak.ak_e = matched;
+			ak.ak_access = ACL_DISCLOSE;
+			if ( ! access_allowed( op, &ak ))
 			{
 				rs->sr_err = LDAP_NO_SUCH_OBJECT;
 
@@ -481,10 +485,11 @@ dn2entry_retry:
 
 	/* NOTE: __NEW__ "search" access is required
 	 * on searchBase object */
-	if ( ! access_allowed_mask( op, e, slap_schema.si_ad_entry,
-				NULL, ACL_SEARCH, NULL, &mask ) )
+	ak.ak_e = e;
+	ak.ak_access = ACL_SEARCH;
+	if ( ! access_allowed( op, &ak ))
 	{
-		if ( !ACL_GRANT( mask, ACL_DISCLOSE ) ) {
+		if ( !ACL_GRANT( ak.ak_mask, ACL_DISCLOSE ) ) {
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		} else {
 			rs->sr_err = LDAP_INSUFFICIENT_ACCESS;

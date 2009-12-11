@@ -55,6 +55,8 @@ bdb_delete( Operation *op, SlapReply *rs )
 	int settle = 0;
 #endif
 
+	AclCheck	ak;
+
 	Debug( LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(bdb_delete) ": %s\n",
 		op->o_req_dn.bv_val, 0, 0 );
 
@@ -229,6 +231,10 @@ retry:	/* transaction retry */
 	}
 	if ( eip ) p = eip->bei_e;
 
+	ak.ak_desc = children;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_WDEL;
+	ak.ak_state = NULL;
 	if ( pdn.bv_len != 0 ) {
 		if( p == NULL || !bvmatch( &pdn, &p->e_nname )) {
 			Debug( LDAP_DEBUG_TRACE,
@@ -240,8 +246,8 @@ retry:	/* transaction retry */
 		}
 
 		/* check parent for "children" acl */
-		rs->sr_err = access_allowed( op, p,
-			children, NULL, ACL_WDEL, NULL );
+		ak.ak_e = p;
+		rs->sr_err = access_allowed( op, &ak );
 
 		if ( !rs->sr_err  ) {
 			switch( opinfo.boi_err ) {
@@ -266,8 +272,8 @@ retry:	/* transaction retry */
 				p = (Entry *)&slap_entry_root;
 
 				/* check parent for "children" acl */
-				rs->sr_err = access_allowed( op, p,
-					children, NULL, ACL_WDEL, NULL );
+				ak.ak_e = p;
+				rs->sr_err = access_allowed( op, &ak );
 
 				p = NULL;
 
@@ -304,8 +310,9 @@ retry:	/* transaction retry */
 		goto return_results;
 	}
 
-	rs->sr_err = access_allowed( op, e,
-		entry, NULL, ACL_WDEL, NULL );
+	ak.ak_e = e;
+	ak.ak_desc = entry;
+	rs->sr_err = access_allowed( op, &ak );
 
 	if ( !rs->sr_err  ) {
 		switch( opinfo.boi_err ) {

@@ -33,6 +33,8 @@ bdb_compare( Operation *op, SlapReply *rs )
 	DB_TXN		*rtxn;
 	DB_LOCK		lock;
 
+	AclCheck	ak;
+
 	rs->sr_err = bdb_reader_get(op, bdb->bi_dbenv, &rtxn);
 	switch(rs->sr_err) {
 	case 0:
@@ -64,11 +66,16 @@ dn2entry_retry:
 	}
 
 	e = ei->bei_e;
+	ak.ak_e = e;
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_DISCLOSE;
+	ak.ak_state = NULL;
+
 	if ( rs->sr_err == DB_NOTFOUND ) {
 		if ( e != NULL ) {
 			/* return referral only if "disclose" is granted on the object */
-			if ( ! access_allowed( op, e, slap_schema.si_ad_entry,
-				NULL, ACL_DISCLOSE, NULL ) )
+			if ( ! access_allowed( op, &ak ))
 			{
 				rs->sr_err = LDAP_NO_SUCH_OBJECT;
 
@@ -101,8 +108,7 @@ dn2entry_retry:
 
 	if (!manageDSAit && is_entry_referral( e ) ) {
 		/* return referral only if "disclose" is granted on the object */
-		if ( !access_allowed( op, e, slap_schema.si_ad_entry,
-			NULL, ACL_DISCLOSE, NULL ) )
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		} else {
@@ -125,8 +131,7 @@ dn2entry_retry:
 	if ( get_assert( op ) &&
 		( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
-		if ( !access_allowed( op, e, slap_schema.si_ad_entry,
-			NULL, ACL_DISCLOSE, NULL ) )
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		} else {
@@ -135,13 +140,17 @@ dn2entry_retry:
 		goto return_results;
 	}
 
-	if ( !access_allowed( op, e, op->oq_compare.rs_ava->aa_desc,
-		&op->oq_compare.rs_ava->aa_value, ACL_COMPARE, NULL ) )
+	ak.ak_desc = op->oq_compare.rs_ava->aa_desc;
+	ak.ak_val = &op->oq_compare.rs_ava->aa_value;
+	ak.ak_access = ACL_COMPARE;
+	if ( !access_allowed( op, &ak ))
 	{
 		/* return error only if "disclose"
 		 * is granted on the object */
-		if ( !access_allowed( op, e, slap_schema.si_ad_entry,
-					NULL, ACL_DISCLOSE, NULL ) )
+		ak.ak_desc = slap_schema.si_ad_entry;
+		ak.ak_val = NULL;
+		ak.ak_access = ACL_DISCLOSE;
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		} else {
