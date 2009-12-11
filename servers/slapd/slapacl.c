@@ -38,24 +38,21 @@
 static int
 print_access(
 	Operation		*op,
-	Entry			*e,
-	AttributeDescription	*desc,
-	struct berval		*val,
-	struct berval		*nval )
+	AclCheck		*ak,
+	struct berval		*val )
 {
 	int			rc;
-	slap_mask_t		mask;
 	char			accessmaskbuf[ACCESSMASK_MAXLEN];
 
-	rc = access_allowed_mask( op, e, desc, nval, ACL_AUTH, NULL, &mask );
+	rc = access_allowed( op, ak );
 
 	fprintf( stderr, "%s%s%s: %s\n",
-			desc->ad_cname.bv_val,
-			( val && !BER_BVISNULL( val ) ) ? "=" : "",
-			( val && !BER_BVISNULL( val ) ) ?
-				( desc == slap_schema.si_ad_userPassword ?
-					"****" : val->bv_val ) : "",
-			accessmask2str( mask, accessmaskbuf, 1 ) );
+			ak->ak_desc->ad_cname.bv_val,
+			( ak->ak_val && !BER_BVISNULL( ak->ak_val ) ) ? "=" : "",
+			( ak->ak_val && !BER_BVISNULL( ak->ak_val ) ) ?
+				( ak->ak_desc == slap_schema.si_ad_userPassword ?
+					"****" : ak->ak_val->bv_val ) : "",
+			accessmask2str( ak->ak_mask, accessmaskbuf, 1 ) );
 
 	return rc;
 }
@@ -74,6 +71,7 @@ slapacl( int argc, char **argv )
 	int			doclose = 0;
 	BackendDB		*bd;
 	void			*thrctx;
+	AclCheck		ak;
 
 	slap_tool_init( progname, SLAPACL, argc, argv );
 
@@ -277,33 +275,36 @@ slapacl( int argc, char **argv )
 
 		}
 
+		ak.ak_e = ep;
+		ak.ak_access = ACL_AUTH;
+		ak.ak_state = NULL;
+
 		if ( argc == 0 ) {
 			Attribute	*a;
 
-			(void)print_access( op, ep, slap_schema.si_ad_entry, NULL, NULL );
-			(void)print_access( op, ep, slap_schema.si_ad_children, NULL, NULL );
+			ak.ak_val = NULL;
+			ak.ak_desc = slap_schema.si_ad_entry;
+			(void)print_access( op, &ak, NULL );
+			ak.ak_desc = slap_schema.si_ad_children;
+			(void)print_access( op, &ak, NULL );
 
 			for ( a = ep->e_attrs; a; a = a->a_next ) {
 				int	i;
 
 				for ( i = 0; !BER_BVISNULL( &a->a_nvals[ i ] ); i++ ) {
-					(void)print_access( op, ep, a->a_desc,
-							&a->a_vals[ i ],
-							&a->a_nvals[ i ] );
+					ak.ak_desc = a->a_desc;
+					ak.ak_val = &a->a_nvals[i];
+					(void)print_access( op, &ak, &a->a_vals[ i ] );
 				}
 			}
 		}
 	}
 
 	for ( ; argc--; argv++ ) {
-		slap_mask_t		mask;
-		AttributeDescription	*desc = NULL;
-		struct berval		val = BER_BVNULL,
-					*valp = NULL;
+		struct berval		val = BER_BVNULL;
 		const char		*text;
 		char			accessmaskbuf[ACCESSMASK_MAXLEN];
 		char			*accessstr;
-		slap_access_t		access = ACL_AUTH;
 
 		if ( attr == NULL ) {
 			attr = argv[ 0 ];
@@ -314,17 +315,20 @@ slapacl( int argc, char **argv )
 			val.bv_val[0] = '\0';
 			val.bv_val++;
 			val.bv_len = strlen( val.bv_val );
-			valp = &val;
+			ak.ak_val = &val;
+		} else {
+			ak.ak_val = NULL;
 		}
 
+		ak.ak_access = ACL_AUTH;
 		accessstr = strchr( attr, '/' );
 		if ( accessstr != NULL ) {
 			int	invalid = 0;
 
 			accessstr[0] = '\0';
 			accessstr++;
-			access = str2access( accessstr );
-			switch ( access ) {
+			ak.ak_access = str2access( accessstr );
+			switch ( ak.ak_access ) {
 			case ACL_INVALID_ACCESS:
 				fprintf( stderr, "unknown access \"%s\" for attribute \"%s\"\n",
 						accessstr, attr );
@@ -349,7 +353,8 @@ slapacl( int argc, char **argv )
 			}
 		}
 
-		rc = slap_str2ad( attr, &desc, &text );
+		ak.ak_desc = NULL;
+		rc = slap_str2ad( attr, &ak.ak_desc, &text );
 		if ( rc != LDAP_SUCCESS ) {
 			fprintf( stderr, "slap_str2ad(%s) failed %d (%s)\n",
 					attr, rc, ldap_err2string( rc ) );
@@ -359,23 +364,22 @@ slapacl( int argc, char **argv )
 			break;
 		}
 
-		rc = access_allowed_mask( op, ep, desc, valp, access,
-				NULL, &mask );
+		rc = access_allowed( op, &ak );
 
 		if ( accessstr ) {
 			fprintf( stderr, "%s access to %s%s%s: %s\n",
 					accessstr,
-					desc->ad_cname.bv_val,
+					ak.ak_desc->ad_cname.bv_val,
 					val.bv_val ? "=" : "",
 					val.bv_val ? val.bv_val : "",
 					rc ? "ALLOWED" : "DENIED" );
 
 		} else {
 			fprintf( stderr, "%s%s%s: %s\n",
-					desc->ad_cname.bv_val,
+					ak.ak_desc->ad_cname.bv_val,
 					val.bv_val ? "=" : "",
 					val.bv_val ? val.bv_val : "",
-					accessmask2str( mask, accessmaskbuf, 1 ) );
+					accessmask2str( ak.ak_mask, accessmaskbuf, 1 ) );
 		}
 		rc = 0;
 		attr = NULL;

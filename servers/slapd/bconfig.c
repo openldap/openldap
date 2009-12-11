@@ -4796,13 +4796,18 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 	}
 
 	if ( op ) {
+		AclCheck ak;
 		/* No parent, must be root. This will never happen... */
 		if ( !last && !be_isroot( op ) && !be_shadow_update( op ) ) {
 			return LDAP_NO_SUCH_OBJECT;
 		}
 
-		if ( last && !access_allowed( op, last->ce_entry,
-			slap_schema.si_ad_children, NULL, ACL_WADD, NULL ) )
+		ak.ak_e = last->ce_entry;
+		ak.ak_desc = slap_schema.si_ad_children;
+		ak.ak_val = NULL;
+		ak.ak_access = ACL_WADD;
+		ak.ak_state = NULL;
+		if ( last && !access_allowed( op, &ak ))
 		{
 			Debug( LDAP_DEBUG_TRACE, "%s: config_add_internal: "
 				"DN=\"%s\" no write access to \"children\" of parent\n",
@@ -5168,9 +5173,10 @@ config_back_add( Operation *op, SlapReply *rs )
 	CfBackInfo *cfb;
 	int renumber;
 	ConfigArgs ca;
+	AclCheck ak = { op->ora_e, slap_schema.si_ad_entry,
+		NULL, ACL_WADD, NULL };
 
-	if ( !access_allowed( op, op->ora_e, slap_schema.si_ad_entry,
-		NULL, ACL_WADD, NULL )) {
+	if ( !access_allowed( op, &ak )) {
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		goto out;
 	}
@@ -5711,6 +5717,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 	CfEntryInfo *ce, *last;
 	struct berval rdn;
 	int ixold, ixnew;
+	AclCheck ak;
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
@@ -5721,18 +5728,22 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		goto out;
 	}
-	if ( !access_allowed( op, ce->ce_entry, slap_schema.si_ad_entry,
-		NULL, ACL_WRITE, NULL )) {
+	ak.ak_e = ce->ce_entry;
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_WRITE;
+	ak.ak_state = NULL;
+	if ( !access_allowed( op, &ak )) {
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		goto out;
 	}
-	{ Entry *parent;
+	{
 		if ( ce->ce_parent )
-			parent = ce->ce_parent->ce_entry;
+			ak.ak_e = ce->ce_parent->ce_entry;
 		else
-			parent = (Entry *)&slap_entry_root;
-		if ( !access_allowed( op, parent, slap_schema.si_ad_children,
-			NULL, ACL_WRITE, NULL )) {
+			ak.ak_e = (Entry *)&slap_entry_root;
+		ak.ak_desc = slap_schema.si_ad_children;
+		if ( !access_allowed( op, &ak )) {
 			rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 			goto out;
 		}
@@ -6014,7 +6025,7 @@ config_back_search( Operation *op, SlapReply *rs )
 {
 	CfBackInfo *cfb;
 	CfEntryInfo *ce, *last;
-	slap_mask_t mask;
+	AclCheck ak;
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
@@ -6025,10 +6036,14 @@ config_back_search( Operation *op, SlapReply *rs )
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		goto out;
 	}
-	if ( !access_allowed_mask( op, ce->ce_entry, slap_schema.si_ad_entry, NULL,
-		ACL_SEARCH, NULL, &mask ))
+	ak.ak_e = ce->ce_entry;
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_SEARCH;
+	ak.ak_state = NULL;
+	if ( !access_allowed_mask( op, &ak ))
 	{
-		if ( !ACL_GRANT( mask, ACL_DISCLOSE )) {
+		if ( !ACL_GRANT( ak.ak_mask, ACL_DISCLOSE )) {
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 		} else {
 			rs->sr_err = LDAP_INSUFFICIENT_ACCESS;

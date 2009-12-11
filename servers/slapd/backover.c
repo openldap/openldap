@@ -250,12 +250,7 @@ over_back_response ( Operation *op, SlapReply *rs )
 static int
 over_access_allowed(
 	Operation		*op,
-	Entry			*e,
-	AttributeDescription	*desc,
-	struct berval		*val,
-	slap_access_t		access,
-	AccessControlState	*state,
-	slap_mask_t		*maskp )
+	AclCheck		*ak )
 {
 	slap_overinfo *oi;
 	slap_overinst *on;
@@ -286,8 +281,7 @@ over_access_allowed(
 			}
 
 			op->o_bd->bd_info = (BackendInfo *)on;
-			rc = on->on_bi.bi_access_allowed( op, e,
-				desc, val, access, state, maskp );
+			rc = on->on_bi.bi_access_allowed( op, ak );
 			if ( rc != SLAP_CB_CONTINUE ) break;
 		}
 	}
@@ -307,8 +301,7 @@ over_access_allowed(
 			bi_access_allowed = slap_access_allowed;
 		}
 
-		rc = bi_access_allowed( op, e,
-			desc, val, access, state, maskp );
+		rc = bi_access_allowed( op, ak );
 	}
 	/* should not fall thru this far without anything happening... */
 	if ( rc == SLAP_CB_CONTINUE ) {

@@ -33,8 +33,7 @@
 
 static int compare_entry(
 	Operation *op,
-	Entry *e,
-	AttributeAssertion *ava );
+	AclCheck *ak );
 
 int
 do_compare(
@@ -144,9 +143,9 @@ cleanup:;
 int
 fe_op_compare( Operation *op, SlapReply *rs )
 {
-	Entry			*entry = NULL;
 	AttributeAssertion	*ava = op->orc_ava;
 	BackendDB		*bd = op->o_bd;
+	AclCheck	ak = { NULL };
 
 	if( strcasecmp( op->o_req_ndn.bv_val, LDAP_ROOT_DSE ) == 0 ) {
 		if( backend_check_restrictions( op, rs, NULL ) != LDAP_SUCCESS ) {
@@ -154,7 +153,7 @@ fe_op_compare( Operation *op, SlapReply *rs )
 			goto cleanup;
 		}
 
-		rs->sr_err = root_dse_info( op->o_conn, &entry, &rs->sr_text );
+		rs->sr_err = root_dse_info( op->o_conn, &ak.ak_e, &rs->sr_text );
 		if( rs->sr_err != LDAP_SUCCESS ) {
 			send_ldap_result( op, rs );
 			goto cleanup;
@@ -167,7 +166,7 @@ fe_op_compare( Operation *op, SlapReply *rs )
 			goto cleanup;
 		}
 
-		rs->sr_err = schema_info( &entry, &rs->sr_text );
+		rs->sr_err = schema_info( &ak.ak_e, &rs->sr_text );
 		if( rs->sr_err != LDAP_SUCCESS ) {
 			send_ldap_result( op, rs );
 			rs->sr_err = 0;
@@ -175,9 +174,13 @@ fe_op_compare( Operation *op, SlapReply *rs )
 		}
 	}
 
-	if( entry ) {
-		rs->sr_err = compare_entry( op, entry, ava );
-		entry_free( entry );
+	if( ak.ak_e ) {
+		ak.ak_desc = ava->aa_desc;
+		ak.ak_val = &ava->aa_value;
+		ak.ak_access = ACL_COMPARE;
+		ak.ak_state = NULL;
+		rs->sr_err = compare_entry( op, &ak );
+		entry_free( ak.ak_e );
 
 		send_ldap_result( op, rs );
 
@@ -240,17 +243,19 @@ fe_op_compare( Operation *op, SlapReply *rs )
 	{
 		int	rc, hasSubordinates = LDAP_SUCCESS;
 
-		rc = be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &entry );
-		if ( rc == 0 && entry ) {
-			if ( ! access_allowed( op, entry,
-				ava->aa_desc, &ava->aa_value, ACL_COMPARE, NULL ) )
+		rc = be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &ak.ak_e );
+		if ( rc == 0 && ak.ak_e ) {
+			ak.ak_desc = ava->aa_desc;
+			ak.ak_val = &ava->aa_value;
+			ak.ak_access = ACL_COMPARE;
+			ak.ak_state = NULL;
+			if ( ! access_allowed( op, &ak ))
 			{	
 				rc = rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 				
 			} else {
 				rc = rs->sr_err = op->o_bd->be_has_subordinates( op,
-						entry, &hasSubordinates );
-				be_entry_release_r( op, entry );
+						ak.ak_e, &hasSubordinates );
 			}
 		}
 
@@ -269,13 +274,17 @@ fe_op_compare( Operation *op, SlapReply *rs )
 		} else {
 			/* return error only if "disclose"
 			 * is granted on the object */
-			if ( backend_access( op, NULL, &op->o_req_ndn,
-					slap_schema.si_ad_entry,
-					NULL, ACL_DISCLOSE, NULL ) == LDAP_INSUFFICIENT_ACCESS )
+			ak.ak_desc = slap_schema.si_ad_entry;
+			ak.ak_val = NULL;
+			ak.ak_access = ACL_DISCLOSE;
+			ak.ak_state = NULL;
+			if ( backend_access( op, &ak, &op->o_req_ndn )
+					 == LDAP_INSUFFICIENT_ACCESS )
 			{
 				rs->sr_err = LDAP_NO_SUCH_OBJECT;
 			}
 		}
+		be_entry_release_r( op, ak.ak_e );
 
 		send_ldap_result( op, rs );
 
@@ -307,13 +316,17 @@ fe_op_compare( Operation *op, SlapReply *rs )
 
 		rs->sr_err = backend_attribute( op, NULL, &op->o_req_ndn,
 				ava->aa_desc, &vals, ACL_COMPARE );
+
 		switch ( rs->sr_err ) {
 		default:
 			/* return error only if "disclose"
 			 * is granted on the object */
-			if ( backend_access( op, NULL, &op->o_req_ndn,
-					slap_schema.si_ad_entry,
-					NULL, ACL_DISCLOSE, NULL )
+			ak.ak_e = NULL;
+			ak.ak_desc = slap_schema.si_ad_entry;
+			ak.ak_val = NULL;
+			ak.ak_access = ACL_DISCLOSE;
+			ak.ak_state = NULL;
+			if ( backend_access( op, &ak, &op->o_req_ndn )
 					== LDAP_INSUFFICIENT_ACCESS )
 			{
 				rs->sr_err = LDAP_NO_SUCH_OBJECT;
@@ -354,40 +367,45 @@ cleanup:;
 
 static int compare_entry(
 	Operation *op,
-	Entry *e,
-	AttributeAssertion *ava )
+	AclCheck *ak )
 {
 	int rc = LDAP_COMPARE_FALSE;
 	Attribute *a;
+	AttributeDescription *ad;
 
-	if ( ! access_allowed( op, e,
-		ava->aa_desc, &ava->aa_value, ACL_COMPARE, NULL ) )
+	if ( ! access_allowed( op, ak ))
 	{	
 		rc = LDAP_INSUFFICIENT_ACCESS;
 		goto done;
 	}
 
-	a = attrs_find( e->e_attrs, ava->aa_desc );
+	a = attrs_find( ak->ak_e->e_attrs, ak->ak_desc );
 	if( a == NULL ) {
 		rc = LDAP_NO_SUCH_ATTRIBUTE;
 		goto done;
 	}
 
-	for(a = attrs_find( e->e_attrs, ava->aa_desc );
+	ad = ak->ak_desc;
+	for(a = attrs_find( ak->ak_e->e_attrs, ak->ak_desc );
 		a != NULL;
-		a = attrs_find( a->a_next, ava->aa_desc ))
+		a = attrs_find( a->a_next, ak->ak_desc ))
 	{
-		if (( ava->aa_desc != a->a_desc ) && ! access_allowed( op,
-			e, a->a_desc, &ava->aa_value, ACL_COMPARE, NULL ) )
-		{	
-			rc = LDAP_INSUFFICIENT_ACCESS;
-			break;
+		ak->ak_desc = a->a_desc;
+		if ( a->a_desc != ak->ak_desc )
+		{
+			ak->ak_desc = a->a_desc;
+			if ( !access_allowed( op, ak ))
+			{
+				rc = LDAP_INSUFFICIENT_ACCESS;
+				break;
+			}
+			ak->ak_desc = ad;
 		}
 
 		if ( attr_valfind( a, 
 			SLAP_MR_ATTRIBUTE_VALUE_NORMALIZED_MATCH |
 				SLAP_MR_ASSERTED_VALUE_NORMALIZED_MATCH,
-			&ava->aa_value, NULL, op->o_tmpmemctx ) == 0 )
+			ak->ak_val, NULL, op->o_tmpmemctx ) == 0 )
 		{
 			rc = LDAP_COMPARE_TRUE;
 			break;
@@ -396,8 +414,10 @@ static int compare_entry(
 
 done:
 	if( rc != LDAP_COMPARE_TRUE && rc != LDAP_COMPARE_FALSE ) {
-		if ( ! access_allowed( op, e,
-			slap_schema.si_ad_entry, NULL, ACL_DISCLOSE, NULL ) )
+		ak->ak_desc = slap_schema.si_ad_entry;
+		ak->ak_val = NULL;
+		ak->ak_access = ACL_DISCLOSE;
+		if ( ! access_allowed( op, ak ))
 		{
 			rc = LDAP_NO_SUCH_OBJECT;
 		}

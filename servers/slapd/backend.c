@@ -1625,11 +1625,11 @@ fe_acl_attribute(
 	BerVarray *vals,
 	slap_access_t access )
 {
-	Entry			*e = NULL;
 	void			*o_priv = op->o_private, *e_priv = NULL;
 	Attribute		*a = NULL;
 	int			freeattr = 0, i, j, rc = LDAP_SUCCESS;
 	AccessControlState	acl_state = ACL_STATE_INIT;
+	AclCheck		ak;
 	Backend			*be = op->o_bd;
 	OpExtra		*oex;
 
@@ -1645,30 +1645,34 @@ fe_acl_attribute(
 		op->o_bd = select_backend( edn, 0 );
 
 	if ( target && dn_match( &target->e_nname, edn ) ) {
-		e = target;
+		ak.ak_e = target;
 
 	} else {
 		op->o_private = NULL;
-		rc = be_entry_get_rw( op, edn, NULL, entry_at, 0, &e );
+		ak.ak_e = NULL;
+		rc = be_entry_get_rw( op, edn, NULL, entry_at, 0, &ak.ak_e );
 		e_priv = op->o_private;
 		op->o_private = o_priv;
 	} 
 
-	if ( e ) {
+	if ( ak.ak_e ) {
+		ak.ak_state = &acl_state;
+		ak.ak_desc = entry_at;
+		ak.ak_access = access;
 		if ( entry_at == slap_schema.si_ad_entry || entry_at == slap_schema.si_ad_children ) {
 			assert( vals == NULL );
 
+			ak.ak_val = NULL;
 			rc = LDAP_SUCCESS;
 			if ( op->o_conn && access > ACL_NONE &&
-				access_allowed( op, e, entry_at, NULL,
-						access, &acl_state ) == 0 )
+				access_allowed( op, &ak ) == 0 )
 			{
 				rc = LDAP_INSUFFICIENT_ACCESS;
 			}
 			goto freeit;
 		}
 
-		a = attr_find( e->e_attrs, entry_at );
+		a = attr_find( ak.ak_e->e_attrs, entry_at );
 		if ( a == NULL ) {
 			SlapReply	rs = { 0 };
 			AttributeName	anlist[ 2 ];
@@ -1681,7 +1685,7 @@ fe_acl_attribute(
  			/* NOTE: backend_operational() is also called
  			 * when returning results, so it's supposed
  			 * to do no harm to entries */
- 			rs.sr_entry = e;
+ 			rs.sr_entry = ak.ak_e;
   			rc = backend_operational( op, &rs );
  			rs.sr_entry = NULL;
  
@@ -1700,8 +1704,7 @@ fe_acl_attribute(
 			BerVarray v;
 
 			if ( op->o_conn && access > ACL_NONE &&
-				access_allowed( op, e, entry_at, NULL,
-						access, &acl_state ) == 0 )
+				access_allowed( op, &ak ) == 0 )
 			{
 				rc = LDAP_INSUFFICIENT_ACCESS;
 				goto freeit;
@@ -1712,11 +1715,9 @@ fe_acl_attribute(
 				op->o_tmpmemctx );
 			for ( i = 0, j = 0; !BER_BVISNULL( &a->a_vals[i] ); i++ )
 			{
+				ak.ak_val = &a->a_nvals[i];
 				if ( op->o_conn && access > ACL_NONE && 
-					access_allowed( op, e, entry_at,
-							&a->a_nvals[i],
-							access,
-							&acl_state ) == 0 )
+					access_allowed( op, &ak ) == 0 )
 				{
 					continue;
 				}
@@ -1737,9 +1738,9 @@ fe_acl_attribute(
 				rc = LDAP_SUCCESS;
 			}
 		}
-freeit:		if ( e != target ) {
+freeit:		if ( ak.ak_e != target ) {
 			op->o_private = e_priv;
-			be_entry_release_r( op, e );
+			be_entry_release_r( op, ak.ak_e );
 			op->o_private = o_priv;
 		}
 		if ( freeattr ) {
@@ -1781,50 +1782,43 @@ backend_attribute(
 int 
 backend_access(
 	Operation		*op,
-	Entry			*target,
-	struct berval		*edn,
-	AttributeDescription	*entry_at,
-	struct berval		*nval,
-	slap_access_t		access,
-	slap_mask_t		*mask )
+	AclCheck		*ak,
+	struct berval		*edn )
 {
-	Entry		*e = NULL;
 	void		*o_priv = op->o_private, *e_priv = NULL;
 	int		rc = LDAP_INSUFFICIENT_ACCESS;
 	Backend		*be = op->o_bd;
+	int freeent = 0;
 
 	/* pedantic */
 	assert( op != NULL );
 	assert( op->o_conn != NULL );
 	assert( edn != NULL );
-	assert( access > ACL_NONE );
+	assert( ak->ak_access > ACL_NONE );
 
 	if ( !op->o_bd ) {
 		op->o_bd = select_backend( edn, 0 );
 	}
 
-	if ( target && dn_match( &target->e_nname, edn ) ) {
-		e = target;
-
-	} else {
+	if ( !ak->ak_e || !dn_match( &ak->ak_e->e_nname, edn ) ) {
 		op->o_private = NULL;
-		rc = be_entry_get_rw( op, edn, NULL, entry_at, 0, &e );
+		rc = be_entry_get_rw( op, edn, NULL, ak->ak_desc, 0, &ak->ak_e );
+		freeent = 1;
 		e_priv = op->o_private;
 		op->o_private = o_priv;
 	} 
 
-	if ( e ) {
+	if ( ak->ak_e ) {
 		Attribute	*a = NULL;
 		int		freeattr = 0;
 
-		if ( entry_at == NULL ) {
-			entry_at = slap_schema.si_ad_entry;
+		if ( ak->ak_desc == NULL ) {
+			ak->ak_desc = slap_schema.si_ad_entry;
 		}
 
-		if ( entry_at == slap_schema.si_ad_entry || entry_at == slap_schema.si_ad_children )
+		if ( ak->ak_desc == slap_schema.si_ad_entry || ak->ak_desc == slap_schema.si_ad_children )
 		{
-			if ( access_allowed_mask( op, e, entry_at,
-					NULL, access, NULL, mask ) == 0 )
+			if ( access_allowed( op, ak ) == 0 )
 			{
 				rc = LDAP_INSUFFICIENT_ACCESS;
 
@@ -1833,13 +1827,13 @@ backend_access(
 			}
 
 		} else {
-			a = attr_find( e->e_attrs, entry_at );
+			a = attr_find( ak->ak_e->e_attrs, ak->ak_desc );
 			if ( a == NULL ) {
 				SlapReply	rs = { 0 };
 				AttributeName	anlist[ 2 ];
 
-				anlist[ 0 ].an_name = entry_at->ad_cname;
-				anlist[ 0 ].an_desc = entry_at;
+				anlist[ 0 ].an_name = ak->ak_desc->ad_cname;
+				anlist[ 0 ].an_desc = ak->ak_desc;
 				BER_BVZERO( &anlist[ 1 ].an_name );
 				rs.sr_attrs = anlist;
 			
@@ -1848,7 +1842,7 @@ backend_access(
 				/* NOTE: backend_operational() is also called
 				 * when returning results, so it's supposed
 				 * to do no harm to entries */
-				rs.sr_entry = e;
+				rs.sr_entry = ak->ak_e;
 				rc = backend_operational( op, &rs );
 				rs.sr_entry = NULL;
 
@@ -1864,8 +1858,7 @@ backend_access(
 			}
 
 			if ( a ) {
-				if ( access_allowed_mask( op, e, entry_at,
-						nval, access, NULL, mask ) == 0 )
+				if ( access_allowed( op, ak ) == 0 )
 				{
 					rc = LDAP_INSUFFICIENT_ACCESS;
 					goto freeit;
@@ -1873,9 +1866,9 @@ backend_access(
 				rc = LDAP_SUCCESS;
 			}
 		}
-freeit:		if ( e != target ) {
+freeit:		if ( freeent ) {
 			op->o_private = e_priv;
-			be_entry_release_r( op, e );
+			be_entry_release_r( op, ak->ak_e );
 			op->o_private = o_priv;
 		}
 		if ( freeattr ) {

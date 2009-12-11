@@ -1298,38 +1298,6 @@ typedef struct AuthorizationInformation {
 	slap_ssf_t	sai_sasl_ssf;		/* SASL SSF */
 } AuthorizationInformation;
 
-#ifdef SLAP_DYNACL
-
-/*
- * "dynamic" ACL infrastructure (for ACIs and more)
- */
-typedef int (slap_dynacl_parse) LDAP_P(( const char *fname, int lineno,
-	const char *opts, slap_style_t, const char *, void **privp ));
-typedef int (slap_dynacl_unparse) LDAP_P(( void *priv, struct berval *bv ));
-typedef int (slap_dynacl_mask) LDAP_P((
-		void			*priv,
-		Operation		*op,
-		Entry			*e,
-		AttributeDescription	*desc,
-		struct berval		*val,
-		int			nmatch,
-		regmatch_t		*matches,
-		slap_access_t		*grant,
-		slap_access_t		*deny ));
-typedef int (slap_dynacl_destroy) LDAP_P(( void *priv ));
-
-typedef struct slap_dynacl_t {
-	char			*da_name;
-	slap_dynacl_parse	*da_parse;
-	slap_dynacl_unparse	*da_unparse;
-	slap_dynacl_mask	*da_mask;
-	slap_dynacl_destroy	*da_destroy;
-	
-	void			*da_private;
-	struct slap_dynacl_t	*da_next;
-} slap_dynacl_t;
-#endif /* SLAP_DYNACL */
-
 /* the DN portion of the "by" part */
 typedef struct slap_dn_access {
 	/* DN pattern */
@@ -1549,12 +1517,53 @@ typedef struct AccessControlState {
 } AccessControlState;
 #define ACL_STATE_INIT { NULL, ACL_NONE, NULL, 0, ACL_PRIV_NONE, -1, 0 }
 
+typedef struct AclCheck {
+	Entry *ak_e;
+	AttributeDescription *ak_desc;
+	struct berval *ak_val;
+	slap_access_t ak_access;
+	AccessControlState *ak_state;
+	slap_mask_t ak_mask;
+} AclCheck;
+
 typedef struct AclRegexMatches {        
 	int dn_count;
         regmatch_t dn_data[MAXREMATCHES];
 	int val_count;
         regmatch_t val_data[MAXREMATCHES];
 } AclRegexMatches;
+
+#ifdef SLAP_DYNACL
+
+/*
+ * "dynamic" ACL infrastructure (for ACIs and more)
+ */
+typedef int (slap_dynacl_parse) LDAP_P(( const char *fname, int lineno,
+	const char *opts, slap_style_t, const char *, void **privp ));
+typedef int (slap_dynacl_unparse) LDAP_P(( void *priv, struct berval *bv ));
+typedef int (slap_dynacl_mask) LDAP_P((
+		void			*priv,
+		Operation		*op,
+		Entry			*e,
+		AttributeDescription	*desc,
+		struct berval		*val,
+		int			nmatch,
+		regmatch_t		*matches,
+		slap_access_t		*grant,
+		slap_access_t		*deny ));
+typedef int (slap_dynacl_destroy) LDAP_P(( void *priv ));
+
+typedef struct slap_dynacl_t {
+	char			*da_name;
+	slap_dynacl_parse	*da_parse;
+	slap_dynacl_unparse	*da_unparse;
+	slap_dynacl_mask	*da_mask;
+	slap_dynacl_destroy	*da_destroy;
+	
+	void			*da_private;
+	struct slap_dynacl_t	*da_next;
+} slap_dynacl_t;
+#endif /* SLAP_DYNACL */
 
 /*
  * Backend-info
@@ -2145,9 +2154,7 @@ typedef int (BI_entry_get_rw) LDAP_P(( Operation *op, struct berval *ndn,
 typedef int (BI_operational) LDAP_P(( Operation *op, SlapReply *rs ));
 typedef int (BI_has_subordinates) LDAP_P(( Operation *op,
 	Entry *e, int *hasSubs ));
-typedef int (BI_access_allowed) LDAP_P(( Operation *op, Entry *e,
-	AttributeDescription *desc, struct berval *val, slap_access_t access,
-	AccessControlState *state, slap_mask_t *maskp ));
+typedef int (BI_access_allowed) LDAP_P(( Operation *op, AclCheck *ak ));
 typedef int (BI_acl_group) LDAP_P(( Operation *op, Entry *target,
 	struct berval *gr_ndn, struct berval *op_ndn,
 	ObjectClass *group_oc, AttributeDescription *group_at ));

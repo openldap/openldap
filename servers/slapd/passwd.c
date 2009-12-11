@@ -505,9 +505,9 @@ slap_passwd_check(
 	const char	**text )
 {
 	int			result = 1;
-	struct berval		*bv;
 	AccessControlState	acl_state = ACL_STATE_INIT;
 	char		credNul = cred->bv_val[cred->bv_len];
+	AclCheck	ak;
 
 #ifdef SLAPD_SPASSWD
 	void		*old_authctx = NULL;
@@ -518,15 +518,19 @@ slap_passwd_check(
 
 	if ( credNul ) cred->bv_val[cred->bv_len] = 0;
 
-	for ( bv = a->a_vals; bv->bv_val != NULL; bv++ ) {
+	ak.ak_e = e;
+	ak.ak_desc = a->a_desc;
+	ak.ak_access = ACL_AUTH;
+	ak.ak_state = &acl_state;
+
+	for ( ak.ak_val = a->a_vals; ak.ak_val->bv_val != NULL; ak.ak_val++ ) {
 		/* if e is provided, check access */
-		if ( e && access_allowed( op, e, a->a_desc, bv,
-					ACL_AUTH, &acl_state ) == 0 )
+		if ( e && access_allowed( op, &ak ) == 0 )
 		{
 			continue;
 		}
 		
-		if ( !lutil_passwd( bv, cred, NULL, text ) ) {
+		if ( !lutil_passwd( ak.ak_val, cred, NULL, text ) ) {
 			result = 0;
 			break;
 		}

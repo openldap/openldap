@@ -847,6 +847,7 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 	AccessControlState acl_state = ACL_STATE_INIT;
 	int			 attrsonly;
 	AttributeDescription *ad_entry = slap_schema.si_ad_entry;
+	AclCheck	ak;
 
 	/* a_flags: array of flags telling if the i-th element will be
 	 *          returned or filtered out
@@ -896,7 +897,12 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 
 	attrsonly = op->ors_attrsonly;
 
-	if ( !access_allowed( op, rs->sr_entry, ad_entry, NULL, ACL_READ, NULL )) {
+	ak.ak_e = rs->sr_entry;
+	ak.ak_desc = ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_READ;
+	ak.ak_state = NULL;
+	if ( !access_allowed( op, &ak )) {
 		Debug( LDAP_DEBUG_ACL,
 			"send_search_entry: conn %lu access to entry (%s) not allowed\n", 
 			op->o_connid, rs->sr_entry->e_name.bv_val, 0 );
@@ -999,6 +1005,7 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 		}
 	}
 
+	ak.ak_state = &acl_state;
 	for ( a = rs->sr_entry->e_attrs, j = 0; a != NULL; a = a->a_next, j++ ) {
 		AttributeDescription *desc = a->a_desc;
 		int finish = 0;
@@ -1029,9 +1036,9 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 			}
 		}
 
+		ak.ak_desc = desc;
 		if ( attrsonly ) {
-			if ( ! access_allowed( op, rs->sr_entry, desc, NULL,
-				ACL_READ, &acl_state ) )
+			if ( ! access_allowed( op, &ak ))
 			{
 				Debug( LDAP_DEBUG_ACL, "send_search_entry: "
 					"conn %lu access to attribute %s not allowed\n",
@@ -1055,8 +1062,8 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 		} else {
 			int first = 1;
 			for ( i = 0; a->a_nvals[i].bv_val != NULL; i++ ) {
-				if ( ! access_allowed( op, rs->sr_entry,
-					desc, &a->a_nvals[i], ACL_READ, &acl_state ) )
+				ak.ak_val = &a->a_nvals[i];
+				if ( ! access_allowed( op, &ak ))
 				{
 					Debug( LDAP_DEBUG_ACL,
 						"send_search_entry: conn %lu "
@@ -1190,8 +1197,8 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 			}
 		}
 
-		if ( ! access_allowed( op, rs->sr_entry, desc, NULL,
-			ACL_READ, &acl_state ) )
+		ak.ak_desc = desc;
+		if ( ! access_allowed( op, &ak ))
 		{
 			Debug( LDAP_DEBUG_ACL,
 				"send_search_entry: conn %lu "
@@ -1216,8 +1223,8 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 
 		if ( ! attrsonly ) {
 			for ( i = 0; a->a_vals[i].bv_val != NULL; i++ ) {
-				if ( ! access_allowed( op, rs->sr_entry,
-					desc, &a->a_vals[i], ACL_READ, &acl_state ) )
+				ak.ak_val = &a->a_vals[i];
+				if ( ! access_allowed( op, &ak ))
 				{
 					Debug( LDAP_DEBUG_ACL,
 						"send_search_entry: conn %lu "
@@ -1383,25 +1390,29 @@ slap_send_search_reference( Operation *op, SlapReply *rs )
 		"=> send_search_reference: dn=\"%s\"\n",
 		edn, 0, 0 );
 
-	if (  rs->sr_entry && ! access_allowed( op, rs->sr_entry,
-		ad_entry, NULL, ACL_READ, NULL ) )
+	if ( rs->sr_entry )
 	{
-		Debug( LDAP_DEBUG_ACL,
-			"send_search_reference: access to entry not allowed\n",
-		    0, 0, 0 );
-		rc = 1;
-		goto rel;
-	}
+		AclCheck ak = { rs->sr_entry, ad_entry, NULL, ACL_READ, NULL };
 
-	if ( rs->sr_entry && ! access_allowed( op, rs->sr_entry,
-		ad_ref, NULL, ACL_READ, NULL ) )
-	{
-		Debug( LDAP_DEBUG_ACL,
-			"send_search_reference: access "
-			"to reference not allowed\n",
-		    0, 0, 0 );
-		rc = 1;
-		goto rel;
+		if ( !access_allowed( op, &ak ))
+		{
+			Debug( LDAP_DEBUG_ACL,
+				"send_search_reference: access to entry not allowed\n",
+				0, 0, 0 );
+			rc = 1;
+			goto rel;
+		}
+
+		ak.ak_desc = ad_ref;
+		if ( !access_allowed( op, &ak ))
+		{
+			Debug( LDAP_DEBUG_ACL,
+				"send_search_reference: access "
+				"to reference not allowed\n",
+				0, 0, 0 );
+			rc = 1;
+			goto rel;
+		}
 	}
 
 	if( op->o_domain_scope ) {

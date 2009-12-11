@@ -46,29 +46,15 @@ LDAP_SLAPD_F (int) dynacl_aci_init LDAP_P(( void ));
 /*
  * acl.c
  */
-LDAP_SLAPD_F (int) access_allowed_mask LDAP_P((
-	Operation *op,
-	Entry *e, AttributeDescription *desc, struct berval *val,
-	slap_access_t access,
-	AccessControlState *state,
-	slap_mask_t *mask ));
+LDAP_SLAPD_F (int) access_allowed LDAP_P((
+	Operation *op, AclCheck *ak ));
+#if 0
 #define access_allowed(op,e,desc,val,access,state) access_allowed_mask(op,e,desc,val,access,state,NULL)
+#endif
 LDAP_SLAPD_F (int) slap_access_allowed LDAP_P((
-	Operation		*op,
-	Entry			*e,
-	AttributeDescription	*desc,
-	struct berval		*val,
-	slap_access_t		access,
-	AccessControlState	*state,
-	slap_mask_t		*maskp ));
+	Operation *op, AclCheck *ak ));
 LDAP_SLAPD_F (int) slap_access_always_allowed LDAP_P((
-	Operation		*op,
-	Entry			*e,
-	AttributeDescription	*desc,
-	struct berval		*val,
-	slap_access_t		access,
-	AccessControlState	*state,
-	slap_mask_t		*maskp ));
+	Operation *op, AclCheck *ak ));
 
 LDAP_SLAPD_F (int) acl_check_modlist LDAP_P((
 	Operation *op, Entry *e, Modifications *ml ));
@@ -416,12 +402,8 @@ LDAP_SLAPD_F (int) backend_attribute LDAP_P((
 
 LDAP_SLAPD_F (int) backend_access LDAP_P((
 	Operation		*op,
-	Entry			*target,
-	struct berval		*edn,
-	AttributeDescription	*entry_at,
-	struct berval		*nval,
-	slap_access_t		access,
-	slap_mask_t		*mask ));
+	AclCheck		*ak,
+	struct berval		*edn ));
 
 LDAP_SLAPD_F (int) backend_operational LDAP_P((
 	Operation *op,
@@ -2043,12 +2025,7 @@ LDAP_SLAPD_F (int) fe_acl_attribute LDAP_P((
 	slap_access_t access ));
 LDAP_SLAPD_F (int) fe_access_allowed LDAP_P((
 	Operation		*op,
-	Entry			*e,
-	AttributeDescription	*desc,
-	struct berval		*val,
-	slap_access_t		access,
-	AccessControlState	*state,
-	slap_mask_t		*maskp ));
+	AclCheck		*ak ));
 
 /* NOTE: this macro assumes that bv has been allocated
  * by ber_* malloc functions or is { 0L, NULL } */

@@ -163,6 +163,7 @@ static int test_mra_filter(
 	Attribute	*a;
 	void		*memctx;
 	BER_MEMFREE_FN	*memfree;
+	AclCheck	ak;
 #ifdef LDAP_COMP_MATCH
 	int i, num_attr_vals = 0;
 #endif
@@ -175,14 +176,19 @@ static int test_mra_filter(
 		memfree = op->o_tmpfree;
 	}
 
+	ak.ak_e = e;
+	ak.ak_access = ACL_SEARCH;
+	ak.ak_state = NULL;
+
 	if ( mra->ma_desc ) {
 		/*
 		 * if ma_desc is available, then we're filtering for
 		 * one attribute, and SEARCH permissions can be checked
 		 * directly.
 		 */
-		if ( !access_allowed( op, e,
-			mra->ma_desc, &mra->ma_value, ACL_SEARCH, NULL ) )
+		ak.ak_desc = mra->ma_desc;
+		ak.ak_val = &mra->ma_value;
+		if ( !access_allowed( op, &ak ))
 		{
 			return LDAP_INSUFFICIENT_ACCESS;
 		}
@@ -345,8 +351,9 @@ static int test_mra_filter(
 			if ( rc != LDAP_SUCCESS ) continue;
 
 			/* check search access */
-			if ( !access_allowed( op, e,
-				a->a_desc, &value, ACL_SEARCH, NULL ) )
+			ak.ak_desc = a->a_desc;
+			ak.ak_val = &value;
+			if ( !access_allowed( op, &ak ))
 			{
 				memfree( value.bv_val, memctx );
 				continue;
@@ -470,8 +477,9 @@ static int test_mra_filter(
 					if ( rc != LDAP_SUCCESS ) continue;
 
 					/* check search access */
-					if ( !access_allowed( op, e,
-						ad, &value, ACL_SEARCH, NULL ) )
+					ak.ak_desc = ad;
+					ak.ak_val = &value;
+					if ( !access_allowed( op, &ak ))
 					{
 						memfree( value.bv_val, memctx );
 						continue;
@@ -532,13 +540,13 @@ test_ava_filter(
 {
 	int rc;
 	Attribute	*a;
+	AclCheck ak = { e, ava->aa_desc, &ava->aa_value, ACL_SEARCH, NULL };
 #ifdef LDAP_COMP_MATCH
 	int i, num_attr_vals = 0;
 	AttributeAliasing *a_alias = NULL;
 #endif
 
-	if ( !access_allowed( op, e,
-		ava->aa_desc, &ava->aa_value, ACL_SEARCH, NULL ) )
+	if ( !access_allowed( op, &ak ))
 	{
 		return LDAP_INSUFFICIENT_ACCESS;
 	}
@@ -620,11 +628,17 @@ test_ava_filter(
 		MatchingRule *mr;
 		struct berval *bv;
 
-		if (( ava->aa_desc != a->a_desc ) && !access_allowed( op,
-			e, a->a_desc, &ava->aa_value, ACL_SEARCH, NULL ))
+		if ( ava->aa_desc != a->a_desc )
 		{
-			rc = LDAP_INSUFFICIENT_ACCESS;
-			continue;
+			int ret;
+			ak.ak_desc = a->a_desc;
+			ret = access_allowed( op, &ak );
+			ak.ak_desc = ava->aa_desc;
+			if ( !ret )
+			{
+				rc = LDAP_INSUFFICIENT_ACCESS;
+				continue;
+			}
 		}
 
 		use = SLAP_MR_EQUALITY;
@@ -817,8 +831,9 @@ test_presence_filter(
 {
 	Attribute	*a;
 	int rc;
+	AclCheck ak = { e, desc, NULL, ACL_SEARCH, NULL };
 
-	if ( !access_allowed( op, e, desc, NULL, ACL_SEARCH, NULL ) ) {
+	if ( !access_allowed( op, &ak ) ) {
 		return LDAP_INSUFFICIENT_ACCESS;
 	}
 
@@ -849,11 +864,17 @@ test_presence_filter(
 		a != NULL;
 		a = attrs_find( a->a_next, desc ) )
 	{
-		if (( desc != a->a_desc ) && !access_allowed( op,
-			e, a->a_desc, NULL, ACL_SEARCH, NULL ))
+		if ( desc != a->a_desc )
 		{
-			rc = LDAP_INSUFFICIENT_ACCESS;
-			continue;
+			int ret;
+			ak.ak_desc = a->a_desc;
+			ret = access_allowed( op, &ak );
+			ak.ak_desc = desc;
+			if ( !ret )
+			{
+				rc = LDAP_INSUFFICIENT_ACCESS;
+				continue;
+			}
 		}
 
 		rc = LDAP_COMPARE_TRUE;
@@ -934,11 +955,11 @@ test_substrings_filter(
 {
 	Attribute	*a;
 	int rc;
+	AclCheck ak = { e, f->f_sub_desc, NULL, ACL_SEARCH, NULL };
 
 	Debug( LDAP_DEBUG_FILTER, "begin test_substrings_filter\n", 0, 0, 0 );
 
-	if ( !access_allowed( op, e,
-		f->f_sub_desc, NULL, ACL_SEARCH, NULL ) )
+	if ( !access_allowed( op, &ak ))
 	{
 		return LDAP_INSUFFICIENT_ACCESS;
 	}
@@ -952,11 +973,17 @@ test_substrings_filter(
 		MatchingRule *mr;
 		struct berval *bv;
 
-		if (( f->f_sub_desc != a->a_desc ) && !access_allowed( op,
-			e, a->a_desc, NULL, ACL_SEARCH, NULL ))
+		if ( f->f_sub_desc != a->a_desc )
 		{
-			rc = LDAP_INSUFFICIENT_ACCESS;
-			continue;
+			int ret;
+			ak.ak_desc = a->a_desc;
+			ret = access_allowed( op, &ak );
+			ak.ak_desc = f->f_sub_desc;
+			if ( !ret )
+			{
+				rc = LDAP_INSUFFICIENT_ACCESS;
+				continue;
+			}
 		}
 
 		mr = a->a_desc->ad_type->sat_substr;

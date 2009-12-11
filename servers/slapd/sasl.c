@@ -178,8 +178,14 @@ sasl_ap_lookup( Operation *op, SlapReply *rs )
 	const char *text;
 	int rc, i;
 	lookup_info *sl = (lookup_info *)op->o_callback->sc_private;
+	AclCheck ak;
 
 	if (rs->sr_type != REP_SEARCH) return 0;
+
+	ak.ak_e = rs->sr_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_AUTH;
+	ak.ak_state = NULL;
 
 	for( i = 0; sl->list[i].name; i++ ) {
 		const char *name = sl->list[i].name;
@@ -215,7 +221,8 @@ sasl_ap_lookup( Operation *op, SlapReply *rs )
 
 		a = attr_find( rs->sr_entry->e_attrs, ad );
 		if ( !a ) continue;
-		if ( ! access_allowed( op, rs->sr_entry, ad, NULL, ACL_AUTH, NULL ) ) {
+		ak.ak_desc = ad;
+		if ( ! access_allowed( op, &ak ) ) {
 			continue;
 		}
 		if ( sl->list[i].values && ( sl->flags & SASL_AUXPROP_OVERRIDE ) ) {
