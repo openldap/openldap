@@ -176,8 +176,8 @@ do_transact:;
 
 done:;
 	if ( e != NULL ) {
-		if ( !access_allowed( op, e, slap_schema.si_ad_entry, NULL,
-					ACL_DISCLOSE, NULL ) )
+		AclCheck ak = { e, slap_schema.si_ad_entry, NULL, ACL_DISCLOSE, NULL };
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 			rs->sr_text = NULL;

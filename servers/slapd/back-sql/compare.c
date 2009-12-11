@@ -38,6 +38,7 @@ backsql_compare( Operation *op, SlapReply *rs )
 	int			rc;
 	int			manageDSAit = get_manageDSAit( op );
 	AttributeName		anlist[2];
+	AclCheck	ak;
 
  	Debug( LDAP_DEBUG_TRACE, "==>backsql_compare()\n", 0, 0, 0 );
 
@@ -117,9 +118,12 @@ backsql_compare( Operation *op, SlapReply *rs )
 		*ap = nrs.sr_operational_attrs;
 	}
 
-	if ( ! access_allowed( op, &e, op->oq_compare.rs_ava->aa_desc,
-				&op->oq_compare.rs_ava->aa_value,
-				ACL_COMPARE, NULL ) )
+	ak.ak_e = &e;
+	ak.ak_desc = op->oq_compare.rs_ava->aa_desc;
+	ak.ak_val = &op->oq_compare.rs_ava->aa_value;
+	ak.ak_access = ACL_COMPARE;
+	ak.ak_state = NULL;
+	if ( ! access_allowed( op, &ak ))
 	{
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		goto return_results;
@@ -149,10 +153,11 @@ return_results:;
 		break;
 
 	default:
+		ak.ak_desc = slap_schema.si_ad_entry;
+		ak.ak_val = NULL;
+		ak.ak_access = ACL_DISCLOSE;
 		if ( !BER_BVISNULL( &e.e_nname ) &&
-				! access_allowed( op, &e,
-					slap_schema.si_ad_entry, NULL,
-					ACL_DISCLOSE, NULL ) )
+				! access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 			rs->sr_text = NULL;

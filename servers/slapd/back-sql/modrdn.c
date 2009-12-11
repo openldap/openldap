@@ -50,6 +50,7 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 				*e = NULL;
 	int			manageDSAit = get_manageDSAit( op );
 	struct berval		*newSuperior = op->oq_modrdn.rs_newSup;
+	AclCheck	ak;
  
 	Debug( LDAP_DEBUG_TRACE, "==>backsql_modrdn() renaming entry \"%s\", "
 			"newrdn=\"%s\", newSuperior=\"%s\"\n",
@@ -137,8 +138,12 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 	/*
 	 * Check for entry access to target
 	 */
-	if ( !access_allowed( op, &r, slap_schema.si_ad_entry, 
-				NULL, ACL_WRITE, NULL ) ) {
+	ak.ak_e = &r;
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_WRITE;
+	ak.ak_state = NULL;
+	if ( !access_allowed( op, &ak )) {
 		Debug( LDAP_DEBUG_TRACE, "   no access to entry\n", 0, 0, 0 );
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		goto done;
@@ -189,8 +194,10 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
-	if ( !access_allowed( op, &p, slap_schema.si_ad_children, NULL,
-			newSuperior ? ACL_WDEL : ACL_WRITE, NULL ) )
+	ak.ak_e = &p;
+	ak.ak_desc = slap_schema.si_ad_children;
+	if ( newSuperior ) ak.ak_desc = ACL_WDEL;
+	if ( !access_allowed( op, &ak ))
 	{
 		Debug( LDAP_DEBUG_TRACE, "   no access to parent\n", 0, 0, 0 );
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
@@ -244,8 +251,9 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 			n_id.eid_id, 0, 0 );
 #endif /* ! BACKSQL_ARBITRARY_KEY */
 
-		if ( !access_allowed( op, &n, slap_schema.si_ad_children, 
-					NULL, ACL_WADD, NULL ) ) {
+		ak.ak_e = &n;
+		ak.ak_access = ACL_WADD;
+		if ( !access_allowed( op, &ak )) {
 			Debug( LDAP_DEBUG_TRACE, "   backsql_modrdn(): "
 					"no access to new parent \"%s\"\n", 
 					new_pdn->bv_val, 0, 0 );
@@ -468,8 +476,10 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 
 done:;
 	if ( e != NULL ) {
-		if ( !access_allowed( op, e, slap_schema.si_ad_entry, NULL,
-					ACL_DISCLOSE, NULL ) )
+		ak.ak_e = e;
+		ak.ak_desc = slap_schema.si_ad_entry;
+		ak.ak_access = ACL_DISCLOSE;
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 			rs->sr_text = NULL;

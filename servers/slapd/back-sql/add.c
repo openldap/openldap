@@ -929,10 +929,11 @@ backsql_add( Operation *op, SlapReply *rs )
 	struct berval		pdn;
 	struct berval		realdn = BER_BVNULL;
 	int			colnum;
-	slap_mask_t		mask;
 
 	char			textbuf[ SLAP_TEXT_BUFLEN ];
 	size_t			textlen = sizeof( textbuf );
+
+	AclCheck	ak;
 
 #ifdef BACKSQL_SYNCPROV
 	/*
@@ -1069,9 +1070,12 @@ backsql_add( Operation *op, SlapReply *rs )
 	}
 
 	/* check write access */
-	if ( !access_allowed_mask( op, op->ora_e,
-				slap_schema.si_ad_entry,
-				NULL, ACL_WADD, NULL, &mask ) )
+	ak.ak_e = op->ora_e;
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_WADD;
+	ak.ak_state = NULL;
+	if ( !access_allowed( op, &ak ))
 	{
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		e = op->ora_e;
@@ -1145,8 +1149,9 @@ backsql_add( Operation *op, SlapReply *rs )
 		}
 
 		/* check "children" pseudo-attribute access to parent */
-		if ( !access_allowed( op, &p, slap_schema.si_ad_children,
-					NULL, ACL_WADD, NULL ) )
+		ak.ak_e = &p;
+		ak.ak_desc = slap_schema.si_ad_children;
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 			e = &p;
@@ -1495,15 +1500,19 @@ done:;
 	if ( e != NULL ) {
 		int	disclose = 1;
 
-		if ( e == op->ora_e && !ACL_GRANT( mask, ACL_DISCLOSE ) ) {
+		if ( e == op->ora_e && !ACL_GRANT( ak.ak_mask, ACL_DISCLOSE ) ) {
 			/* mask already collected */
 			disclose = 0;
 
-		} else if ( e == &p && !access_allowed( op, &p,
-					slap_schema.si_ad_entry, NULL,
-					ACL_DISCLOSE, NULL ) )
+		} else if ( e == &p ) 
 		{
-			disclose = 0;
+			ak.ak_e = &p;
+			ak.ak_desc = slap_schema.si_ad_entry;
+			ak.ak_access = ACL_DISCLOSE;
+			if ( !access_allowed( op, &ak ))
+			{
+				disclose = 0;
+			}
 		}
 
 		if ( disclose == 0 ) {

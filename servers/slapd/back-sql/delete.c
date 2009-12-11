@@ -295,13 +295,15 @@ backsql_tree_delete_search_cb( Operation *op, SlapReply *rs )
 	if ( rs->sr_type == REP_SEARCH ) {
 		backsql_tree_delete_t	*btd;
 		backsql_entryID		*eid;
+		AclCheck ak = { rs->sr_entry, slap_schema.si_ad_entry, NULL,
+			ACL_WDEL, NULL };
+		int ret;
 
 		btd = (backsql_tree_delete_t *)op->o_callback->sc_private;
 
-		if ( !access_allowed( btd->btd_op, rs->sr_entry,
-			slap_schema.si_ad_entry, NULL, ACL_WDEL, NULL )
-			|| !access_allowed( btd->btd_op, rs->sr_entry,
-			slap_schema.si_ad_children, NULL, ACL_WDEL, NULL ) )
+		ret = access_allowed( btd->btd_op, &ak );
+		ak.ak_desc = slap_schema.si_ad_children;
+		if ( !ret || !access_allowed( btd->btd_op, &ak ))
 		{
 			btd->btd_rc = LDAP_INSUFFICIENT_ACCESS;
 			return rs->sr_err = LDAP_UNAVAILABLE;
@@ -410,6 +412,7 @@ backsql_delete( Operation *op, SlapReply *rs )
 	Entry			d = { 0 }, p = { 0 }, *e = NULL;
 	struct berval		pdn = BER_BVNULL;
 	int			manageDSAit = get_manageDSAit( op );
+	AclCheck	ak;
 
 	Debug( LDAP_DEBUG_TRACE, "==>backsql_delete(): deleting entry \"%s\"\n",
 			op->o_req_ndn.bv_val, 0, 0 );
@@ -476,8 +479,12 @@ backsql_delete( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
-	if ( !access_allowed( op, &d, slap_schema.si_ad_entry, 
-			NULL, ACL_WDEL, NULL ) )
+	ak.ak_e = &d;
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_WDEL;
+	ak.ak_state = NULL;
+	if ( !access_allowed( op, &ak ))
 	{
 		Debug( LDAP_DEBUG_TRACE, "   backsql_delete(): "
 			"no write access to entry\n", 
@@ -550,8 +557,9 @@ backsql_delete( Operation *op, SlapReply *rs )
 		(void)backsql_free_entryID( &bsi.bsi_base_id, 0, op->o_tmpmemctx );
 
 		/* check parent for "children" acl */
-		if ( !access_allowed( op, &p, slap_schema.si_ad_children, 
-				NULL, ACL_WDEL, NULL ) )
+		ak.ak_e = &p;
+		ak.ak_desc = slap_schema.si_ad_children;
+		if ( !access_allowed( op, &ak ))
 		{
 			Debug( LDAP_DEBUG_TRACE, "   backsql_delete(): "
 				"no write access to parent\n", 
@@ -594,8 +602,10 @@ backsql_delete( Operation *op, SlapReply *rs )
 
 done:;
 	if ( e != NULL ) {
-		if ( !access_allowed( op, e, slap_schema.si_ad_entry, NULL,
-					ACL_DISCLOSE, NULL ) )
+		ak.ak_e = e;
+		ak.ak_desc = slap_schema.si_ad_entry;
+		ak.ak_access = ACL_DISCLOSE;
+		if ( !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 			rs->sr_text = NULL;

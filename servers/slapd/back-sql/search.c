@@ -2017,6 +2017,7 @@ backsql_search( Operation *op, SlapReply *rs )
 #ifndef BACKSQL_ARBITRARY_KEY
 	ID			lastid = 0;
 #endif /* ! BACKSQL_ARBITRARY_KEY */
+	AclCheck	ak = { &base_entry, slap_schema.si_ad_entry, NULL };
 
 	Debug( LDAP_DEBUG_TRACE, "==>backsql_search(): "
 		"base=\"%s\", filter=\"%s\", scope=%d,", 
@@ -2088,10 +2089,9 @@ backsql_search( Operation *op, SlapReply *rs )
 		/* fall thru */
 
 	default:
+		ak.ak_access = ACL_DISCLOSE;
 		if ( !BER_BVISNULL( &base_entry.e_nname )
-				&& !access_allowed( op, &base_entry,
-					slap_schema.si_ad_entry, NULL,
-					ACL_DISCLOSE, NULL ) )
+				&& !access_allowed( op, &ak ))
 		{
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
 			if ( rs->sr_ref ) {
@@ -2118,8 +2118,6 @@ backsql_search( Operation *op, SlapReply *rs )
 	/* NOTE: __NEW__ "search" access is required
 	 * on searchBase object */
 	{
-		slap_mask_t	mask;
-		
 		if ( get_assert( op ) &&
 				( test_filter( op, &base_entry, get_assertion( op ) )
 				  != LDAP_COMPARE_TRUE ) )
@@ -2127,9 +2125,8 @@ backsql_search( Operation *op, SlapReply *rs )
 			rs->sr_err = LDAP_ASSERTION_FAILED;
 			
 		}
-		if ( ! access_allowed_mask( op, &base_entry,
-					slap_schema.si_ad_entry,
-					NULL, ACL_SEARCH, NULL, &mask ) )
+		ak.ak_access = ACL_SEARCH;
+		if ( ! access_allowed( op, &ak ))
 		{
 			if ( rs->sr_err == LDAP_SUCCESS ) {
 				rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
@@ -2137,7 +2134,7 @@ backsql_search( Operation *op, SlapReply *rs )
 		}
 
 		if ( rs->sr_err != LDAP_SUCCESS ) {
-			if ( !ACL_GRANT( mask, ACL_DISCLOSE ) ) {
+			if ( !ACL_GRANT( ak.ak_mask, ACL_DISCLOSE ) ) {
 				rs->sr_err = LDAP_NO_SUCH_OBJECT;
 				rs->sr_text = NULL;
 			}
