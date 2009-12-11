@@ -1958,9 +1958,9 @@ acl_check_modlist(
 			break;
 
 		case LDAP_MOD_DELETE:
+			ak.ak_access = ( mlist->sml_flags & SLAP_MOD_MANAGING ) ? ACL_MANAGE : ACL_WDEL;
 			if ( mlist->sml_values == NULL ) {
 				ak.ak_val = NULL;
-				ak.ak_access = ( mlist->sml_flags & SLAP_MOD_MANAGING ) ? ACL_MANAGE : ACL_WDEL;
 				if ( ! access_allowed( op, &ak ))
 				{
 					ret = 0;

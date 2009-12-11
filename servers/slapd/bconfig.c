@@ -6041,7 +6041,7 @@ config_back_search( Operation *op, SlapReply *rs )
 	ak.ak_val = NULL;
 	ak.ak_access = ACL_SEARCH;
 	ak.ak_state = NULL;
-	if ( !access_allowed_mask( op, &ak ))
+	if ( !access_allowed( op, &ak ))
 	{
 		if ( !ACL_GRANT( ak.ak_mask, ACL_DISCLOSE )) {
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
