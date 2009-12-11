@@ -601,16 +601,20 @@ memberof_op_add( Operation *op, SlapReply *rs )
 	if ( map != NULL ) {
 		Attribute		*a = *map;
 		AccessControlState	acl_state = ACL_STATE_INIT;
+		AclCheck	ak;
+
+		ak.ak_desc = mo->mo_ad_memberof;
+		ak.ak_access = ACL_WADD;
+		ak.ak_state = &acl_state;
 
 		for ( i = 0; !BER_BVISNULL( &a->a_nvals[ i ] ); i++ ) {
 			Entry		*e;
 
 			op->o_bd->bd_info = (BackendInfo *)on->on_info;
 			/* access is checked with the original identity */
-			rc = access_allowed( op, op->ora_e, mo->mo_ad_memberof,
-					&a->a_nvals[ i ], ACL_WADD,
-					&acl_state );
-			if ( rc == 0 ) {
+			ak.ak_e = op->ora_e;
+			ak.ak_val = &a->a_nvals[ i ];
+			if ( !access_allowed( op, &ak )) {
 				rc = rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 				rs->sr_text = NULL;
 				send_ldap_result( op, rs );
@@ -665,8 +669,9 @@ memberof_op_add( Operation *op, SlapReply *rs )
 
 			/* access is checked with the original identity */
 			op->o_bd->bd_info = (BackendInfo *)on->on_info;
-			rc = access_allowed( op, e, mo->mo_ad_member,
-					&op->o_req_ndn, ACL_WADD, NULL );
+			ak.ak_e = e;
+			ak.ak_val = &op->o_req_ndn;
+			rc = access_allowed( op, &ak );
 			be_entry_release_r( op, e );
 			op->o_bd->bd_info = (BackendInfo *)on;
 
@@ -886,6 +891,7 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 		Modifications	*ml = *mmlp;
 		int		i;
 		Entry		*target;
+		AclCheck	ak;
 
 		op->o_bd->bd_info = (BackendInfo *)on->on_info;
 		rc = be_entry_get_rw( op, &op->o_req_ndn,
@@ -897,22 +903,22 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 			goto done;
 		}
 
+		ak.ak_desc = mo->mo_ad_memberof;
 		switch ( ml->sml_op ) {
 		case LDAP_MOD_DELETE:
 			if ( ml->sml_nvalues != NULL ) {
 				AccessControlState	acl_state = ACL_STATE_INIT;
 
+				ak.ak_access = ACL_WDEL;
+				ak.ak_state = &acl_state;
 				for ( i = 0; !BER_BVISNULL( &ml->sml_nvalues[ i ] ); i++ ) {
 					Entry		*e;
 
 					op->o_bd->bd_info = (BackendInfo *)on->on_info;
 					/* access is checked with the original identity */
-					rc = access_allowed( op, target,
-							mo->mo_ad_memberof,
-							&ml->sml_nvalues[ i ],
-							ACL_WDEL,
-							&acl_state );
-					if ( rc == 0 ) {
+					ak.ak_e = target;
+					ak.ak_val = &ml->sml_nvalues[ i ];
+					if ( !access_allowed( op, &ak )) {
 						rc = rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 						rs->sr_text = NULL;
 						send_ldap_result( op, rs );
@@ -969,9 +975,9 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 
 					/* access is checked with the original identity */
 					op->o_bd->bd_info = (BackendInfo *)on->on_info;
-					rc = access_allowed( op, e, mo->mo_ad_member,
-							&op->o_req_ndn,
-							ACL_WDEL, NULL );
+					ak.ak_e = e;
+					ak.ak_val = &op->o_req_ndn;
+					rc = access_allowed( op, &ak );
 					be_entry_release_r( op, e );
 					op->o_bd->bd_info = (BackendInfo *)on;
 
@@ -997,10 +1003,11 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 
 			op->o_bd->bd_info = (BackendInfo *)on->on_info;
 			/* access is checked with the original identity */
-			rc = access_allowed( op, target,
-					mo->mo_ad_memberof,
-					NULL,
-					ACL_WDEL, NULL );
+			ak.ak_e = target;
+			ak.ak_val = NULL;
+			ak.ak_access = ACL_WDEL;
+			ak.ak_state = NULL;
+			rc = access_allowed( op, &ak );
 			op->o_bd->bd_info = (BackendInfo *)on;
 			if ( rc == 0 ) {
 				rc = rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
@@ -1016,18 +1023,24 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 
 		case LDAP_MOD_ADD: {
 			AccessControlState	acl_state = ACL_STATE_INIT;
+			AclCheck ak2;
+
+			ak.ak_e = target;
+			ak.ak_access = ACL_WADD;
+			ak.ak_state = &acl_state;
+
+			ak2.ak_desc = mo->mo_ad_member;
+			ak2.ak_val = &op->o_req_ndn;
+			ak2.ak_access = ACL_WDEL;
+			ak2.ak_state = NULL;
 
 			for ( i = 0; !BER_BVISNULL( &ml->sml_nvalues[ i ] ); i++ ) {
 				Entry		*e;
 
 				op->o_bd->bd_info = (BackendInfo *)on->on_info;
 				/* access is checked with the original identity */
-				rc = access_allowed( op, target,
-						mo->mo_ad_memberof,
-						&ml->sml_nvalues[ i ],
-						ACL_WADD,
-						&acl_state );
-				if ( rc == 0 ) {
+				ak.ak_val = &ml->sml_nvalues[ i ];
+				if ( !access_allowed( op, &ak )) {
 					rc = rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 					rs->sr_text = NULL;
 					send_ldap_result( op, rs );
@@ -1080,9 +1093,8 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 
 				/* access is checked with the original identity */
 				op->o_bd->bd_info = (BackendInfo *)on->on_info;
-				rc = access_allowed( op, e, mo->mo_ad_member,
-						&op->o_req_ndn,
-						ACL_WDEL, NULL );
+				ak2.ak_e = e;
+				rc = access_allowed( op, &ak2 );
 				be_entry_release_r( op, e );
 				op->o_bd->bd_info = (BackendInfo *)on;
 

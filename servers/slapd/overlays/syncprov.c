@@ -1901,6 +1901,7 @@ syncprov_op_compare( Operation *op, SlapReply *rs )
 	{
 		Entry e = {0};
 		Attribute a = {0};
+		AclCheck ak;
 
 		e.e_name = si->si_contextdn;
 		e.e_nname = si->si_contextdn;
@@ -1914,8 +1915,12 @@ syncprov_op_compare( Operation *op, SlapReply *rs )
 		a.a_nvals = a.a_vals;
 		a.a_numvals = si->si_numcsns;
 
-		rs->sr_err = access_allowed( op, &e, op->oq_compare.rs_ava->aa_desc,
-			&op->oq_compare.rs_ava->aa_value, ACL_COMPARE, NULL );
+		ak.ak_e = &e;
+		ak.ak_desc = op->oq_compare.rs_ava->aa_desc;
+		ak.ak_val = &op->oq_compare.rs_ava->aa_value;
+		ak.ak_access = ACL_COMPARE;
+		ak.ak_state = NULL;
+		rs->sr_err = access_allowed( op, &ak );
 		if ( ! rs->sr_err ) {
 			rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 			goto return_results;

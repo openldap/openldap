@@ -220,6 +220,7 @@ dynlist_sc_update( Operation *op, SlapReply *rs )
 	int			opattrs,
 				userattrs;
 	AccessControlState	acl_state = ACL_STATE_INIT;
+	AclCheck	ak;
 
 	dynlist_sc_t		*dlc;
 	dynlist_map_t		*dlm;
@@ -235,8 +236,12 @@ dynlist_sc_update( Operation *op, SlapReply *rs )
 	assert( rs->sr_entry != NULL );
 
 	/* test access to entry */
-	if ( !access_allowed( op, rs->sr_entry, slap_schema.si_ad_entry,
-				NULL, ACL_READ, NULL ) )
+	ak.ak_e = rs->sr_entry;
+	ak.ak_desc = slap_schema.si_ad_entry;
+	ak.ak_val = NULL;
+	ak.ak_access = ACL_READ;
+	ak.ak_state = NULL;
+	if ( !access_allowed( op, &ak ))
 	{
 		goto done;
 	}
@@ -247,29 +252,25 @@ dynlist_sc_update( Operation *op, SlapReply *rs )
 	if ( dlm && dlm->dlm_mapped_ad == NULL && dlm->dlm_next == NULL ) {
 		/* if access allowed, try to add values, emulating permissive
 		 * control to silently ignore duplicates */
-		if ( access_allowed( op, rs->sr_entry, slap_schema.si_ad_entry,
-					NULL, ACL_READ, NULL ) )
-		{
-			Modification	mod;
-			const char	*text = NULL;
-			char		textbuf[1024];
-			struct berval	vals[ 2 ], nvals[ 2 ];
+		Modification	mod;
+		const char	*text = NULL;
+		char		textbuf[1024];
+		struct berval	vals[ 2 ], nvals[ 2 ];
 
-			vals[ 0 ] = rs->sr_entry->e_name;
-			BER_BVZERO( &vals[ 1 ] );
-			nvals[ 0 ] = rs->sr_entry->e_nname;
-			BER_BVZERO( &nvals[ 1 ] );
+		vals[ 0 ] = rs->sr_entry->e_name;
+		BER_BVZERO( &vals[ 1 ] );
+		nvals[ 0 ] = rs->sr_entry->e_nname;
+		BER_BVZERO( &nvals[ 1 ] );
 
-			mod.sm_op = LDAP_MOD_ADD;
-			mod.sm_desc = dlm->dlm_member_ad;
-			mod.sm_type = dlm->dlm_member_ad->ad_cname;
-			mod.sm_values = vals;
-			mod.sm_nvalues = nvals;
-			mod.sm_numvals = 1;
+		mod.sm_op = LDAP_MOD_ADD;
+		mod.sm_desc = dlm->dlm_member_ad;
+		mod.sm_type = dlm->dlm_member_ad->ad_cname;
+		mod.sm_values = vals;
+		mod.sm_nvalues = nvals;
+		mod.sm_numvals = 1;
 
-			(void)modify_add_values( e, &mod, /* permissive */ 1,
-					&text, textbuf, sizeof( textbuf ) );
-		}
+		(void)modify_add_values( e, &mod, /* permissive */ 1,
+				&text, textbuf, sizeof( textbuf ) );
 
 		goto done;
 	}
@@ -308,10 +309,11 @@ dynlist_sc_update( Operation *op, SlapReply *rs )
 			}
 		}
 
+		ak.ak_desc = a->a_desc;
+		ak.ak_state = &acl_state;
 		/* test access to attribute */
 		if ( op->ors_attrsonly ) {
-			if ( !access_allowed( op, rs->sr_entry, a->a_desc, NULL,
-						ACL_READ, &acl_state ) )
+			if ( !access_allowed( op, &ak ))
 			{
 				continue;
 			}
@@ -341,8 +343,8 @@ dynlist_sc_update( Operation *op, SlapReply *rs )
 				}
 			}
 
-			if ( access_allowed( op, rs->sr_entry, a->a_desc,
-						&a->a_nvals[i], ACL_READ, &acl_state ) )
+			ak.ak_val = &a->a_nvals[i];
+			if ( access_allowed( op, &ak ))
 			{
 				vals[j] = a->a_vals[i];
 				if ( nvals ) {

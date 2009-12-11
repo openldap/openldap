@@ -295,12 +295,16 @@ deref_response( Operation *op, SlapReply *rs )
 		static char dummy = '\0';
 		Entry *ebase;
 		int i;
+		AclCheck ak;
 
 		rc = overlay_entry_get_ov( op, &rs->sr_entry->e_nname, NULL, NULL, 0, &ebase, dc->dc_on );
 		if ( rc != LDAP_SUCCESS || ebase == NULL ) {
 			return SLAP_CB_CONTINUE;
 		}
 
+		ak.ak_e = rs->sr_entry;
+		ak.ak_access = ACL_READ;
+		ak.ak_state = &acl_state;
 		for ( ds = dc->dc_ds; ds; ds = ds->ds_next ) {
 			Attribute *a = attr_find( ebase->e_attrs, ds->ds_derefAttr );
 
@@ -308,8 +312,9 @@ deref_response( Operation *op, SlapReply *rs )
 				DerefVal *dv;
 				BerVarray *bva;
 
-				if ( !access_allowed( op, rs->sr_entry, a->a_desc,
-						NULL, ACL_READ, &acl_state ) )
+				ak.ak_desc = a->a_desc;
+				ak.ak_val = NULL;
+				if ( !access_allowed( op, &ak ))
 				{
 					continue;
 				}
@@ -331,9 +336,8 @@ deref_response( Operation *op, SlapReply *rs )
 					dv[ i ].dv_attrVals = bva;
 					bva += ds->ds_nattrs;
 
-
-					if ( !access_allowed( op, rs->sr_entry, a->a_desc,
-							&a->a_nvals[ i ], ACL_READ, &acl_state ) )
+					ak.ak_val = &a->a_nvals[i];
+					if ( !access_allowed( op, &ak ))
 					{
 						dv[ i ].dv_derefSpecVal.bv_val = &dummy;
 						continue;
@@ -347,15 +351,21 @@ deref_response( Operation *op, SlapReply *rs )
 					rc = overlay_entry_get_ov( op, &a->a_nvals[ i ], NULL, NULL, 0, &e, dc->dc_on );
 					if ( rc == LDAP_SUCCESS && e != NULL ) {
 						int j;
+						AclCheck ak2;
+						AccessControlState acl_st2 = ACL_STATE_INIT;
 
-						if ( access_allowed( op, e, slap_schema.si_ad_entry,
-							NULL, ACL_READ, NULL ) )
+						ak2.ak_e = e;
+						ak2.ak_desc = slap_schema.si_ad_entry;
+						ak2.ak_val = NULL;
+						ak2.ak_state = NULL;
+						if ( access_allowed( op, &ak2 ))
 						{
+							ak2.ak_state = &acl_st2;
 							for ( j = 0; j < ds->ds_nattrs; j++ ) {
 								Attribute *aa;
 
-								if ( !access_allowed( op, e, ds->ds_attributes[ j ], NULL,
-									ACL_READ, &acl_state ) )
+								ak2.ak_desc = ds->ds_attributes[ j ];
+								if ( !access_allowed( op, &ak2 ))
 								{
 									continue;
 								}
@@ -368,12 +378,10 @@ deref_response( Operation *op, SlapReply *rs )
 										aa->a_vals, op->o_tmpmemctx );
 
 									bv.bv_len += ds->ds_attributes[ j ]->ad_cname.bv_len;
-
+									ak2.ak_desc = aa->a_desc;
 									for ( k = 0, h = 0; k < aa->a_numvals; k++ ) {
-										if ( !access_allowed( op, e,
-											aa->a_desc,
-											&aa->a_nvals[ k ],
-											ACL_READ, &acl_state ) )
+										ak2.ak_val = &aa->a_nvals[ k ];
+										if ( !access_allowed( op, &ak2 ))
 										{
 											op->o_tmpfree( dv[ i ].dv_attrVals[ j ][ h ].bv_val,
 												op->o_tmpmemctx );

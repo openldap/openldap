@@ -368,11 +368,11 @@ dds_op_add( Operation *op, SlapReply *rs )
 			slap_schema.si_oc_dynamicObject, NULL, 0, &e );
 		if ( rc == LDAP_SUCCESS && e != NULL ) {
 			if ( !is_dynamicObject ) {
+				AclCheck ak = { e, slap_schema.si_ad_entry, NULL,
+					ACL_DISCLOSE, NULL };
 				/* return referral only if "disclose"
 				 * is granted on the object */
-				if ( ! access_allowed( op, e,
-						slap_schema.si_ad_entry,
-						NULL, ACL_DISCLOSE, NULL ) )
+				if ( ! access_allowed( op, &ak ))
 				{
 					rc = rs->sr_err = LDAP_NO_SUCH_OBJECT;
 					send_ldap_result( op, rs );
@@ -850,11 +850,11 @@ dds_op_rename( Operation *op, SlapReply *rs )
 			slap_schema.si_oc_dynamicObject, NULL, 0, &e );
 		if ( rc == LDAP_SUCCESS && e != NULL ) {
 			if ( !is_dynamicObject ) {
+				AclCheck ak = { e, slap_schema.si_ad_entry, NULL,
+					ACL_DISCLOSE, NULL };
 				/* return referral only if "disclose"
 				 * is granted on the object */
-				if ( ! access_allowed( op, e,
-						slap_schema.si_ad_entry,
-						NULL, ACL_DISCLOSE, NULL ) )
+				if ( ! access_allowed( op, &ak ))
 				{
 					rs->sr_err = LDAP_NO_SUCH_OBJECT;
 					send_ldap_result( op, rs );
@@ -1068,11 +1068,11 @@ dds_op_extended( Operation *op, SlapReply *rs )
 			rs->sr_err = be_entry_get_rw( op, &op->o_req_ndn,
 				NULL, NULL, 0, &e );
 			if ( rs->sr_err == LDAP_SUCCESS && e != NULL ) {
+				AclCheck ak = { e, slap_schema.si_ad_entry, NULL,
+					ACL_DISCLOSE, NULL };
 				/* return referral only if "disclose"
 				 * is granted on the object */
-				if ( ! access_allowed( op, e,
-						slap_schema.si_ad_entry,
-						NULL, ACL_DISCLOSE, NULL ) )
+				if ( ! access_allowed( op, &ak ))
 				{
 					rs->sr_err = LDAP_NO_SUCH_OBJECT;
 
