@@ -44,10 +44,10 @@ shell_back_bind(
     SlapReply		*rs )
 {
 	struct shellinfo	*si = (struct shellinfo *) op->o_bd->be_private;
-	AttributeDescription *entry = slap_schema.si_ad_entry;
 	Entry e;
 	FILE			*rfp, *wfp;
 	int			rc;
+	AclCheck	ak = { &e, slap_schema.si_ad_entry, NULL, ACL_AUTH, NULL };
 
 	/* allow rootdn as a means to auth without the need to actually
  	 * contact the proxied DSA */
@@ -74,8 +74,7 @@ shell_back_bind(
 	e.e_bv.bv_val = NULL;
 	e.e_private = NULL;
 
-	if ( ! access_allowed( op, &e,
-		entry, NULL, ACL_AUTH, NULL ) )
+	if ( ! access_allowed( op, &ak ))
 	{
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, NULL );
 		return -1;

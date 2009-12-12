@@ -34,12 +34,11 @@ sock_back_add(
     SlapReply	*rs )
 {
 	struct sockinfo	*si = (struct sockinfo *) op->o_bd->be_private;
-	AttributeDescription *entry = slap_schema.si_ad_entry;
 	FILE			*fp;
 	int			len;
+	AclCheck	ak = { op->ora_e, slap_schema.si_ad_entry, NULL, ACL_WADD, NULL };
 
-	if ( ! access_allowed( op, op->oq_add.rs_e,
-		entry, NULL, ACL_WADD, NULL ) )
+	if ( ! access_allowed( op, &ak ))
 	{
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, NULL );
 		return -1;

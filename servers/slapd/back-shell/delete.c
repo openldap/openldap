@@ -44,9 +44,9 @@ shell_back_delete(
     SlapReply	*rs )
 {
 	struct shellinfo	*si = (struct shellinfo *) op->o_bd->be_private;
-	AttributeDescription *entry = slap_schema.si_ad_entry;
 	Entry e;
 	FILE			*rfp, *wfp;
+	AclCheck	ak = { &e, slap_schema.si_ad_entry, NULL, ACL_WDEL, NULL };
 
 	if ( si->si_delete == NULL ) {
 		send_ldap_error( op, rs, LDAP_UNWILLING_TO_PERFORM,
@@ -63,8 +63,7 @@ shell_back_delete(
 	e.e_bv.bv_val = NULL;
 	e.e_private = NULL;
 
-	if ( ! access_allowed( op, &e,
-		entry, NULL, ACL_WDEL, NULL ) )
+	if ( ! access_allowed( op, &ak ))
 	{
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, NULL );
 		return -1;

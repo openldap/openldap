@@ -44,9 +44,9 @@ shell_back_add(
     SlapReply	*rs )
 {
 	struct shellinfo	*si = (struct shellinfo *) op->o_bd->be_private;
-	AttributeDescription *entry = slap_schema.si_ad_entry;
 	FILE			*rfp, *wfp;
 	int			len;
+	AclCheck ak = { op->ora_e, slap_schema.si_ad_entry, NULL, ACL_WADD, NULL };
 
 	if ( si->si_add == NULL ) {
 		send_ldap_error( op, rs, LDAP_UNWILLING_TO_PERFORM,
@@ -54,8 +54,7 @@ shell_back_add(
 		return( -1 );
 	}
 
-	if ( ! access_allowed( op, op->oq_add.rs_e,
-		entry, NULL, ACL_WADD, NULL ) )
+	if ( ! access_allowed( op, &ak ))
 	{
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, NULL );
 		return -1;

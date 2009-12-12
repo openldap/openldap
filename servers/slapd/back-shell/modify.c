@@ -45,11 +45,11 @@ shell_back_modify(
 {
 	Modification *mod;
 	struct shellinfo	*si = (struct shellinfo *) op->o_bd->be_private;
-	AttributeDescription *entry = slap_schema.si_ad_entry;
 	Modifications *ml  = op->orm_modlist;
 	Entry e;
 	FILE			*rfp, *wfp;
 	int			i;
+	AclCheck	ak = { &e, slap_schema.si_ad_entry, NULL, ACL_WRITE, NULL };
 
 	if ( si->si_modify == NULL ) {
 		send_ldap_error( op, rs, LDAP_UNWILLING_TO_PERFORM,
@@ -66,8 +66,7 @@ shell_back_modify(
 	e.e_bv.bv_val = NULL;
 	e.e_private = NULL;
 
-	if ( ! access_allowed( op, &e,
-		entry, NULL, ACL_WRITE, NULL ) )
+	if ( ! access_allowed( op, &ak ))
 	{
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, NULL );
 		return -1;
