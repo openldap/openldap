@@ -1206,7 +1206,7 @@ static int
 syncrepl_accesslog_mods(
 	syncinfo_t *si,
 	struct berval *vals,
-	struct Modifications **modres
+	Modifications **modres
 )
 {
 	char *colon;
@@ -1229,9 +1229,9 @@ syncrepl_accesslog_mods(
 		bv.bv_len = colon - bv.bv_val;
 		if ( slap_bv2ad( &bv, &ad, &text )) {
 			/* Invalid */
-			Debug( LDAP_DEBUG_ANY, "syncrepl_accesslog_mods: %s "
+			Debug( LDAP_DEBUG_ANY, "syncrepl_accesslog_mods: rid=%03d "
 				"Invalid attribute %s, %s\n",
-				si->si_ridtxt, bv.bv_val, text );
+				si->si_rid, bv.bv_val, text );
 			slap_mods_free( modlist, 1 );
 			modlist = NULL;
 			rc = -1;
@@ -1281,7 +1281,7 @@ static int
 syncrepl_changelog_mods(
 	syncinfo_t *si,
 	struct berval *vals,
-	struct Modifications **modres
+	Modifications **modres
 )
 {
 	return -1;	/* FIXME */
