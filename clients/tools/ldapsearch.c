@@ -779,22 +779,6 @@ private_conn_setup( LDAP *ld )
 		fprintf( stderr, _("Could not set LDAP_OPT_DEREF %d\n"), deref );
 		exit( EXIT_FAILURE );
 	}
-	if (timelimit > 0 &&
-		ldap_set_option( ld, LDAP_OPT_TIMELIMIT, (void *) &timelimit )
-			!= LDAP_OPT_SUCCESS )
-	{
-		fprintf( stderr,
-			_("Could not set LDAP_OPT_TIMELIMIT %d\n"), timelimit );
-		exit( EXIT_FAILURE );
-	}
-	if (sizelimit > 0 &&
-		ldap_set_option( ld, LDAP_OPT_SIZELIMIT, (void *) &sizelimit )
-			!= LDAP_OPT_SUCCESS )
-	{
-		fprintf( stderr,
-			_("Could not set LDAP_OPT_SIZELIMIT %d\n"), sizelimit );
-		exit( EXIT_FAILURE );
-	}
 }
 
 int
@@ -1404,6 +1388,8 @@ static int dosearch(
 	struct berval		*retdata = NULL;
 	int			nresponses_psearch = -1;
 	int			cancel_msgid = -1;
+	struct timeval tv, *tvp = NULL;
+	struct timeval tv_timelimit, *tv_timelimitp = NULL;
 
 	if( filtpatt != NULL ) {
 		size_t max_fsize = strlen( filtpatt ) + strlen( value ) + 1, outlen;
@@ -1439,8 +1425,14 @@ static int dosearch(
 		return LDAP_SUCCESS;
 	}
 
+	if ( timelimit > 0 ) {
+		tv_timelimit.tv_sec = timelimit;
+		tv_timelimit.tv_usec = 0;
+		tv_timelimitp = &tv_timelimit;
+	}
+
 	rc = ldap_search_ext( ld, base, scope, filter, attrs, attrsonly,
-		sctrls, cctrls, timeout, sizelimit, &msgid );
+		sctrls, cctrls, tv_timelimitp, sizelimit, &msgid );
 
 	if ( filtpatt != NULL ) {
 		free( filter );
@@ -1456,9 +1448,16 @@ static int dosearch(
 
 	res = NULL;
 
+	if ( timelimit > 0 ) {
+		/* disable timeout */
+		tv.tv_sec = -1;
+		tv.tv_usec = 0;
+		tvp = &tv;
+	}
+
 	while ((rc = ldap_result( ld, LDAP_RES_ANY,
 		sortattr ? LDAP_MSG_ALL : LDAP_MSG_ONE,
-		NULL, &res )) > 0 )
+		tvp, &res )) > 0 )
 	{
 		rc = tool_check_abandon( ld, msgid );
 		if ( rc ) {
@@ -1554,7 +1553,11 @@ static int dosearch(
 	}
 
 done:
-	if ( rc == -1 ) {
+	if ( tvp == NULL && rc == 0 ) {
+		ldap_get_option( ld, LDAP_OPT_RESULT_CODE, (void *)&rc );
+	}
+
+	if ( rc != 0 ) {
 		tool_perror( "ldap_result", rc, NULL, NULL, NULL, NULL );
 		return( rc );
 	}
