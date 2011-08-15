@@ -126,12 +126,12 @@ int mdb_filter_candidates(
  */
 
 int mdb_id2entry_add(
-	BackendDB *be,
+	Operation *op,
 	MDB_txn *tid,
 	Entry *e );
 
 int mdb_id2entry_update(
-	BackendDB *be,
+	Operation *op,
 	MDB_txn *tid,
 	Entry *e );
 
@@ -141,7 +141,7 @@ int mdb_id2entry_delete(
 	Entry *e);
 
 int mdb_id2entry(
-	BackendDB *be,
+	Operation *op,
 	MDB_txn *tid,
 	ID id,
 	Entry **e);

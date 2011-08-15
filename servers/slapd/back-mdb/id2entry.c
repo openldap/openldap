@@ -23,18 +23,16 @@
 #include "back-mdb.h"
 
 static int mdb_id2entry_put(
-	BackendDB *be,
-	DB_TXN *tid,
+	Operation *op,
+	MDB_txn *tid,
 	Entry *e,
 	int flag )
 {
-	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	DB *db = mdb->bi_id2entry->bdi_db;
-	DBT key, data;
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_dbi dbi = mdb->mi_id2entry->mdi_dbi;
+	MDB_val key, data;
 	struct berval bv;
 	int rc;
-	ID nid;
-#ifdef MDB_HIER
 	struct berval odn, ondn;
 
 	/* We only store rdns, and they go in the dn2id database. */
@@ -43,28 +41,22 @@ static int mdb_id2entry_put(
 
 	e->e_name = slap_empty_bv;
 	e->e_nname = slap_empty_bv;
-#endif
-	DBTzero( &key );
 
-	/* Store ID in BigEndian format */
-	key.data = &nid;
-	key.size = sizeof(ID);
-	MDB_ID2DISK( e->e_id, &nid );
+	key.mv_data = &e->e_id;
+	key.mv_size = sizeof(ID);
 
-	rc = entry_encode( e, &bv );
-#ifdef MDB_HIER
+	rc = mdb_entry_encode( op, e, &bv );
 	e->e_name = odn; e->e_nname = ondn;
-#endif
 	if( rc != LDAP_SUCCESS ) {
 		return -1;
 	}
 
-	DBTzero( &data );
-	bv2DBT( &bv, &data );
+	data.mv_size = bv.bv_len;
+	data.mv_data = bv.bv_val;
 
-	rc = db->put( db, tid, &key, &data, flag );
+	rc = mdb_put( tid, dbi, &key, &data, flag );
 
-	free( bv.bv_val );
+	op->o_tmpfree( op->o_tmpmemctx, bv.bv_val );
 	return rc;
 }
 
@@ -75,129 +67,67 @@ static int mdb_id2entry_put(
 
 
 int mdb_id2entry_add(
-	BackendDB *be,
-	DB_TXN *tid,
+	Operation *op,
+	MDB_txn *tid,
 	Entry *e )
 {
-	return mdb_id2entry_put(be, tid, e, DB_NOOVERWRITE);
+	return mdb_id2entry_put(op, tid, e, MDB_NOOVERWRITE);
 }
 
 int mdb_id2entry_update(
-	BackendDB *be,
-	DB_TXN *tid,
+	Operation *op,
+	MDB_txn *tid,
 	Entry *e )
 {
-	return mdb_id2entry_put(be, tid, e, 0);
+	return mdb_id2entry_put(op, tid, e, 0);
 }
 
 int mdb_id2entry(
-	BackendDB *be,
-	DB_TXN *tid,
+	Operation *op,
+	MDB_txn *tid,
 	ID id,
 	Entry **e )
 {
-	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	DB *db = mdb->bi_id2entry->bdi_db;
-	DBT key, data;
-	DBC *cursor;
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_dbi dbi = mdb->mi_id2entry->mdi_dbi;
+	MDB_val key, data;
 	EntryHeader eh;
 	char buf[16];
 	int rc = 0, off;
-	ID nid;
 
 	*e = NULL;
 
-	DBTzero( &key );
-	key.data = &nid;
-	key.size = sizeof(ID);
-	MDB_ID2DISK( id, &nid );
-
-	DBTzero( &data );
-	data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
+	key.mv_data = &id;
+	key.mv_size = sizeof(ID);
 
 	/* fetch it */
-	rc = db->cursor( db, tid, &cursor, mdb->bi_db_opflags );
+	rc = mdb_get( tid, dbi, &key, &data );
 	if ( rc ) return rc;
 
-	/* Get the nattrs / nvals counts first */
-	data.ulen = data.dlen = sizeof(buf);
-	data.data = buf;
-	rc = cursor->c_get( cursor, &key, &data, DB_SET );
-	if ( rc ) goto finish;
-
-
-	eh.bv.bv_val = buf;
-	eh.bv.bv_len = data.size;
-	rc = entry_header( &eh );
-	if ( rc ) goto finish;
-
-	/* Get the size */
-	data.flags ^= DB_DBT_PARTIAL;
-	data.ulen = 0;
-	rc = cursor->c_get( cursor, &key, &data, DB_CURRENT );
-	if ( rc != DB_BUFFER_SMALL ) goto finish;
-
-	/* Allocate a block and retrieve the data */
-	off = eh.data - eh.bv.bv_val;
-	eh.bv.bv_len = eh.nvals * sizeof( struct berval ) + data.size;
-	eh.bv.bv_val = ch_malloc( eh.bv.bv_len );
-	eh.data = eh.bv.bv_val + eh.nvals * sizeof( struct berval );
-	data.data = eh.data;
-	data.ulen = data.size;
-
-	/* skip past already parsed nattr/nvals */
-	eh.data += off;
-
-	rc = cursor->c_get( cursor, &key, &data, DB_CURRENT );
-
-finish:
-	cursor->c_close( cursor );
-
-	if( rc != 0 ) {
-		return rc;
-	}
-
-#ifdef SLAP_ZONE_ALLOC
-	rc = entry_decode(&eh, e, mdb->bi_cache.c_zctx);
-#else
-	rc = entry_decode(&eh, e);
-#endif
+	rc = mdb_entry_decode(&eh, e);
 
 	if( rc == 0 ) {
 		(*e)->e_id = id;
-	} else {
-		/* only free on error. On success, the entry was
-		 * decoded in place.
-		 */
-#ifndef SLAP_ZONE_ALLOC
-		ch_free(eh.bv.bv_val);
-#endif
 	}
-#ifdef SLAP_ZONE_ALLOC
-	ch_free(eh.bv.bv_val);
-#endif
 
 	return rc;
 }
 
 int mdb_id2entry_delete(
 	BackendDB *be,
-	DB_TXN *tid,
+	MDB_txn *tid,
 	Entry *e )
 {
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	DB *db = mdb->bi_id2entry->bdi_db;
-	DBT key;
+	MDB_dbi dbi = mdb->mi_id2entry->mdi_dbi;
+	MDB_val key;
 	int rc;
-	ID nid;
 
-	DBTzero( &key );
-	key.data = &nid;
-	key.size = sizeof(ID);
-	MDB_ID2DISK( e->e_id, &nid );
+	key.mv_data = &e->e_id;
+	key.mv_size = sizeof(ID);
 
 	/* delete from database */
-	rc = db->del( db, tid, &key, 0 );
+	rc = mdb_del( tid, dbi, &key, NULL, 0 );
 
 	return rc;
 }
@@ -236,7 +166,7 @@ int mdb_entry_release(
 	int rw )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	struct mdb_op_info *boi;
+	struct mdb_op_info *moi;
 	OpExtra *oex;
  
 	/* slapMode : SLAP_SERVER_MODE, SLAP_TOOL_MODE,
@@ -245,24 +175,20 @@ int mdb_entry_release(
 	if ( slapMode == SLAP_SERVER_MODE ) {
 		/* If not in our cache, just free it */
 		if ( !e->e_private ) {
-#ifdef SLAP_ZONE_ALLOC
-			return mdb_entry_return( mdb, e, -1 );
-#else
 			return mdb_entry_return( e );
-#endif
 		}
 		/* free entry and reader or writer lock */
 		LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
 			if ( oex->oe_key == mdb ) break;
 		}
-		boi = (struct mdb_op_info *)oex;
+		moi = (struct mdb_op_info *)oex;
 
 		/* lock is freed with txn */
-		if ( !boi || boi->boi_txn ) {
+		if ( !moi || moi->moi_txn ) {
 			mdb_unlocked_cache_return_entry_rw( mdb, e, rw );
 		} else {
 			struct mdb_lock_info *bli, *prev;
-			for ( prev=(struct mdb_lock_info *)&boi->boi_locks,
+			for ( prev=(struct mdb_lock_info *)&moi->boi_locks,
 				bli = boi->boi_locks; bli; prev=bli, bli=bli->bli_next ) {
 				if ( bli->bli_id == e->e_id ) {
 					mdb_cache_return_entry_rw( mdb, e, rw, &bli->bli_lock );
@@ -282,22 +208,10 @@ int mdb_entry_release(
 			}
 		}
 	} else {
-#ifdef SLAP_ZONE_ALLOC
-		int zseq = -1;
-		if (e->e_private != NULL) {
-			BEI(e)->bei_e = NULL;
-			zseq = BEI(e)->bei_zseq;
-		}
-#else
 		if (e->e_private != NULL)
 			BEI(e)->bei_e = NULL;
-#endif
 		e->e_private = NULL;
-#ifdef SLAP_ZONE_ALLOC
-		mdb_entry_return ( mdb, e, zseq );
-#else
 		mdb_entry_return ( e );
-#endif
 	}
  
 	return 0;
@@ -353,18 +267,9 @@ dn2entry_retry:
 	/* can we find entry */
 	rc = mdb_dn2entry( op, txn, ndn, &ei, 0, &lock );
 	switch( rc ) {
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 	case 0:
 		break;
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		/* the txn must abort and retry */
-		if ( txn ) {
-			if ( boi ) boi->boi_err = rc;
-			return LDAP_BUSY;
-		}
-		ldap_pvt_thread_yield();
-		goto dn2entry_retry;
 	default:
 		if ( boi ) boi->boi_err = rc;
 		return (rc != LDAP_BUSY) ? LDAP_OTHER : LDAP_BUSY;

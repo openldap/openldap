@@ -110,8 +110,6 @@ typedef struct MDB_stat {
 } MDB_stat;
 
 char *mdb_version(int *major, int *minor, int *patch);
-char *mdb_strerror(int rc);
-
 int  mdb_env_create(MDB_env **env);
 int  mdb_env_open(MDB_env *env, const char *path, unsigned int flags, mode_t mode);
 int  mdb_env_stat(MDB_env *env, MDB_stat *stat);

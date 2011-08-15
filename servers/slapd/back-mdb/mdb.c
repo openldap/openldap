@@ -83,44 +83,51 @@ typedef uint16_t	 indx_t;
 #define DEFAULT_MAPSIZE	1048576
 
 /* Lock descriptor stuff */
-#define RXBODY	\
-	ULONG		mr_txnid; \
-	pid_t		mr_pid; \
-	pthread_t	mr_tid
-typedef struct MDB_rxbody {
-	RXBODY;
-} MDB_rxbody;
-
 #ifndef CACHELINE
-# ifdef __APPLE__
-#  define CACHELINE	128	/* 64 is too small to contain a mutex */
-# else
-#  define CACHELINE	64	/* most CPUs. Itanium uses 128 */
-# endif
+#define CACHELINE	64	/* most CPUs. Itanium uses 128 */
 #endif
 
+typedef struct MDB_rxbody {
+	ULONG		mrb_txnid;
+	pid_t		mrb_pid;
+	pthread_t	mrb_tid;
+} MDB_rxbody;
+
 typedef struct MDB_reader {
-	RXBODY;
-	/* cache line alignment */
-	char pad[CACHELINE-sizeof(MDB_rxbody)];
+	union {
+		MDB_rxbody mrx;
+#define	mr_txnid	mru.mrx.mrb_txnid
+#define	mr_pid	mru.mrx.mrb_pid
+#define	mr_tid	mru.mrx.mrb_tid
+		/* cache line alignment */
+		char pad[(sizeof(MDB_rxbody)+CACHELINE-1) & ~(CACHELINE-1)];
+	} mru;
 } MDB_reader;
 
-#define	TXBODY \
-	uint32_t	mt_magic;	\
-	uint32_t	mt_version;	\
-	pthread_mutex_t	mt_mutex;	\
-	ULONG		mt_txnid;	\
-	uint32_t	mt_numreaders
 typedef struct MDB_txbody {
-	TXBODY;
+	uint32_t	mtb_magic;
+	uint32_t	mtb_version;
+	pthread_mutex_t	mtb_mutex;
+	ULONG		mtb_txnid;
+	uint32_t	mtb_numreaders;
 } MDB_txbody;
 
 typedef struct MDB_txninfo {
-	TXBODY;
-	char pad[CACHELINE-sizeof(MDB_txbody)];
-	pthread_mutex_t	mt_wmutex;
-	char pad2[CACHELINE-sizeof(pthread_mutex_t)];
-	MDB_reader	mt_readers[1];
+	union {
+		MDB_txbody mtb;
+#define mti_magic	mt1.mtb.mtb_magic
+#define mti_version	mt1.mtb.mtb_version
+#define mti_mutex	mt1.mtb.mtb_mutex
+#define mti_txnid	mt1.mtb.mtb_txnid
+#define mti_numreaders	mt1.mtb.mtb_numreaders
+		char pad[(sizeof(MDB_txbody)+CACHELINE-1) & ~(CACHELINE-1)];
+	} mt1;
+	union {
+		pthread_mutex_t	mt2_wmutex;
+#define mti_wmutex	mt2.mt2_wmutex
+		char pad[(sizeof(pthread_mutex_t)+CACHELINE-1) & ~(CACHELINE-1)];
+	} mt2;
+	MDB_reader	mti_readers[1];
 } MDB_txninfo;
 
 /* Common header for all page types. Overflow pages
@@ -138,6 +145,7 @@ typedef struct MDB_page {		/* represents a page of storage */
 #define	P_OVERFLOW	 0x04		/* overflow page */
 #define	P_META		 0x08		/* meta page */
 #define	P_DIRTY		 0x10		/* dirty page */
+#define	P_LEAF2		 0x20		/* DB with small, fixed size keys and no data */
 	uint32_t	mp_flags;
 #define mp_lower	mp_pb.pb.pb_lower
 #define mp_upper	mp_pb.pb.pb_upper
@@ -148,6 +156,10 @@ typedef struct MDB_page {		/* represents a page of storage */
 			indx_t		pb_upper;		/* upper bound of free space */
 		} pb;
 		uint32_t	pb_pages;	/* number of overflow pages */
+		struct {
+			indx_t	pb_ksize;	/* on a LEAF2 page */
+			indx_t	pb_numkeys;
+		} pb2;
 	} mp_pb;
 	indx_t		mp_ptrs[1];		/* dynamic size */
 } MDB_page;
@@ -191,7 +203,6 @@ typedef struct MDB_meta {			/* meta (footer) page content */
 } MDB_meta;
 
 typedef struct MDB_dhead {					/* a dirty page */
-	STAILQ_ENTRY(MDB_dpage)	 md_next;	/* queue of dirty pages */
 	MDB_page	*md_parent;
 	unsigned	md_pi;				/* parent index */
 	int			md_num;
@@ -201,8 +212,6 @@ typedef struct MDB_dpage {
 	MDB_dhead	h;
 	MDB_page	p;
 } MDB_dpage;
-
-STAILQ_HEAD(dirty_queue, MDB_dpage);	/* FIXME: use a sorted data structure */
 
 typedef struct MDB_oldpages {
 	struct MDB_oldpages *mo_next;
@@ -245,7 +254,6 @@ struct MDB_cursor {
 	struct MDB_xcursor	*mc_xcursor;
 };
 
-#define METAHASHLEN	 offsetof(MDB_meta, mm_hash)
 #define METADATA(p)	 ((void *)((char *)p + PAGEHDRSZ))
 
 typedef struct MDB_node {
@@ -278,15 +286,15 @@ struct MDB_txn {
 	MDB_env		*mt_env;	
 	pgno_t		*mt_free_pgs;	/* this is an IDL */
 	union {
-		struct dirty_queue	*dirty_queue;	/* modified pages */
+		MIDL2	*dirty_list;	/* modified pages */
 		MDB_reader	*reader;
 	} mt_u;
 	MDB_dbx		*mt_dbxs;		/* array */
 	MDB_db		*mt_dbs;
 	unsigned int	mt_numdbs;
 
-#define MDB_TXN_RDONLY		 0x01		/* read-only transaction */
-#define MDB_TXN_ERROR		 0x02		/* an error has occurred */
+#define MDB_TXN_RDONLY		0x01		/* read-only transaction */
+#define MDB_TXN_ERROR		0x02		/* an error has occurred */
 #define MDB_TXN_METOGGLE	0x04		/* used meta page 1 */
 	unsigned int	mt_flags;
 };
@@ -302,7 +310,10 @@ typedef struct MDB_xcursor {
 struct MDB_env {
 	int			me_fd;
 	int			me_lfd;
-	uint32_t	me_flags;
+	int			me_mfd;			/* just for writing the meta pages */
+	uint16_t	me_flags;
+	uint16_t		me_db_toggle;
+	unsigned int	me_psize;
 	unsigned int	me_maxreaders;
 	unsigned int	me_numdbs;
 	unsigned int	me_maxdbs;
@@ -314,13 +325,12 @@ struct MDB_env {
 	MDB_txn		*me_txn;		/* current write transaction */
 	size_t		me_mapsize;
 	off_t		me_size;		/* current file size */
-	unsigned int	me_psize;
-	int			me_db_toggle;
 	MDB_dbx		*me_dbxs;		/* array */
 	MDB_db		*me_dbs[2];
 	MDB_oldpages *me_pghead;
 	pthread_key_t	me_txkey;	/* thread-key for readers */
 	pgno_t		me_free_pgs[MDB_IDL_UM_SIZE];
+	MIDL2		me_dirty_list[MDB_IDL_DB_SIZE];
 };
 
 #define NODESIZE	 offsetof(MDB_node, mn_data)
@@ -334,7 +344,6 @@ struct MDB_env {
 #define NODEDSZ(node)	 ((node)->mn_dsize)
 
 #define MDB_COMMIT_PAGES	 64	/* max number of pages to write in one commit */
-#define MDB_MAXCACHE_DEF	 1024	/* max number of pages to keep in cache  */
 
 static int  mdb_search_page_root(MDB_txn *txn,
 			    MDB_dbi dbi, MDB_val *key,
@@ -472,6 +481,7 @@ mdb_alloc_page(MDB_txn *txn, MDB_page *parent, unsigned int parent_idx, int num)
 	MDB_dpage *dp;
 	pgno_t pgno = P_INVALID;
 	ULONG oldest;
+	MIDL2 mid;
 
 	if (txn->mt_txnid > 2) {
 
@@ -524,11 +534,11 @@ mdb_alloc_page(MDB_txn *txn, MDB_page *parent, unsigned int parent_idx, int num)
 	}
 	if (txn->mt_env->me_pghead) {
 		unsigned int i;
-		for (i=0; i<txn->mt_env->me_txns->mt_numreaders; i++) {
-			ULONG mr = txn->mt_env->me_txns->mt_readers[i].mr_txnid;
+		for (i=0; i<txn->mt_env->me_txns->mti_numreaders; i++) {
+			ULONG mr = txn->mt_env->me_txns->mti_readers[i].mr_txnid;
 			if (!mr) continue;
 			if (mr < oldest)
-				oldest = txn->mt_env->me_txns->mt_readers[i].mr_txnid;
+				oldest = txn->mt_env->me_txns->mti_readers[i].mr_txnid;
 		}
 		if (oldest > txn->mt_env->me_pghead->mo_txnid) {
 			MDB_oldpages *mop = txn->mt_env->me_pghead;
@@ -563,13 +573,15 @@ mdb_alloc_page(MDB_txn *txn, MDB_page *parent, unsigned int parent_idx, int num)
 	dp->h.md_num = num;
 	dp->h.md_parent = parent;
 	dp->h.md_pi = parent_idx;
-	STAILQ_INSERT_TAIL(txn->mt_u.dirty_queue, dp, h.md_next);
 	if (pgno == P_INVALID) {
 		dp->p.mp_pgno = txn->mt_next_pgno;
 		txn->mt_next_pgno += num;
 	} else {
 		dp->p.mp_pgno = pgno;
 	}
+	mid.mid = dp->p.mp_pgno;
+	mid.mptr = dp;
+	mdb_midl2_insert(txn->mt_u.dirty_list, &mid);
 
 	return dp;
 }
@@ -609,7 +621,7 @@ mdb_env_sync(MDB_env *env, int force)
 {
 	int rc = 0;
 	if (force || !F_ISSET(env->me_flags, MDB_NOSYNC)) {
-		if (fsync(env->me_fd))
+		if (fdatasync(env->me_fd))
 			rc = errno;
 	}
 	return rc;
@@ -629,38 +641,34 @@ mdb_txn_begin(MDB_env *env, int rdonly, MDB_txn **ret)
 	if (rdonly) {
 		txn->mt_flags |= MDB_TXN_RDONLY;
 	} else {
-		txn->mt_u.dirty_queue = calloc(1, sizeof(*txn->mt_u.dirty_queue));
-		if (txn->mt_u.dirty_queue == NULL) {
-			free(txn);
-			return ENOMEM;
-		}
-		STAILQ_INIT(txn->mt_u.dirty_queue);
-
-		pthread_mutex_lock(&env->me_txns->mt_wmutex);
-		env->me_txns->mt_txnid++;
+		txn->mt_u.dirty_list = env->me_dirty_list;
+		txn->mt_u.dirty_list[0].mid = 0;
 		txn->mt_free_pgs = env->me_free_pgs;
 		txn->mt_free_pgs[0] = 0;
+
+		pthread_mutex_lock(&env->me_txns->mti_wmutex);
+		env->me_txns->mti_txnid++;
 	}
 
-	txn->mt_txnid = env->me_txns->mt_txnid;
+	txn->mt_txnid = env->me_txns->mti_txnid;
 	if (rdonly) {
 		MDB_reader *r = pthread_getspecific(env->me_txkey);
 		if (!r) {
 			unsigned int i;
-			pthread_mutex_lock(&env->me_txns->mt_mutex);
-			for (i=0; i<env->me_txns->mt_numreaders; i++)
-				if (env->me_txns->mt_readers[i].mr_pid == 0)
+			pthread_mutex_lock(&env->me_txns->mti_mutex);
+			for (i=0; i<env->me_txns->mti_numreaders; i++)
+				if (env->me_txns->mti_readers[i].mr_pid == 0)
 					break;
 			if (i == env->me_maxreaders) {
 				return ENOSPC;
 			}
-			env->me_txns->mt_readers[i].mr_pid = getpid();
-			env->me_txns->mt_readers[i].mr_tid = pthread_self();
-			r = &env->me_txns->mt_readers[i];
+			env->me_txns->mti_readers[i].mr_pid = getpid();
+			env->me_txns->mti_readers[i].mr_tid = pthread_self();
+			r = &env->me_txns->mti_readers[i];
 			pthread_setspecific(env->me_txkey, r);
-			if (i >= env->me_txns->mt_numreaders)
-				env->me_txns->mt_numreaders = i+1;
-			pthread_mutex_unlock(&env->me_txns->mt_mutex);
+			if (i >= env->me_txns->mti_numreaders)
+				env->me_txns->mti_numreaders = i+1;
+			pthread_mutex_unlock(&env->me_txns->mti_mutex);
 		}
 		r->mr_txnid = txn->mt_txnid;
 		txn->mt_u.reader = r;
@@ -700,7 +708,6 @@ mdb_txn_begin(MDB_env *env, int rdonly, MDB_txn **ret)
 void
 mdb_txn_abort(MDB_txn *txn)
 {
-	MDB_dpage *dp;
 	MDB_env	*env;
 
 	if (txn == NULL)
@@ -719,12 +726,8 @@ mdb_txn_abort(MDB_txn *txn)
 		unsigned int i;
 
 		/* Discard all dirty pages. */
-		while (!STAILQ_EMPTY(txn->mt_u.dirty_queue)) {
-			dp = STAILQ_FIRST(txn->mt_u.dirty_queue);
-			STAILQ_REMOVE_HEAD(txn->mt_u.dirty_queue, h.md_next);
-			free(dp);
-		}
-		free(txn->mt_u.dirty_queue);
+		for (i=1; i<=txn->mt_u.dirty_list[0].mid; i++)
+			free(txn->mt_u.dirty_list[i].mptr);
 
 		while ((mop = txn->mt_env->me_pghead)) {
 			txn->mt_env->me_pghead = mop->mo_next;
@@ -732,10 +735,10 @@ mdb_txn_abort(MDB_txn *txn)
 		}
 
 		env->me_txn = NULL;
-		env->me_txns->mt_txnid--;
+		env->me_txns->mti_txnid--;
 		for (i=2; i<env->me_numdbs; i++)
 			env->me_dbxs[i].md_dirty = 0;
-		pthread_mutex_unlock(&env->me_txns->mt_wmutex);
+		pthread_mutex_unlock(&env->me_txns->mti_wmutex);
 	}
 
 	free(txn);
@@ -776,7 +779,7 @@ mdb_txn_commit(MDB_txn *txn)
 		return EINVAL;
 	}
 
-	if (STAILQ_EMPTY(txn->mt_u.dirty_queue))
+	if (!txn->mt_u.dirty_list[0].mid)
 		goto done;
 
 	DPRINTF("committing transaction %lu on mdbenv %p, root page %lu",
@@ -849,7 +852,8 @@ mdb_txn_commit(MDB_txn *txn)
 		n = 0;
 		done = 1;
 		size = 0;
-		STAILQ_FOREACH(dp, txn->mt_u.dirty_queue, h.md_next) {
+		for (i=1; i<=txn->mt_u.dirty_list[0].mid; i++) {
+			dp = txn->mt_u.dirty_list[i].mptr;
 			if (dp->p.mp_pgno != next) {
 				if (n) {
 					DPRINTF("committing %u dirty pages", n);
@@ -901,15 +905,11 @@ mdb_txn_commit(MDB_txn *txn)
 
 	/* Drop the dirty pages.
 	 */
-	while (!STAILQ_EMPTY(txn->mt_u.dirty_queue)) {
-		dp = STAILQ_FIRST(txn->mt_u.dirty_queue);
-		STAILQ_REMOVE_HEAD(txn->mt_u.dirty_queue, h.md_next);
-		free(dp);
-	}
+	for (i=1; i<=txn->mt_u.dirty_list[0].mid; i++)
+		free(txn->mt_u.dirty_list[i].mptr);
 
 	if ((n = mdb_env_sync(env, 0)) != 0 ||
-	    (n = mdb_env_write_meta(txn)) != MDB_SUCCESS ||
-	    (n = mdb_env_sync(env, 0)) != 0) {
+	    (n = mdb_env_write_meta(txn)) != MDB_SUCCESS) {
 		mdb_txn_abort(txn);
 		return n;
 	}
@@ -936,8 +936,7 @@ mdb_txn_commit(MDB_txn *txn)
 		free(txn->mt_dbs);
 	}
 
-	pthread_mutex_unlock(&env->me_txns->mt_wmutex);
-	free(txn->mt_u.dirty_queue);
+	pthread_mutex_unlock(&env->me_txns->mti_wmutex);
 	free(txn);
 	txn = NULL;
 
@@ -1063,8 +1062,7 @@ mdb_env_write_meta(MDB_txn *txn)
 		off += env->me_psize;
 	off += PAGEHDRSZ;
 
-	lseek(env->me_fd, off, SEEK_SET);
-	rc = write(env->me_fd, ptr, len);
+	rc = pwrite(env->me_fd, ptr, len, off);
 	if (rc != len) {
 		DPRINTF("write failed, disk error?");
 		return errno;
@@ -1105,6 +1103,7 @@ mdb_env_create(MDB_env **env)
 	e->me_maxdbs = 2;
 	e->me_fd = -1;
 	e->me_lfd = -1;
+	e->me_mfd = -1;
 	*env = e;
 	return MDB_SUCCESS;
 }
@@ -1218,7 +1217,7 @@ mdb_env_share_locks(MDB_env *env)
 {
 	struct flock lock_info;
 
-	env->me_txns->mt_txnid = env->me_meta->mm_txnid;
+	env->me_txns->mti_txnid = env->me_meta->mm_txnid;
 
 	memset((void *)&lock_info, 0, sizeof(lock_info));
 	lock_info.l_type = F_RDLCK;
@@ -1283,22 +1282,22 @@ mdb_env_setup_locks(MDB_env *env, char *lpath, int mode, int *excl)
 
 		pthread_mutexattr_init(&mattr);
 		pthread_mutexattr_setpshared(&mattr, PTHREAD_PROCESS_SHARED);
-		pthread_mutex_init(&env->me_txns->mt_mutex, &mattr);
-		pthread_mutex_init(&env->me_txns->mt_wmutex, &mattr);
-		env->me_txns->mt_version = MDB_VERSION;
-		env->me_txns->mt_magic = MDB_MAGIC;
-		env->me_txns->mt_txnid = 0;
-		env->me_txns->mt_numreaders = 0;
+		pthread_mutex_init(&env->me_txns->mti_mutex, &mattr);
+		pthread_mutex_init(&env->me_txns->mti_wmutex, &mattr);
+		env->me_txns->mti_version = MDB_VERSION;
+		env->me_txns->mti_magic = MDB_MAGIC;
+		env->me_txns->mti_txnid = 0;
+		env->me_txns->mti_numreaders = 0;
 
 	} else {
-		if (env->me_txns->mt_magic != MDB_MAGIC) {
+		if (env->me_txns->mti_magic != MDB_MAGIC) {
 			DPRINTF("lock region has invalid magic");
 			rc = EINVAL;
 			goto fail;
 		}
-		if (env->me_txns->mt_version != MDB_VERSION) {
+		if (env->me_txns->mti_version != MDB_VERSION) {
 			DPRINTF("lock region is version %u, expected version %u",
-				env->me_txns->mt_version, MDB_VERSION);
+				env->me_txns->mti_version, MDB_VERSION);
 			rc = MDB_VERSION_MISMATCH;
 			goto fail;
 		}
@@ -1347,6 +1346,16 @@ mdb_env_open(MDB_env *env, const char *path, unsigned int flags, mode_t mode)
 		close(env->me_fd);
 		env->me_fd = -1;
 	} else {
+		/* synchronous fd for meta writes */
+		if (!(flags & (MDB_RDONLY|MDB_NOSYNC)))
+			oflags |= O_DSYNC;
+		if ((env->me_mfd = open(dpath, oflags, mode)) == -1) {
+			rc = errno;
+			close(env->me_fd);
+			env->me_fd = -1;
+			return rc;
+		}
+
 		env->me_path = strdup(path);
 		DPRINTF("opened dbenv %p", (void *) env);
 		pthread_key_create(&env->me_txkey, mdb_env_reader_dest);
@@ -1377,6 +1386,7 @@ mdb_env_close(MDB_env *env)
 	if (env->me_map) {
 		munmap(env->me_map, env->me_mapsize);
 	}
+	close(env->me_mfd);
 	close(env->me_fd);
 	if (env->me_txns) {
 		size_t size = (env->me_maxreaders-1) * sizeof(MDB_reader) + sizeof(MDB_txninfo);
@@ -1489,14 +1499,16 @@ mdb_get_page(MDB_txn *txn, pgno_t pgno)
 	MDB_page *p = NULL;
 	int found = 0;
 
-	if (!F_ISSET(txn->mt_flags, MDB_TXN_RDONLY) && !STAILQ_EMPTY(txn->mt_u.dirty_queue)) {
+	if (!F_ISSET(txn->mt_flags, MDB_TXN_RDONLY) && txn->mt_u.dirty_list[0].mid) {
 		MDB_dpage *dp;
-		STAILQ_FOREACH(dp, txn->mt_u.dirty_queue, h.md_next) {
-			if (dp->p.mp_pgno == pgno) {
-				p = &dp->p;
-				found = 1;
-				break;
-			}
+		MIDL2 id;
+		unsigned x;
+		id.mid = pgno;
+		x = mdb_midl2_search(txn->mt_u.dirty_list, &id);
+		if (x <= txn->mt_u.dirty_list[0].mid && txn->mt_u.dirty_list[x].mid == pgno) {
+			dp = txn->mt_u.dirty_list[x].mptr;
+			p = &dp->p;
+			found = 1;
 		}
 	}
 	if (!found) {

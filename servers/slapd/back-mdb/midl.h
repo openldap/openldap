@@ -17,8 +17,6 @@
 #ifndef _MDB_MIDL_H_
 #define _MDB_MIDL_H_
 
-#define AC_MEMCPY(dst,src,size)	memcpy(dst,src,size)
-
 #define	ID	unsigned long
 #define	NOID	((ID)~0)
 
@@ -61,7 +59,7 @@
 #define MDB_IDL_IS_ALL( range, ids ) ( (ids)[0] == NOID \
 	&& (ids)[1] <= (range)[1] && (range)[2] <= (ids)[2] )
 
-#define MDB_IDL_CPY( dst, src ) (AC_MEMCPY( dst, src, MDB_IDL_SIZEOF( src ) ))
+#define MDB_IDL_CPY( dst, src ) (memcpy( dst, src, MDB_IDL_SIZEOF( src ) ))
 
 #define MDB_IDL_ID( bdb, ids, id ) MDB_IDL_RANGE( ids, id, ((bdb)->bi_lastid) )
 #define MDB_IDL_ALL( bdb, ids ) MDB_IDL_RANGE( ids, 1, ((bdb)->bi_lastid) )
@@ -74,5 +72,13 @@
 	? (ids[2]-ids[1])+1 : ids[0] )
 
 int mdb_midl_insert( ID *ids, ID id );
+
+typedef struct MIDL2 {
+	ID mid;
+	void *mptr;
+} MIDL2;
+
+unsigned mdb_midl2_search( MIDL2 *ids, MIDL2 *id );
+int mdb_midl2_insert( MIDL2 *ids, MIDL2 *id );
 
 #endif	/* _MDB_MIDL_H_ */
