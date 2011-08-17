@@ -1,0 +1,3 @@
+[submodule "servers/slapd/back-mdb/libmdb"]
+	path = servers/slapd/back-mdb/libmdb
+	url = https://git.gitorious.org/mdb/mdb.git
