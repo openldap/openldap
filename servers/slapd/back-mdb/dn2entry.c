@@ -30,54 +30,28 @@
 int
 mdb_dn2entry(
 	Operation *op,
-	DB_TXN *tid,
+	MDB_txn *tid,
 	struct berval *dn,
-	EntryInfo **e,
-	int matched,
-	DB_LOCK *lock )
+	Entry **e,
+	struct berval *matched )
 {
-	EntryInfo *ei = NULL;
 	int rc, rc2;
+	ID id;
 
 	Debug(LDAP_DEBUG_TRACE, "mdb_dn2entry(\"%s\")\n",
 		dn->bv_val, 0, 0 );
 
 	*e = NULL;
 
-	rc = mdb_cache_find_ndn( op, tid, dn, &ei );
+	rc = mdb_dn2id( op, tid, dn, &id );
 	if ( rc ) {
-		if ( matched && rc == DB_NOTFOUND ) {
-			/* Set the return value, whether we have its entry
-			 * or not.
-			 */
-			*e = ei;
-			if ( ei && ei->bei_id ) {
-				rc2 = mdb_cache_find_id( op, tid, ei->bei_id,
-					&ei, ID_LOCKED, lock );
-				if ( rc2 ) rc = rc2;
-			} else if ( ei ) {
-				mdb_cache_entryinfo_unlock( ei );
-				memset( lock, 0, sizeof( *lock ));
-				lock->mode = DB_LOCK_NG;
-			}
-		} else if ( ei ) {
-			mdb_cache_entryinfo_unlock( ei );
+		*e = NULL;
+		if ( matched && rc == MDB_NOTFOUND ) {
+			/* Get the parent's DN */
+			mdb_id2name( op, tid, id, matched, NULL );
 		}
 	} else {
-		rc = mdb_cache_find_id( op, tid, ei->bei_id, &ei, ID_LOCKED,
-			lock );
-		if ( rc == 0 ) {
-			*e = ei;
-		} else if ( matched && rc == DB_NOTFOUND ) {
-			/* always return EntryInfo */
-			if ( ei->bei_parent ) {
-				ei = ei->bei_parent;
-				rc2 = mdb_cache_find_id( op, tid, ei->bei_id, &ei, 0,
-					lock );
-				if ( rc2 ) rc = rc2;
-			}
-			*e = ei;
-		}
+		rc = mdb_id2entry( op, tid, id, e );
 	}
 
 	return rc;

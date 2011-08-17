@@ -95,6 +95,7 @@ struct mdb_info {
 	int		mi_flags;
 #define	MDB_IS_OPEN		0x01
 #define	MDB_DEL_INDEX	0x08
+#define	MDB_RE_OPEN		0x10
 };
 
 #define mi_id2entry	mi_databases[MDB_ID2ENTRY]

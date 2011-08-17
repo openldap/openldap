@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2000-2011 The OpenLDAP Foundation.
+ * Copyright 2011 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +24,11 @@
 #include "back-mdb.h"
 #include "idl.h"
 
-static DBC *cursor = NULL;
-static DBT key, data;
+static MDB_txn *txn = NULL;
+static MDB_cursor *cursor = NULL;
+static MDB_val key, data;
 static EntryHeader eh;
-static ID nid, previd = NOID;
+static ID previd = NOID;
 static char ehbuf[16];
 
 typedef struct dn_id {
@@ -56,22 +57,6 @@ static ldap_pvt_thread_mutex_t mdb_tool_index_mutex;
 static ldap_pvt_thread_cond_t mdb_tool_index_cond_main;
 static ldap_pvt_thread_cond_t mdb_tool_index_cond_work;
 
-#if DB_VERSION_FULL >= 0x04060000
-#define	USE_TRICKLE	1
-#else
-/* Seems to slow things down too much in MDB 4.5 */
-#undef USE_TRICKLE
-#endif
-
-#ifdef USE_TRICKLE
-static ldap_pvt_thread_mutex_t mdb_tool_trickle_mutex;
-static ldap_pvt_thread_cond_t mdb_tool_trickle_cond;
-static ldap_pvt_thread_cond_t mdb_tool_trickle_cond_end;
-
-static void * mdb_tool_trickle_task( void *ctx, void *ptr );
-static int mdb_tool_trickle_active;
-#endif
-
 static void * mdb_tool_index_task( void *ctx, void *ptr );
 
 static int
@@ -82,33 +67,10 @@ int mdb_tool_entry_open(
 {
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
 
-	/* initialize key and data thangs */
-	DBTzero( &key );
-	DBTzero( &data );
-	key.flags = DB_DBT_USERMEM;
-	key.data = &nid;
-	key.size = key.ulen = sizeof( nid );
-	data.flags = DB_DBT_USERMEM;
-
-	if (cursor == NULL) {
-		int rc = mdb->bi_id2entry->bdi_db->cursor(
-			mdb->bi_id2entry->bdi_db, mdb->bi_cache.c_txn, &cursor,
-			mdb->bi_db_opflags );
-		if( rc != 0 ) {
-			return -1;
-		}
-	}
-
+#if 0
 	/* Set up for threaded slapindex */
 	if (( slapMode & (SLAP_TOOL_QUICK|SLAP_TOOL_READONLY)) == SLAP_TOOL_QUICK ) {
 		if ( !mdb_tool_info ) {
-#ifdef USE_TRICKLE
-			ldap_pvt_thread_mutex_init( &mdb_tool_trickle_mutex );
-			ldap_pvt_thread_cond_init( &mdb_tool_trickle_cond );
-			ldap_pvt_thread_cond_init( &mdb_tool_trickle_cond_end );
-			ldap_pvt_thread_pool_submit( &connection_pool, mdb_tool_trickle_task, mdb->bi_dbenv );
-#endif
-
 			ldap_pvt_thread_mutex_init( &mdb_tool_index_mutex );
 			ldap_pvt_thread_cond_init( &mdb_tool_index_cond_main );
 			ldap_pvt_thread_cond_init( &mdb_tool_index_cond_work );
@@ -127,6 +89,7 @@ int mdb_tool_entry_open(
 			mdb_tool_info = mdb;
 		}
 	}
+#endif
 
 	return 0;
 }
@@ -134,22 +97,9 @@ int mdb_tool_entry_open(
 int mdb_tool_entry_close(
 	BackendDB *be )
 {
+#if 0
 	if ( mdb_tool_info ) {
 		slapd_shutdown = 1;
-#ifdef USE_TRICKLE
-		ldap_pvt_thread_mutex_lock( &mdb_tool_trickle_mutex );
-
-		/* trickle thread may not have started yet */
-		while ( !mdb_tool_trickle_active )
-			ldap_pvt_thread_cond_wait( &mdb_tool_trickle_cond_end,
-					&mdb_tool_trickle_mutex );
-
-		ldap_pvt_thread_cond_signal( &mdb_tool_trickle_cond );
-		while ( mdb_tool_trickle_active )
-			ldap_pvt_thread_cond_wait( &mdb_tool_trickle_cond_end,
-					&mdb_tool_trickle_mutex );
-		ldap_pvt_thread_mutex_unlock( &mdb_tool_trickle_mutex );
-#endif
 		ldap_pvt_thread_mutex_lock( &mdb_tool_index_mutex );
 
 		/* There might still be some threads starting */
@@ -174,15 +124,15 @@ int mdb_tool_entry_close(
 		ch_free( mdb_tool_index_rec );
 		mdb_tool_index_tcount = slap_tool_thread_max - 1;
 	}
-
-	if( eh.bv.bv_val ) {
-		ch_free( eh.bv.bv_val );
-		eh.bv.bv_val = NULL;
-	}
+#endif
 
 	if( cursor ) {
-		cursor->c_close( cursor );
+		mdb_cursor_close( cursor );
 		cursor = NULL;
+	}
+	if( txn ) {
+		if ( mdb_txn_commit( txn ))
+			return -1;
 	}
 
 	if( nholes ) {
@@ -225,33 +175,25 @@ ID mdb_tool_entry_next(
 	mdb = (struct mdb_info *) be->be_private;
 	assert( mdb != NULL );
 
-next:;
-	/* Get the header */
-	data.ulen = data.dlen = sizeof( ehbuf );
-	data.data = ehbuf;
-	data.flags |= DB_DBT_PARTIAL;
-	rc = cursor->c_get( cursor, &key, &data, DB_NEXT );
-
-	if( rc ) {
-		/* If we're doing linear indexing and there are more attrs to
-		 * index, and we're at the end of the database, start over.
-		 */
-		if ( index_nattrs && rc == DB_NOTFOUND ) {
-			/* optional - do a checkpoint here? */
-			mdb_attr_info_free( mdb->bi_attrs[0] );
-			mdb->bi_attrs[0] = mdb->bi_attrs[index_nattrs];
-			index_nattrs--;
-			rc = cursor->c_get( cursor, &key, &data, DB_FIRST );
-			if ( rc ) {
-				return NOID;
-			}
-		} else {
+	if ( !txn ) {
+		rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
+		if ( rc )
+			return NOID;
+		rc = mdb_cursor_open( txn, mdb->mi_id2entry->mdi_dbi, &cursor );
+		if ( rc ) {
+			mdb_txn_abort( txn );
 			return NOID;
 		}
 	}
 
-	MDB_DISK2ID( key.data, &id );
-	previd = id;
+next:;
+	rc = mdb_cursor_get( cursor, &key, &data, MDB_NEXT );
+
+	if( rc ) {
+		return NOID;
+	}
+
+	previd = *(ID *)key.mv_data;
 
 	if ( tool_filter || tool_base ) {
 		static Operation op = {0};
@@ -274,17 +216,6 @@ next:;
 
 		assert( tool_next_entry != NULL );
 
-#ifdef MDB_HIER
-		/* TODO: needed until MDB_HIER is handled accordingly
-		 * in mdb_tool_entry_get_int() */
-		if ( tool_base && !dnIsSuffixScope( &tool_next_entry->e_nname, tool_base, tool_scope ) )
-		{
-			mdb_entry_release( &op, tool_next_entry, 0 );
-			tool_next_entry = NULL;
-			goto next;
-		}
-#endif
-
 		if ( tool_filter && test_filter( NULL, tool_next_entry, tool_filter ) != LDAP_COMPARE_TRUE )
 		{
 			mdb_entry_release( &op, tool_next_entry, 0 );
@@ -303,7 +234,7 @@ ID mdb_tool_dn2id_get(
 {
 	Operation op = {0};
 	Opheader ohdr = {0};
-	EntryInfo *ei = NULL;
+	ID id;
 	int rc;
 
 	if ( BER_BVISEMPTY(dn) )
@@ -314,12 +245,11 @@ ID mdb_tool_dn2id_get(
 	op.o_tmpmemctx = NULL;
 	op.o_tmpmfuncs = &ch_mfuncs;
 
-	rc = mdb_cache_find_ndn( &op, 0, dn, &ei );
-	if ( ei ) mdb_cache_entryinfo_unlock( ei );
-	if ( rc == DB_NOTFOUND )
+	rc = mdb_dn2id( &op, txn, dn, &id );
+	if ( rc == MDB_NOTFOUND )
 		return NOID;
 	
-	return ei->bei_id;
+	return id;
 }
 
 static int
@@ -328,6 +258,7 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 	Entry *e = NULL;
 	char *dptr;
 	int rc, eoff;
+	struct berval dn = BER_BVNULL, ndn = BER_BVNULL;
 
 	assert( be != NULL );
 	assert( slapMode & SLAP_TOOL_MODE );
@@ -339,100 +270,54 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 	}
 
 	if ( id != previd ) {
-		data.ulen = data.dlen = sizeof( ehbuf );
-		data.data = ehbuf;
-		data.flags |= DB_DBT_PARTIAL;
-
-		MDB_ID2DISK( id, &nid );
-		rc = cursor->c_get( cursor, &key, &data, DB_SET );
+		rc = mdb_cursor_get( cursor, &key, &data, MDB_SET );
 		if ( rc ) {
 			rc = LDAP_OTHER;
 			goto done;
 		}
 	}
 
-	/* Get the header */
-	dptr = eh.bv.bv_val;
-	eh.bv.bv_val = ehbuf;
-	eh.bv.bv_len = data.size;
-	rc = entry_header( &eh );
-	eoff = eh.data - eh.bv.bv_val;
-	eh.bv.bv_val = dptr;
-	if ( rc ) {
-		rc = LDAP_OTHER;
-		goto done;
-	}
+	if ( slapMode & SLAP_TOOL_READONLY ) {
+		struct mdb_info *mdb = (struct mdb_info *) be->be_private;
+		Operation op = {0};
+		Opheader ohdr = {0};
 
-	/* Get the size */
-	data.flags &= ~DB_DBT_PARTIAL;
-	data.ulen = 0;
-	rc = cursor->c_get( cursor, &key, &data, DB_CURRENT );
-	if ( rc != DB_BUFFER_SMALL ) {
-		rc = LDAP_OTHER;
-		goto done;
-	}
+		op.o_hdr = &ohdr;
+		op.o_bd = be;
+		op.o_tmpmemctx = NULL;
+		op.o_tmpmfuncs = &ch_mfuncs;
 
-	/* Allocate a block and retrieve the data */
-	eh.bv.bv_len = eh.nvals * sizeof( struct berval ) + data.size;
-	eh.bv.bv_val = ch_realloc( eh.bv.bv_val, eh.bv.bv_len );
-	eh.data = eh.bv.bv_val + eh.nvals * sizeof( struct berval );
-	data.data = eh.data;
-	data.ulen = data.size;
-
-	/* Skip past already parsed nattr/nvals */
-	eh.data += eoff;
-
-	rc = cursor->c_get( cursor, &key, &data, DB_CURRENT );
-	if ( rc ) {
-		rc = LDAP_OTHER;
-		goto done;
-	}
-
-#ifndef MDB_HIER
-	/* TODO: handle MDB_HIER accordingly */
-	if ( tool_base != NULL ) {
-		struct berval ndn;
-		entry_decode_dn( &eh, NULL, &ndn );
-
-		if ( !dnIsSuffixScope( &ndn, tool_base, tool_scope ) ) {
-			return LDAP_NO_SUCH_OBJECT;
+		rc = mdb_id2name( &op, txn, id, &dn, &ndn );
+		if ( rc  ) {
+			rc = LDAP_OTHER;
+			mdb_entry_return( e );
+			e = NULL;
+			goto done;
 		}
-	}
-#endif
-
-#ifdef SLAP_ZONE_ALLOC
-	/* FIXME: will add ctx later */
-	rc = entry_decode( &eh, &e, NULL );
-#else
-	rc = entry_decode( &eh, &e );
-#endif
-
-	if( rc == LDAP_SUCCESS ) {
-		e->e_id = id;
-#ifdef MDB_HIER
-		if ( slapMode & SLAP_TOOL_READONLY ) {
-			struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-			EntryInfo *ei = NULL;
-			Operation op = {0};
-			Opheader ohdr = {0};
-
-			op.o_hdr = &ohdr;
-			op.o_bd = be;
-			op.o_tmpmemctx = NULL;
-			op.o_tmpmfuncs = &ch_mfuncs;
-
-			rc = mdb_cache_find_parent( &op, mdb->bi_cache.c_txn, id, &ei );
-			if ( rc == LDAP_SUCCESS ) {
-				mdb_cache_entryinfo_unlock( ei );
-				e->e_private = ei;
-				ei->bei_e = e;
-				mdb_fix_dn( e, 0 );
-				ei->bei_e = NULL;
-				e->e_private = NULL;
+		if ( tool_base != NULL ) {
+			if ( !dnIsSuffixScope( &ndn, tool_base, tool_scope ) ) {
+				ch_free( dn.bv_val );
+				ch_free( ndn.bv_val );
+				rc = LDAP_NO_SUCH_OBJECT;
 			}
 		}
-#endif
 	}
+	/* Get the header */
+	eh.bv.bv_val = data.mv_data;
+	eh.bv.bv_len = data.mv_size;
+
+	rc = entry_header( &eh );
+	if ( rc ) {
+		rc = LDAP_OTHER;
+		goto done;
+	}
+	rc = entry_decode( &eh, &e );
+	e->e_id = id;
+	if ( !BER_BVISNULL( &dn )) {
+		e->e_name = dn;
+		e->e_nname = ndn;
+	}
+
 done:
 	if ( e != NULL ) {
 		*ep = e;
@@ -450,9 +335,10 @@ mdb_tool_entry_get( BackendDB *be, ID id )
 	return e;
 }
 
+#if 0
 static int mdb_tool_next_id(
 	Operation *op,
-	DB_TXN *tid,
+	MDB_txn *tid,
 	Entry *e,
 	struct berval *text,
 	int hole )
@@ -601,6 +487,7 @@ mdb_tool_index_add(
 		return mdb_index_entry_add( op, txn, e );
 	}
 }
+#endif
 
 ID mdb_tool_entry_put(
 	BackendDB *be,
@@ -609,7 +496,6 @@ ID mdb_tool_entry_put(
 {
 	int rc;
 	struct mdb_info *mdb;
-	DB_TXN *tid = NULL;
 	Operation op = {0};
 	Opheader ohdr = {0};
 
@@ -625,13 +511,12 @@ ID mdb_tool_entry_put(
 
 	mdb = (struct mdb_info *) be->be_private;
 
-	if (! (slapMode & SLAP_TOOL_QUICK)) {
-	rc = TXN_BEGIN( mdb->bi_dbenv, NULL, &tid, 
-		mdb->bi_db_opflags );
+	if ( !txn ) {
+	rc = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
 	if( rc != 0 ) {
 		snprintf( text->bv_val, text->bv_len,
 			"txn_begin failed: %s (%d)",
-			db_strerror(rc), rc );
+			mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_put) ": %s\n",
 			 text->bv_val, 0, 0 );
@@ -644,18 +529,15 @@ ID mdb_tool_entry_put(
 	op.o_tmpmemctx = NULL;
 	op.o_tmpmfuncs = &ch_mfuncs;
 
+#if 0
 	/* add dn2id indices */
 	rc = mdb_tool_next_id( &op, tid, e, text, 0 );
 	if( rc != 0 ) {
 		goto done;
 	}
-
-#ifdef USE_TRICKLE
-	if (( slapMode & SLAP_TOOL_QUICK ) && (( e->e_id & 0xfff ) == 0xfff )) {
-		ldap_pvt_thread_cond_signal( &mdb_tool_trickle_cond );
-	}
 #endif
 
+#if 0
 	if ( !mdb->bi_linear_index )
 		rc = mdb_tool_index_add( &op, tid, e );
 	if( rc != 0 ) {
@@ -668,13 +550,15 @@ ID mdb_tool_entry_put(
 			text->bv_val, 0, 0 );
 		goto done;
 	}
+#endif
+
 
 	/* id2entry index */
-	rc = mdb_id2entry_add( be, tid, e );
+	rc = mdb_id2entry_add( &op, txn, e );
 	if( rc != 0 ) {
 		snprintf( text->bv_val, text->bv_len,
 				"id2entry_add failed: %s (%d)",
-				db_strerror(rc), rc );
+				mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_put) ": %s\n",
 			text->bv_val, 0, 0 );
@@ -684,11 +568,11 @@ ID mdb_tool_entry_put(
 done:
 	if( rc == 0 ) {
 		if ( !( slapMode & SLAP_TOOL_QUICK )) {
-		rc = TXN_COMMIT( tid, 0 );
+		rc = mdb_txn_commit( txn );
 		if( rc != 0 ) {
 			snprintf( text->bv_val, text->bv_len,
 					"txn_commit failed: %s (%d)",
-					db_strerror(rc), rc );
+					mdb_strerror(rc), rc );
 			Debug( LDAP_DEBUG_ANY,
 				"=> " LDAP_XSTRING(mdb_tool_entry_put) ": %s\n",
 				text->bv_val, 0, 0 );
@@ -697,22 +581,22 @@ done:
 		}
 
 	} else {
-		if ( !( slapMode & SLAP_TOOL_QUICK )) {
-		TXN_ABORT( tid );
+		mdb_txn_abort( txn );
+		txn = NULL;
 		snprintf( text->bv_val, text->bv_len,
 			"txn_aborted! %s (%d)",
 			rc == LDAP_OTHER ? "Internal error" :
-			db_strerror(rc), rc );
+			mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_put) ": %s\n",
 			text->bv_val, 0, 0 );
-		}
 		e->e_id = NOID;
 	}
 
 	return e->e_id;
 }
 
+#if 0
 int mdb_tool_entry_reindex(
 	BackendDB *be,
 	ID id,
@@ -851,6 +735,7 @@ done:
 
 	return rc;
 }
+#endif
 
 ID mdb_tool_entry_modify(
 	BackendDB *be,
@@ -859,7 +744,7 @@ ID mdb_tool_entry_modify(
 {
 	int rc;
 	struct mdb_info *mdb;
-	DB_TXN *tid = NULL;
+	MDB_txn *tid;
 	Operation op = {0};
 	Opheader ohdr = {0};
 
@@ -878,22 +763,19 @@ ID mdb_tool_entry_modify(
 
 	mdb = (struct mdb_info *) be->be_private;
 
-	if (! (slapMode & SLAP_TOOL_QUICK)) {
-		if( cursor ) {
-			cursor->c_close( cursor );
-			cursor = NULL;
-		}
-		rc = TXN_BEGIN( mdb->bi_dbenv, NULL, &tid, 
-			mdb->bi_db_opflags );
-		if( rc != 0 ) {
-			snprintf( text->bv_val, text->bv_len,
-				"txn_begin failed: %s (%d)",
-				db_strerror(rc), rc );
-			Debug( LDAP_DEBUG_ANY,
-				"=> " LDAP_XSTRING(mdb_tool_entry_modify) ": %s\n",
-				 text->bv_val, 0, 0 );
-			return NOID;
-		}
+	if( cursor ) {
+		mdb_cursor_close( cursor );
+		cursor = NULL;
+	}
+	rc = mdb_txn_begin( mdb->mi_dbenv, 0, &tid );
+	if( rc != 0 ) {
+		snprintf( text->bv_val, text->bv_len,
+			"txn_begin failed: %s (%d)",
+			mdb_strerror(rc), rc );
+		Debug( LDAP_DEBUG_ANY,
+			"=> " LDAP_XSTRING(mdb_tool_entry_modify) ": %s\n",
+			 text->bv_val, 0, 0 );
+		return NOID;
 	}
 
 	op.o_hdr = &ohdr;
@@ -902,11 +784,11 @@ ID mdb_tool_entry_modify(
 	op.o_tmpmfuncs = &ch_mfuncs;
 
 	/* id2entry index */
-	rc = mdb_id2entry_update( be, tid, e );
+	rc = mdb_id2entry_update( &op, tid, e );
 	if( rc != 0 ) {
 		snprintf( text->bv_val, text->bv_len,
 				"id2entry_add failed: %s (%d)",
-				db_strerror(rc), rc );
+				mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_modify) ": %s\n",
 			text->bv_val, 0, 0 );
@@ -915,60 +797,32 @@ ID mdb_tool_entry_modify(
 
 done:
 	if( rc == 0 ) {
-		if (! (slapMode & SLAP_TOOL_QUICK)) {
-		rc = TXN_COMMIT( tid, 0 );
+		rc = mdb_txn_commit( tid );
 		if( rc != 0 ) {
 			snprintf( text->bv_val, text->bv_len,
 					"txn_commit failed: %s (%d)",
-					db_strerror(rc), rc );
+					mdb_strerror(rc), rc );
 			Debug( LDAP_DEBUG_ANY,
 				"=> " LDAP_XSTRING(mdb_tool_entry_modify) ": "
 				"%s\n", text->bv_val, 0, 0 );
 			e->e_id = NOID;
 		}
-		}
 
 	} else {
-		if (! (slapMode & SLAP_TOOL_QUICK)) {
-		TXN_ABORT( tid );
+		mdb_txn_abort( tid );
 		snprintf( text->bv_val, text->bv_len,
 			"txn_aborted! %s (%d)",
-			db_strerror(rc), rc );
+			mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_modify) ": %s\n",
 			text->bv_val, 0, 0 );
-		}
 		e->e_id = NOID;
 	}
 
 	return e->e_id;
 }
 
-#ifdef USE_TRICKLE
-static void *
-mdb_tool_trickle_task( void *ctx, void *ptr )
-{
-	DB_ENV *env = ptr;
-	int wrote;
-
-	ldap_pvt_thread_mutex_lock( &mdb_tool_trickle_mutex );
-	mdb_tool_trickle_active = 1;
-	ldap_pvt_thread_cond_signal( &mdb_tool_trickle_cond_end );
-	while ( 1 ) {
-		ldap_pvt_thread_cond_wait( &mdb_tool_trickle_cond,
-			&mdb_tool_trickle_mutex );
-		if ( slapd_shutdown )
-			break;
-		env->memp_trickle( env, 30, &wrote );
-	}
-	mdb_tool_trickle_active = 0;
-	ldap_pvt_thread_cond_signal( &mdb_tool_trickle_cond_end );
-	ldap_pvt_thread_mutex_unlock( &mdb_tool_trickle_mutex );
-
-	return NULL;
-}
-#endif
-
+#if 0
 static void *
 mdb_tool_index_task( void *ctx, void *ptr )
 {
@@ -997,3 +851,4 @@ mdb_tool_index_task( void *ctx, void *ptr )
 
 	return NULL;
 }
+#endif

@@ -45,7 +45,7 @@ static int mdb_id2entry_put(
 	key.mv_data = &e->e_id;
 	key.mv_size = sizeof(ID);
 
-	rc = mdb_entry_encode( op, e, &bv );
+	rc = entry_encode( e, &bv );
 	e->e_name = odn; e->e_nname = ondn;
 	if( rc != LDAP_SUCCESS ) {
 		return -1;
@@ -104,7 +104,12 @@ int mdb_id2entry(
 	rc = mdb_get( tid, dbi, &key, &data );
 	if ( rc ) return rc;
 
-	rc = mdb_entry_decode(&eh, e);
+	eh.bv.bv_val = data.mv_data;
+	eh.bv.bv_len = data.mv_size;
+	rc = entry_header( &eh );
+	if ( rc ) return rc;
+
+	rc = entry_decode(&eh, e);
 
 	if( rc == 0 ) {
 		(*e)->e_id = id;
@@ -165,6 +170,7 @@ int mdb_entry_release(
 	Entry *e,
 	int rw )
 {
+#if 0
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	struct mdb_op_info *moi;
 	OpExtra *oex;
@@ -215,6 +221,9 @@ int mdb_entry_release(
 	}
  
 	return 0;
+#else
+	return mdb_entry_return( e );
+#endif
 }
 
 /* return LDAP_SUCCESS IFF we can retrieve the specified entry.
@@ -227,15 +236,14 @@ int mdb_entry_get(
 	int rw,
 	Entry **ent )
 {
+#if 0
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	struct mdb_op_info *boi = NULL;
-	DB_TXN *txn = NULL;
+	MDB_txn *txn = NULL;
 	Entry *e = NULL;
 	EntryInfo *ei;
 	int	rc;
 	const char *at_name = at ? at->ad_cname.bv_val : "(null)";
-
-	DB_LOCK		lock;
 
 	Debug( LDAP_DEBUG_ARGS,
 		"=> mdb_entry_get: ndn: \"%s\"\n", ndn->bv_val, 0, 0 ); 
@@ -342,4 +350,5 @@ return_results:
 		"mdb_entry_get: rc=%d\n",
 		rc, 0, 0 ); 
 	return(rc);
+#endif
 }
