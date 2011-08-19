@@ -469,6 +469,8 @@ mdb_id2name(
 	while (id) {
 		int nrlen, rlen;
 		key.mv_data = &id;
+		data.mv_size = 0;
+		data.mv_data = "";
 		rc = mdb_cursor_get( cursor, &key, &data, MDB_SET );
 		if ( rc ) break;
 		ptr = data.mv_data;
