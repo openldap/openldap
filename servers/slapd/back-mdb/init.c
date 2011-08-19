@@ -84,8 +84,6 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 	char path[MAXPATHLEN];
 	char *dbhome;
 	Entry *e = NULL;
-	int alockt, quick = 0;
-	int do_retry = 1;
 	MDB_txn *txn;
 
 	if ( be->be_suffix == NULL ) {
@@ -154,7 +152,7 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 
 	flags = mdb->mi_dbenv_flags;
 
-	if ( quick )
+	if ( slapMode & SLAP_TOOL_QUICK )
 		flags |= MDB_NOSYNC;
 
 	if ( slapMode & SLAP_TOOL_READONLY)

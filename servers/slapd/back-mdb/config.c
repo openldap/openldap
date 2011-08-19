@@ -315,6 +315,9 @@ mdb_cf_gen( ConfigArgs *c )
 			c->value_int = mdb->mi_search_stack_depth;
 			break;
 
+		case MDB_MAXSIZE:
+			c->value_int = mdb->mi_mapsize;
+			break;
 		}
 		return rc;
 	} else if ( c->op == LDAP_MOD_DELETE ) {
@@ -330,6 +333,7 @@ mdb_cf_gen( ConfigArgs *c )
 
 		/* single-valued no-ops */
 		case MDB_SSTACK:
+		case MDB_MAXSIZE:
 			break;
 
 		case MDB_CHKPT:
@@ -566,6 +570,13 @@ mdb_cf_gen( ConfigArgs *c )
 		}
 		mdb->mi_search_stack_depth = c->value_int;
 		break;
+
+	case MDB_MAXSIZE:
+		mdb->mi_mapsize = c->value_int;
+		if ( mdb->mi_flags & MDB_IS_OPEN )
+			mdb->mi_flags |= MDB_RE_OPEN;
+		break;
+
 	}
 	return 0;
 }
