@@ -107,6 +107,13 @@ int mdb_dn2id_parent(
 	ID eid,
 	ID *idp );
 
+int mdb_id2name(
+	Operation *op,
+	MDB_txn *txn,
+	ID eid,
+	struct berval *name,
+	struct berval *nname);
+
 MDB_cmp_func mdb_dup_compare;
 
 /*

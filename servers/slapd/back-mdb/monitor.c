@@ -31,9 +31,7 @@
 
 static ObjectClass		*oc_olmMDBDatabase;
 
-static AttributeDescription	*ad_olmMDBEntryCache,
-	*ad_olmMDBDNCache, *ad_olmMDBIDLCache,
-	*ad_olmDbDirectory;
+static AttributeDescription *ad_olmDbDirectory;
 
 #ifdef MDB_MONITOR_IDX
 static int
@@ -71,30 +69,6 @@ static struct {
 	char			*desc;
 	AttributeDescription	**ad;
 }		s_at[] = {
-	{ "( olmMDBAttributes:1 "
-		"NAME ( 'olmMDBEntryCache' ) "
-		"DESC 'Number of items in Entry Cache' "
-		"SUP monitorCounter "
-		"NO-USER-MODIFICATION "
-		"USAGE dSAOperation )",
-		&ad_olmMDBEntryCache },
-
-	{ "( olmMDBAttributes:2 "
-		"NAME ( 'olmMDBDNCache' ) "
-		"DESC 'Number of items in DN Cache' "
-		"SUP monitorCounter "
-		"NO-USER-MODIFICATION "
-		"USAGE dSAOperation )",
-		&ad_olmMDBDNCache },
-
-	{ "( olmMDBAttributes:3 "
-		"NAME ( 'olmMDBIDLCache' ) "
-		"DESC 'Number of items in IDL Cache' "
-		"SUP monitorCounter "
-		"NO-USER-MODIFICATION "
-		"USAGE dSAOperation )",
-		&ad_olmMDBIDLCache },
-
 	{ "( olmMDBAttributes:4 "
 		"NAME ( 'olmDbDirectory' ) "
 		"DESC 'Path name of the directory "
@@ -123,14 +97,11 @@ static struct {
 }		s_oc[] = {
 	/* augments an existing object, so it must be AUXILIARY
 	 * FIXME: derive from some ABSTRACT "monitoredEntity"? */
-	{ "( olmMDBObjectClasses:1 "
+	{ "( olmMDBObjectClasses:2 "
 		"NAME ( 'olmMDBDatabase' ) "
 		"SUP top AUXILIARY "
 		"MAY ( "
-			"olmMDBEntryCache "
-			"$ olmMDBDNCache "
-			"$ olmMDBIDLCache "
-			"$ olmDbDirectory "
+			"olmDbDirectory "
 #ifdef MDB_MONITOR_IDX
 			"$ olmMDBNotIndexed "
 #endif /* MDB_MONITOR_IDX */
@@ -153,24 +124,6 @@ mdb_monitor_update(
 	char			buf[ BUFSIZ ];
 	struct berval		bv;
 
-	assert( ad_olmMDBEntryCache != NULL );
-
-	a = attr_find( e->e_attrs, ad_olmMDBEntryCache );
-	assert( a != NULL );
-	bv.bv_val = buf;
-	bv.bv_len = snprintf( buf, sizeof( buf ), "%lu", mdb->bi_cache.c_cursize );
-	ber_bvreplace( &a->a_vals[ 0 ], &bv );
-
-	a = attr_find( e->e_attrs, ad_olmMDBDNCache );
-	assert( a != NULL );
-	bv.bv_len = snprintf( buf, sizeof( buf ), "%lu", mdb->bi_cache.c_eiused );
-	ber_bvreplace( &a->a_vals[ 0 ], &bv );
-
-	a = attr_find( e->e_attrs, ad_olmMDBIDLCache );
-	assert( a != NULL );
-	bv.bv_len = snprintf( buf, sizeof( buf ), "%lu", mdb->bi_idl_cache_size );
-	ber_bvreplace( &a->a_vals[ 0 ], &bv );
-	
 #ifdef MDB_MONITOR_IDX
 	mdb_monitor_idx_entry_add( mdb, e );
 #endif /* MDB_MONITOR_IDX */
@@ -231,8 +184,6 @@ mdb_monitor_free(
 	return SLAP_CB_CONTINUE;
 }
 
-#define	mdb_monitor_initialize	MDB_SYMBOL(monitor_initialize)
-
 /*
  * call from within mdb_initialize()
  */
@@ -258,7 +209,7 @@ mdb_monitor_initialize( void )
 
 	/* register schema here */
 
-	argv[ 0 ] = "back-mdb/back-hdb monitor";
+	argv[ 0 ] = "back-mdb monitor";
 	c.argv = argv;
 	c.argc = 3;
 	c.fname = argv[0];
@@ -320,8 +271,8 @@ mdb_monitor_db_init( BackendDB *be )
 	}
 
 #ifdef MDB_MONITOR_IDX
-	mdb->bi_idx = NULL;
-	ldap_pvt_thread_mutex_init( &mdb->bi_idx_mutex );
+	mdb->mi_idx = NULL;
+	ldap_pvt_thread_mutex_init( &mdb->mi_idx_mutex );
 #endif /* MDB_MONITOR_IDX */
 
 	return 0;
@@ -367,7 +318,7 @@ mdb_monitor_db_open( BackendDB *be )
 	}
 
 	/* alloc as many as required (plus 1 for objectClass) */
-	a = attrs_alloc( 1 + 4 );
+	a = attrs_alloc( 1 + 1 );
 	if ( a == NULL ) {
 		rc = 1;
 		goto cleanup;
@@ -378,26 +329,10 @@ mdb_monitor_db_open( BackendDB *be )
 	next = a->a_next;
 
 	{
-		struct berval	bv = BER_BVC( "0" );
-
-		next->a_desc = ad_olmMDBEntryCache;
-		attr_valadd( next, &bv, NULL, 1 );
-		next = next->a_next;
-
-		next->a_desc = ad_olmMDBDNCache;
-		attr_valadd( next, &bv, NULL, 1 );
-		next = next->a_next;
-
-		next->a_desc = ad_olmMDBIDLCache;
-		attr_valadd( next, &bv, NULL, 1 );
-		next = next->a_next;
-	}
-
-	{
 		struct berval	bv, nbv;
 		ber_len_t	pathlen = 0, len = 0;
 		char		path[ MAXPATHLEN ] = { '\0' };
-		char		*fname = mdb->bi_dbenv_home,
+		char		*fname = mdb->mi_dbenv_home,
 				*ptr;
 
 		len = strlen( fname );
@@ -453,9 +388,9 @@ mdb_monitor_db_open( BackendDB *be )
 	cb->mc_private = (void *)mdb;
 
 	/* make sure the database is registered; then add monitor attributes */
-	rc = mbe->register_database( be, &mdb->bi_monitor.bdm_ndn );
+	rc = mbe->register_database( be, &mdb->mi_monitor.mdm_ndn );
 	if ( rc == 0 ) {
-		rc = mbe->register_entry_attrs( &mdb->bi_monitor.bdm_ndn, a, cb,
+		rc = mbe->register_entry_attrs( &mdb->mi_monitor.mdm_ndn, a, cb,
 			&dummy, 0, &dummy );
 	}
 
@@ -473,7 +408,7 @@ cleanup:;
 	}
 
 	/* store for cleanup */
-	mdb->bi_monitor.bdm_cb = (void *)cb;
+	mdb->mi_monitor.mdm_cb = (void *)cb;
 
 	/* we don't need to keep track of the attributes, because
 	 * mdb_monitor_free() takes care of everything */
@@ -492,18 +427,18 @@ mdb_monitor_db_close( BackendDB *be )
 {
 	struct mdb_info		*mdb = (struct mdb_info *) be->be_private;
 
-	if ( !BER_BVISNULL( &mdb->bi_monitor.bdm_ndn ) ) {
+	if ( !BER_BVISNULL( &mdb->mi_monitor.mdm_ndn ) ) {
 		BackendInfo		*mi = backend_info( "monitor" );
 		monitor_extra_t		*mbe;
 
 		if ( mi && &mi->bi_extra ) {
 			mbe = mi->bi_extra;
-			mbe->unregister_entry_callback( &mdb->bi_monitor.bdm_ndn,
-				(monitor_callback_t *)mdb->bi_monitor.bdm_cb,
+			mbe->unregister_entry_callback( &mdb->mi_monitor.mdm_ndn,
+				(monitor_callback_t *)mdb->mi_monitor.mdm_cb,
 				NULL, 0, NULL );
 		}
 
-		memset( &mdb->bi_monitor, 0, sizeof( mdb->bi_monitor ) );
+		memset( &mdb->mi_monitor, 0, sizeof( mdb->mi_monitor ) );
 	}
 
 	return 0;
@@ -519,8 +454,8 @@ mdb_monitor_db_destroy( BackendDB *be )
 	struct mdb_info		*mdb = (struct mdb_info *) be->be_private;
 
 	/* TODO: free tree */
-	ldap_pvt_thread_mutex_destroy( &mdb->bi_idx_mutex );
-	avl_free( mdb->bi_idx, ch_free );
+	ldap_pvt_thread_mutex_destroy( &mdb->mi_idx_mutex );
+	avl_free( mdb->mi_idx, ch_free );
 #endif /* MDB_MONITOR_IDX */
 
 	return 0;
@@ -607,16 +542,16 @@ mdb_monitor_idx_add(
 		return -1;
 	}
 
-	ldap_pvt_thread_mutex_lock( &mdb->bi_idx_mutex );
+	ldap_pvt_thread_mutex_lock( &mdb->mi_idx_mutex );
 
-	idx = (monitor_idx_t *)avl_find( mdb->bi_idx,
+	idx = (monitor_idx_t *)avl_find( mdb->mi_idx,
 		(caddr_t)&idx_dummy, monitor_idx_cmp );
 	if ( idx == NULL ) {
 		idx = (monitor_idx_t *)ch_calloc( sizeof( monitor_idx_t ), 1 );
 		idx->idx_ad = desc;
 		idx->idx_count[ key ] = 1;
 
-		switch ( avl_insert( &mdb->bi_idx, (caddr_t)idx, 
+		switch ( avl_insert( &mdb->mi_idx, (caddr_t)idx, 
 			monitor_idx_cmp, monitor_idx_dup ) )
 		{
 		case 0:
@@ -631,7 +566,7 @@ mdb_monitor_idx_add(
 		idx->idx_count[ key ]++;
 	}
 
-	ldap_pvt_thread_mutex_unlock( &mdb->bi_idx_mutex );
+	ldap_pvt_thread_mutex_unlock( &mdb->mi_idx_mutex );
 
 	return rc;
 }
@@ -694,12 +629,12 @@ mdb_monitor_idx_entry_add(
 
 	a = attr_find( e->e_attrs, ad_olmMDBNotIndexed );
 
-	ldap_pvt_thread_mutex_lock( &mdb->bi_idx_mutex );
+	ldap_pvt_thread_mutex_lock( &mdb->mi_idx_mutex );
 
-	avl_apply( mdb->bi_idx, mdb_monitor_idx_apply,
+	avl_apply( mdb->mi_idx, mdb_monitor_idx_apply,
 		&vals, -1, AVL_INORDER );
 
-	ldap_pvt_thread_mutex_unlock( &mdb->bi_idx_mutex );
+	ldap_pvt_thread_mutex_unlock( &mdb->mi_idx_mutex );
 
 	if ( vals != NULL ) {
 		if ( a != NULL ) {

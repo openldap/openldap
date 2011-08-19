@@ -335,7 +335,6 @@ mdb_tool_entry_get( BackendDB *be, ID id )
 	return e;
 }
 
-#if 0
 static int mdb_tool_next_id(
 	Operation *op,
 	MDB_txn *tid,
@@ -346,7 +345,7 @@ static int mdb_tool_next_id(
 	struct berval dn = e->e_name;
 	struct berval ndn = e->e_nname;
 	struct berval pdn, npdn;
-	EntryInfo *ei = NULL, eidummy;
+	ID id, pid;
 	int rc;
 
 	if (ndn.bv_len == 0) {
@@ -354,9 +353,8 @@ static int mdb_tool_next_id(
 		return 0;
 	}
 
-	rc = mdb_cache_find_ndn( op, tid, &ndn, &ei );
-	if ( ei ) mdb_cache_entryinfo_unlock( ei );
-	if ( rc == DB_NOTFOUND ) {
+	rc = mdb_dn2id( op, tid, &ndn, &id );
+	if ( rc == MDB_NOTFOUND ) {
 		if ( !be_issuffix( op->o_bd, &ndn ) ) {
 			ID eid = e->e_id;
 			dnParent( &dn, &pdn );
@@ -374,24 +372,23 @@ static int mdb_tool_next_id(
 			 * entry gets added under the new parent ID.
 			 */
 			if ( eid != e->e_id ) {
-				eidummy.bei_id = e->e_id;
-				ei = &eidummy;
+				pid = e->e_id;
 			}
 		}
-		rc = mdb_next_id( op->o_bd, &e->e_id );
+		rc = mdb_next_id( op->o_bd, tid, &e->e_id );
 		if ( rc ) {
 			snprintf( text->bv_val, text->bv_len,
 				"next_id failed: %s (%d)",
-				db_strerror(rc), rc );
+				mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> mdb_tool_next_id: %s\n", text->bv_val, 0, 0 );
 			return rc;
 		}
-		rc = mdb_dn2id_add( op, tid, ei, e );
+		rc = mdb_dn2id_add( op, tid, pid, e );
 		if ( rc ) {
 			snprintf( text->bv_val, text->bv_len, 
 				"dn2id_add failed: %s (%d)",
-				db_strerror(rc), rc );
+				mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> mdb_tool_next_id: %s\n", text->bv_val, 0, 0 );
 		} else if ( hole ) {
@@ -410,7 +407,7 @@ static int mdb_tool_next_id(
 	} else if ( !hole ) {
 		unsigned i, j;
 
-		e->e_id = ei->bei_id;
+		e->e_id = id;
 
 		for ( i=0; i<nholes; i++) {
 			if ( holes[i].id == e->e_id ) {
@@ -427,6 +424,7 @@ static int mdb_tool_next_id(
 	return rc;
 }
 
+#if 0
 static int
 mdb_tool_index_add(
 	Operation *op,
@@ -529,13 +527,11 @@ ID mdb_tool_entry_put(
 	op.o_tmpmemctx = NULL;
 	op.o_tmpmfuncs = &ch_mfuncs;
 
-#if 0
 	/* add dn2id indices */
-	rc = mdb_tool_next_id( &op, tid, e, text, 0 );
+	rc = mdb_tool_next_id( &op, txn, e, text, 0 );
 	if( rc != 0 ) {
 		goto done;
 	}
-#endif
 
 #if 0
 	if ( !mdb->bi_linear_index )
@@ -569,6 +565,7 @@ done:
 	if( rc == 0 ) {
 		if ( !( slapMode & SLAP_TOOL_QUICK )) {
 		rc = mdb_txn_commit( txn );
+		txn = NULL;
 		if( rc != 0 ) {
 			snprintf( text->bv_val, text->bv_len,
 					"txn_commit failed: %s (%d)",

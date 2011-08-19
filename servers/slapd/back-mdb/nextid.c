@@ -21,59 +21,38 @@
 
 #include "back-mdb.h"
 
-int mdb_next_id( BackendDB *be, ID *out )
-{
-	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-
-	ldap_pvt_thread_mutex_lock( &mdb->bi_lastid_mutex );
-	*out = ++mdb->bi_lastid;
-	ldap_pvt_thread_mutex_unlock( &mdb->bi_lastid_mutex );
-
-	return 0;
-}
-
-int mdb_last_id( BackendDB *be, DB_TXN *tid )
+int mdb_next_id( BackendDB *be, MDB_txn *tid, ID *out )
 {
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
 	int rc;
 	ID id = 0;
-	unsigned char idbuf[sizeof(ID)];
-	DBT key, data;
-	DBC *cursor;
-
-	DBTzero( &key );
-	key.flags = DB_DBT_USERMEM;
-	key.data = (char *) idbuf;
-	key.ulen = sizeof( idbuf );
-
-	DBTzero( &data );
-	data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
+	MDB_val key;
+	MDB_cursor *cursor;
 
 	/* Get a read cursor */
-	rc = mdb->bi_id2entry->bdi_db->cursor( mdb->bi_id2entry->bdi_db,
-		tid, &cursor, 0 );
+	rc = mdb_cursor_open( tid, mdb->mi_id2entry->mdi_dbi, &cursor );
 
 	if (rc == 0) {
-		rc = cursor->c_get(cursor, &key, &data, DB_LAST);
-		cursor->c_close(cursor);
+		rc = mdb_cursor_get(cursor, &key, NULL, MDB_LAST);
+		mdb_cursor_close(cursor);
 	}
 
 	switch(rc) {
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 		rc = 0;
+		*out = 1;
 		break;
 	case 0:
-		MDB_DISK2ID( idbuf, &id );
+		memcpy( key.mv_data, &id, sizeof( id ));
+		*out = ++id;
 		break;
 
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			"=> mdb_last_id: get failed: %s (%d)\n",
-			db_strerror(rc), rc, 0 );
+			"=> mdb_next_id: get failed: %s (%d)\n",
+			mdb_strerror(rc), rc, 0 );
 		goto done;
 	}
-
-	mdb->bi_lastid = id;
 
 done:
 	return rc;

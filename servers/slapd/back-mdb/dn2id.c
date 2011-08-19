@@ -428,6 +428,17 @@ mdb_dn2id_children(
 	return rc;
 }
 
+int
+mdb_id2name(
+	Operation *op,
+	MDB_txn *txn,
+	ID id,
+	struct berval *name,
+	struct berval *nname )
+{
+	return 0;
+}
+
 #if 0
 /* mdb_dn2idl:
  * We can't just use mdb_idl_fetch_key because

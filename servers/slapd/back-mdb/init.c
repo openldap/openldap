@@ -55,6 +55,8 @@ mdb_db_init( BackendDB *be, ConfigReply *cr )
 	mdb->mi_search_stack_depth = DEFAULT_SEARCH_STACK_DEPTH;
 	mdb->mi_search_stack = NULL;
 
+	mdb->mi_mapsize = DEFAULT_MAPSIZE;
+
 	ldap_pvt_thread_mutex_init( &mdb->mi_database_mutex );
 
 	be->be_private = mdb;
@@ -119,15 +121,13 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 		goto fail;
 	}
 
-	if ( mdb->mi_mapsize ) {
-		rc = mdb_env_set_mapsize( mdb->mi_dbenv, mdb->mi_mapsize );
-		if( rc != 0 ) {
-			Debug( LDAP_DEBUG_ANY,
-				LDAP_XSTRING(mdb_db_open) ": database \"%s\": "
-				"mdb_env_set_mapsize failed: %s (%d).\n",
-				be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
-			goto fail;
-		}
+	rc = mdb_env_set_mapsize( mdb->mi_dbenv, mdb->mi_mapsize );
+	if( rc != 0 ) {
+		Debug( LDAP_DEBUG_ANY,
+			LDAP_XSTRING(mdb_db_open) ": database \"%s\": "
+			"mdb_env_set_mapsize failed: %s (%d).\n",
+			be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+		goto fail;
 	}
 
 	rc = mdb_env_set_maxdbs( mdb->mi_dbenv, MDB_INDICES );
@@ -257,27 +257,25 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 
 	mdb->mi_flags &= ~MDB_IS_OPEN;
 
+#if 0
 	if( mdb->mi_dbenv ) {
 		mdb_reader_flush( mdb->mi_dbenv );
 	}
+#endif
 
-	rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
+	if ( mdb->mi_dbenv ) {
+		rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
 
-	while( mdb->mi_databases && mdb->mi_ndatabases-- ) {
-		db = mdb->mi_databases[mdb->mi_ndatabases];
-		mdb_close( txn, db->mdi_dbi );
-		/* Lower numbered names are not strdup'd */
-		if( mdb->mi_ndatabases >= MDB_NDB )
-			free( db->mdi_name.bv_val );
-		free( db );
-	}
-	mdb_txn_abort( txn );
+		while( mdb->mi_databases && mdb->mi_ndatabases-- ) {
+			db = mdb->mi_databases[mdb->mi_ndatabases];
+			mdb_close( txn, db->mdi_dbi );
+			/* Lower numbered names are not strdup'd */
+			if( mdb->mi_ndatabases >= MDB_NDB )
+				free( db->mdi_name.bv_val );
+			free( db );
+		}
+		mdb_txn_abort( txn );
 
-	free( mdb->mi_databases );
-	mdb->mi_databases = NULL;
-
-	/* close db environment */
-	if( mdb->mi_dbenv ) {
 		/* force a sync */
 		rc = mdb_env_sync( mdb->mi_dbenv, 1 );
 		if( rc != 0 ) {
@@ -290,6 +288,9 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 		mdb_env_close( mdb->mi_dbenv );
 		mdb->mi_dbenv = NULL;
 	}
+
+	free( mdb->mi_databases );
+	mdb->mi_databases = NULL;
 
 	return 0;
 }
@@ -399,6 +400,7 @@ mdb_back_initialize(
 	bi->bi_db_close = mdb_db_close;
 	bi->bi_db_destroy = mdb_db_destroy;
 
+#if 0
 	bi->bi_op_add = mdb_add;
 	bi->bi_op_bind = mdb_bind;
 	bi->bi_op_compare = mdb_compare;
@@ -413,7 +415,9 @@ mdb_back_initialize(
 
 	bi->bi_chk_referrals = mdb_referrals;
 	bi->bi_operational = mdb_operational;
+
 	bi->bi_has_subordinates = mdb_hasSubordinates;
+#endif
 	bi->bi_entry_release_rw = mdb_entry_release;
 	bi->bi_entry_get_rw = mdb_entry_get;
 
@@ -427,9 +431,11 @@ mdb_back_initialize(
 	bi->bi_tool_entry_next = mdb_tool_entry_next;
 	bi->bi_tool_entry_get = mdb_tool_entry_get;
 	bi->bi_tool_entry_put = mdb_tool_entry_put;
+#if 0
 	bi->bi_tool_entry_reindex = mdb_tool_entry_reindex;
 	bi->bi_tool_sync = 0;
 	bi->bi_tool_dn2id_get = mdb_tool_dn2id_get;
+#endif
 	bi->bi_tool_entry_modify = mdb_tool_entry_modify;
 
 	bi->bi_connection_init = 0;

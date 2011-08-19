@@ -59,7 +59,7 @@ static ConfigTable mdbcfg[] = {
 		"DESC 'Attribute index parameters' "
 		"EQUALITY caseIgnoreMatch "
 		"SYNTAX OMsDirectoryString )", NULL, NULL },
-	{ "maxsize", "size", 2, 2, 0, ARG_INT|ARG_MAGIC|MDB_MODE,
+	{ "maxsize", "size", 2, 2, 0, ARG_INT|ARG_MAGIC|MDB_MAXSIZE,
 		mdb_cf_gen, "( OLcfgDbAt:12.1 NAME 'olcDbMaxSize' "
 		"DESC 'Maximum size of DB in bytes' "
 		"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },

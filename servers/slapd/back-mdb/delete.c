@@ -503,14 +503,6 @@ retry:	/* transaction retry */
 
 	eid = e->e_id;
 
-#if 0	/* Do we want to reclaim deleted IDs? */
-	ldap_pvt_thread_mutex_lock( &mdb->bi_lastid_mutex );
-	if ( e->e_id == mdb->bi_lastid ) {
-		mdb_last_id( op->o_bd, ltid );
-	}
-	ldap_pvt_thread_mutex_unlock( &mdb->bi_lastid_mutex );
-#endif
-
 	if( op->o_noop ) {
 		if ( ( rs->sr_err = TXN_ABORT( ltid ) ) != 0 ) {
 			rs->sr_text = "txn_abort (no-op) failed";

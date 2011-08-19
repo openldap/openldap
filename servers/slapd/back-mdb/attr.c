@@ -33,7 +33,7 @@ int
 mdb_attr_slot( struct mdb_info *mdb, AttributeDescription *ad, int *ins )
 {
 	unsigned base = 0, cursor = 0;
-	unsigned n = mdb->bi_nattrs;
+	unsigned n = mdb->mi_nattrs;
 	int val = 0;
 	
 	while ( 0 < n ) {
@@ -84,7 +84,7 @@ mdb_attr_mask(
 	AttributeDescription *desc )
 {
 	int i = mdb_attr_slot( mdb, desc, NULL );
-	return i < 0 ? NULL : mdb->bi_attrs[i];
+	return i < 0 ? NULL : mdb->mi_attrs[i];
 }
 
 int
@@ -124,7 +124,7 @@ mdb_attr_index_config(
 	}
 
 	if( indexes == NULL ) {
-		mask = mdb->bi_defaultmask;
+		mask = mdb->mi_defaultmask;
 
 	} else {
 		mask = 0;
@@ -172,7 +172,7 @@ mdb_attr_index_config(
 #endif
 
 		if( strcasecmp( attrs[i], "default" ) == 0 ) {
-			mdb->bi_defaultmask |= mask;
+			mdb->mi_defaultmask |= mask;
 			continue;
 		}
 
@@ -281,7 +281,7 @@ mdb_attr_index_config(
 #endif
 		a->ai_desc = ad;
 
-		if ( mdb->bi_flags & MDB_IS_OPEN ) {
+		if ( mdb->mi_flags & MDB_IS_OPEN ) {
 			a->ai_indexmask = 0;
 			a->ai_newmask = mask;
 		} else {
@@ -317,7 +317,7 @@ mdb_attr_index_config(
 #endif
 		rc = ainfo_insert( mdb, a );
 		if( rc ) {
-			if ( mdb->bi_flags & MDB_IS_OPEN ) {
+			if ( mdb->mi_flags & MDB_IS_OPEN ) {
 				AttrInfo *b = mdb_attr_mask( mdb, ad );
 				/* If there is already an index defined for this attribute
 				 * it must be replaced. Otherwise we end up with multiple 
@@ -383,12 +383,12 @@ mdb_attr_index_unparse( struct mdb_info *mdb, BerVarray *bva )
 {
 	int i;
 
-	if ( mdb->bi_defaultmask ) {
-		aidef.ai_indexmask = mdb->bi_defaultmask;
+	if ( mdb->mi_defaultmask ) {
+		aidef.ai_indexmask = mdb->mi_defaultmask;
 		mdb_attr_index_unparser( &aidef, bva );
 	}
-	for ( i=0; i<mdb->bi_nattrs; i++ )
-		mdb_attr_index_unparser( mdb->bi_attrs[i], bva );
+	for ( i=0; i<mdb->mi_nattrs; i++ )
+		mdb_attr_index_unparser( mdb->mi_attrs[i], bva );
 }
 
 void
@@ -405,10 +405,10 @@ mdb_attr_index_destroy( struct mdb_info *mdb )
 {
 	int i;
 
-	for ( i=0; i<mdb->bi_nattrs; i++ ) 
-		mdb_attr_info_free( mdb->bi_attrs[i] );
+	for ( i=0; i<mdb->mi_nattrs; i++ ) 
+		mdb_attr_info_free( mdb->mi_attrs[i] );
 
-	free( mdb->bi_attrs );
+	free( mdb->mi_attrs );
 }
 
 void mdb_attr_index_free( struct mdb_info *mdb, AttributeDescription *ad )
@@ -417,10 +417,10 @@ void mdb_attr_index_free( struct mdb_info *mdb, AttributeDescription *ad )
 
 	i = mdb_attr_slot( mdb, ad, NULL );
 	if ( i >= 0 ) {
-		mdb_attr_info_free( mdb->bi_attrs[i] );
-		mdb->bi_nattrs--;
-		for (; i<mdb->bi_nattrs; i++)
-			mdb->bi_attrs[i] = mdb->bi_attrs[i+1];
+		mdb_attr_info_free( mdb->mi_attrs[i] );
+		mdb->mi_nattrs--;
+		for (; i<mdb->mi_nattrs; i++)
+			mdb->mi_attrs[i] = mdb->mi_attrs[i+1];
 	}
 }
 
@@ -428,13 +428,13 @@ void mdb_attr_flush( struct mdb_info *mdb )
 {
 	int i;
 
-	for ( i=0; i<mdb->bi_nattrs; i++ ) {
-		if ( mdb->bi_attrs[i]->ai_indexmask & MDB_INDEX_DELETING ) {
+	for ( i=0; i<mdb->mi_nattrs; i++ ) {
+		if ( mdb->mi_attrs[i]->ai_indexmask & MDB_INDEX_DELETING ) {
 			int j;
-			mdb_attr_info_free( mdb->bi_attrs[i] );
-			mdb->bi_nattrs--;
-			for (j=i; j<mdb->bi_nattrs; j++)
-				mdb->bi_attrs[j] = mdb->bi_attrs[j+1];
+			mdb_attr_info_free( mdb->mi_attrs[i] );
+			mdb->mi_nattrs--;
+			for (j=i; j<mdb->mi_nattrs; j++)
+				mdb->mi_attrs[j] = mdb->mi_attrs[j+1];
 			i--;
 		}
 	}

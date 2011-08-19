@@ -40,6 +40,9 @@ LDAP_BEGIN_DECL
 
 #define MDB_INDICES		128
 
+/* Default to 10MB max */
+#define DEFAULT_MAPSIZE	(10*1048576)
+
 struct mdb_db_info {
 	struct berval	mdi_name;
 	MDB_dbi	mdi_dbi;
