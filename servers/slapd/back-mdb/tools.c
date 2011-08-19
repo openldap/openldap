@@ -194,6 +194,7 @@ next:;
 	}
 
 	previd = *(ID *)key.mv_data;
+	id = previd;
 
 	if ( tool_filter || tool_base ) {
 		static Operation op = {0};
@@ -270,6 +271,8 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 	}
 
 	if ( id != previd ) {
+		key.mv_size = sizeof(ID);
+		key.mv_data = &id;
 		rc = mdb_cursor_get( cursor, &key, &data, MDB_SET );
 		if ( rc ) {
 			rc = LDAP_OTHER;
@@ -311,12 +314,15 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 		rc = LDAP_OTHER;
 		goto done;
 	}
+	eh.bv.bv_len = eh.nvals * sizeof( struct berval );
+	eh.bv.bv_val = ch_malloc( eh.bv.bv_len );
 	rc = entry_decode( &eh, &e );
 	e->e_id = id;
 	if ( !BER_BVISNULL( &dn )) {
 		e->e_name = dn;
 		e->e_nname = ndn;
 	}
+	e->e_bv = eh.bv;
 
 done:
 	if ( e != NULL ) {

@@ -448,7 +448,57 @@ mdb_id2name(
 	struct berval *name,
 	struct berval *nname )
 {
-	return 0;
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_dbi dbi = mdb->mi_dn2id->mdi_dbi;
+	MDB_val		key, data;
+	MDB_cursor	*cursor;
+	int		rc, len, nlen;
+	char dn[SLAP_LDAPDN_MAXLEN], ndn[SLAP_LDAPDN_MAXLEN], *ptr;
+	char *dptr, *nptr;
+	diskNode *d;
+
+	key.mv_size = sizeof(ID);
+
+	rc = mdb_cursor_open( txn, dbi, &cursor );
+	if ( rc ) return rc;
+
+	len = 0;
+	nlen = 0;
+	dptr = dn;
+	nptr = ndn;
+	while (id) {
+		int nrlen, rlen;
+		key.mv_data = &id;
+		rc = mdb_cursor_get( cursor, &key, &data, MDB_SET );
+		if ( rc ) break;
+		ptr = data.mv_data;
+		ptr += data.mv_size - sizeof(ID);
+		memcpy( &id, ptr, sizeof(ID) );
+		d = data.mv_data;
+		nrlen = (d->nrdnlen[0] << 8) | d->nrdnlen[1];
+		if (nptr > ndn) {
+			*nptr++ = ',';
+			*dptr++ = ',';
+		}
+		/* copy name and trailing NUL */
+		memcpy( nptr, d->nrdn, nrlen+1 );
+		rlen = data.mv_size - sizeof(diskNode) - nrlen;
+		memcpy( dptr, d->nrdn+nrlen+1, rlen+1 );
+		nptr += nrlen;
+		dptr += rlen;
+	}
+	if ( rc == 0 ) {
+		name->bv_len = dptr - dn;
+		nname->bv_len = nptr - ndn;
+		name->bv_val = op->o_tmpalloc( name->bv_len + 1, op->o_tmpmemctx );
+		nname->bv_val = op->o_tmpalloc( nname->bv_len + 1, op->o_tmpmemctx );
+		memcpy( name->bv_val, dn, name->bv_len );
+		name->bv_val[name->bv_len] = '\0';
+		memcpy( nname->bv_val, ndn, nname->bv_len );
+		nname->bv_val[nname->bv_len] = '\0';
+	}
+	mdb_cursor_close( cursor );
+	return rc;
 }
 
 #if 0

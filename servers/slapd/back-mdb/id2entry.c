@@ -109,10 +109,15 @@ int mdb_id2entry(
 	rc = entry_header( &eh );
 	if ( rc ) return rc;
 
+	eh.bv.bv_len = eh.nvals * sizeof( struct berval );
+	eh.bv.bv_val = ch_malloc( eh.bv.bv_len );
 	rc = entry_decode(&eh, e);
 
 	if( rc == 0 ) {
 		(*e)->e_id = id;
+		(*e)->e_bv = eh.bv;
+	} else {
+		ch_free( eh.bv.bv_val );
 	}
 
 	return rc;
