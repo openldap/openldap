@@ -57,6 +57,8 @@ static ldap_pvt_thread_mutex_t mdb_tool_index_mutex;
 static ldap_pvt_thread_cond_t mdb_tool_index_cond_main;
 static ldap_pvt_thread_cond_t mdb_tool_index_cond_work;
 
+static int	mdb_writes, mdb_writes_per_commit;
+
 static void * mdb_tool_index_task( void *ctx, void *ptr );
 
 static int
@@ -66,6 +68,13 @@ int mdb_tool_entry_open(
 	BackendDB *be, int mode )
 {
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
+
+	/* In Quick mode, commit once per 100 entries */
+	mdb_writes = 0;
+	if ( slapMode & SLAP_TOOL_QUICK )
+		mdb_writes_per_commit = 100;
+	else
+		mdb_writes_per_commit = 1;
 
 #if 0
 	/* Set up for threaded slapindex */
@@ -573,18 +582,20 @@ ID mdb_tool_entry_put(
 
 done:
 	if( rc == 0 ) {
-		if ( !( slapMode & SLAP_TOOL_QUICK )) {
-		rc = mdb_txn_commit( txn );
-		txn = NULL;
-		if( rc != 0 ) {
-			snprintf( text->bv_val, text->bv_len,
-					"txn_commit failed: %s (%d)",
-					mdb_strerror(rc), rc );
-			Debug( LDAP_DEBUG_ANY,
-				"=> " LDAP_XSTRING(mdb_tool_entry_put) ": %s\n",
-				text->bv_val, 0, 0 );
-			e->e_id = NOID;
-		}
+		mdb_writes++;
+		if ( mdb_writes >= mdb_writes_per_commit ) {
+			rc = mdb_txn_commit( txn );
+			mdb_writes = 0;
+			txn = NULL;
+			if( rc != 0 ) {
+				snprintf( text->bv_val, text->bv_len,
+						"txn_commit failed: %s (%d)",
+						mdb_strerror(rc), rc );
+				Debug( LDAP_DEBUG_ANY,
+					"=> " LDAP_XSTRING(mdb_tool_entry_put) ": %s\n",
+					text->bv_val, 0, 0 );
+				e->e_id = NOID;
+			}
 		}
 
 	} else {
