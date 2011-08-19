@@ -59,7 +59,7 @@ static ConfigTable mdbcfg[] = {
 		"DESC 'Attribute index parameters' "
 		"EQUALITY caseIgnoreMatch "
 		"SYNTAX OMsDirectoryString )", NULL, NULL },
-	{ "maxsize", "size", 2, 2, 0, ARG_INT|ARG_MAGIC|MDB_MAXSIZE,
+	{ "maxsize", "size", 2, 2, 0, ARG_ULONG|ARG_MAGIC|MDB_MAXSIZE,
 		mdb_cf_gen, "( OLcfgDbAt:12.1 NAME 'olcDbMaxSize' "
 		"DESC 'Maximum size of DB in bytes' "
 		"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
@@ -316,7 +316,7 @@ mdb_cf_gen( ConfigArgs *c )
 			break;
 
 		case MDB_MAXSIZE:
-			c->value_int = mdb->mi_mapsize;
+			c->value_ulong = mdb->mi_mapsize;
 			break;
 		}
 		return rc;
@@ -572,7 +572,7 @@ mdb_cf_gen( ConfigArgs *c )
 		break;
 
 	case MDB_MAXSIZE:
-		mdb->mi_mapsize = c->value_int;
+		mdb->mi_mapsize = c->value_ulong;
 		if ( mdb->mi_flags & MDB_IS_OPEN )
 			mdb->mi_flags |= MDB_RE_OPEN;
 		break;
