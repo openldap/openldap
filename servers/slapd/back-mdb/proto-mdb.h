@@ -74,7 +74,8 @@ int mdb_dn2id(
 	Operation *op,
 	MDB_txn *txn,
 	struct berval *dn,
-	ID *id );
+	ID *id,
+	struct berval *matched );
 
 int mdb_dn2id_add(
 	Operation *op,

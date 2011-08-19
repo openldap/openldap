@@ -253,87 +253,99 @@ func_leave:
 	return rc;
 }
 
-
+/* return last found ID in *id if no match */
 int
 mdb_dn2id(
 	Operation	*op,
 	MDB_txn *txn,
 	struct berval	*in,
-	ID	*id )
+	ID	*id,
+	struct berval	*matched )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_cursor *cursor;
 	MDB_dbi dbi = mdb->mi_dn2id->mdi_dbi;
 	MDB_val		key, data;
 	int		rc = 0, nrlen;
 	diskNode *d;
 	char	*ptr;
 	unsigned char dlen[2];
-	ID idp, parentID;
+	ID pid, nid;
+	struct berval tmp;
 
-#if 0
 	Debug( LDAP_DEBUG_TRACE, "=> mdb_dn2id(\"%s\")\n", in->bv_val, 0, 0 );
 
-	nrlen = dn_rdnlen( op->o_bd, in );
-	if (!nrlen) nrlen = in->bv_len;
+	if ( !in->bv_len ) {
+		*id = 0;
+		nid = 0;
+		goto done;
+	}
 
-	DBTzero(&key);
-	key.size = sizeof(ID);
-	key.data = &idp;
-	key.ulen = sizeof(ID);
-	key.flags = DB_DBT_USERMEM;
-	parentID = ( ei->bei_parent != NULL ) ? ei->bei_parent->bei_id : 0;
-	MDB_ID2DISK( parentID, &idp );
+	tmp = *in;
 
-	DBTzero(&data);
-	data.size = sizeof(diskNode) + nrlen - sizeof(ID) - 1;
-	data.ulen = data.size * 3;
-	data.dlen = data.ulen;
-	data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
+	nrlen = tmp.bv_len - op->o_bd->be_nsuffix[0].bv_len;
+	tmp.bv_val += nrlen;
+	tmp.bv_len = op->o_bd->be_nsuffix[0].bv_len;
+	nid = 0;
+	key.mv_size = sizeof(ID);
 
-	rc = db->cursor( db, txn, cursor, mdb->bi_db_opflags );
+	rc = mdb_cursor_open( txn, dbi, &cursor );
 	if ( rc ) return rc;
 
-	d = op->o_tmpalloc( data.size * 3, op->o_tmpmemctx );
-	d->nrdnlen[1] = nrlen & 0xff;
-	d->nrdnlen[0] = (nrlen >> 8) | 0x80;
-	dlen[0] = d->nrdnlen[0];
-	dlen[1] = d->nrdnlen[1];
-	ptr = lutil_strncopy( d->nrdn, in->bv_val, nrlen );
-	*ptr = '\0';
-	data.data = d;
+	for (;;) {
+		key.mv_data = &pid;
+		pid = nid;
 
-	rc = (*cursor)->c_get( *cursor, &key, &data, DB_GET_BOTH_RANGE );
-	if ( rc == 0 && (dlen[1] != d->nrdnlen[1] || dlen[0] != d->nrdnlen[0] ||
-		strncmp( d->nrdn, in->bv_val, nrlen ))) {
-		rc = DB_NOTFOUND;
-	}
-	if ( rc == 0 ) {
-		ptr = (char *) data.data + data.size - sizeof(ID);
-		MDB_DISK2ID( ptr, &ei->bei_id );
-		ei->bei_rdn.bv_len = data.size - sizeof(diskNode) - nrlen;
-		ptr = d->nrdn + nrlen + 1;
-		ber_str2bv( ptr, ei->bei_rdn.bv_len, 1, &ei->bei_rdn );
-		if ( ei->bei_parent != NULL && !ei->bei_parent->bei_dkids ) {
-			db_recno_t dkids;
-			/* How many children does the parent have? */
-			/* FIXME: do we need to lock the parent
-			 * entryinfo? Seems safe...
-			 */
-			(*cursor)->c_count( *cursor, &dkids, 0 );
-			ei->bei_parent->bei_dkids = dkids;
+		data.mv_size = sizeof(diskNode) + tmp.bv_len;
+		d = op->o_tmpalloc( data.mv_size, op->o_tmpmemctx );
+		d->nrdnlen[1] = tmp.bv_len & 0xff;
+		d->nrdnlen[0] = (tmp.bv_len >> 8) | 0x80;
+		ptr = lutil_strncopy( d->nrdn, tmp.bv_val, tmp.bv_len );
+		*ptr = '\0';
+		data.mv_data = d;
+		rc = mdb_cursor_get( cursor, &key, &data, MDB_GET_BOTH );
+		if ( rc == MDB_NOTFOUND ) {
+			if ( matched ) {
+				int len;
+				matched->bv_val = tmp.bv_val + tmp.bv_len + 1;
+				len = in->bv_len - ( matched->bv_val - in->bv_val );
+				if ( len <= 0 ) {
+					BER_BVZERO( matched );
+				} else {
+					matched->bv_len = len;
+				}
+			}
+		}
+		op->o_tmpfree( d, op->o_tmpmemctx );
+		if ( rc ) {
+			mdb_cursor_close( cursor );
+			break;
+		}
+		ptr = (char *) data.mv_data + data.mv_size - sizeof(ID);
+		memcpy( &nid, ptr, sizeof(ID));
+		if ( tmp.bv_val > in->bv_val ) {
+			for (ptr = tmp.bv_val - 2; ptr > in->bv_val &&
+				!DN_SEPARATOR(*ptr); ptr--)	/* empty */;
+			if ( ptr >= in->bv_val ) {
+				if (DN_SEPARATOR(*ptr)) ptr++;
+				tmp.bv_len = tmp.bv_val - ptr - 1;
+				tmp.bv_val = ptr;
+			}
+		} else {
+			break;
 		}
 	}
+	*id = nid; 
 
-	op->o_tmpfree( d, op->o_tmpmemctx );
+done:
 	if( rc != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, "<= mdb_dn2id: get failed: %s (%d)\n",
-			db_strerror( rc ), rc, 0 );
+			mdb_strerror( rc ), rc, 0 );
 	} else {
 		Debug( LDAP_DEBUG_TRACE, "<= mdb_dn2id: got id=0x%lx\n",
-			ei->bei_id, 0, 0 );
+			nid, 0, 0 );
 	}
 
-#endif
 	return rc;
 }
 

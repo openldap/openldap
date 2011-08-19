@@ -43,7 +43,7 @@ int mdb_next_id( BackendDB *be, MDB_txn *tid, ID *out )
 		*out = 1;
 		break;
 	case 0:
-		memcpy( key.mv_data, &id, sizeof( id ));
+		memcpy( &id, key.mv_data, sizeof( id ));
 		*out = ++id;
 		break;
 

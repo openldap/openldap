@@ -43,13 +43,9 @@ mdb_dn2entry(
 
 	*e = NULL;
 
-	rc = mdb_dn2id( op, tid, dn, &id );
+	rc = mdb_dn2id( op, tid, dn, &id, matched );
 	if ( rc ) {
 		*e = NULL;
-		if ( matched && rc == MDB_NOTFOUND ) {
-			/* Get the parent's DN */
-			mdb_id2name( op, tid, id, matched, NULL );
-		}
 	} else {
 		rc = mdb_id2entry( op, tid, id, e );
 	}

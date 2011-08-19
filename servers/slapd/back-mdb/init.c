@@ -217,6 +217,9 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 			goto fail;
 		}
 
+		if ( i == MDB_DN2ID )
+			mdb_set_dupsort( txn, db->mdi_dbi, mdb_dup_compare );
+
 		db->mdi_name = mdmi_databases[i];
 		mdb->mi_databases[i] = db;
 	}
