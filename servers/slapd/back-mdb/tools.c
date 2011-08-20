@@ -69,10 +69,10 @@ int mdb_tool_entry_open(
 {
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
 
-	/* In Quick mode, commit once per 100 entries */
+	/* In Quick mode, commit once per 1000 entries */
 	mdb_writes = 0;
 	if ( slapMode & SLAP_TOOL_QUICK )
-		mdb_writes_per_commit = 100;
+		mdb_writes_per_commit = 1000;
 	else
 		mdb_writes_per_commit = 1;
 

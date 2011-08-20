@@ -355,7 +355,7 @@ mdb_cf_gen( ConfigArgs *c )
 			c->cleanup = mdb_cf_cleanup;
 			ldap_pvt_thread_pool_purgekey( mdb->mi_dbenv );
 			break;
-		case MDB_NOSYNC:
+		case MDB_DBNOSYNC:
 			mdb_env_set_flags( mdb->mi_dbenv, MDB_NOSYNC, 0 );
 			break;
 		case MDB_INDEX:
@@ -527,7 +527,7 @@ mdb_cf_gen( ConfigArgs *c )
 		}
 		break;
 
-	case MDB_NOSYNC:
+	case MDB_DBNOSYNC:
 		if ( c->value_int )
 			mdb->mi_dbenv_flags |= MDB_NOSYNC;
 		else
