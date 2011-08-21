@@ -265,25 +265,27 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 #endif
 
 	if ( mdb->mi_dbenv ) {
-		rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
+		if ( mdb->mi_ndatabases ) {
+			rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
 
-		while( mdb->mi_databases && mdb->mi_ndatabases-- ) {
-			db = mdb->mi_databases[mdb->mi_ndatabases];
-			mdb_close( txn, db->mdi_dbi );
-			/* Lower numbered names are not strdup'd */
-			if( mdb->mi_ndatabases >= MDB_NDB )
-				free( db->mdi_name.bv_val );
-			free( db );
-		}
-		mdb_txn_abort( txn );
+			while( mdb->mi_databases && mdb->mi_ndatabases-- ) {
+				db = mdb->mi_databases[mdb->mi_ndatabases];
+				mdb_close( txn, db->mdi_dbi );
+				/* Lower numbered names are not strdup'd */
+				if( mdb->mi_ndatabases >= MDB_NDB )
+					free( db->mdi_name.bv_val );
+				free( db );
+			}
+			mdb_txn_abort( txn );
 
-		/* force a sync */
-		rc = mdb_env_sync( mdb->mi_dbenv, 1 );
-		if( rc != 0 ) {
-			Debug( LDAP_DEBUG_ANY,
-				"mdb_db_close: database \"%s\": "
-				"mdb_env_sync failed: %s (%d).\n",
-				be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+			/* force a sync */
+			rc = mdb_env_sync( mdb->mi_dbenv, 1 );
+			if( rc != 0 ) {
+				Debug( LDAP_DEBUG_ANY,
+					"mdb_db_close: database \"%s\": "
+					"mdb_env_sync failed: %s (%d).\n",
+					be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+			}
 		}
 
 		mdb_env_close( mdb->mi_dbenv );
