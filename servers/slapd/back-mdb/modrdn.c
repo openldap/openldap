@@ -31,11 +31,10 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 	struct berval	new_dn = {0, NULL}, new_ndn = {0, NULL};
 	Entry		*e = NULL;
 	Entry		*p = NULL;
-	EntryInfo	*ei = NULL, *eip = NULL, *nei = NULL, *neip = NULL;
 	/* LDAP v2 supporting correct attribute handling. */
 	char textbuf[SLAP_TEXT_BUFLEN];
 	size_t textlen = sizeof textbuf;
-	DB_TXN		*ltid = NULL, *lt2;
+	MDB_txn		*txn = NULL;
 	struct mdb_op_info opinfo = {{{ 0 }}};
 	Entry dummy = {0};
 
@@ -46,16 +45,11 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 
 	int		manageDSAit = get_manageDSAit( op );
 
-	DB_LOCK		lock, plock, nplock;
-
-	int		num_retries = 0;
-
+	ID nid;
 	LDAPControl **preread_ctrl = NULL;
 	LDAPControl **postread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
 	int num_ctrls = 0;
-
-	int	rc;
 
 	int parent_is_glue = 0;
 	int parent_is_leaf = 0;
@@ -110,76 +104,51 @@ txnReturn:
 
 	slap_mods_opattrs( op, &op->orr_modlist, 1 );
 
-	if( 0 ) {
-retry:	/* transaction retry */
-		if ( dummy.e_attrs ) {
-			attrs_free( dummy.e_attrs );
-			dummy.e_attrs = NULL;
-		}
-		if (e != NULL) {
-			mdb_unlocked_cache_return_entry_w(&mdb->bi_cache, e);
-			e = NULL;
-		}
-		if (p != NULL) {
-			mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, p);
-			p = NULL;
-		}
-		if (np != NULL) {
-			mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, np);
-			np = NULL;
-		}
-		Debug( LDAP_DEBUG_TRACE, "==>" LDAP_XSTRING(mdb_modrdn)
-				": retrying...\n", 0, 0, 0 );
-
-		rs->sr_err = TXN_ABORT( ltid );
-		ltid = NULL;
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
-		opinfo.boi_oe.oe_key = NULL;
-		op->o_do_not_cache = opinfo.boi_acl_cache;
-		if( rs->sr_err != 0 ) {
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "internal error";
-			goto return_results;
-		}
-		if ( op->o_abandon ) {
-			rs->sr_err = SLAPD_ABANDON;
-			goto return_results;
-		}
-		parent_is_glue = 0;
-		parent_is_leaf = 0;
-		mdb_trans_backoff( ++num_retries );
-	}
-
 	/* begin transaction */
-	rs->sr_err = TXN_BEGIN( mdb->bi_dbenv, NULL, &ltid, 
-		mdb->bi_db_opflags );
+	rs->sr_err = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
 	rs->sr_text = NULL;
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_modrdn) ": txn_begin failed: "
-			"%s (%d)\n", db_strerror(rs->sr_err), rs->sr_err, 0 );
+			"%s (%d)\n", mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
 
-	opinfo.boi_oe.oe_key = mdb;
-	opinfo.boi_txn = ltid;
-	opinfo.boi_err = 0;
-	opinfo.boi_acl_cache = op->o_do_not_cache;
-	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.boi_oe, oe_next );
+	opinfo.moi_oe.oe_key = mdb;
+	opinfo.moi_txn = txn;
+	opinfo.moi_err = 0;
+	opinfo.moi_acl_cache = op->o_do_not_cache;
+	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
 
-	/* get entry */
-	rs->sr_err = mdb_dn2entry( op, ltid, &op->o_req_ndn, &ei, 1,
-		&lock );
-
+	if ( be_issuffix( op->o_bd, &e->e_nname ) ) {
+#ifdef MDB_MULTIPLE_SUFFIXES
+		/* Allow renaming one suffix entry to another */
+		p_ndn = slap_empty_bv;
+#else
+		/* There can only be one suffix entry */
+		rs->sr_err = LDAP_NAMING_VIOLATION;
+		rs->sr_text = "cannot rename suffix entry";
+		goto return_results;
+#endif
+	} else {
+		dnParent( &e->e_nname, &p_ndn );
+	}
+	np_ndn = &p_ndn;
+	/* Make sure parent entry exist and we can write its
+	 * children.
+	 */
+	rs->sr_err = mdb_dn2entry( op, txn, &p_ndn, &p, 0 );
 	switch( rs->sr_err ) {
+	case MDB_NOTFOUND:
+		Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(mdb_modrdn)
+			": parent does not exist\n", 0, 0, 0);
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "entry's parent does not exist";
+		goto return_results;
 	case 0:
-	case DB_NOTFOUND:
 		break;
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto retry;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
 		goto return_results;
@@ -189,9 +158,52 @@ retry:	/* transaction retry */
 		goto return_results;
 	}
 
-	e = ei->bei_e;
+	/* check parent for "children" acl */
+	rs->sr_err = access_allowed( op, p,
+		children, NULL,
+		op->oq_modrdn.rs_newSup == NULL ?
+			ACL_WRITE : ACL_WDEL,
+		NULL );
+
+	if ( ! rs->sr_err ) {
+		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
+		Debug( LDAP_DEBUG_TRACE, "no access to parent\n", 0,
+			0, 0 );
+		rs->sr_text = "no write access to parent's children";
+		goto return_results;
+	}
+
+	Debug( LDAP_DEBUG_TRACE,
+		LDAP_XSTRING(mdb_modrdn) ": wr to children "
+		"of entry %s OK\n", p_ndn.bv_val, 0, 0 );
+
+	if ( p_ndn.bv_val == slap_empty_bv.bv_val ) {
+		p_dn = slap_empty_bv;
+	} else {
+		dnParent( &e->e_name, &p_dn );
+	}
+
+	Debug( LDAP_DEBUG_TRACE,
+		LDAP_XSTRING(mdb_modrdn) ": parent dn=%s\n",
+		p_dn.bv_val, 0, 0 );
+
+	/* get entry */
+	rs->sr_err = mdb_dn2entry( op, txn, &op->o_req_ndn, &e, 0 );
+	switch( rs->sr_err ) {
+	case 0:
+	case MDB_NOTFOUND:
+		break;
+	case LDAP_BUSY:
+		rs->sr_text = "ldap server busy";
+		goto return_results;
+	default:
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "internal error";
+		goto return_results;
+	}
+
 	/* FIXME: dn2entry() should return non-glue entry */
-	if (( rs->sr_err == DB_NOTFOUND ) ||
+	if (( rs->sr_err == MDB_NOTFOUND ) ||
 		( !manageDSAit && e && is_entry_glue( e )))
 	{
 		if( e != NULL ) {
@@ -199,7 +211,7 @@ retry:	/* transaction retry */
 			rs->sr_ref = is_entry_referral( e )
 				? get_entry_referrals( op, e )
 				: NULL;
-			mdb_unlocked_cache_return_entry_r( &mdb->bi_cache, e);
+			mdb_entry_return( e );
 			e = NULL;
 
 		} else {
@@ -228,12 +240,6 @@ retry:	/* transaction retry */
 	/* check write on old entry */
 	rs->sr_err = access_allowed( op, e, entry, NULL, ACL_WRITE, NULL );
 	if ( ! rs->sr_err ) {
-		switch( opinfo.boi_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
-
 		Debug( LDAP_DEBUG_TRACE, "no access to entry\n", 0,
 			0, 0 );
 		rs->sr_text = "no write access to old entry";
@@ -241,36 +247,8 @@ retry:	/* transaction retry */
 		goto return_results;
 	}
 
-#ifndef MDB_HIER
-	rs->sr_err = mdb_cache_children( op, ltid, e );
-	if ( rs->sr_err != DB_NOTFOUND ) {
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		case 0:
-			Debug(LDAP_DEBUG_ARGS,
-				"<=- " LDAP_XSTRING(mdb_modrdn)
-				": non-leaf %s\n",
-				op->o_req_dn.bv_val, 0, 0);
-			rs->sr_err = LDAP_NOT_ALLOWED_ON_NONLEAF;
-			rs->sr_text = "subtree rename not supported";
-			break;
-		default:
-			Debug(LDAP_DEBUG_ARGS,
-				"<=- " LDAP_XSTRING(mdb_modrdn)
-				": has_children failed: %s (%d)\n",
-				db_strerror(rs->sr_err), rs->sr_err, 0 );
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "internal error";
-		}
-		goto return_results;
-	}
-	ei->bei_state |= CACHE_ENTRY_NO_KIDS;
-#endif
-
 	if (!manageDSAit && is_entry_referral( e ) ) {
-		/* parent is a referral, don't allow add */
+		/* entry is a referral, don't allow rename */
 		rs->sr_ref = get_entry_referrals( op, e );
 
 		Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(mdb_modrdn)
@@ -286,98 +264,10 @@ retry:	/* transaction retry */
 		goto done;
 	}
 
-	if ( be_issuffix( op->o_bd, &e->e_nname ) ) {
-#ifdef MDB_MULTIPLE_SUFFIXES
-		/* Allow renaming one suffix entry to another */
-		p_ndn = slap_empty_bv;
-#else
-		/* There can only be one suffix entry */
-		rs->sr_err = LDAP_NAMING_VIOLATION;
-		rs->sr_text = "cannot rename suffix entry";
-		goto return_results;
-#endif
-	} else {
-		dnParent( &e->e_nname, &p_ndn );
-	}
-	np_ndn = &p_ndn;
-	eip = ei->bei_parent;
-	if ( eip && eip->bei_id ) {
-		/* Make sure parent entry exist and we can write its 
-		 * children.
-		 */
-		rs->sr_err = mdb_cache_find_id( op, ltid,
-			eip->bei_id, &eip, 0, &plock );
-
-		switch( rs->sr_err ) {
-		case 0:
-		case DB_NOTFOUND:
-			break;
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		case LDAP_BUSY:
-			rs->sr_text = "ldap server busy";
-			goto return_results;
-		default:
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "internal error";
-			goto return_results;
-		}
-
-		p = eip->bei_e;
-		if( p == NULL) {
-			Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(mdb_modrdn)
-				": parent does not exist\n", 0, 0, 0);
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "old entry's parent does not exist";
-			goto return_results;
-		}
-	} else {
-		p = (Entry *)&slap_entry_root;
-	}
-
-	/* check parent for "children" acl */
-	rs->sr_err = access_allowed( op, p,
-		children, NULL,
-		op->oq_modrdn.rs_newSup == NULL ?
-			ACL_WRITE : ACL_WDEL,
-		NULL );
-
-	if ( !p_ndn.bv_len )
-		p = NULL;
-
-	if ( ! rs->sr_err ) {
-		switch( opinfo.boi_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
-
-		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
-		Debug( LDAP_DEBUG_TRACE, "no access to parent\n", 0,
-			0, 0 );
-		rs->sr_text = "no write access to old parent's children";
-		goto return_results;
-	}
-
-	Debug( LDAP_DEBUG_TRACE,
-		LDAP_XSTRING(mdb_modrdn) ": wr to children "
-		"of entry %s OK\n", p_ndn.bv_val, 0, 0 );
-	
-	if ( p_ndn.bv_val == slap_empty_bv.bv_val ) {
-		p_dn = slap_empty_bv;
-	} else {
-		dnParent( &e->e_name, &p_dn );
-	}
-
-	Debug( LDAP_DEBUG_TRACE,
-		LDAP_XSTRING(mdb_modrdn) ": parent dn=%s\n",
-		p_dn.bv_val, 0, 0 );
-
 	new_parent_dn = &p_dn;	/* New Parent unless newSuperior given */
 
 	if ( op->oq_modrdn.rs_newSup != NULL ) {
-		Debug( LDAP_DEBUG_TRACE, 
+		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_modrdn)
 			": new parent \"%s\" requested...\n",
 			op->oq_modrdn.rs_newSup->bv_val, 0, 0 );
@@ -414,16 +304,19 @@ retry:	/* transaction retry */
 			}
 			/* Get Entry with dn=newSuperior. Does newSuperior exist? */
 
-			rs->sr_err = mdb_dn2entry( op, ltid, np_ndn,
-				&neip, 0, &nplock );
+			rs->sr_err = mdb_dn2entry( op, txn, np_ndn, &np, 0 );
 
 			switch( rs->sr_err ) {
-			case 0: np = neip->bei_e;
-			case DB_NOTFOUND:
+			case 0:
 				break;
-			case DB_LOCK_DEADLOCK:
-			case DB_LOCK_NOTGRANTED:
-				goto retry;
+			case MDB_NOTFOUND:
+				Debug( LDAP_DEBUG_TRACE,
+					LDAP_XSTRING(mdb_modrdn)
+					": newSup(ndn=%s) not here!\n",
+					np_ndn->bv_val, 0, 0);
+				rs->sr_text = "new superior not found";
+				rs->sr_err = LDAP_NO_SUCH_OBJECT;
+				goto return_results;
 			case LDAP_BUSY:
 				rs->sr_text = "ldap server busy";
 				goto return_results;
@@ -433,32 +326,11 @@ retry:	/* transaction retry */
 				goto return_results;
 			}
 
-			if( np == NULL) {
-				Debug( LDAP_DEBUG_TRACE,
-					LDAP_XSTRING(mdb_modrdn)
-					": newSup(ndn=%s) not here!\n",
-					np_ndn->bv_val, 0, 0);
-				rs->sr_text = "new superior not found";
-				rs->sr_err = LDAP_NO_SUCH_OBJECT;
-				goto return_results;
-			}
-
-			Debug( LDAP_DEBUG_TRACE,
-				LDAP_XSTRING(mdb_modrdn)
-				": wr to new parent OK np=%p, id=%ld\n",
-				(void *) np, (long) np->e_id, 0 );
-
 			/* check newSuperior for "children" acl */
 			rs->sr_err = access_allowed( op, np, children,
 				NULL, ACL_WADD, NULL );
 
 			if( ! rs->sr_err ) {
-				switch( opinfo.boi_err ) {
-				case DB_LOCK_DEADLOCK:
-				case DB_LOCK_NOTGRANTED:
-					goto retry;
-				}
-
 				Debug( LDAP_DEBUG_TRACE,
 					LDAP_XSTRING(mdb_modrdn)
 					": no wr to newSup children\n",
@@ -467,6 +339,11 @@ retry:	/* transaction retry */
 				rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 				goto return_results;
 			}
+
+			Debug( LDAP_DEBUG_TRACE,
+				LDAP_XSTRING(mdb_modrdn)
+				": wr to new parent OK np=%p, id=%ld\n",
+				(void *) np, (long) np->e_id, 0 );
 
 			if ( is_entry_alias( np ) ) {
 				/* parent is an alias, don't allow add */
@@ -489,6 +366,7 @@ retry:	/* transaction retry */
 				rs->sr_err = LDAP_OTHER;
 				goto return_results;
 			}
+			new_parent_dn = &np->e_name;
 
 		} else {
 			np_dn = NULL;
@@ -505,15 +383,9 @@ retry:	/* transaction retry */
 				np = NULL;
 
 				if ( ! rs->sr_err ) {
-					switch( opinfo.boi_err ) {
-					case DB_LOCK_DEADLOCK:
-					case DB_LOCK_NOTGRANTED:
-						goto retry;
-					}
-
 					rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
-					Debug( LDAP_DEBUG_TRACE, 
-						"no access to new superior\n", 
+					Debug( LDAP_DEBUG_TRACE,
+						"no access to new superior\n",
 						0, 0, 0 );
 					rs->sr_text =
 						"no write access to new superior's children";
@@ -532,7 +404,7 @@ retry:	/* transaction retry */
 
 	/* Build target dn and make sure target entry doesn't exist already. */
 	if (!new_dn.bv_val) {
-		build_new_dn( &new_dn, new_parent_dn, &op->oq_modrdn.rs_newrdn, NULL ); 
+		build_new_dn( &new_dn, new_parent_dn, &op->oq_modrdn.rs_newrdn, NULL );
 	}
 
 	if (!new_ndn.bv_val) {
@@ -547,18 +419,13 @@ retry:	/* transaction retry */
 		new_ndn.bv_val, 0, 0 );
 
 	/* Shortcut the search */
-	nei = neip ? neip : eip;
-	rs->sr_err = mdb_cache_find_ndn ( op, ltid, &new_ndn, &nei );
-	if ( nei ) mdb_cache_entryinfo_unlock( nei );
+	rs->sr_err = mdb_dn2id ( op, txn, &new_ndn, &nid, NULL );
 	switch( rs->sr_err ) {
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto retry;
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 		break;
 	case 0:
 		/* Allow rename to same DN */
-		if ( nei == ei )
+		if ( nid == e->e_id )
 			break;
 		rs->sr_err = LDAP_ALREADY_EXISTS;
 		goto return_results;
@@ -578,7 +445,7 @@ retry:	/* transaction retry */
 		if( slap_read_controls( op, rs, e,
 			&slap_pre_read_bv, preread_ctrl ) )
 		{
-			Debug( LDAP_DEBUG_TRACE,        
+			Debug( LDAP_DEBUG_TRACE,
 				"<=- " LDAP_XSTRING(mdb_modrdn)
 				": pre-read failed!\n", 0, 0, 0 );
 			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
@@ -586,34 +453,16 @@ retry:	/* transaction retry */
 				 * operation if control fails? */
 				goto return_results;
 			}
-		}                   
-	}
-
-	/* nested transaction */
-	rs->sr_err = TXN_BEGIN( mdb->bi_dbenv, ltid, &lt2, mdb->bi_db_opflags );
-	rs->sr_text = NULL;
-	if( rs->sr_err != 0 ) {
-		Debug( LDAP_DEBUG_TRACE,
-			LDAP_XSTRING(mdb_modrdn)
-			": txn_begin(2) failed: %s (%d)\n",
-			db_strerror(rs->sr_err), rs->sr_err, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "internal error";
-		goto return_results;
+		}
 	}
 
 	/* delete old DN */
-	rs->sr_err = mdb_dn2id_delete( op, lt2, eip, e );
+	rs->sr_err = mdb_dn2id_delete( op, txn, p->e_id, e );
 	if ( rs->sr_err != 0 ) {
 		Debug(LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_modrdn)
 			": dn2id del failed: %s (%d)\n",
-			db_strerror(rs->sr_err), rs->sr_err, 0 );
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
+			mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "DN index delete fail";
 		goto return_results;
@@ -626,17 +475,12 @@ retry:	/* transaction retry */
 	dummy.e_attrs = NULL;
 
 	/* add new DN */
-	rs->sr_err = mdb_dn2id_add( op, lt2, neip ? neip : eip, &dummy );
+	rs->sr_err = mdb_dn2id_add( op, txn, np ? np->e_id : p->e_id, &dummy );
 	if ( rs->sr_err != 0 ) {
 		Debug(LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_modrdn)
 			": dn2id add failed: %s (%d)\n",
-			db_strerror(rs->sr_err), rs->sr_err, 0 );
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
+			mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "DN index add failed";
 		goto return_results;
@@ -645,37 +489,27 @@ retry:	/* transaction retry */
 	dummy.e_attrs = e->e_attrs;
 
 	/* modify entry */
-	rs->sr_err = mdb_modify_internal( op, lt2, op->orr_modlist, &dummy,
+	rs->sr_err = mdb_modify_internal( op, txn, op->orr_modlist, &dummy,
 		&rs->sr_text, textbuf, textlen );
 	if( rs->sr_err != LDAP_SUCCESS ) {
 		Debug(LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_modrdn)
 			": modify failed: %s (%d)\n",
-			db_strerror(rs->sr_err), rs->sr_err, 0 );
-		if ( ( rs->sr_err == LDAP_INSUFFICIENT_ACCESS ) && opinfo.boi_err ) {
-			rs->sr_err = opinfo.boi_err;
+			mdb_strerror(rs->sr_err), rs->sr_err, 0 );
+		if ( ( rs->sr_err == LDAP_INSUFFICIENT_ACCESS ) && opinfo.moi_err ) {
+			rs->sr_err = opinfo.moi_err;
 		}
 		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
 		goto return_results;
 	}
 
 	/* id2entry index */
-	rs->sr_err = mdb_id2entry_update( op->o_bd, lt2, &dummy );
+	rs->sr_err = mdb_id2entry_update( op, txn, &dummy );
 	if ( rs->sr_err != 0 ) {
 		Debug(LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_modrdn)
 			": id2entry failed: %s (%d)\n",
-			db_strerror(rs->sr_err), rs->sr_err, 0 );
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
+			mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "entry update failed";
 		goto return_results;
@@ -683,33 +517,24 @@ retry:	/* transaction retry */
 
 	if ( p_ndn.bv_len != 0 ) {
 		parent_is_glue = is_entry_glue(p);
-		rs->sr_err = mdb_cache_children( op, lt2, p );
-		if ( rs->sr_err != DB_NOTFOUND ) {
+		rs->sr_err = mdb_dn2id_children( op, txn, p );
+		if ( rs->sr_err != MDB_NOTFOUND ) {
 			switch( rs->sr_err ) {
-			case DB_LOCK_DEADLOCK:
-			case DB_LOCK_NOTGRANTED:
-				goto retry;
 			case 0:
 				break;
 			default:
 				Debug(LDAP_DEBUG_ARGS,
 					"<=- " LDAP_XSTRING(mdb_modrdn)
 					": has_children failed: %s (%d)\n",
-					db_strerror(rs->sr_err), rs->sr_err, 0 );
+					mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 				rs->sr_err = LDAP_OTHER;
 				rs->sr_text = "internal error";
 				goto return_results;
 			}
 			parent_is_leaf = 1;
 		}
-		mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, p);
+		mdb_entry_return( p );
 		p = NULL;
-	}
-
-	if ( TXN_COMMIT( lt2, 0 ) != 0 ) {
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "txn_commit(2) failed";
-		goto return_results;
 	}
 
 	if( op->o_postread ) {
@@ -720,7 +545,7 @@ retry:	/* transaction retry */
 		if( slap_read_controls( op, rs, &dummy,
 			&slap_post_read_bv, postread_ctrl ) )
 		{
-			Debug( LDAP_DEBUG_TRACE,        
+			Debug( LDAP_DEBUG_TRACE,
 				"<=- " LDAP_XSTRING(mdb_modrdn)
 				": post-read failed!\n", 0, 0, 0 );
 			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
@@ -728,47 +553,37 @@ retry:	/* transaction retry */
 				 * operation if control fails? */
 				goto return_results;
 			}
-		}                   
+		}
 	}
 
 	if( op->o_noop ) {
-		if(( rs->sr_err=TXN_ABORT( ltid )) != 0 ) {
-			rs->sr_text = "txn_abort (no-op) failed";
-		} else {
-			rs->sr_err = LDAP_X_NO_OPERATION;
-			ltid = NULL;
-			/* Only free attrs if they were dup'd.  */
-			if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
-			goto return_results;
-		}
+		mdb_txn_abort( txn );
+		rs->sr_err = LDAP_X_NO_OPERATION;
+		txn = NULL;
+		/* Only free attrs if they were dup'd.  */
+		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
+		goto return_results;
 
 	} else {
-		rc = mdb_cache_modrdn( mdb, e, &op->orr_nnewrdn, &dummy, neip,
-			ltid, &lock );
-		switch( rc ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
 		dummy.e_attrs = NULL;
 		new_dn.bv_val = NULL;
 		new_ndn.bv_val = NULL;
 
-		if(( rs->sr_err=TXN_COMMIT( ltid, 0 )) != 0 ) {
+		if(( rs->sr_err=mdb_txn_commit( txn )) != 0 ) {
 			rs->sr_text = "txn_commit failed";
 		} else {
 			rs->sr_err = LDAP_SUCCESS;
 		}
 	}
- 
-	ltid = NULL;
-	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
-	opinfo.boi_oe.oe_key = NULL;
- 
+
+	txn = NULL;
+	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+	opinfo.moi_oe.oe_key = NULL;
+
 	if( rs->sr_err != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_modrdn) ": %s : %s (%d)\n",
-			rs->sr_text, db_strerror(rs->sr_err), rs->sr_err );
+			rs->sr_text, mdb_strerror(rs->sr_err), rs->sr_err );
 		rs->sr_err = LDAP_OTHER;
 
 		goto return_results;
@@ -788,11 +603,13 @@ return_results:
 	}
 	send_ldap_result( op, rs );
 
+#if 0
 	if( rs->sr_err == LDAP_SUCCESS && mdb->bi_txn_cp_kbyte ) {
 		TXN_CHECKPOINT( mdb->bi_dbenv,
 			mdb->bi_txn_cp_kbyte, mdb->bi_txn_cp_min, 0 );
 	}
-	
+#endif
+
 	if ( rs->sr_err == LDAP_SUCCESS && parent_is_glue && parent_is_leaf ) {
 		op->o_delete_glue_parent = 1;
 	}
@@ -805,25 +622,25 @@ done:
 
 	/* LDAP v3 Support */
 	if( np != NULL ) {
-		/* free new parent and reader lock */
-		mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, np);
+		/* free new parent */
+		mdb_entry_return( np );
 	}
 
 	if( p != NULL ) {
-		/* free parent and reader lock */
-		mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, p);
+		/* free parent */
+		mdb_entry_return( p );
 	}
 
 	/* free entry */
 	if( e != NULL ) {
-		mdb_unlocked_cache_return_entry_w( &mdb->bi_cache, e);
+		mdb_entry_return( e );
 	}
 
-	if( ltid != NULL ) {
-		TXN_ABORT( ltid );
+	if( txn != NULL ) {
+		mdb_txn_abort( txn );
 	}
-	if ( opinfo.boi_oe.oe_key ) {
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
+	if ( opinfo.moi_oe.oe_key ) {
+		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 	}
 
 	if( preread_ctrl != NULL && (*preread_ctrl) != NULL ) {

@@ -269,6 +269,7 @@ mdb_dn2id(
 	int		rc = 0, nrlen;
 	diskNode *d;
 	char	*ptr;
+	char dn[SLAP_LDAPDN_MAXLEN];
 	unsigned char dlen[2];
 	ID pid, nid;
 	struct berval tmp;
@@ -282,6 +283,12 @@ mdb_dn2id(
 	}
 
 	tmp = *in;
+
+	if ( matched ) {
+		matched->bv_val = dn + sizeof(dn) - 1;
+		matched->bv_len = 0;
+		*matched->bv_val-- = '\0';
+	}
 
 	nrlen = tmp.bv_len - op->o_bd->be_nsuffix[0].bv_len;
 	tmp.bv_val += nrlen;
@@ -304,25 +311,34 @@ mdb_dn2id(
 		*ptr = '\0';
 		data.mv_data = d;
 		rc = mdb_cursor_get( cursor, &key, &data, MDB_GET_BOTH );
+		op->o_tmpfree( d, op->o_tmpmemctx );
 		if ( rc == MDB_NOTFOUND ) {
-			if ( matched ) {
-				int len;
-				matched->bv_val = tmp.bv_val + tmp.bv_len + 1;
-				len = in->bv_len - ( matched->bv_val - in->bv_val );
-				if ( len <= 0 ) {
-					BER_BVZERO( matched );
-				} else {
-					matched->bv_len = len;
-				}
+			if ( matched && matched->bv_len ) {
+				ptr = op->o_tmpalloc( matched->bv_len+1, op->o_tmpmemctx );
+				strcpy( ptr, matched->bv_val );
+				matched->bv_val = ptr;
 			}
 		}
-		op->o_tmpfree( d, op->o_tmpmemctx );
 		if ( rc ) {
 			mdb_cursor_close( cursor );
 			break;
 		}
 		ptr = (char *) data.mv_data + data.mv_size - sizeof(ID);
 		memcpy( &nid, ptr, sizeof(ID));
+
+		/* grab the non-normalized RDN */
+		if ( matched ) {
+			int rlen;
+			d = data.mv_data;
+			rlen = data.mv_size - sizeof(diskNode) - tmp.bv_len;
+			matched->bv_len += rlen;
+			matched->bv_val -= rlen + 1;
+			ptr = lutil_strcopy( matched->bv_val, d->rdn + tmp.bv_len );
+			if ( pid ) {
+				*ptr = ',';
+				matched->bv_len++;
+			}
+		}
 		if ( tmp.bv_val > in->bv_val ) {
 			for (ptr = tmp.bv_val - 2; ptr > in->bv_val &&
 				!DN_SEPARATOR(*ptr); ptr--)	/* empty */;

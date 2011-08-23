@@ -25,11 +25,9 @@ mdb_referrals( Operation *op, SlapReply *rs )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	Entry *e = NULL;
-	EntryInfo *ei;
 	int rc = LDAP_SUCCESS;
 
-	DB_TXN		*rtxn;
-	DB_LOCK		lock;
+	MDB_txn		*rtxn;
 
 	if( op->o_tag == LDAP_REQ_SEARCH ) {
 		/* let search take care of itself */
@@ -41,7 +39,7 @@ mdb_referrals( Operation *op, SlapReply *rs )
 		return rc;
 	} 
 
-	rc = mdb_reader_get(op, mdb->bi_dbenv, &rtxn);
+	rc = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
 	switch(rc) {
 	case 0:
 		break;
@@ -49,37 +47,26 @@ mdb_referrals( Operation *op, SlapReply *rs )
 		return LDAP_OTHER;
 	}
 
-dn2entry_retry:
 	/* get entry */
-	rc = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &ei, 1, &lock );
-
-	/* mdb_dn2entry() may legally leave ei == NULL
-	 * if rc != 0 and rc != DB_NOTFOUND
-	 */
-	if ( ei ) {
-		e = ei->bei_e;
-	}
+	rc = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &e, 1 );
 
 	switch(rc) {
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 	case 0:
 		break;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
 		return LDAP_BUSY;
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto dn2entry_retry;
 	default:
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_referrals)
 			": dn2entry failed: %s (%d)\n",
-			db_strerror(rc), rc, 0 ); 
+			mdb_strerror(rc), rc, 0 );
 		rs->sr_text = "internal error";
 		return LDAP_OTHER;
 	}
 
-	if ( rc == DB_NOTFOUND ) {
+	if ( rc == MDB_NOTFOUND ) {
 		rc = LDAP_SUCCESS;
 		rs->sr_matched = NULL;
 		if ( e != NULL ) {
@@ -100,7 +87,7 @@ dn2entry_retry:
 				}
 			}
 
-			mdb_cache_return_entry_r (mdb, e, &lock);
+			mdb_entry_return( e );
 			e = NULL;
 		}
 
@@ -147,6 +134,6 @@ dn2entry_retry:
 		ber_bvarray_free( refs );
 	}
 
-	mdb_cache_return_entry_r(mdb, e, &lock);
+	mdb_entry_return( e );
 	return rc;
 }

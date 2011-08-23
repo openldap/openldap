@@ -27,18 +27,15 @@ mdb_add(Operation *op, SlapReply *rs )
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	struct berval	pdn;
 	Entry		*p = NULL, *oe = op->ora_e;
-	EntryInfo	*ei;
 	char textbuf[SLAP_TEXT_BUFLEN];
 	size_t textlen = sizeof textbuf;
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
-	DB_TXN		*ltid = NULL, *lt2;
-	ID eid = NOID;
+	MDB_txn		*txn = NULL;
+	ID eid = NOID, pid = 0;
 	struct mdb_op_info opinfo = {{{ 0 }}};
 	int subentry;
-	DB_LOCK		lock;
 
-	int		num_retries = 0;
 	int		success;
 
 	LDAPControl **postread_ctrl = NULL;
@@ -122,23 +119,22 @@ txnReturn:
 	subentry = is_entry_subentry( op->ora_e );
 
 	/* begin transaction */
-	rs->sr_err = TXN_BEGIN( mdb->bi_dbenv, NULL, &ltid, 
-		mdb->bi_db_opflags );
+	rs->sr_err = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
 	rs->sr_text = NULL;
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_add) ": txn_begin failed: %s (%d)\n",
-			db_strerror(rs->sr_err), rs->sr_err, 0 );
+			mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
 
-	opinfo.boi_oe.oe_key = mdb;
-	opinfo.boi_txn = ltid;
-	opinfo.boi_err = 0;
-	opinfo.boi_acl_cache = op->o_do_not_cache;
-	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.boi_oe, oe_next );
+	opinfo.moi_oe.oe_key = mdb;
+	opinfo.moi_txn = txn;
+	opinfo.moi_err = 0;
+	opinfo.moi_acl_cache = op->o_do_not_cache;
+	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
 
 	/*
 	 * Get the parent dn and see if the corresponding entry exists.
@@ -150,13 +146,14 @@ txnReturn:
 	}
 
 	/* get entry or parent */
-	rs->sr_err = mdb_dn2entry( op, ltid, &op->ora_e->e_nname, &ei,
-		1, &lock );
+	rs->sr_err = mdb_dn2entry( op, txn, &op->ora_e->e_nname, &p, 1 );
 	switch( rs->sr_err ) {
 	case 0:
 		rs->sr_err = LDAP_ALREADY_EXISTS;
+		mdb_entry_return( p );
+		p = NULL;
 		goto return_results;
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 		break;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
@@ -167,7 +164,6 @@ txnReturn:
 		goto return_results;
 	}
 
-	p = ei->bei_e;
 	if ( !p )
 		p = (Entry *)&slap_entry_root;
 
@@ -178,7 +174,7 @@ txnReturn:
 			? get_entry_referrals( op, p )
 			: NULL;
 		if ( p != (Entry *)&slap_entry_root )
-			mdb_unlocked_cache_return_entry_r( mdb, p );
+			mdb_entry_return( p );
 		p = NULL;
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_add) ": parent "
@@ -194,7 +190,7 @@ txnReturn:
 
 	if ( ! rs->sr_err ) {
 		if ( p != (Entry *)&slap_entry_root )
-			mdb_unlocked_cache_return_entry_r( mdb, p );
+			mdb_entry_return( p );
 		p = NULL;
 
 		Debug( LDAP_DEBUG_TRACE,
@@ -207,7 +203,7 @@ txnReturn:
 
 	if ( p != (Entry *)&slap_entry_root ) {
 		if ( is_entry_subentry( p ) ) {
-			mdb_unlocked_cache_return_entry_r( mdb, p );
+			mdb_entry_return( p );
 			p = NULL;
 			/* parent is a subentry, don't allow add */
 			Debug( LDAP_DEBUG_TRACE,
@@ -219,7 +215,7 @@ txnReturn:
 		}
 
 		if ( is_entry_alias( p ) ) {
-			mdb_unlocked_cache_return_entry_r( mdb, p );
+			mdb_entry_return( p );
 			p = NULL;
 			/* parent is an alias, don't allow add */
 			Debug( LDAP_DEBUG_TRACE,
@@ -235,7 +231,7 @@ txnReturn:
 			rs->sr_matched = ber_strdup_x( p->e_name.bv_val,
 				op->o_tmpmemctx );
 			rs->sr_ref = get_entry_referrals( op, p );
-			mdb_unlocked_cache_return_entry_r( mdb, p );
+			mdb_entry_return( p );
 			p = NULL;
 			Debug( LDAP_DEBUG_TRACE,
 				LDAP_XSTRING(mdb_add) ": parent is referral\n",
@@ -255,6 +251,7 @@ txnReturn:
 
 	/* free parent and reader lock */
 	if ( p != (Entry *)&slap_entry_root ) {
+		pid = p->e_id;
 		if ( p->e_nname.bv_len ) {
 			struct berval ppdn;
 
@@ -276,7 +273,7 @@ txnReturn:
 			}
 		}
 
-		mdb_unlocked_cache_return_entry_r( mdb, p );
+		mdb_entry_return( p );
 	}
 	p = NULL;
 
@@ -305,7 +302,7 @@ txnReturn:
 	}
 
 	if ( eid == NOID ) {
-		rs->sr_err = mdb_next_id( op->o_bd, &eid );
+		rs->sr_err = mdb_next_id( op->o_bd, txn, &eid );
 		if( rs->sr_err != 0 ) {
 			Debug( LDAP_DEBUG_TRACE,
 				LDAP_XSTRING(mdb_add) ": next_id failed (%d)\n",
@@ -317,28 +314,15 @@ txnReturn:
 		op->ora_e->e_id = eid;
 	}
 
-	/* nested transaction */
-	rs->sr_err = TXN_BEGIN( mdb->bi_dbenv, ltid, &lt2, 
-		mdb->bi_db_opflags );
-	rs->sr_text = NULL;
-	if( rs->sr_err != 0 ) {
-		Debug( LDAP_DEBUG_TRACE,
-			LDAP_XSTRING(mdb_add) ": txn_begin(2) failed: "
-			"%s (%d)\n", db_strerror(rs->sr_err), rs->sr_err, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "internal error";
-		goto return_results;
-	}
-
 	/* dn2id index */
-	rs->sr_err = mdb_dn2id_add( op, lt2, ei, op->ora_e );
+	rs->sr_err = mdb_dn2id_add( op, txn, pid, op->ora_e );
 	if ( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_add) ": dn2id_add failed: %s (%d)\n",
-			db_strerror(rs->sr_err), rs->sr_err, 0 );
+			mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 
 		switch( rs->sr_err ) {
-		case DB_KEYEXIST:
+		case MDB_KEYEXIST:
 			rs->sr_err = LDAP_ALREADY_EXISTS;
 			break;
 		default:
@@ -348,7 +332,7 @@ txnReturn:
 	}
 
 	/* attribute indexes */
-	rs->sr_err = mdb_index_entry_add( op, lt2, op->ora_e );
+	rs->sr_err = mdb_index_entry_add( op, txn, op->ora_e );
 	if ( rs->sr_err != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_add) ": index_entry_add failed\n",
@@ -359,19 +343,13 @@ txnReturn:
 	}
 
 	/* id2entry index */
-	rs->sr_err = mdb_id2entry_add( op->o_bd, lt2, op->ora_e );
+	rs->sr_err = mdb_id2entry_add( op, txn, op->ora_e );
 	if ( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_add) ": id2entry_add failed\n",
 			0, 0, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "entry store failed";
-		goto return_results;
-	}
-
-	if ( TXN_COMMIT( lt2, 0 ) != 0 ) {
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "txn_commit(2) failed";
 		goto return_results;
 	}
 
@@ -396,43 +374,24 @@ txnReturn:
 	}
 
 	if ( op->o_noop ) {
-		if (( rs->sr_err=TXN_ABORT( ltid )) != 0 ) {
-			rs->sr_text = "txn_abort (no-op) failed";
-		} else {
-			rs->sr_err = LDAP_X_NO_OPERATION;
-			ltid = NULL;
-			goto return_results;
-		}
-
-	} else {
-		struct berval nrdn;
-
-		/* pick the RDN if not suffix; otherwise pick the entire DN */
-		if (pdn.bv_len) {
-			nrdn.bv_val = op->ora_e->e_nname.bv_val;
-			nrdn.bv_len = pdn.bv_val - op->ora_e->e_nname.bv_val - 1;
-		} else {
-			nrdn = op->ora_e->e_nname;
-		}
-
-		if(( rs->sr_err=TXN_COMMIT( ltid, 0 )) != 0 ) {
-			rs->sr_text = "txn_commit failed";
-		} else {
-			rs->sr_err = LDAP_SUCCESS;
-		}
+		mdb_txn_abort( txn );
+		rs->sr_err = LDAP_X_NO_OPERATION;
+		txn = NULL;
+		goto return_results;
 	}
 
-	ltid = NULL;
-	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
-	opinfo.boi_oe.oe_key = NULL;
-
-	if ( rs->sr_err != LDAP_SUCCESS ) {
+	if (( rs->sr_err = mdb_txn_commit( txn )) != 0 ) {
+		rs->sr_text = "txn_commit failed";
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_add) ": %s : %s (%d)\n",
-			rs->sr_text, db_strerror(rs->sr_err), rs->sr_err );
+			rs->sr_text, mdb_strerror(rs->sr_err), rs->sr_err );
 		rs->sr_err = LDAP_OTHER;
 		goto return_results;
 	}
+	txn = NULL;
+
+	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+	opinfo.moi_oe.oe_key = NULL;
 
 	Debug(LDAP_DEBUG_TRACE,
 		LDAP_XSTRING(mdb_add) ": added%s id=%08lx dn=\"%s\"\n",
@@ -446,27 +405,20 @@ return_results:
 	success = rs->sr_err;
 	send_ldap_result( op, rs );
 
-	if( ltid != NULL ) {
-		TXN_ABORT( ltid );
+	if( txn != NULL ) {
+		mdb_txn_abort( txn );
 	}
-	if ( opinfo.boi_oe.oe_key ) {
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
+	if ( opinfo.moi_oe.oe_key ) {
+		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 	}
 
 	if( success == LDAP_SUCCESS ) {
-		/* We own the entry now, and it can be purged at will
-		 * Check to make sure it's the same entry we entered with.
-		 * Possibly a callback may have mucked with it, although
-		 * in general callbacks should treat the entry as read-only.
-		 */
-		mdb_cache_deref( oe->e_private );
-		if ( op->ora_e == oe )
-			op->ora_e = NULL;
-
+#if 0
 		if ( mdb->bi_txn_cp_kbyte ) {
 			TXN_CHECKPOINT( mdb->bi_dbenv,
 				mdb->bi_txn_cp_kbyte, mdb->bi_txn_cp_min, 0 );
 		}
+#endif
 	}
 
 	slap_graduate_commit_csn( op );

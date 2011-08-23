@@ -26,13 +26,11 @@ mdb_compare( Operation *op, SlapReply *rs )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	Entry		*e = NULL;
-	EntryInfo	*ei;
 	int		manageDSAit = get_manageDSAit( op );
 
-	DB_TXN		*rtxn;
-	DB_LOCK		lock;
+	MDB_txn		*rtxn;
 
-	rs->sr_err = mdb_reader_get(op, mdb->bi_dbenv, &rtxn);
+	rs->sr_err = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
 	switch(rs->sr_err) {
 	case 0:
 		break;
@@ -41,29 +39,22 @@ mdb_compare( Operation *op, SlapReply *rs )
 		return rs->sr_err;
 	}
 
-dn2entry_retry:
 	/* get entry */
-	rs->sr_err = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &ei, 1,
-		&lock );
-
+	rs->sr_err = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &e, 1 );
 	switch( rs->sr_err ) {
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 	case 0:
 		break;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
 		goto return_results;
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto dn2entry_retry;
 	default:
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
 
-	e = ei->bei_e;
-	if ( rs->sr_err == DB_NOTFOUND ) {
+	if ( rs->sr_err == MDB_NOTFOUND ) {
 		if ( e != NULL ) {
 			/* return referral only if "disclose" is granted on the object */
 			if ( ! access_allowed( op, e, slap_schema.si_ad_entry,
@@ -79,7 +70,7 @@ dn2entry_retry:
 				rs->sr_err = LDAP_REFERRAL;
 			}
 
-			mdb_cache_return_entry_r( mdb, e, &lock );
+			mdb_entry_return( e );
 			e = NULL;
 
 		} else {
@@ -88,13 +79,8 @@ dn2entry_retry:
 			rs->sr_err = rs->sr_ref ? LDAP_REFERRAL : LDAP_NO_SUCH_OBJECT;
 		}
 
+		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
 		send_ldap_result( op, rs );
-
-		ber_bvarray_free( rs->sr_ref );
-		free( (char *)rs->sr_matched );
-		rs->sr_ref = NULL;
-		rs->sr_matched = NULL;
-
 		goto done;
 	}
 
@@ -136,7 +122,7 @@ return_results:
 done:
 	/* free entry */
 	if ( e != NULL ) {
-		mdb_cache_return_entry_r( mdb, e, &lock );
+		mdb_entry_return( e );
 	}
 
 	return rs->sr_err;

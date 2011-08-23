@@ -29,25 +29,23 @@
 int
 mdb_key_read(
 	Backend	*be,
-	DB *db,
-	DB_TXN *txn,
+	MDB_txn *txn,
+	MDB_dbi dbi,
 	struct berval *k,
 	ID *ids,
-	DBC **saved_cursor,
+	MDB_cursor **saved_cursor,
 	int get_flag
 )
 {
 	int rc;
-	DBT key;
+	MDB_val key;
 
 	Debug( LDAP_DEBUG_TRACE, "=> key_read\n", 0, 0, 0 );
 
-	DBTzero( &key );
-	bv2DBT(k,&key);
-	key.ulen = key.size;
-	key.flags = DB_DBT_USERMEM;
+	key.mv_size = k->bv_len;
+	key.mv_data = k->bv_val;
 
-	rc = mdb_idl_fetch_key( be, db, txn, &key, ids, saved_cursor, get_flag );
+	rc = mdb_idl_fetch_key( be, txn, dbi, &key, ids, saved_cursor, get_flag );
 
 	if( rc != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_TRACE, "<= mdb_index_read: failed (%d)\n",
@@ -64,32 +62,30 @@ mdb_key_read(
 int
 mdb_key_change(
 	Backend *be,
-	DB *db,
-	DB_TXN *txn,
+	MDB_txn *txn,
+	MDB_dbi dbi,
 	struct berval *k,
 	ID id,
 	int op
 )
 {
 	int	rc;
-	DBT	key;
+	MDB_val	key;
 
 	Debug( LDAP_DEBUG_TRACE, "=> key_change(%s,%lx)\n",
 		op == SLAP_INDEX_ADD_OP ? "ADD":"DELETE", (long) id, 0 );
 
-	DBTzero( &key );
-	bv2DBT(k,&key);
-	key.ulen = key.size;
-	key.flags = DB_DBT_USERMEM;
+	key.mv_size = k->bv_len;
+	key.mv_data = k->bv_val;
 
 	if (op == SLAP_INDEX_ADD_OP) {
 		/* Add values */
-		rc = mdb_idl_insert_key( be, db, txn, &key, id );
-		if ( rc == DB_KEYEXIST ) rc = 0;
+		rc = mdb_idl_insert_key( be, txn, dbi, &key, id );
+		if ( rc == MDB_KEYEXIST ) rc = 0;
 	} else {
 		/* Delete values */
-		rc = mdb_idl_delete_key( be, db, txn, &key, id );
-		if ( rc == DB_NOTFOUND ) rc = 0;
+		rc = mdb_idl_delete_key( be, txn, dbi, &key, id );
+		if ( rc == MDB_NOTFOUND ) rc = 0;
 	}
 
 	Debug( LDAP_DEBUG_TRACE, "<= key_change %d\n", rc, 0, 0 );

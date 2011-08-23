@@ -28,12 +28,10 @@ mdb_bind( Operation *op, SlapReply *rs )
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	Entry		*e;
 	Attribute	*a;
-	EntryInfo	*ei;
 
 	AttributeDescription *password = slap_schema.si_ad_userPassword;
 
-	DB_TXN		*rtxn;
-	DB_LOCK		lock;
+	MDB_txn		*rtxn;
 
 	Debug( LDAP_DEBUG_ARGS,
 		"==> " LDAP_XSTRING(mdb_bind) ": dn: %s\n",
@@ -55,7 +53,7 @@ mdb_bind( Operation *op, SlapReply *rs )
 		break;
 	}
 
-	rs->sr_err = mdb_reader_get(op, mdb->bi_dbenv, &rtxn);
+	rs->sr_err = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
 	switch(rs->sr_err) {
 	case 0:
 		break;
@@ -65,36 +63,21 @@ mdb_bind( Operation *op, SlapReply *rs )
 		return rs->sr_err;
 	}
 
-dn2entry_retry:
 	/* get entry with reader lock */
-	rs->sr_err = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &ei, 1,
-		&lock );
+	rs->sr_err = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &e, 0 );
 
 	switch(rs->sr_err) {
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
+		rs->sr_err = LDAP_INVALID_CREDENTIALS;
+		send_ldap_result( op, rs );
+		return rs->sr_err;
 	case 0:
 		break;
 	case LDAP_BUSY:
 		send_ldap_error( op, rs, LDAP_BUSY, "ldap_server_busy" );
 		return LDAP_BUSY;
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto dn2entry_retry;
 	default:
 		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
-		return rs->sr_err;
-	}
-
-	e = ei->bei_e;
-	if ( rs->sr_err == DB_NOTFOUND ) {
-		if( e != NULL ) {
-			mdb_cache_return_entry_r( mdb, e, &lock );
-			e = NULL;
-		}
-
-		rs->sr_err = LDAP_INVALID_CREDENTIALS;
-		send_ldap_result( op, rs );
-
 		return rs->sr_err;
 	}
 
@@ -151,7 +134,7 @@ dn2entry_retry:
 done:
 	/* free entry and reader lock */
 	if( e != NULL ) {
-		mdb_cache_return_entry_r( mdb, e, &lock );
+		mdb_entry_return( e );
 	}
 
 	if ( rs->sr_err ) {

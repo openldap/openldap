@@ -146,26 +146,6 @@ int mdb_entry_return(
 	Entry *e
 )
 {
-	/* Our entries are allocated in two blocks; the data comes from
-	 * the db itself and the Entry structure and associated pointers
-	 * are allocated in entry_decode. The db data pointer is saved
-	 * in e_bv.
-	 */
-	if ( e->e_bv.bv_val ) {
-		/* See if the DNs were changed by modrdn */
-		if( e->e_nname.bv_val < e->e_bv.bv_val || e->e_nname.bv_val >
-			e->e_bv.bv_val + e->e_bv.bv_len ) {
-			ch_free(e->e_name.bv_val);
-			ch_free(e->e_nname.bv_val);
-		}
-		e->e_name.bv_val = NULL;
-		e->e_nname.bv_val = NULL;
-		/* In tool mode the e_bv buffer is realloc'd, leave it alone */
-		if( !(slapMode & SLAP_TOOL_MODE) ) {
-			free( e->e_bv.bv_val );
-		}
-		BER_BVZERO( &e->e_bv );
-	}
 	entry_free( e );
 	return 0;
 }

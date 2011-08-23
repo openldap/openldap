@@ -37,31 +37,10 @@ mdb_hasSubordinates(
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	struct mdb_op_info	*opinfo;
 	OpExtra *oex;
-	DB_TXN		*rtxn;
+	MDB_txn		*rtxn;
 	int		rc;
-	int		release = 0;
 	
 	assert( e != NULL );
-
-	/* NOTE: this should never happen, but it actually happens
-	 * when using back-relay; until we find a better way to
-	 * preserve entry's private information while rewriting it,
-	 * let's disable the hasSubordinate feature for back-relay.
-	 */
-	if ( BEI( e ) == NULL ) {
-		Entry *ee = NULL;
-		rc = be_entry_get_rw( op, &e->e_nname, NULL, NULL, 0, &ee );
-		if ( rc != LDAP_SUCCESS || ee == NULL ) {
-			rc = LDAP_OTHER;
-			goto done;
-		}
-		e = ee;
-		release = 1;
-		if ( BEI( ee ) == NULL ) {
-			rc = LDAP_OTHER;
-			goto done;
-		}
-	}
 
 	/* Check for a txn in a parent op, otherwise use reader txn */
 	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
@@ -69,32 +48,24 @@ mdb_hasSubordinates(
 			break;
 	}
 	opinfo = (struct mdb_op_info *) oex;
-	if ( opinfo && opinfo->boi_txn ) {
-		rtxn = opinfo->boi_txn;
+	if ( opinfo && opinfo->moi_txn ) {
+		rtxn = opinfo->moi_txn;
 	} else {
-		rc = mdb_reader_get(op, mdb->bi_dbenv, &rtxn);
+		rc = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
 		if ( rc ) {
 			rc = LDAP_OTHER;
 			goto done;
 		}
 	}
 
-retry:
-	/* FIXME: we can no longer assume the entry's e_private
-	 * field is correctly populated; so we need to reacquire
-	 * it with reader lock */
-	rc = mdb_cache_children( op, rtxn, e );
+	rc = mdb_dn2id_children( op, rtxn, e );
 
 	switch( rc ) {
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto retry;
-
 	case 0:
 		*hasSubordinates = LDAP_COMPARE_TRUE;
 		break;
 
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 		*hasSubordinates = LDAP_COMPARE_FALSE;
 		rc = LDAP_SUCCESS;
 		break;
@@ -103,12 +74,11 @@ retry:
 		Debug(LDAP_DEBUG_ARGS, 
 			"<=- " LDAP_XSTRING(mdb_hasSubordinates)
 			": has_children failed: %s (%d)\n", 
-			db_strerror(rc), rc, 0 );
+			mdb_strerror(rc), rc, 0 );
 		rc = LDAP_OTHER;
 	}
 
 done:;
-	if ( release && e != NULL ) be_entry_release_r( op, e );
 	return rc;
 }
 

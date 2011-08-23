@@ -26,23 +26,14 @@ int
 mdb_delete( Operation *op, SlapReply *rs )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	Entry	*matched = NULL;
 	struct berval	pdn = {0, NULL};
 	Entry	*e = NULL;
 	Entry	*p = NULL;
-	EntryInfo	*ei = NULL, *eip = NULL;
 	int		manageDSAit = get_manageDSAit( op );
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
-	DB_TXN		*ltid = NULL, *lt2;
+	MDB_txn		*txn = NULL;
 	struct mdb_op_info opinfo = {{{ 0 }}};
-	ID	eid;
-
-	DB_LOCK		lock, plock;
-
-	int		num_retries = 0;
-
-	int     rc;
 
 	LDAPControl **preread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
@@ -108,72 +99,34 @@ txnReturn:
 		slap_get_csn( op, &csn, 1 );
 	}
 
-	if( 0 ) {
-retry:	/* transaction retry */
-		if( e != NULL ) {
-			mdb_unlocked_cache_return_entry_w(&mdb->bi_cache, e);
-			e = NULL;
-		}
-		if( p != NULL ) {
-			mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, p);
-			p = NULL;
-		}
-		Debug( LDAP_DEBUG_TRACE,
-			"==> " LDAP_XSTRING(mdb_delete) ": retrying...\n",
-			0, 0, 0 );
-		rs->sr_err = TXN_ABORT( ltid );
-		ltid = NULL;
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
-		opinfo.boi_oe.oe_key = NULL;
-		op->o_do_not_cache = opinfo.boi_acl_cache;
-		if( rs->sr_err != 0 ) {
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "internal error";
-			goto return_results;
-		}
-		if ( op->o_abandon ) {
-			rs->sr_err = SLAPD_ABANDON;
-			goto return_results;
-		}
-		parent_is_glue = 0;
-		parent_is_leaf = 0;
-		mdb_trans_backoff( ++num_retries );
-	}
-
 	/* begin transaction */
-	rs->sr_err = TXN_BEGIN( mdb->bi_dbenv, NULL, &ltid, 
-		mdb->bi_db_opflags );
+	rs->sr_err = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
 	rs->sr_text = NULL;
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_delete) ": txn_begin failed: "
-			"%s (%d)\n", db_strerror(rs->sr_err), rs->sr_err, 0 );
+			"%s (%d)\n", mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
 
-	opinfo.boi_oe.oe_key = mdb;
-	opinfo.boi_txn = ltid;
-	opinfo.boi_err = 0;
-	opinfo.boi_acl_cache = op->o_do_not_cache;
-	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.boi_oe, oe_next );
+	opinfo.moi_oe.oe_key = mdb;
+	opinfo.moi_txn = txn;
+	opinfo.moi_err = 0;
+	opinfo.moi_acl_cache = op->o_do_not_cache;
+	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
 
 	if ( !be_issuffix( op->o_bd, &op->o_req_ndn ) ) {
 		dnParent( &op->o_req_ndn, &pdn );
 	}
 
-	/* get entry */
-	rs->sr_err = mdb_dn2entry( op, ltid, &op->o_req_ndn, &ei, 1,
-		&lock );
-
+	/* get parent */
+	rs->sr_err = mdb_dn2entry( op, txn, &pdn, &p, 1 );
 	switch( rs->sr_err ) {
 	case 0:
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 		break;
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto retry;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
 		goto return_results;
@@ -182,28 +135,20 @@ retry:	/* transaction retry */
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
-
-	if ( rs->sr_err == 0 ) {
-		e = ei->bei_e;
-		eip = ei->bei_parent;
-	} else {
-		matched = ei->bei_e;
-	}
-
-	/* FIXME : dn2entry() should return non-glue entry */
-	if ( e == NULL || ( !manageDSAit && is_entry_glue( e ))) {
+	if ( rs->sr_err == MDB_NOTFOUND ) {
 		Debug( LDAP_DEBUG_ARGS,
 			"<=- " LDAP_XSTRING(mdb_delete) ": no such object %s\n",
 			op->o_req_dn.bv_val, 0, 0);
 
-		if ( matched != NULL ) {
-			rs->sr_matched = ch_strdup( matched->e_dn );
-			rs->sr_ref = is_entry_referral( matched )
-				? get_entry_referrals( op, matched )
+		if ( !BER_BVISEMPTY( &p->e_name )) {
+			rs->sr_matched = ch_strdup( p->e_name.bv_val );
+			rs->sr_ref = ( p && is_entry_referral( p ))
+				? get_entry_referrals( op, p )
 				: NULL;
-			mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, matched);
-			matched = NULL;
-
+			if ( p ) {
+				mdb_entry_return( p );
+				p = NULL;
+			}
 		} else {
 			rs->sr_ref = referral_rewrite( default_referral, NULL,
 					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
@@ -214,42 +159,48 @@ retry:	/* transaction retry */
 		goto return_results;
 	}
 
-	rc = mdb_cache_find_id( op, ltid, eip->bei_id, &eip, 0, &plock );
-	switch( rc ) {
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
-		goto retry;
+	/* get entry */
+	rs->sr_err = mdb_dn2entry( op, txn, &op->o_req_ndn, &e, 0 );
+	switch( rs->sr_err ) {
 	case 0:
-	case DB_NOTFOUND:
+	case MDB_NOTFOUND:
 		break;
+	case LDAP_BUSY:
+		rs->sr_text = "ldap server busy";
+		goto return_results;
 	default:
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
-	if ( eip ) p = eip->bei_e;
+
+	/* FIXME : dn2entry() should return non-glue entry */
+	if ( rs->sr_err == MDB_NOTFOUND || ( !manageDSAit && is_entry_glue( e ))) {
+		Debug( LDAP_DEBUG_ARGS,
+			"<=- " LDAP_XSTRING(mdb_delete) ": no such object %s\n",
+			op->o_req_dn.bv_val, 0, 0);
+
+		rs->sr_matched = ch_strdup( p->e_dn );
+		rs->sr_ref = is_entry_referral( p )
+			? get_entry_referrals( op, p ) : NULL;
+		if ( e ) {
+			mdb_entry_return( e );
+			e = NULL;
+		}
+		mdb_entry_return( p );
+		p = NULL;
+
+		rs->sr_err = LDAP_REFERRAL;
+		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
+		goto return_results;
+	}
 
 	if ( pdn.bv_len != 0 ) {
-		if( p == NULL || !bvmatch( &pdn, &p->e_nname )) {
-			Debug( LDAP_DEBUG_TRACE,
-				"<=- " LDAP_XSTRING(mdb_delete) ": parent "
-				"does not exist\n", 0, 0, 0 );
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "could not locate parent of entry";
-			goto return_results;
-		}
-
 		/* check parent for "children" acl */
 		rs->sr_err = access_allowed( op, p,
 			children, NULL, ACL_WDEL, NULL );
 
 		if ( !rs->sr_err  ) {
-			switch( opinfo.boi_err ) {
-			case DB_LOCK_DEADLOCK:
-			case DB_LOCK_NOTGRANTED:
-				goto retry;
-			}
-
 			Debug( LDAP_DEBUG_TRACE,
 				"<=- " LDAP_XSTRING(mdb_delete) ": no write "
 				"access to parent\n", 0, 0, 0 );
@@ -272,12 +223,6 @@ retry:	/* transaction retry */
 				p = NULL;
 
 				if ( !rs->sr_err  ) {
-					switch( opinfo.boi_err ) {
-					case DB_LOCK_DEADLOCK:
-					case DB_LOCK_NOTGRANTED:
-						goto retry;
-					}
-
 					Debug( LDAP_DEBUG_TRACE,
 						"<=- " LDAP_XSTRING(mdb_delete)
 						": no access to parent\n",
@@ -308,12 +253,6 @@ retry:	/* transaction retry */
 		entry, NULL, ACL_WDEL, NULL );
 
 	if ( !rs->sr_err  ) {
-		switch( opinfo.boi_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
-
 		Debug( LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_delete) ": no write access "
 			"to entry\n", 0, 0, 0 );
@@ -356,29 +295,12 @@ retry:	/* transaction retry */
 		}
 	}
 
-	/* nested transaction */
-	rs->sr_err = TXN_BEGIN( mdb->bi_dbenv, ltid, &lt2, 
-		mdb->bi_db_opflags );
 	rs->sr_text = NULL;
-	if( rs->sr_err != 0 ) {
-		Debug( LDAP_DEBUG_TRACE,
-			LDAP_XSTRING(mdb_delete) ": txn_begin(2) failed: "
-			"%s (%d)\n", db_strerror(rs->sr_err), rs->sr_err, 0 );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "internal error";
-		goto return_results;
-	}
-
-	MDB_LOG_PRINTF( mdb->bi_dbenv, lt2, "slapd Starting delete %s(%d)",
-		e->e_nname.bv_val, e->e_id );
 
 	/* Can't do it if we have kids */
-	rs->sr_err = mdb_cache_children( op, lt2, e );
-	if( rs->sr_err != DB_NOTFOUND ) {
+	rs->sr_err = mdb_dn2id_children( op, txn, e );
+	if( rs->sr_err != MDB_NOTFOUND ) {
 		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
 		case 0:
 			Debug(LDAP_DEBUG_ARGS,
 				"<=- " LDAP_XSTRING(mdb_delete)
@@ -391,7 +313,7 @@ retry:	/* transaction retry */
 			Debug(LDAP_DEBUG_ARGS,
 				"<=- " LDAP_XSTRING(mdb_delete)
 				": has_children failed: %s (%d)\n",
-				db_strerror(rs->sr_err), rs->sr_err, 0 );
+				mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 			rs->sr_err = LDAP_OTHER;
 			rs->sr_text = "internal error";
 		}
@@ -399,32 +321,22 @@ retry:	/* transaction retry */
 	}
 
 	/* delete from dn2id */
-	rs->sr_err = mdb_dn2id_delete( op, lt2, eip, e );
+	rs->sr_err = mdb_dn2id_delete( op, txn, p->e_id, e );
 	if ( rs->sr_err != 0 ) {
 		Debug(LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_delete) ": dn2id failed: "
-			"%s (%d)\n", db_strerror(rs->sr_err), rs->sr_err, 0 );
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
+			"%s (%d)\n", mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_text = "DN index delete failed";
 		rs->sr_err = LDAP_OTHER;
 		goto return_results;
 	}
 
 	/* delete indices for old attributes */
-	rs->sr_err = mdb_index_entry_del( op, lt2, e );
+	rs->sr_err = mdb_index_entry_del( op, txn, e );
 	if ( rs->sr_err != LDAP_SUCCESS ) {
 		Debug(LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_delete) ": index failed: "
-			"%s (%d)\n", db_strerror(rs->sr_err), rs->sr_err, 0 );
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
+			"%s (%d)\n", mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_text = "entry index delete failed";
 		rs->sr_err = LDAP_OTHER;
 		goto return_results;
@@ -437,14 +349,9 @@ retry:	/* transaction retry */
 		assert( !BER_BVISNULL( &op->o_csn ) );
 		vals[0] = op->o_csn;
 		BER_BVZERO( &vals[1] );
-		rs->sr_err = mdb_index_values( op, lt2, slap_schema.si_ad_entryCSN,
+		rs->sr_err = mdb_index_values( op, txn, slap_schema.si_ad_entryCSN,
 			vals, 0, SLAP_INDEX_ADD_OP );
 	if ( rs->sr_err != LDAP_SUCCESS ) {
-			switch( rs->sr_err ) {
-			case DB_LOCK_DEADLOCK:
-			case DB_LOCK_NOTGRANTED:
-				goto retry;
-			}
 			rs->sr_text = "entryCSN index update failed";
 			rs->sr_err = LDAP_OTHER;
 			goto return_results;
@@ -452,16 +359,11 @@ retry:	/* transaction retry */
 	}
 
 	/* delete from id2entry */
-	rs->sr_err = mdb_id2entry_delete( op->o_bd, lt2, e );
+	rs->sr_err = mdb_id2entry_delete( op->o_bd, txn, e );
 	if ( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
 			"<=- " LDAP_XSTRING(mdb_delete) ": id2entry failed: "
-			"%s (%d)\n", db_strerror(rs->sr_err), rs->sr_err, 0 );
-		switch( rs->sr_err ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
+			"%s (%d)\n", mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 		rs->sr_text = "entry delete failed";
 		rs->sr_err = LDAP_OTHER;
 		goto return_results;
@@ -469,74 +371,43 @@ retry:	/* transaction retry */
 
 	if ( pdn.bv_len != 0 ) {
 		parent_is_glue = is_entry_glue(p);
-		rs->sr_err = mdb_cache_children( op, lt2, p );
-		if ( rs->sr_err != DB_NOTFOUND ) {
+		rs->sr_err = mdb_dn2id_children( op, txn, p );
+		if ( rs->sr_err != MDB_NOTFOUND ) {
 			switch( rs->sr_err ) {
-			case DB_LOCK_DEADLOCK:
-			case DB_LOCK_NOTGRANTED:
-				goto retry;
 			case 0:
 				break;
 			default:
 				Debug(LDAP_DEBUG_ARGS,
 					"<=- " LDAP_XSTRING(mdb_delete)
 					": has_children failed: %s (%d)\n",
-					db_strerror(rs->sr_err), rs->sr_err, 0 );
+					mdb_strerror(rs->sr_err), rs->sr_err, 0 );
 				rs->sr_err = LDAP_OTHER;
 				rs->sr_text = "internal error";
 				goto return_results;
 			}
 			parent_is_leaf = 1;
 		}
-		mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, p);
+		meb_entry_return( p );
 		p = NULL;
 	}
 
-	MDB_LOG_PRINTF( mdb->bi_dbenv, lt2, "slapd Commit1 delete %s(%d)",
-		e->e_nname.bv_val, e->e_id );
-
-	if ( TXN_COMMIT( lt2, 0 ) != 0 ) {
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "txn_commit(2) failed";
-		goto return_results;
-	}
-
-	eid = e->e_id;
-
 	if( op->o_noop ) {
-		if ( ( rs->sr_err = TXN_ABORT( ltid ) ) != 0 ) {
-			rs->sr_text = "txn_abort (no-op) failed";
-		} else {
-			rs->sr_err = LDAP_X_NO_OPERATION;
-			ltid = NULL;
-			goto return_results;
-		}
+		mdb_txn_abort( txn );
+		rs->sr_err = LDAP_X_NO_OPERATION;
+		txn = NULL;
+		goto return_results;
 	} else {
-
-		MDB_LOG_PRINTF( mdb->bi_dbenv, ltid, "slapd Cache delete %s(%d)",
-			e->e_nname.bv_val, e->e_id );
-
-		rc = mdb_cache_delete( mdb, e, ltid, &lock );
-		switch( rc ) {
-		case DB_LOCK_DEADLOCK:
-		case DB_LOCK_NOTGRANTED:
-			goto retry;
-		}
-
-		rs->sr_err = TXN_COMMIT( ltid, 0 );
+		rs->sr_err = mdb_txn_commit( txn );
+		txn = NULL;
 	}
-	ltid = NULL;
-	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
-	opinfo.boi_oe.oe_key = NULL;
-
-	MDB_LOG_PRINTF( mdb->bi_dbenv, NULL, "slapd Committed delete %s(%d)",
-		e->e_nname.bv_val, e->e_id );
+	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+	opinfo.moi_oe.oe_key = NULL;
 
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_delete) ": txn_%s failed: %s (%d)\n",
 			op->o_noop ? "abort (no-op)" : "commit",
-			db_strerror(rs->sr_err), rs->sr_err );
+			mdb_strerror(rs->sr_err), rs->sr_err );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "commit failed";
 
@@ -546,7 +417,7 @@ retry:	/* transaction retry */
 	Debug( LDAP_DEBUG_TRACE,
 		LDAP_XSTRING(mdb_delete) ": deleted%s id=%08lx dn=\"%s\"\n",
 		op->o_noop ? " (no-op)" : "",
-		eid, op->o_req_dn.bv_val );
+		e->e_id, op->o_req_dn.bv_val );
 	rs->sr_err = LDAP_SUCCESS;
 	rs->sr_text = NULL;
 	if( num_ctrls ) rs->sr_ctrls = ctrls;
@@ -556,25 +427,20 @@ return_results:
 		op->o_delete_glue_parent = 1;
 	}
 
-	if ( p )
-		mdb_unlocked_cache_return_entry_r(&mdb->bi_cache, p);
+	if ( p != NULL ) {
+		mdb_entry_return( p );
+	}
 
 	/* free entry */
 	if( e != NULL ) {
-		if ( rs->sr_err == LDAP_SUCCESS ) {
-			/* Free the EntryInfo and the Entry */
-			mdb_cache_entryinfo_lock( BEI(e) );
-			mdb_cache_delete_cleanup( &mdb->bi_cache, BEI(e) );
-		} else {
-			mdb_unlocked_cache_return_entry_w(&mdb->bi_cache, e);
-		}
+		mdb_entry_return( e );
 	}
 
-	if( ltid != NULL ) {
-		TXN_ABORT( ltid );
+	if( txn != NULL ) {
+		mdb_txn_abort( txn );
 	}
-	if ( opinfo.boi_oe.oe_key ) {
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.boi_oe, OpExtra, oe_next );
+	if ( opinfo.moi_oe.oe_key ) {
+		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 	}
 
 	send_ldap_result( op, rs );
@@ -585,9 +451,11 @@ return_results:
 		slap_sl_free( *preread_ctrl, op->o_tmpmemctx );
 	}
 
+#if 0
 	if( rs->sr_err == LDAP_SUCCESS && mdb->bi_txn_cp_kbyte ) {
 		TXN_CHECKPOINT( mdb->bi_dbenv,
 			mdb->bi_txn_cp_kbyte, mdb->bi_txn_cp_min, 0 );
 	}
+#endif
 	return rs->sr_err;
 }

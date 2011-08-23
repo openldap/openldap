@@ -76,14 +76,14 @@ int mdb_index_param(
 	Backend *be,
 	AttributeDescription *desc,
 	int ftype,
-	DB **dbp,
+	MDB_dbi *dbip,
 	slap_mask_t *maskp,
 	struct berval *prefixp )
 {
 	AttrInfo *ai;
 	int rc;
 	slap_mask_t mask, type = 0;
-	DB *db;
+	MDB_dbi dbi;
 
 	ai = mdb_index_mask( be, desc, prefixp );
 
@@ -112,7 +112,7 @@ int mdb_index_param(
 	}
 	mask = ai->ai_indexmask;
 
-	rc = mdb_db_cache( be, prefixp, &db );
+	rc = mdb_db_cache( be, prefixp, &dbi );
 
 	if( rc != LDAP_SUCCESS ) {
 		return rc;
@@ -164,14 +164,14 @@ int mdb_index_param(
 	return LDAP_INAPPROPRIATE_MATCHING;
 
 done:
-	*dbp = db;
+	*dbip = dbi;
 	*maskp = mask;
 	return LDAP_SUCCESS;
 }
 
 static int indexer(
 	Operation *op,
-	DB_TXN *txn,
+	MDB_txn *txn,
 	AttributeDescription *ad,
 	struct berval *atname,
 	BerVarray vals,
@@ -180,12 +180,12 @@ static int indexer(
 	slap_mask_t mask )
 {
 	int rc, i;
-	DB *db;
+	MDB_dbi dbi;
 	struct berval *keys;
 
 	assert( mask != 0 );
 
-	rc = mdb_db_cache( op->o_bd, atname, &db );
+	rc = mdb_db_cache( op->o_bd, atname, &dbi );
 	
 	if ( rc != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -195,7 +195,7 @@ static int indexer(
 	}
 
 	if( IS_SLAP_INDEX( mask, SLAP_INDEX_PRESENT ) ) {
-		rc = mdb_key_change( op->o_bd, db, txn, &presence_key, id, opid );
+		rc = mdb_key_change( op->o_bd, txn, dbi, &presence_key, id, opid );
 		if( rc ) {
 			goto done;
 		}
@@ -211,7 +211,7 @@ static int indexer(
 
 		if( rc == LDAP_SUCCESS && keys != NULL ) {
 			for( i=0; keys[i].bv_val != NULL; i++ ) {
-				rc = mdb_key_change( op->o_bd, db, txn, &keys[i], id, opid );
+				rc = mdb_key_change( op->o_bd, txn, dbi, &keys[i], id, opid );
 				if( rc ) {
 					ber_bvarray_free_x( keys, op->o_tmpmemctx );
 					goto done;
@@ -232,7 +232,7 @@ static int indexer(
 
 		if( rc == LDAP_SUCCESS && keys != NULL ) {
 			for( i=0; keys[i].bv_val != NULL; i++ ) {
-				rc = mdb_key_change( op->o_bd, db, txn, &keys[i], id, opid );
+				rc = mdb_key_change( op->o_bd, txn, dbi, &keys[i], id, opid );
 				if( rc ) {
 					ber_bvarray_free_x( keys, op->o_tmpmemctx );
 					goto done;
@@ -254,7 +254,7 @@ static int indexer(
 
 		if( rc == LDAP_SUCCESS && keys != NULL ) {
 			for( i=0; keys[i].bv_val != NULL; i++ ) {
-				rc = mdb_key_change( op->o_bd, db, txn, &keys[i], id, opid );
+				rc = mdb_key_change( op->o_bd, txn, dbi, &keys[i], id, opid );
 				if( rc ) {
 					ber_bvarray_free_x( keys, op->o_tmpmemctx );
 					goto done;
@@ -270,8 +270,6 @@ done:
 	switch( rc ) {
 	/* The callers all know how to deal with these results */
 	case 0:
-	case DB_LOCK_DEADLOCK:
-	case DB_LOCK_NOTGRANTED:
 		break;
 	/* Anything else is bad news */
 	default:
@@ -282,7 +280,7 @@ done:
 
 static int index_at_values(
 	Operation *op,
-	DB_TXN *txn,
+	MDB_txn *txn,
 	AttributeDescription *ad,
 	AttributeType *type,
 	struct berval *tags,
@@ -371,7 +369,7 @@ static int index_at_values(
 
 int mdb_index_values(
 	Operation *op,
-	DB_TXN *txn,
+	MDB_txn *txn,
 	AttributeDescription *desc,
 	BerVarray vals,
 	ID id,
@@ -411,7 +409,7 @@ mdb_index_recset(
 	if( type->sat_ad ) {
 		slot = mdb_attr_slot( mdb, type->sat_ad, NULL );
 		if ( slot >= 0 ) {
-			ir[slot].ai = mdb->bi_attrs[slot];
+			ir[slot].ai = mdb->mi_attrs[slot];
 			al = ch_malloc( sizeof( AttrList ));
 			al->attr = a;
 			al->next = ir[slot].attrs;
@@ -425,7 +423,7 @@ mdb_index_recset(
 		if( desc ) {
 			slot = mdb_attr_slot( mdb, desc, NULL );
 			if ( slot >= 0 ) {
-				ir[slot].ai = mdb->bi_attrs[slot];
+				ir[slot].ai = mdb->mi_attrs[slot];
 				al = ch_malloc( sizeof( AttrList ));
 				al->attr = a;
 				al->next = ir[slot].attrs;
@@ -452,7 +450,7 @@ int mdb_index_recrun(
 	if ( id == 0 )
 		return 0;
 
-	for (i=base; i<mdb->bi_nattrs; i+=slap_tool_thread_max) {
+	for (i=base; i<mdb->mi_nattrs; i+=slap_tool_thread_max) {
 		ir = ir0 + i;
 		if ( !ir->ai ) continue;
 		while (( al = ir->attrs )) {
@@ -471,7 +469,7 @@ int mdb_index_recrun(
 int
 mdb_index_entry(
 	Operation *op,
-	DB_TXN *txn,
+	MDB_txn *txn,
 	int opid,
 	Entry	*e )
 {

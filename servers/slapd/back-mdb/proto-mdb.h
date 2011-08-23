@@ -64,7 +64,7 @@ mdb_db_cache(
  */
 
 int mdb_dn2entry LDAP_P(( Operation *op, MDB_txn *tid,
-	struct berval *dn, Entry **e, struct berval *matched ));
+	struct berval *dn, Entry **e, int matched ));
 
 /*
  * dn2id.c

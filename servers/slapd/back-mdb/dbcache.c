@@ -31,7 +31,7 @@ int
 mdb_db_cache(
 	Backend	*be,
 	struct berval *name,
-	DB **dbout )
+	MDB_dbi *dbout )
 {
 	int i, flags;
 	int rc;
@@ -39,48 +39,48 @@ mdb_db_cache(
 	struct mdb_db_info *db;
 	char *file;
 
-	*dbout = NULL;
+	*dbout = 0;
 
-	for( i=MDB_NDB; i < mdb->bi_ndatabases; i++ ) {
-		if( !ber_bvcmp( &mdb->bi_databases[i]->bdi_name, name) ) {
-			*dbout = mdb->bi_databases[i]->bdi_db;
+	for( i=MDB_NDB; i < mdb->mi_ndatabases; i++ ) {
+		if( !ber_bvcmp( &mdb->mi_databases[i]->mdi_name, name) ) {
+			*dbout = mdb->mi_databases[i]->mdi_dbi;
 			return 0;
 		}
 	}
 
-	ldap_pvt_thread_mutex_lock( &mdb->bi_database_mutex );
+	ldap_pvt_thread_mutex_lock( &mdb->mi_database_mutex );
 
 	/* check again! may have been added by another thread */
-	for( i=MDB_NDB; i < mdb->bi_ndatabases; i++ ) {
-		if( !ber_bvcmp( &mdb->bi_databases[i]->bdi_name, name) ) {
-			*dbout = mdb->bi_databases[i]->bdi_db;
-			ldap_pvt_thread_mutex_unlock( &mdb->bi_database_mutex );
+	for( i=MDB_NDB; i < mdb->mi_ndatabases; i++ ) {
+		if( !ber_bvcmp( &mdb->mi_databases[i]->mdi_name, name) ) {
+			*dbout = mdb->mi_databases[i]->mdi_dbi;
+			ldap_pvt_thread_mutex_unlock( &mdb->mi_database_mutex );
 			return 0;
 		}
 	}
 
 	if( i >= MDB_INDICES ) {
-		ldap_pvt_thread_mutex_unlock( &mdb->bi_database_mutex );
+		ldap_pvt_thread_mutex_unlock( &mdb->mi_database_mutex );
 		return -1;
 	}
 
 	db = (struct mdb_db_info *) ch_calloc(1, sizeof(struct mdb_db_info));
 
-	ber_dupbv( &db->bdi_name, name );
+	ber_dupbv( &db->mdi_name, name );
 
-	rc = db_create( &db->bdi_db, mdb->bi_dbenv, 0 );
+	rc = db_create( &db->mdi_dbi, mdb->mi_dbenv, 0 );
 	if( rc != 0 ) {
 		Debug( LDAP_DEBUG_ANY,
 			"mdb_db_cache: db_create(%s) failed: %s (%d)\n",
-			mdb->bi_dbenv_home, db_strerror(rc), rc );
-		ldap_pvt_thread_mutex_unlock( &mdb->bi_database_mutex );
+			mdb->mi_dbenv_home, mdb_strerror(rc), rc );
+		ldap_pvt_thread_mutex_unlock( &mdb->mi_database_mutex );
 		ch_free( db );
 		return rc;
 	}
 
-	file = ch_malloc( db->bdi_name.bv_len + sizeof(MDB_SUFFIX) );
-	strcpy( file, db->bdi_name.bv_val );
-	strcpy( file+db->bdi_name.bv_len, MDB_SUFFIX );
+	file = ch_malloc( db->mdi_name.bv_len + sizeof(MDB_SUFFIX) );
+	strcpy( file, db->mdi_name.bv_val );
+	strcpy( file+db->mdi_name.bv_len, MDB_SUFFIX );
 
 #ifdef HAVE_EBCDIC
 	__atoe( file );
@@ -95,25 +95,25 @@ mdb_db_cache(
 		(SLAP_TOOL_QUICK|SLAP_TRUNCATE_MODE))
 			flags |= DB_TRUNCATE;
 
-	rc = DB_OPEN( db->bdi_db,
+	rc = DB_OPEN( db->mdi_dbi,
 		file, NULL /* name */,
-		MDB_INDEXTYPE, mdb->bi_db_opflags | flags, mdb->bi_dbenv_mode );
+		MDB_INDEXTYPE, mdb->mi_db_opflags | flags, mdb->mi_dbenv_mode );
 
 	ch_free( file );
 
 	if( rc != 0 ) {
 		Debug( LDAP_DEBUG_ANY,
 			"mdb_db_cache: db_open(%s) failed: %s (%d)\n",
-			name->bv_val, db_strerror(rc), rc );
-		ldap_pvt_thread_mutex_unlock( &mdb->bi_database_mutex );
+			name->bv_val, mdb_strerror(rc), rc );
+		ldap_pvt_thread_mutex_unlock( &mdb->mi_database_mutex );
 		return rc;
 	}
 
-	mdb->bi_databases[i] = db;
-	mdb->bi_ndatabases = i+1;
+	mdb->mi_databases[i] = db;
+	mdb->mi_ndatabases = i+1;
 
-	*dbout = db->bdi_db;
+	*dbout = db->mdi_dbi;
 
-	ldap_pvt_thread_mutex_unlock( &mdb->bi_database_mutex );
+	ldap_pvt_thread_mutex_unlock( &mdb->mi_database_mutex );
 	return 0;
 }

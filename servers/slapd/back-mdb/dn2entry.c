@@ -33,21 +33,29 @@ mdb_dn2entry(
 	MDB_txn *tid,
 	struct berval *dn,
 	Entry **e,
-	struct berval *matched )
+	int matched )
 {
 	int rc, rc2;
-	ID id;
+	ID id = NOID;
+	struct berval bvm;
 
 	Debug(LDAP_DEBUG_TRACE, "mdb_dn2entry(\"%s\")\n",
 		dn->bv_val, 0, 0 );
 
 	*e = NULL;
 
-	rc = mdb_dn2id( op, tid, dn, &id, matched );
+	rc = mdb_dn2id( op, tid, dn, &id, &bvm );
 	if ( rc ) {
-		*e = NULL;
+		if ( matched )
+			rc2 = mdb_id2entry( op, tid, id, e );
+
 	} else {
 		rc = mdb_id2entry( op, tid, id, e );
+	}
+	if ( *e ) {
+		(*e)->e_name = bvm;
+		if ( rc == MDB_SUCCESS )
+			ber_dupbv_x( &(*e)->e_nname, dn, op->o_tmpmemctx );
 	}
 
 	return rc;
