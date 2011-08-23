@@ -27,37 +27,6 @@
 
 #define IDL_CMP(x,y)	( x < y ? -1 : ( x > y ? 1 : 0 ) )
 
-#define IDL_LRU_DELETE( mdb, e ) do { \
-	if ( (e) == (mdb)->bi_idl_lru_head ) { \
-		if ( (e)->idl_lru_next == (mdb)->bi_idl_lru_head ) { \
-			(mdb)->bi_idl_lru_head = NULL; \
-		} else { \
-			(mdb)->bi_idl_lru_head = (e)->idl_lru_next; \
-		} \
-	} \
-	if ( (e) == (mdb)->bi_idl_lru_tail ) { \
-		if ( (e)->idl_lru_prev == (mdb)->bi_idl_lru_tail ) { \
-			assert( (mdb)->bi_idl_lru_head == NULL ); \
-			(mdb)->bi_idl_lru_tail = NULL; \
-		} else { \
-			(mdb)->bi_idl_lru_tail = (e)->idl_lru_prev; \
-		} \
-	} \
-	(e)->idl_lru_next->idl_lru_prev = (e)->idl_lru_prev; \
-	(e)->idl_lru_prev->idl_lru_next = (e)->idl_lru_next; \
-} while ( 0 )
-
-static int
-mdb_idl_entry_cmp( const void *v_idl1, const void *v_idl2 )
-{
-	const mdb_idl_cache_entry_t *idl1 = v_idl1, *idl2 = v_idl2;
-	int rc;
-
-	if ((rc = SLAP_PTRCMP( idl1->db, idl2->db ))) return rc;
-	if ((rc = idl1->kstr.bv_len - idl2->kstr.bv_len )) return rc;
-	return ( memcmp ( idl1->kstr.bv_val, idl2->kstr.bv_val , idl1->kstr.bv_len ) );
-}
-
 #if IDL_DEBUG > 0
 static void idl_check( ID *ids )
 {
@@ -278,271 +247,34 @@ static int mdb_idl_delete( ID *ids, ID id )
 
 static char *
 mdb_show_key(
-	DBT		*key,
+	MDB_val		*key,
 	char		*buf )
 {
-	if ( key->size == 4 /* LUTIL_HASH_BYTES */ ) {
-		unsigned char *c = key->data;
+	if ( key->mv_size == 4 /* LUTIL_HASH_BYTES */ ) {
+		unsigned char *c = key->mv_data;
 		sprintf( buf, "[%02x%02x%02x%02x]", c[0], c[1], c[2], c[3] );
 		return buf;
 	} else {
-		return key->data;
+		return key->mv_data;
 	}
-}
-
-/* Find a db/key pair in the IDL cache. If ids is non-NULL,
- * copy the cached IDL into it, otherwise just return the status.
- */
-int
-mdb_idl_cache_get(
-	struct mdb_info	*mdb,
-	DB			*db,
-	DBT			*key,
-	ID			*ids )
-{
-	mdb_idl_cache_entry_t idl_tmp;
-	mdb_idl_cache_entry_t *matched_idl_entry;
-	int rc = LDAP_NO_SUCH_OBJECT;
-
-	DBT2bv( key, &idl_tmp.kstr );
-	idl_tmp.db = db;
-	ldap_pvt_thread_rdwr_rlock( &mdb->bi_idl_tree_rwlock );
-	matched_idl_entry = avl_find( mdb->bi_idl_tree, &idl_tmp,
-				      mdb_idl_entry_cmp );
-	if ( matched_idl_entry != NULL ) {
-		if ( matched_idl_entry->idl && ids )
-			MDB_IDL_CPY( ids, matched_idl_entry->idl );
-		matched_idl_entry->idl_flags |= CACHE_ENTRY_REFERENCED;
-		if ( matched_idl_entry->idl )
-			rc = LDAP_SUCCESS;
-		else
-			rc = DB_NOTFOUND;
-	}
-	ldap_pvt_thread_rdwr_runlock( &mdb->bi_idl_tree_rwlock );
-
-	return rc;
-}
-
-void
-mdb_idl_cache_put(
-	struct mdb_info	*mdb,
-	DB			*db,
-	DBT			*key,
-	ID			*ids,
-	int			rc )
-{
-	mdb_idl_cache_entry_t idl_tmp;
-	mdb_idl_cache_entry_t *ee, *eprev;
-
-	if ( rc == DB_NOTFOUND || MDB_IDL_IS_ZERO( ids ))
-		return;
-
-	DBT2bv( key, &idl_tmp.kstr );
-
-	ee = (mdb_idl_cache_entry_t *) ch_malloc(
-		sizeof( mdb_idl_cache_entry_t ) );
-	ee->db = db;
-	ee->idl = (ID*) ch_malloc( MDB_IDL_SIZEOF ( ids ) );
-	MDB_IDL_CPY( ee->idl, ids );
-
-	ee->idl_lru_prev = NULL;
-	ee->idl_lru_next = NULL;
-	ee->idl_flags = 0;
-	ber_dupbv( &ee->kstr, &idl_tmp.kstr );
-	ldap_pvt_thread_rdwr_wlock( &mdb->bi_idl_tree_rwlock );
-	if ( avl_insert( &mdb->bi_idl_tree, (caddr_t) ee,
-		mdb_idl_entry_cmp, avl_dup_error ))
-	{
-		ch_free( ee->kstr.bv_val );
-		ch_free( ee->idl );
-		ch_free( ee );
-		ldap_pvt_thread_rdwr_wunlock( &mdb->bi_idl_tree_rwlock );
-		return;
-	}
-	ldap_pvt_thread_mutex_lock( &mdb->bi_idl_tree_lrulock );
-	/* LRU_ADD */
-	if ( mdb->bi_idl_lru_head ) {
-		assert( mdb->bi_idl_lru_tail != NULL );
-		assert( mdb->bi_idl_lru_head->idl_lru_prev != NULL );
-		assert( mdb->bi_idl_lru_head->idl_lru_next != NULL );
-
-		ee->idl_lru_next = mdb->bi_idl_lru_head;
-		ee->idl_lru_prev = mdb->bi_idl_lru_head->idl_lru_prev;
-		mdb->bi_idl_lru_head->idl_lru_prev->idl_lru_next = ee;
-		mdb->bi_idl_lru_head->idl_lru_prev = ee;
-	} else {
-		ee->idl_lru_next = ee->idl_lru_prev = ee;
-		mdb->bi_idl_lru_tail = ee;
-	}
-	mdb->bi_idl_lru_head = ee;
-
-	if ( mdb->bi_idl_cache_size >= mdb->bi_idl_cache_max_size ) {
-		int i;
-		eprev = mdb->bi_idl_lru_tail;
-		for ( i = 0; (ee = eprev) != NULL && i < 10; i++ ) {
-			eprev = ee->idl_lru_prev;
-			if ( eprev == ee ) {
-				eprev = NULL;
-			}
-			if ( ee->idl_flags & CACHE_ENTRY_REFERENCED ) {
-				ee->idl_flags ^= CACHE_ENTRY_REFERENCED;
-				continue;
-			}
-			if ( avl_delete( &mdb->bi_idl_tree, (caddr_t) ee,
-				    mdb_idl_entry_cmp ) == NULL ) {
-				Debug( LDAP_DEBUG_ANY, "=> mdb_idl_cache_put: "
-					"AVL delete failed\n",
-					0, 0, 0 );
-			}
-			IDL_LRU_DELETE( mdb, ee );
-			i++;
-			--mdb->bi_idl_cache_size;
-			ch_free( ee->kstr.bv_val );
-			ch_free( ee->idl );
-			ch_free( ee );
-		}
-		mdb->bi_idl_lru_tail = eprev;
-		assert( mdb->bi_idl_lru_tail != NULL
-			|| mdb->bi_idl_lru_head == NULL );
-	}
-	mdb->bi_idl_cache_size++;
-	ldap_pvt_thread_mutex_unlock( &mdb->bi_idl_tree_lrulock );
-	ldap_pvt_thread_rdwr_wunlock( &mdb->bi_idl_tree_rwlock );
-}
-
-void
-mdb_idl_cache_del(
-	struct mdb_info	*mdb,
-	DB			*db,
-	DBT			*key )
-{
-	mdb_idl_cache_entry_t *matched_idl_entry, idl_tmp;
-	DBT2bv( key, &idl_tmp.kstr );
-	idl_tmp.db = db;
-	ldap_pvt_thread_rdwr_wlock( &mdb->bi_idl_tree_rwlock );
-	matched_idl_entry = avl_find( mdb->bi_idl_tree, &idl_tmp,
-				      mdb_idl_entry_cmp );
-	if ( matched_idl_entry != NULL ) {
-		if ( avl_delete( &mdb->bi_idl_tree, (caddr_t) matched_idl_entry,
-				    mdb_idl_entry_cmp ) == NULL ) {
-			Debug( LDAP_DEBUG_ANY, "=> mdb_idl_cache_del: "
-				"AVL delete failed\n",
-				0, 0, 0 );
-		}
-		--mdb->bi_idl_cache_size;
-		ldap_pvt_thread_mutex_lock( &mdb->bi_idl_tree_lrulock );
-		IDL_LRU_DELETE( mdb, matched_idl_entry );
-		ldap_pvt_thread_mutex_unlock( &mdb->bi_idl_tree_lrulock );
-		free( matched_idl_entry->kstr.bv_val );
-		if ( matched_idl_entry->idl )
-			free( matched_idl_entry->idl );
-		free( matched_idl_entry );
-	}
-	ldap_pvt_thread_rdwr_wunlock( &mdb->bi_idl_tree_rwlock );
-}
-
-void
-mdb_idl_cache_add_id(
-	struct mdb_info	*mdb,
-	DB			*db,
-	DBT			*key,
-	ID			id )
-{
-	mdb_idl_cache_entry_t *cache_entry, idl_tmp;
-	DBT2bv( key, &idl_tmp.kstr );
-	idl_tmp.db = db;
-	ldap_pvt_thread_rdwr_wlock( &mdb->bi_idl_tree_rwlock );
-	cache_entry = avl_find( mdb->bi_idl_tree, &idl_tmp,
-				      mdb_idl_entry_cmp );
-	if ( cache_entry != NULL ) {
-		if ( !MDB_IDL_IS_RANGE( cache_entry->idl ) &&
-			cache_entry->idl[0] < MDB_IDL_DB_MAX ) {
-			size_t s = MDB_IDL_SIZEOF( cache_entry->idl ) + sizeof(ID);
-			cache_entry->idl = ch_realloc( cache_entry->idl, s );
-		}
-		mdb_idl_insert( cache_entry->idl, id );
-	}
-	ldap_pvt_thread_rdwr_wunlock( &mdb->bi_idl_tree_rwlock );
-}
-
-void
-mdb_idl_cache_del_id(
-	struct mdb_info	*mdb,
-	DB			*db,
-	DBT			*key,
-	ID			id )
-{
-	mdb_idl_cache_entry_t *cache_entry, idl_tmp;
-	DBT2bv( key, &idl_tmp.kstr );
-	idl_tmp.db = db;
-	ldap_pvt_thread_rdwr_wlock( &mdb->bi_idl_tree_rwlock );
-	cache_entry = avl_find( mdb->bi_idl_tree, &idl_tmp,
-				      mdb_idl_entry_cmp );
-	if ( cache_entry != NULL ) {
-		mdb_idl_delete( cache_entry->idl, id );
-		if ( cache_entry->idl[0] == 0 ) {
-			if ( avl_delete( &mdb->bi_idl_tree, (caddr_t) cache_entry,
-						mdb_idl_entry_cmp ) == NULL ) {
-				Debug( LDAP_DEBUG_ANY, "=> mdb_idl_cache_del: "
-					"AVL delete failed\n",
-					0, 0, 0 );
-			}
-			--mdb->bi_idl_cache_size;
-			ldap_pvt_thread_mutex_lock( &mdb->bi_idl_tree_lrulock );
-			IDL_LRU_DELETE( mdb, cache_entry );
-			ldap_pvt_thread_mutex_unlock( &mdb->bi_idl_tree_lrulock );
-			free( cache_entry->kstr.bv_val );
-			free( cache_entry->idl );
-			free( cache_entry );
-		}
-	}
-	ldap_pvt_thread_rdwr_wunlock( &mdb->bi_idl_tree_rwlock );
 }
 
 int
 mdb_idl_fetch_key(
 	BackendDB	*be,
-	DB			*db,
-	DB_TXN		*txn,
-	DBT			*key,
+	MDB_txn		*txn,
+	MDB_dbi		dbi,
+	MDB_val		*key,
 	ID			*ids,
-	DBC                     **saved_cursor,
-	int                     get_flag )
+	MDB_cursor	**saved_cursor,
+	int			get_flag )
 {
-	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	int rc;
-	DBT data, key2, *kptr;
-	DBC *cursor;
+	MDB_val data, key2, *kptr;
+	MDB_cursor *cursor;
 	ID *i;
-	void *ptr;
 	size_t len;
-	int rc2;
-	int flags = mdb->bi_db_opflags | DB_MULTIPLE;
-	int opflag;
-
-	/* If using BerkeleyDB 4.0, the buf must be large enough to
-	 * grab the entire IDL in one get(), otherwise MDB will leak
-	 * resources on subsequent get's.  We can safely call get()
-	 * twice - once for the data, and once to get the DB_NOTFOUND
-	 * result meaning there's no more data. See ITS#2040 for details.
-	 * This bug is fixed in MDB 4.1 so a smaller buffer will work if
-	 * stack space is too limited.
-	 *
-	 * configure now requires Berkeley DB 4.1.
-	 */
-#if DB_VERSION_FULL < 0x04010000
-#	define MDB_ENOUGH 5
-#else
-	/* We sometimes test with tiny IDLs, and MDB always wants buffers
-	 * that are at least one page in size.
-	 */
-# if MDB_IDL_DB_SIZE < 4096
-#   define MDB_ENOUGH 2048
-# else
-#	define MDB_ENOUGH 1
-# endif
-#endif
-	ID buf[MDB_IDL_DB_SIZE*MDB_ENOUGH];
+	int rc;
+	MDB_cursor_op opflag;
 
 	char keybuf[16];
 
@@ -553,33 +285,21 @@ mdb_idl_fetch_key(
 	assert( ids != NULL );
 
 	if ( saved_cursor && *saved_cursor ) {
-		opflag = DB_NEXT;
+		opflag = MDB_NEXT;
 	} else if ( get_flag == LDAP_FILTER_GE ) {
-		opflag = DB_SET_RANGE;
+		opflag = MDB_SET_RANGE;
 	} else if ( get_flag == LDAP_FILTER_LE ) {
-		opflag = DB_FIRST;
+		opflag = MDB_FIRST;
 	} else {
-		opflag = DB_SET;
+		opflag = MDB_SET;
 	}
-
-	/* only non-range lookups can use the IDL cache */
-	if ( mdb->bi_idl_cache_size && opflag == DB_SET ) {
-		rc = mdb_idl_cache_get( mdb, db, key, ids );
-		if ( rc != LDAP_NO_SUCH_OBJECT ) return rc;
-	}
-
-	DBTzero( &data );
-
-	data.data = buf;
-	data.ulen = sizeof(buf);
-	data.flags = DB_DBT_USERMEM;
 
 	/* If we're not reusing an existing cursor, get a new one */
-	if( opflag != DB_NEXT ) {
-		rc = db->cursor( db, txn, &cursor, mdb->bi_db_opflags );
+	if( opflag != MDB_NEXT ) {
+		rc = mdb_cursor_open( txn, dbi, &cursor );
 		if( rc != 0 ) {
 			Debug( LDAP_DEBUG_ANY, "=> mdb_idl_fetch_key: "
-				"cursor failed: %s (%d)\n", db_strerror(rc), rc, 0 );
+				"cursor failed: %s (%d)\n", mdb_strerror(rc), rc, 0 );
 			return rc;
 		}
 	} else {
@@ -591,46 +311,36 @@ mdb_idl_fetch_key(
 	 * will be overwritten.
 	 */
 	if ( get_flag == LDAP_FILTER_LE || get_flag == LDAP_FILTER_GE ) {
-		DBTzero( &key2 );
-		key2.flags = DB_DBT_USERMEM;
-		key2.ulen = sizeof(keybuf);
-		key2.data = keybuf;
-		key2.size = key->size;
-		AC_MEMCPY( keybuf, key->data, key->size );
+		key2.mv_data = keybuf;
+		key2.mv_size = key->mv_size;
+		AC_MEMCPY( keybuf, key->mv_data, key->mv_size );
 		kptr = &key2;
 	} else {
 		kptr = key;
 	}
-	len = key->size;
-	rc = cursor->c_get( cursor, kptr, &data, flags | opflag );
+	len = key->mv_size;
+	rc = mdb_cursor_get( cursor, kptr, &data, opflag );
 
 	/* skip presence key on range inequality lookups */
-	while (rc == 0 && kptr->size != len) {
-		rc = cursor->c_get( cursor, kptr, &data, flags | DB_NEXT_NODUP );
+	while (rc == 0 && kptr->mv_size != len) {
+		rc = mdb_cursor_get( cursor, kptr, &data, MDB_NEXT_NODUP );
 	}
 	/* If we're doing a LE compare and the new key is greater than
 	 * our search key, we're done
 	 */
-	if (rc == 0 && get_flag == LDAP_FILTER_LE && memcmp( kptr->data,
-		key->data, key->size ) > 0 ) {
-		rc = DB_NOTFOUND;
+	if (rc == 0 && get_flag == LDAP_FILTER_LE && memcmp( kptr->mv_data,
+		key->mv_data, key->mv_size ) > 0 ) {
+		rc = MDB_NOTFOUND;
 	}
 	if (rc == 0) {
-		i = ids;
+		i = ids+1;
+		rc = mdb_cursor_get( cursor, key, &data, MDB_GET_MULTIPLE );
 		while (rc == 0) {
-			u_int8_t *j;
-
-			DB_MULTIPLE_INIT( ptr, &data );
-			while (ptr) {
-				DB_MULTIPLE_NEXT(ptr, &data, j, len);
-				if (j) {
-					++i;
-					MDB_DISK2ID( j, i );
-				}
-			}
-			rc = cursor->c_get( cursor, key, &data, flags | DB_NEXT_DUP );
+			memcpy( i, data.mv_data, data.mv_size );
+			i += data.mv_size / sizeof(ID);
+			rc = mdb_cursor_get( cursor, key, &data, MDB_NEXT_MULTIPLE );
 		}
-		if ( rc == DB_NOTFOUND ) rc = 0;
+		if ( rc == MDB_NOTFOUND ) rc = 0;
 		ids[0] = i - ids;
 		/* On disk, a range is denoted by 0 in the first element */
 		if (ids[1] == 0) {
@@ -638,73 +348,61 @@ mdb_idl_fetch_key(
 				Debug( LDAP_DEBUG_ANY, "=> mdb_idl_fetch_key: "
 					"range size mismatch: expected %d, got %ld\n",
 					MDB_IDL_RANGE_SIZE, ids[0], 0 );
-				cursor->c_close( cursor );
+				mdb_cursor_close( cursor );
 				return -1;
 			}
 			MDB_IDL_RANGE( ids, ids[2], ids[3] );
 		}
-		data.size = MDB_IDL_SIZEOF(ids);
+		data.mv_size = MDB_IDL_SIZEOF(ids);
 	}
 
 	if ( saved_cursor && rc == 0 ) {
 		if ( !*saved_cursor )
 			*saved_cursor = cursor;
-		rc2 = 0;
 	}
 	else
-		rc2 = cursor->c_close( cursor );
-	if (rc2) {
-		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_fetch_key: "
-			"close failed: %s (%d)\n", db_strerror(rc2), rc2, 0 );
-		return rc2;
-	}
+		mdb_cursor_close( cursor );
 
-	if( rc == DB_NOTFOUND ) {
+	if( rc == MDB_NOTFOUND ) {
 		return rc;
 
 	} else if( rc != 0 ) {
 		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_fetch_key: "
 			"get failed: %s (%d)\n",
-			db_strerror(rc), rc, 0 );
+			mdb_strerror(rc), rc, 0 );
 		return rc;
 
-	} else if ( data.size == 0 || data.size % sizeof( ID ) ) {
+	} else if ( data.mv_size == 0 || data.mv_size % sizeof( ID ) ) {
 		/* size not multiple of ID size */
 		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_fetch_key: "
 			"odd size: expected %ld multiple, got %ld\n",
-			(long) sizeof( ID ), (long) data.size, 0 );
+			(long) sizeof( ID ), (long) data.mv_size, 0 );
 		return -1;
 
-	} else if ( data.size != MDB_IDL_SIZEOF(ids) ) {
+	} else if ( data.mv_size != MDB_IDL_SIZEOF(ids) ) {
 		/* size mismatch */
 		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_fetch_key: "
 			"get size mismatch: expected %ld, got %ld\n",
-			(long) ((1 + ids[0]) * sizeof( ID )), (long) data.size, 0 );
+			(long) ((1 + ids[0]) * sizeof( ID )), (long) data.mv_size, 0 );
 		return -1;
-	}
-
-	if ( mdb->bi_idl_cache_max_size ) {
-		mdb_idl_cache_put( mdb, db, key, ids, rc );
 	}
 
 	return rc;
 }
 
-
 int
 mdb_idl_insert_key(
 	BackendDB	*be,
-	DB			*db,
-	DB_TXN		*tid,
-	DBT			*key,
+	MDB_txn		*txn,
+	MDB_dbi		dbi,
+	MDB_val		*key,
 	ID			id )
 {
-	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	int	rc;
-	DBT data;
-	DBC *cursor;
-	ID lo, hi, nlo, nhi, nid;
+	MDB_cursor *cursor;
+	MDB_val data;
+	ID lo, hi, *i;
 	char *err;
+	int	rc;
 
 	{
 		char buf[16];
@@ -715,120 +413,84 @@ mdb_idl_insert_key(
 
 	assert( id != NOID );
 
-	DBTzero( &data );
-	data.size = sizeof( ID );
-	data.ulen = data.size;
-	data.flags = DB_DBT_USERMEM;
-
-	MDB_ID2DISK( id, &nid );
-
-	rc = db->cursor( db, tid, &cursor, mdb->bi_db_opflags );
+	rc = mdb_cursor_open( txn, dbi, &cursor );
 	if ( rc != 0 ) {
 		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_insert_key: "
-			"cursor failed: %s (%d)\n", db_strerror(rc), rc, 0 );
+			"cursor failed: %s (%d)\n", mdb_strerror(rc), rc, 0 );
 		return rc;
 	}
-	data.data = &nlo;
 	/* Fetch the first data item for this key, to see if it
 	 * exists and if it's a range.
 	 */
-	rc = cursor->c_get( cursor, key, &data, DB_SET );
+	rc = mdb_cursor_get( cursor, key, &data, MDB_SET );
 	err = "c_get";
 	if ( rc == 0 ) {
-		if ( nlo != 0 ) {
+		i = data.mv_data;
+		memcpy(&lo, data.mv_data, sizeof(ID));
+		if ( lo != 0 ) {
 			/* not a range, count the number of items */
-			db_recno_t count;
-			rc = cursor->c_count( cursor, &count, 0 );
+			unsigned long count;
+			rc = mdb_cursor_count( cursor, &count );
 			if ( rc != 0 ) {
 				err = "c_count";
 				goto fail;
 			}
 			if ( count >= MDB_IDL_DB_MAX ) {
 			/* No room, convert to a range */
-				DBT key2 = *key;
-				db_recno_t i;
+				MDB_val key2;
 
-				key2.dlen = key2.ulen;
-				key2.flags |= DB_DBT_PARTIAL;
-
-				MDB_DISK2ID( &nlo, &lo );
-				data.data = &nhi;
-
-				rc = cursor->c_get( cursor, &key2, &data, DB_NEXT_NODUP );
-				if ( rc != 0 && rc != DB_NOTFOUND ) {
+				lo = *i;
+				rc = mdb_cursor_get( cursor, &key2, &data, MDB_NEXT_NODUP );
+				if ( rc != 0 && rc != MDB_NOTFOUND ) {
 					err = "c_get next_nodup";
 					goto fail;
 				}
-				if ( rc == DB_NOTFOUND ) {
-					rc = cursor->c_get( cursor, key, &data, DB_LAST );
+				if ( rc == MDB_NOTFOUND ) {
+					rc = mdb_cursor_get( cursor, key, &data, MDB_LAST );
 					if ( rc != 0 ) {
 						err = "c_get last";
 						goto fail;
 					}
 				} else {
-					rc = cursor->c_get( cursor, key, &data, DB_PREV );
+					rc = mdb_cursor_get( cursor, key, &data, MDB_PREV );
 					if ( rc != 0 ) {
 						err = "c_get prev";
 						goto fail;
 					}
 				}
-				MDB_DISK2ID( &nhi, &hi );
-				/* Update hi/lo if needed, then delete all the items
-				 * between lo and hi
-				 */
+				i = data.mv_data;
+				hi = *i;
+				/* Update hi/lo if needed */
 				if ( id < lo ) {
 					lo = id;
-					nlo = nid;
 				} else if ( id > hi ) {
 					hi = id;
-					nhi = nid;
 				}
-				data.data = &nid;
-				/* Don't fetch anything, just position cursor */
-				data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
-				data.dlen = data.ulen = 0;
-				rc = cursor->c_get( cursor, key, &data, DB_SET );
+				/* delete the old key */
+				rc = mdb_del( txn, dbi, key, NULL, 0 );
 				if ( rc != 0 ) {
-					err = "c_get 2";
+					err = "mdb_del";
 					goto fail;
 				}
-				rc = cursor->c_del( cursor, 0 );
+				/* Store the range */
+				data.mv_size = sizeof(ID);
+				data.mv_data = &id;
+				id = 0;
+				rc = mdb_put( txn, dbi, key, &data, 0 );
 				if ( rc != 0 ) {
-					err = "c_del range1";
+					err = "mdb_put range";
 					goto fail;
 				}
-				/* Delete all the records */
-				for ( i=1; i<count; i++ ) {
-					rc = cursor->c_get( cursor, &key2, &data, DB_NEXT_DUP );
-					if ( rc != 0 ) {
-						err = "c_get next_dup";
-						goto fail;
-					}
-					rc = cursor->c_del( cursor, 0 );
-					if ( rc != 0 ) {
-						err = "c_del range";
-						goto fail;
-					}
-				}
-				/* Store the range marker */
-				data.size = data.ulen = sizeof(ID);
-				data.flags = DB_DBT_USERMEM;
-				nid = 0;
-				rc = cursor->c_put( cursor, key, &data, DB_KEYFIRST );
+				id = lo;
+				rc = mdb_put( txn, dbi, key, &data, 0 );
 				if ( rc != 0 ) {
-					err = "c_put range";
+					err = "mdb_put lo";
 					goto fail;
 				}
-				nid = nlo;
-				rc = cursor->c_put( cursor, key, &data, DB_KEYLAST );
+				id = hi;
+				rc = mdb_put( txn, dbi, key, &data, 0 );
 				if ( rc != 0 ) {
-					err = "c_put lo";
-					goto fail;
-				}
-				nid = nhi;
-				rc = cursor->c_put( cursor, key, &data, DB_KEYLAST );
-				if ( rc != 0 ) {
-					err = "c_put hi";
+					err = "mdb_put hi";
 					goto fail;
 				}
 			} else {
@@ -839,82 +501,54 @@ mdb_idl_insert_key(
 			/* It's a range, see if we need to rewrite
 			 * the boundaries
 			 */
-			hi = id;
-			data.data = &nlo;
-			rc = cursor->c_get( cursor, key, &data, DB_NEXT_DUP );
-			if ( rc != 0 ) {
-				err = "c_get lo";
-				goto fail;
-			}
-			MDB_DISK2ID( &nlo, &lo );
-			if ( id > lo ) {
-				data.data = &nhi;
-				rc = cursor->c_get( cursor, key, &data, DB_NEXT_DUP );
-				if ( rc != 0 ) {
-					err = "c_get hi";
-					goto fail;
-				}
-				MDB_DISK2ID( &nhi, &hi );
-			}
+			lo = i[1];
+			hi = i[2];
 			if ( id < lo || id > hi ) {
+				if ( id < lo )
+					data.mv_data = &lo;
+				else
+					data.mv_data = &hi;
+				data.mv_size = sizeof(ID);
 				/* Delete the current lo/hi */
-				rc = cursor->c_del( cursor, 0 );
+				rc = mdb_del( txn, dbi, key, &data, MDB_DEL_DUP );
 				if ( rc != 0 ) {
-					err = "c_del";
+					err = "mdb_del lo/hi";
 					goto fail;
 				}
-				data.data = &nid;
-				rc = cursor->c_put( cursor, key, &data, DB_KEYFIRST );
-				if ( rc != 0 ) {
-					err = "c_put lo/hi";
-					goto fail;
-				}
+				goto put1;
 			}
 		}
-	} else if ( rc == DB_NOTFOUND ) {
-put1:		data.data = &nid;
-		rc = cursor->c_put( cursor, key, &data, DB_NODUPDATA );
+	} else if ( rc == MDB_NOTFOUND ) {
+put1:	data.mv_data = &id;
+		data.mv_size = sizeof(ID);
+		rc = mdb_put( txn, dbi, key, &data, MDB_NODUPDATA );
 		/* Don't worry if it's already there */
-		if ( rc != 0 && rc != DB_KEYEXIST ) {
-			err = "c_put id";
+		if ( rc != 0 && rc != MDB_KEYEXIST ) {
+			err = "mdb_put id";
 			goto fail;
 		}
 	} else {
 		/* initial c_get failed, nothing was done */
 fail:
 		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_insert_key: "
-			"%s failed: %s (%d)\n", err, db_strerror(rc), rc );
-		cursor->c_close( cursor );
-		return rc;
+			"%s failed: %s (%d)\n", err, mdb_strerror(rc), rc );
 	}
-	/* If key was added (didn't already exist) and using IDL cache,
-	 * update key in IDL cache.
-	 */
-	if ( !rc && mdb->bi_idl_cache_max_size ) {
-		mdb_idl_cache_add_id( mdb, db, key, id );
-	}
-	rc = cursor->c_close( cursor );
-	if( rc != 0 ) {
-		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_insert_key: "
-			"c_close failed: %s (%d)\n",
-			db_strerror(rc), rc, 0 );
-	}
+	mdb_cursor_close( cursor );
 	return rc;
 }
 
 int
 mdb_idl_delete_key(
 	BackendDB	*be,
-	DB			*db,
-	DB_TXN		*tid,
-	DBT			*key,
+	MDB_txn		*txn,
+	MDB_dbi		dbi,
+	MDB_val		*key,
 	ID			id )
 {
-	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
 	int	rc;
-	DBT data;
-	DBC *cursor;
-	ID lo, hi, tmp, nid, nlo, nhi;
+	MDB_val data;
+	MDB_cursor *cursor;
+	ID lo, hi, tmp, *i;
 	char *err;
 
 	{
@@ -925,97 +559,66 @@ mdb_idl_delete_key(
 	}
 	assert( id != NOID );
 
-	if ( mdb->bi_idl_cache_size ) {
-		mdb_idl_cache_del( mdb, db, key );
-	}
-
-	MDB_ID2DISK( id, &nid );
-
-	DBTzero( &data );
-	data.data = &tmp;
-	data.size = sizeof( id );
-	data.ulen = data.size;
-	data.flags = DB_DBT_USERMEM;
-
-	rc = db->cursor( db, tid, &cursor, mdb->bi_db_opflags );
+	rc = mdb_cursor_open( txn, dbi, &cursor );
 	if ( rc != 0 ) {
 		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_delete_key: "
-			"cursor failed: %s (%d)\n", db_strerror(rc), rc, 0 );
+			"cursor failed: %s (%d)\n", mdb_strerror(rc), rc, 0 );
 		return rc;
 	}
 	/* Fetch the first data item for this key, to see if it
 	 * exists and if it's a range.
 	 */
-	rc = cursor->c_get( cursor, key, &data, DB_SET );
+	rc = mdb_cursor_get( cursor, key, &data, MDB_SET );
 	err = "c_get";
 	if ( rc == 0 ) {
+		memcpy( &tmp, data.mv_data, sizeof(ID) );
+		i = data.mv_data;
 		if ( tmp != 0 ) {
 			/* Not a range, just delete it */
-			if (tmp != nid) {
-				/* position to correct item */
-				tmp = nid;
-				rc = cursor->c_get( cursor, key, &data, DB_GET_BOTH );
-				if ( rc != 0 ) {
-					err = "c_get id";
-					goto fail;
-				}
-			}
-			rc = cursor->c_del( cursor, 0 );
+			data.mv_data = &id;
+			rc = mdb_del( txn, dbi, key, &data, MDB_DEL_DUP );
 			if ( rc != 0 ) {
-				err = "c_del id";
+				err = "mdb_del id";
 				goto fail;
 			}
 		} else {
 			/* It's a range, see if we need to rewrite
 			 * the boundaries
 			 */
-			data.data = &nlo;
-			rc = cursor->c_get( cursor, key, &data, DB_NEXT_DUP );
-			if ( rc != 0 ) {
-				err = "c_get lo";
-				goto fail;
-			}
-			MDB_DISK2ID( &nlo, &lo );
-			data.data = &nhi;
-			rc = cursor->c_get( cursor, key, &data, DB_NEXT_DUP );
-			if ( rc != 0 ) {
-				err = "c_get hi";
-				goto fail;
-			}
-			MDB_DISK2ID( &nhi, &hi );
+			lo = i[1];
+			hi = i[2];
 			if ( id == lo || id == hi ) {
+				ID lo2 = lo, hi2 = hi;
 				if ( id == lo ) {
-					id++;
-					lo = id;
+					lo2++;
 				} else if ( id == hi ) {
-					id--;
-					hi = id;
+					hi2--;
 				}
-				if ( lo >= hi ) {
+				if ( lo2 >= hi2 ) {
 				/* The range has collapsed... */
-					rc = db->del( db, tid, key, 0 );
+					rc = mdb_del( txn, dbi, key, NULL, 0 );
 					if ( rc != 0 ) {
-						err = "del";
+						err = "mdb_del";
 						goto fail;
 					}
 				} else {
-					if ( id == lo ) {
-						/* reposition on lo slot */
-						data.data = &nlo;
-						cursor->c_get( cursor, key, &data, DB_PREV );
-					}
-					rc = cursor->c_del( cursor, 0 );
+					data.mv_size = sizeof(ID);
+					if ( id == lo )
+						data.mv_data = &lo;
+					else
+						data.mv_data = &hi;
+					rc = mdb_del( txn, dbi, key, &data, MDB_DEL_DUP );
 					if ( rc != 0 ) {
 						err = "c_del";
 						goto fail;
 					}
-				}
-				if ( lo <= hi ) {
-					MDB_ID2DISK( id, &nid );
-					data.data = &nid;
-					rc = cursor->c_put( cursor, key, &data, DB_KEYFIRST );
+					if ( id == lo )
+						data.mv_data = &lo2;
+					else
+						data.mv_data = &hi2;
+					rc = mdb_put( txn, dbi, key, &data, 0 );
 					if ( rc != 0 ) {
-						err = "c_put lo/hi";
+						err = "mdb_put lo/hi";
 						goto fail;
 					}
 				}
@@ -1024,20 +627,12 @@ mdb_idl_delete_key(
 	} else {
 		/* initial c_get failed, nothing was done */
 fail:
-		if ( rc != DB_NOTFOUND ) {
-		Debug( LDAP_DEBUG_ANY, "=> mdb_idl_delete_key: "
-			"%s failed: %s (%d)\n", err, db_strerror(rc), rc );
+		if ( rc != MDB_NOTFOUND ) {
+			Debug( LDAP_DEBUG_ANY, "=> mdb_idl_delete_key: "
+				"%s failed: %s (%d)\n", err, mdb_strerror(rc), rc );
 		}
-		cursor->c_close( cursor );
-		return rc;
 	}
-	rc = cursor->c_close( cursor );
-	if( rc != 0 ) {
-		Debug( LDAP_DEBUG_ANY,
-			"=> mdb_idl_delete_key: c_close failed: %s (%d)\n",
-			db_strerror(rc), rc, 0 );
-	}
-
+	mdb_cursor_close( cursor );
 	return rc;
 }
 
