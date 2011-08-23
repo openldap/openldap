@@ -92,8 +92,7 @@ int mdb_id2entry(
 	MDB_dbi dbi = mdb->mi_id2entry->mdi_dbi;
 	MDB_val key, data;
 	EntryHeader eh;
-	char buf[16];
-	int rc = 0, off;
+	int rc = 0;
 
 	*e = NULL;
 

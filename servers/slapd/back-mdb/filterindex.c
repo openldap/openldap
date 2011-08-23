@@ -27,39 +27,39 @@
 
 static int presence_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeDescription *desc,
 	ID *ids );
 
 static int equality_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeAssertion *ava,
 	ID *ids,
 	ID *tmp );
 static int inequality_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeAssertion *ava,
 	ID *ids,
 	ID *tmp,
 	int gtorlt );
 static int approx_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeAssertion *ava,
 	ID *ids,
 	ID *tmp );
 static int substring_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	SubstringsAssertion *sub,
 	ID *ids,
 	ID *tmp );
 
 static int list_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	Filter *flist,
 	int ftype,
 	ID *ids,
@@ -69,7 +69,7 @@ static int list_candidates(
 static int
 ext_candidates(
         Operation *op,
-		DB_TXN *rtxn,
+		MDB_txn *rtxn,
         MatchingRuleAssertion *mra,
         ID *ids,
         ID *tmp,
@@ -79,7 +79,7 @@ ext_candidates(
 static int
 comp_candidates (
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	MatchingRuleAssertion *mra,
 	ComponentFilter *f,
 	ID *ids,
@@ -89,7 +89,7 @@ comp_candidates (
 static int
 ava_comp_candidates (
 		Operation *op,
-		DB_TXN *rtxn,
+		MDB_txn *rtxn,
 		AttributeAssertion *ava,
 		AttributeAliasing *aa,
 		ID *ids,
@@ -100,7 +100,7 @@ ava_comp_candidates (
 int
 mdb_filter_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	Filter	*f,
 	ID *ids,
 	ID *tmp,
@@ -128,10 +128,9 @@ mdb_filter_candidates(
 		case LDAP_COMPARE_FALSE:
 			MDB_IDL_ZERO( ids );
 			break;
-		case LDAP_COMPARE_TRUE: {
-			struct mdb_info *mdb = (struct mdb_info *)op->o_bd->be_private;
-			MDB_IDL_ALL( mdb, ids );
-			} break;
+		case LDAP_COMPARE_TRUE:
+			MDB_IDL_ALL( ids );
+			break;
 		case LDAP_SUCCESS:
 			/* this is a pre-computed scope, leave it alone */
 			break;
@@ -188,9 +187,7 @@ mdb_filter_candidates(
 	case LDAP_FILTER_NOT:
 		/* no indexing to support NOT filters */
 		Debug( LDAP_DEBUG_FILTER, "\tNOT\n", 0, 0, 0 );
-		{ struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-		MDB_IDL_ALL( mdb, ids );
-		}
+		MDB_IDL_ALL( ids );
 		break;
 
 	case LDAP_FILTER_AND:
@@ -212,9 +209,7 @@ mdb_filter_candidates(
 		Debug( LDAP_DEBUG_FILTER, "\tUNKNOWN %lu\n",
 			(unsigned long) f->f_choice, 0, 0 );
 		/* Must not return NULL, otherwise extended filters break */
-		{ struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-		MDB_IDL_ALL( mdb, ids );
-		}
+		MDB_IDL_ALL( ids );
 	}
 
 out:
@@ -231,7 +226,7 @@ out:
 static int
 comp_list_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	MatchingRuleAssertion* mra,
 	ComponentFilter	*flist,
 	int	ftype,
@@ -295,27 +290,26 @@ comp_list_candidates(
 
 static int
 comp_equality_candidates (
-        Operation *op,
-	DB_TXN *rtxn,
-        MatchingRuleAssertion *mra,
+	Operation *op,
+	MDB_txn *rtxn,
+	MatchingRuleAssertion *mra,
 	ComponentAssertion *ca,
-        ID *ids,
-        ID *tmp,
-        ID *stack)
+	ID *ids,
+	ID *tmp,
+	ID *stack)
 {
-       struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-        DB      *db;
-        int i;
-        int rc;
-        slap_mask_t mask;
-        struct berval prefix = {0, NULL};
-        struct berval *keys = NULL;
-        MatchingRule *mr = mra->ma_rule;
-        Syntax *sat_syntax;
+	MDB_dbi	  dbi;
+	int i;
+	int rc;
+	slap_mask_t mask;
+	struct berval prefix = {0, NULL};
+	struct berval *keys = NULL;
+	MatchingRule *mr = mra->ma_rule;
+	Syntax *sat_syntax;
 	ComponentReference* cr_list, *cr;
 	AttrInfo *ai;
 
-        MDB_IDL_ALL( mdb, ids );
+	MDB_IDL_ALL( ids );
 
 	if ( !ca->ca_comp_ref )
 		return 0;
@@ -338,76 +332,76 @@ comp_equality_candidates (
 	if ( !cr )
 		return 0;
 
-        rc = mdb_index_param( op->o_bd, mra->ma_desc, LDAP_FILTER_EQUALITY,
-                &db, &mask, &prefix );
+	rc = mdb_index_param( op->o_bd, mra->ma_desc, LDAP_FILTER_EQUALITY,
+			&dbi, &mask, &prefix );
 
-        if( rc != LDAP_SUCCESS ) {
-                return 0;
-        }
+	if( rc != LDAP_SUCCESS ) {
+		return 0;
+	}
 
-        if( !mr ) {
-                return 0;
-        }
+	if( !mr ) {
+		return 0;
+	}
 
-        if( !mr->smr_filter ) {
-                return 0;
-        }
+	if( !mr->smr_filter ) {
+		return 0;
+	}
 
 	rc = (ca->ca_ma_rule->smr_filter)(
-                LDAP_FILTER_EQUALITY,
-                cr->cr_indexmask,
-                sat_syntax,
-                ca->ca_ma_rule,
-                &prefix,
-                &ca->ca_ma_value,
-                &keys, op->o_tmpmemctx );
+				LDAP_FILTER_EQUALITY,
+				cr->cr_indexmask,
+				sat_syntax,
+				ca->ca_ma_rule,
+				&prefix,
+				&ca->ca_ma_value,
+				&keys, op->o_tmpmemctx );
 
-        if( rc != LDAP_SUCCESS ) {
-                return 0;
-        }
+	if( rc != LDAP_SUCCESS ) {
+		return 0;
+	}
 
-        if( keys == NULL ) {
-                return 0;
-        }
-        for ( i= 0; keys[i].bv_val != NULL; i++ ) {
-                rc = mdb_key_read( op->o_bd, db, rtxn, &keys[i], tmp, NULL, 0 );
+	if( keys == NULL ) {
+		return 0;
+	}
+	for ( i= 0; keys[i].bv_val != NULL; i++ ) {
+		rc = mdb_key_read( op->o_bd, rtxn, dbi, &keys[i], tmp, NULL, 0 );
 
-                if( rc == DB_NOTFOUND ) {
-                        MDB_IDL_ZERO( ids );
-                        rc = 0;
-                        break;
-                } else if( rc != LDAP_SUCCESS ) {
-                        break;
-                }
+		if( rc == MDB_NOTFOUND ) {
+			MDB_IDL_ZERO( ids );
+			rc = 0;
+			break;
+		} else if( rc != LDAP_SUCCESS ) {
+			break;
+		}
 
-                if( MDB_IDL_IS_ZERO( tmp ) ) {
-                        MDB_IDL_ZERO( ids );
-                        break;
-                }
+		if( MDB_IDL_IS_ZERO( tmp ) ) {
+			MDB_IDL_ZERO( ids );
+			break;
+		}
 
-                if ( i == 0 ) {
-                        MDB_IDL_CPY( ids, tmp );
-                } else {
-                        mdb_idl_intersection( ids, tmp );
-                }
+		if ( i == 0 ) {
+			MDB_IDL_CPY( ids, tmp );
+		} else {
+			mdb_idl_intersection( ids, tmp );
+		}
 
-                if( MDB_IDL_IS_ZERO( ids ) )
-                        break;
-        }
-        ber_bvarray_free_x( keys, op->o_tmpmemctx );
+		if( MDB_IDL_IS_ZERO( ids ) )
+			break;
+	}
+	ber_bvarray_free_x( keys, op->o_tmpmemctx );
 
-        Debug( LDAP_DEBUG_TRACE,
-                "<= comp_equality_candidates: id=%ld, first=%ld, last=%ld\n",
-                (long) ids[0],
-                (long) MDB_IDL_FIRST(ids),
-                (long) MDB_IDL_LAST(ids) );
-        return( rc );
+	Debug( LDAP_DEBUG_TRACE,
+			"<= comp_equality_candidates: id=%ld, first=%ld, last=%ld\n",
+			(long) ids[0],
+			(long) MDB_IDL_FIRST(ids),
+			(long) MDB_IDL_LAST(ids) );
+	return( rc );
 }
 
 static int
 ava_comp_candidates (
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeAssertion *ava,
 	AttributeAliasing *aa,
 	ID *ids,
@@ -418,8 +412,7 @@ ava_comp_candidates (
 	
 	mra.ma_rule = ava->aa_desc->ad_type->sat_equality;
 	if ( !mra.ma_rule ) {
-		struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-		MDB_IDL_ALL( mdb, ids );
+		MDB_IDL_ALL( ids );
 		return 0;
 	}
 	mra.ma_desc = aa->aa_aliased_ad;
@@ -431,7 +424,7 @@ ava_comp_candidates (
 static int
 comp_candidates (
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	MatchingRuleAssertion *mra,
 	ComponentFilter *f,
 	ID *ids,
@@ -456,20 +449,14 @@ comp_candidates (
 	case LDAP_COMP_FILTER_NOT:
 		/* No component indexing supported for NOT filter */
 		Debug( LDAP_DEBUG_FILTER, "\tComponent NOT\n", 0, 0, 0 );
-		{
-			struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-			MDB_IDL_ALL( mdb, ids );
-		}
+		MDB_IDL_ALL( ids );
 		rc = LDAP_PROTOCOL_ERROR;
 		break;
 	case LDAP_COMP_FILTER_ITEM:
 		rc = comp_equality_candidates( op, rtxn, mra, f->cf_ca, ids, tmp, stack );
 		break;
 	default:
-		{
-			struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-			MDB_IDL_ALL( mdb, ids );
-		}
+		MDB_IDL_ALL( ids );
 		rc = LDAP_PROTOCOL_ERROR;
 	}
 
@@ -480,14 +467,12 @@ comp_candidates (
 static int
 ext_candidates(
         Operation *op,
-		DB_TXN *rtxn,
+		MDB_txn *rtxn,
         MatchingRuleAssertion *mra,
         ID *ids,
         ID *tmp,
         ID *stack)
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-
 #ifdef LDAP_COMP_MATCH
 	/*
 	 * Currently Only Component Indexing for componentFilterMatch is supported
@@ -499,16 +484,14 @@ ext_candidates(
 #endif
 	if ( mra->ma_desc == slap_schema.si_ad_entryDN ) {
 		int rc;
-		EntryInfo *ei;
+		ID id;
 
 		MDB_IDL_ZERO( ids );
 		if ( mra->ma_rule == slap_schema.si_mr_distinguishedNameMatch ) {
-			ei = NULL;
-			rc = mdb_cache_find_ndn( op, rtxn, &mra->ma_value, &ei );
-			if ( rc == LDAP_SUCCESS )
-				mdb_idl_insert( ids, ei->bei_id );
-			if ( ei )
-				mdb_cache_entryinfo_unlock( ei );
+			rc = mdb_dn2id( op, rtxn, &mra->ma_value, &id, NULL );
+			if ( rc == MDB_SUCCESS ) {
+				mdb_idl_insert( ids, id );
+			}
 			return 0;
 		} else if ( mra->ma_rule && mra->ma_rule->smr_match ==
 			dnRelativeMatch && dnIsSuffix( &mra->ma_value,
@@ -516,11 +499,9 @@ ext_candidates(
 			int scope;
 			if ( mra->ma_rule == slap_schema.si_mr_dnSuperiorMatch ) {
 				struct berval pdn;
-				ei = NULL;
 				dnParent( &mra->ma_value, &pdn );
-				mdb_cache_find_ndn( op, rtxn, &pdn, &ei );
-				if ( ei ) {
-					mdb_cache_entryinfo_unlock( ei );
+				rc = mdb_dn2id( op, rtxn, &pdn, &id, NULL );
+				if ( rc == MDB_SUCCESS ) {
 					while ( ei && ei->bei_id ) {
 						mdb_idl_insert( ids, ei->bei_id );
 						ei = ei->bei_parent;
@@ -553,14 +534,14 @@ ext_candidates(
 		}
 	}
 
-	MDB_IDL_ALL( mdb, ids );
+	MDB_IDL_ALL( ids );
 	return 0;
 }
 
 static int
 list_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	Filter	*flist,
 	int		ftype,
 	ID *ids,
@@ -582,9 +563,6 @@ list_candidates(
 			save+MDB_IDL_UM_SIZE );
 
 		if ( rc != 0 ) {
-			if ( rc == DB_LOCK_DEADLOCK )
-				return rc;
-
 			if ( ftype == LDAP_FILTER_AND ) {
 				rc = 0;
 				continue;
@@ -629,12 +607,11 @@ list_candidates(
 static int
 presence_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeDescription *desc,
 	ID *ids )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	DB *db;
+	MDB_dbi dbi;
 	int rc;
 	slap_mask_t mask;
 	struct berval prefix = {0, NULL};
@@ -642,14 +619,14 @@ presence_candidates(
 	Debug( LDAP_DEBUG_TRACE, "=> mdb_presence_candidates (%s)\n",
 			desc->ad_cname.bv_val, 0, 0 );
 
-	MDB_IDL_ALL( mdb, ids );
+	MDB_IDL_ALL( ids );
 
 	if( desc == slap_schema.si_ad_objectClass ) {
 		return 0;
 	}
 
 	rc = mdb_index_param( op->o_bd, desc, LDAP_FILTER_PRESENT,
-		&db, &mask, &prefix );
+		&dbi, &mask, &prefix );
 
 	if( rc == LDAP_INAPPROPRIATE_MATCHING ) {
 		/* not indexed */
@@ -674,9 +651,9 @@ presence_candidates(
 		return -1;
 	}
 
-	rc = mdb_key_read( op->o_bd, db, rtxn, &prefix, ids, NULL, 0 );
+	rc = mdb_key_read( op->o_bd, rtxn, dbi, &prefix, ids, NULL, 0 );
 
-	if( rc == DB_NOTFOUND ) {
+	if( rc == MDB_NOTFOUND ) {
 		MDB_IDL_ZERO( ids );
 		rc = 0;
 	} else if( rc != LDAP_SUCCESS ) {
@@ -700,13 +677,13 @@ done:
 static int
 equality_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeAssertion *ava,
 	ID *ids,
 	ID *tmp )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	DB	*db;
+	MDB_dbi	dbi;
 	int i;
 	int rc;
 	slap_mask_t mask;
@@ -718,23 +695,20 @@ equality_candidates(
 			ava->aa_desc->ad_cname.bv_val, 0, 0 );
 
 	if ( ava->aa_desc == slap_schema.si_ad_entryDN ) {
-		EntryInfo *ei = NULL;
-		rc = mdb_cache_find_ndn( op, rtxn, &ava->aa_value, &ei );
+		ID id;
+		rc = mdb_dn2id( op, rtxn, &ava->aa_value, &id, NULL );
 		if ( rc == LDAP_SUCCESS ) {
 			/* exactly one ID can match */
 			ids[0] = 1;
-			ids[1] = ei->bei_id;
-		}
-		if ( ei ) {
-			mdb_cache_entryinfo_unlock( ei );
+			ids[1] = id;
 		}
 		return rc;
 	}
 
-	MDB_IDL_ALL( mdb, ids );
+	MDB_IDL_ALL( ids );
 
 	rc = mdb_index_param( op->o_bd, ava->aa_desc, LDAP_FILTER_EQUALITY,
-		&db, &mask, &prefix );
+		&dbi, &mask, &prefix );
 
 	if ( rc == LDAP_INAPPROPRIATE_MATCHING ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -785,9 +759,9 @@ equality_candidates(
 	}
 
 	for ( i= 0; keys[i].bv_val != NULL; i++ ) {
-		rc = mdb_key_read( op->o_bd, db, rtxn, &keys[i], tmp, NULL, 0 );
+		rc = mdb_key_read( op->o_bd, rtxn, dbi, &keys[i], tmp, NULL, 0 );
 
-		if( rc == DB_NOTFOUND ) {
+		if( rc == MDB_NOTFOUND ) {
 			MDB_IDL_ZERO( ids );
 			rc = 0;
 			break;
@@ -831,13 +805,12 @@ equality_candidates(
 static int
 approx_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeAssertion *ava,
 	ID *ids,
 	ID *tmp )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	DB	*db;
+	MDB_dbi	dbi;
 	int i;
 	int rc;
 	slap_mask_t mask;
@@ -848,10 +821,10 @@ approx_candidates(
 	Debug( LDAP_DEBUG_TRACE, "=> mdb_approx_candidates (%s)\n",
 			ava->aa_desc->ad_cname.bv_val, 0, 0 );
 
-	MDB_IDL_ALL( mdb, ids );
+	MDB_IDL_ALL( ids );
 
 	rc = mdb_index_param( op->o_bd, ava->aa_desc, LDAP_FILTER_APPROX,
-		&db, &mask, &prefix );
+		&dbi, &mask, &prefix );
 
 	if ( rc == LDAP_INAPPROPRIATE_MATCHING ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -907,9 +880,9 @@ approx_candidates(
 	}
 
 	for ( i= 0; keys[i].bv_val != NULL; i++ ) {
-		rc = mdb_key_read( op->o_bd, db, rtxn, &keys[i], tmp, NULL, 0 );
+		rc = mdb_key_read( op->o_bd, rtxn, dbi, &keys[i], tmp, NULL, 0 );
 
-		if( rc == DB_NOTFOUND ) {
+		if( rc == MDB_NOTFOUND ) {
 			MDB_IDL_ZERO( ids );
 			rc = 0;
 			break;
@@ -951,13 +924,12 @@ approx_candidates(
 static int
 substring_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	SubstringsAssertion	*sub,
 	ID *ids,
 	ID *tmp )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	DB	*db;
+	MDB_dbi	dbi;
 	int i;
 	int rc;
 	slap_mask_t mask;
@@ -968,10 +940,10 @@ substring_candidates(
 	Debug( LDAP_DEBUG_TRACE, "=> mdb_substring_candidates (%s)\n",
 			sub->sa_desc->ad_cname.bv_val, 0, 0 );
 
-	MDB_IDL_ALL( mdb, ids );
+	MDB_IDL_ALL( ids );
 
 	rc = mdb_index_param( op->o_bd, sub->sa_desc, LDAP_FILTER_SUBSTRINGS,
-		&db, &mask, &prefix );
+		&dbi, &mask, &prefix );
 
 	if ( rc == LDAP_INAPPROPRIATE_MATCHING ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -1023,9 +995,9 @@ substring_candidates(
 	}
 
 	for ( i= 0; keys[i].bv_val != NULL; i++ ) {
-		rc = mdb_key_read( op->o_bd, db, rtxn, &keys[i], tmp, NULL, 0 );
+		rc = mdb_key_read( op->o_bd, rtxn, dbi, &keys[i], tmp, NULL, 0 );
 
-		if( rc == DB_NOTFOUND ) {
+		if( rc == MDB_NOTFOUND ) {
 			MDB_IDL_ZERO( ids );
 			rc = 0;
 			break;
@@ -1067,28 +1039,27 @@ substring_candidates(
 static int
 inequality_candidates(
 	Operation *op,
-	DB_TXN *rtxn,
+	MDB_txn *rtxn,
 	AttributeAssertion *ava,
 	ID *ids,
 	ID *tmp,
 	int gtorlt )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	DB	*db;
+	MDB_dbi	dbi;
 	int rc;
 	slap_mask_t mask;
 	struct berval prefix = {0, NULL};
 	struct berval *keys = NULL;
 	MatchingRule *mr;
-	DBC * cursor = NULL;
+	MDB_cursor *cursor = NULL;
 
 	Debug( LDAP_DEBUG_TRACE, "=> mdb_inequality_candidates (%s)\n",
 			ava->aa_desc->ad_cname.bv_val, 0, 0 );
 
-	MDB_IDL_ALL( mdb, ids );
+	MDB_IDL_ALL( ids );
 
 	rc = mdb_index_param( op->o_bd, ava->aa_desc, LDAP_FILTER_EQUALITY,
-		&db, &mask, &prefix );
+		&dbi, &mask, &prefix );
 
 	if ( rc == LDAP_INAPPROPRIATE_MATCHING ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -1140,9 +1111,9 @@ inequality_candidates(
 
 	MDB_IDL_ZERO( ids );
 	while(1) {
-		rc = mdb_key_read( op->o_bd, db, rtxn, &keys[0], tmp, &cursor, gtorlt );
+		rc = mdb_key_read( op->o_bd, rtxn, dbi, &keys[0], tmp, &cursor, gtorlt );
 
-		if( rc == DB_NOTFOUND ) {
+		if( rc == MDB_NOTFOUND ) {
 			rc = 0;
 			break;
 		} else if( rc != LDAP_SUCCESS ) {
@@ -1164,7 +1135,7 @@ inequality_candidates(
 
 		if( op->ors_limit && op->ors_limit->lms_s_unchecked != -1 &&
 			MDB_IDL_N( ids ) >= (unsigned) op->ors_limit->lms_s_unchecked ) {
-			cursor->c_close( cursor );
+			mdb_cursor_close( cursor );
 			break;
 		}
 	}

@@ -119,10 +119,6 @@ mdb_monitor_update(
 	void		*priv )
 {
 	struct mdb_info		*mdb = (struct mdb_info *) priv;
-	Attribute		*a;
-
-	char			buf[ BUFSIZ ];
-	struct berval		bv;
 
 #ifdef MDB_MONITOR_IDX
 	mdb_monitor_idx_entry_add( mdb, e );

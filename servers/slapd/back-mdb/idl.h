@@ -58,8 +58,8 @@
 
 #define MDB_IDL_CPY( dst, src ) (AC_MEMCPY( dst, src, MDB_IDL_SIZEOF( src ) ))
 
-#define MDB_IDL_ID( mdb, ids, id ) MDB_IDL_RANGE( ids, id, ((mdb)->bi_lastid) )
-#define MDB_IDL_ALL( mdb, ids ) MDB_IDL_RANGE( ids, 1, ((mdb)->bi_lastid) )
+#define MDB_IDL_ID( mdb, ids, id ) MDB_IDL_RANGE( ids, id, NOID )
+#define MDB_IDL_ALL( ids ) MDB_IDL_RANGE( ids, 1, NOID )
 
 #define MDB_IDL_FIRST( ids )	( ids[1] )
 #define MDB_IDL_LAST( ids )		( MDB_IDL_IS_RANGE(ids) \

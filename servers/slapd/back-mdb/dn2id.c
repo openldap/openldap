@@ -246,7 +246,6 @@ mdb_dn2id_delete(
 		rc = mdb_del( txn, dbi, &key, &data, MDB_DEL_DUP );
 	}
 
-func_leave:
 	op->o_tmpfree( d, op->o_tmpmemctx );
 
 	Debug( LDAP_DEBUG_TRACE, "<= mdb_dn2id_delete 0x%lx: %d\n", e->e_id, rc, 0 );
@@ -270,7 +269,6 @@ mdb_dn2id(
 	diskNode *d;
 	char	*ptr;
 	char dn[SLAP_LDAPDN_MAXLEN];
-	unsigned char dlen[2];
 	ID pid, nid;
 	struct berval tmp;
 
