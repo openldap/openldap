@@ -81,9 +81,7 @@ int mdb_index_param(
 	struct berval *prefixp )
 {
 	AttrInfo *ai;
-	int rc;
 	slap_mask_t mask, type = 0;
-	MDB_dbi dbi;
 
 	ai = mdb_index_mask( be, desc, prefixp );
 
@@ -111,12 +109,6 @@ int mdb_index_param(
 		return LDAP_INAPPROPRIATE_MATCHING;
 	}
 	mask = ai->ai_indexmask;
-
-	rc = mdb_db_cache( be, prefixp, &dbi );
-
-	if( rc != LDAP_SUCCESS ) {
-		return rc;
-	}
 
 	switch( ftype ) {
 	case LDAP_FILTER_PRESENT:
@@ -164,7 +156,7 @@ int mdb_index_param(
 	return LDAP_INAPPROPRIATE_MATCHING;
 
 done:
-	*dbip = dbi;
+	*dbip = ai->ai_dbi;
 	*maskp = mask;
 	return LDAP_SUCCESS;
 }
@@ -172,6 +164,7 @@ done:
 static int indexer(
 	Operation *op,
 	MDB_txn *txn,
+	MDB_dbi dbi,
 	AttributeDescription *ad,
 	struct berval *atname,
 	BerVarray vals,
@@ -180,19 +173,9 @@ static int indexer(
 	slap_mask_t mask )
 {
 	int rc, i;
-	MDB_dbi dbi;
 	struct berval *keys;
 
 	assert( mask != 0 );
-
-	rc = mdb_db_cache( op->o_bd, atname, &dbi );
-	
-	if ( rc != LDAP_SUCCESS ) {
-		Debug( LDAP_DEBUG_ANY,
-			"mdb_index_read: Could not open DB %s\n",
-			atname->bv_val, 0, 0 );
-		return LDAP_OTHER;
-	}
 
 	if( IS_SLAP_INDEX( mask, SLAP_INDEX_PRESENT ) ) {
 		rc = mdb_key_change( op->o_bd, txn, dbi, &presence_key, id, opid );
@@ -314,7 +297,7 @@ static int index_at_values(
 			if ( ai->ai_cr ) {
 				ComponentReference *cr;
 				for( cr = ai->ai_cr ; cr ; cr = cr->cr_next ) {
-					rc = indexer( op, txn, cr->cr_ad, &type->sat_cname,
+					rc = indexer( op, txn, ai->ai_dbi, cr->cr_ad, &type->sat_cname,
 						cr->cr_nvals, id, ixop,
 						cr->cr_indexmask );
 				}
@@ -332,7 +315,7 @@ static int index_at_values(
 			 */
 				mask = ai->ai_newmask ? ai->ai_newmask : ai->ai_indexmask;
 			if( mask ) {
-				rc = indexer( op, txn, ad, &type->sat_cname,
+				rc = indexer( op, txn, ai->ai_dbi, ad, &type->sat_cname,
 					vals, id, ixop, mask );
 
 				if( rc ) return rc;
@@ -353,7 +336,7 @@ static int index_at_values(
 				else
 					mask = ai->ai_newmask ? ai->ai_newmask : ai->ai_indexmask;
 				if ( mask ) {
-					rc = indexer( op, txn, desc, &desc->ad_cname,
+					rc = indexer( op, txn, ai->ai_dbi, desc, &desc->ad_cname,
 						vals, id, ixop, mask );
 
 					if( rc ) {
@@ -455,7 +438,7 @@ int mdb_index_recrun(
 		if ( !ir->ai ) continue;
 		while (( al = ir->attrs )) {
 			ir->attrs = al->next;
-			rc = indexer( op, NULL, ir->ai->ai_desc,
+			rc = indexer( op, NULL, ir->ai->ai_dbi, ir->ai->ai_desc,
 				&ir->ai->ai_desc->ad_type->sat_cname,
 				al->attr->a_nvals, id, SLAP_INDEX_ADD_OP,
 				ir->ai->ai_indexmask );

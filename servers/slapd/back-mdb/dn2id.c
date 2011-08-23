@@ -141,7 +141,7 @@ mdb_dn2id_add(
 	Entry		*e )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	MDB_dbi dbi = mdb->mi_dn2id->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_dn2id;
 	MDB_val		key, data;
 	ID		nid;
 	int		rc, rlen, nrlen;
@@ -211,7 +211,7 @@ mdb_dn2id_delete(
 	Entry	*e )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	MDB_dbi dbi = mdb->mi_dn2id->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_dn2id;
 	MDB_val	key, data;
 	diskNode *d;
 	int rc, nrlen;
@@ -263,7 +263,7 @@ mdb_dn2id(
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	MDB_cursor *cursor;
-	MDB_dbi dbi = mdb->mi_dn2id->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_dn2id;
 	MDB_val		key, data;
 	int		rc = 0, nrlen;
 	diskNode *d;
@@ -363,6 +363,86 @@ done:
 	return rc;
 }
 
+/* return IDs from root to parent of DN */
+int
+mdb_dn2sups(
+	Operation	*op,
+	MDB_txn *txn,
+	struct berval	*in,
+	ID	*ids )
+{
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_cursor *cursor;
+	MDB_dbi dbi = mdb->mi_dn2id;
+	MDB_val		key, data;
+	int		rc = 0, nrlen;
+	diskNode *d;
+	char	*ptr;
+	ID pid, nid;
+	struct berval tmp;
+
+	Debug( LDAP_DEBUG_TRACE, "=> mdb_dn2sups(\"%s\")\n", in->bv_val, 0, 0 );
+
+	if ( !in->bv_len ) {
+		goto done;
+	}
+
+	tmp = *in;
+
+	nrlen = tmp.bv_len - op->o_bd->be_nsuffix[0].bv_len;
+	tmp.bv_val += nrlen;
+	tmp.bv_len = op->o_bd->be_nsuffix[0].bv_len;
+	nid = 0;
+	key.mv_size = sizeof(ID);
+
+	rc = mdb_cursor_open( txn, dbi, &cursor );
+	if ( rc ) return rc;
+
+	for (;;) {
+		key.mv_data = &pid;
+		pid = nid;
+
+		data.mv_size = sizeof(diskNode) + tmp.bv_len;
+		d = op->o_tmpalloc( data.mv_size, op->o_tmpmemctx );
+		d->nrdnlen[1] = tmp.bv_len & 0xff;
+		d->nrdnlen[0] = (tmp.bv_len >> 8) | 0x80;
+		ptr = lutil_strncopy( d->nrdn, tmp.bv_val, tmp.bv_len );
+		*ptr = '\0';
+		data.mv_data = d;
+		rc = mdb_cursor_get( cursor, &key, &data, MDB_GET_BOTH );
+		op->o_tmpfree( d, op->o_tmpmemctx );
+		if ( rc ) {
+			mdb_cursor_close( cursor );
+			break;
+		}
+		ptr = (char *) data.mv_data + data.mv_size - sizeof(ID);
+		memcpy( &nid, ptr, sizeof(ID));
+
+		if ( pid )
+			mdb_idl_insert( ids, pid );
+
+		if ( tmp.bv_val > in->bv_val ) {
+			for (ptr = tmp.bv_val - 2; ptr > in->bv_val &&
+				!DN_SEPARATOR(*ptr); ptr--)	/* empty */;
+			if ( ptr >= in->bv_val ) {
+				if (DN_SEPARATOR(*ptr)) ptr++;
+				tmp.bv_len = tmp.bv_val - ptr - 1;
+				tmp.bv_val = ptr;
+			}
+		} else {
+			break;
+		}
+	}
+
+done:
+	if( rc != 0 ) {
+		Debug( LDAP_DEBUG_TRACE, "<= mdb_dn2sups: get failed: %s (%d)\n",
+			mdb_strerror( rc ), rc, 0 );
+	}
+
+	return rc;
+}
+
 #if 0
 int
 mdb_dn2id_parent(
@@ -429,7 +509,7 @@ mdb_dn2id_children(
 	Entry *e )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	MDB_dbi dbi = mdb->mi_dn2id->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_dn2id;
 	MDB_val		key, data;
 	MDB_cursor	*cursor;
 	int		rc;
@@ -463,7 +543,7 @@ mdb_id2name(
 	struct berval *nname )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	MDB_dbi dbi = mdb->mi_dn2id->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_dn2id;
 	MDB_val		key, data;
 	MDB_cursor	*cursor;
 	int		rc, len, nlen;

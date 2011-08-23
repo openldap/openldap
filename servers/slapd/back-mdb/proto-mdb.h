@@ -32,6 +32,9 @@ void mdb_attr_flush( struct mdb_info *mdb );
 int mdb_attr_slot( struct mdb_info *mdb,
 	AttributeDescription *desc, int *insert );
 
+int mdb_attr_dbs_open( BackendDB *be, MDB_txn *txn, struct config_reply_s *cr );
+void mdb_attr_dbs_close( struct mdb_info *mdb, MDB_txn *txn );
+
 int mdb_attr_index_config LDAP_P(( struct mdb_info *mdb,
 	const char *fname, int lineno,
 	int argc, char **argv, struct config_reply_s *cr ));
@@ -48,16 +51,6 @@ void mdb_attr_info_free( AttrInfo *ai );
  */
 
 int mdb_back_init_cf( BackendInfo *bi );
-
-/*
- * dbcache.c
- */
-
-int
-mdb_db_cache(
-    Backend	*be,
-    struct berval *name,
-	MDB_dbi *dbi );
 
 /*
  * dn2entry.c
@@ -93,6 +86,13 @@ int mdb_dn2id_children(
 	Operation *op,
 	MDB_txn *tid,
 	Entry *e );
+
+int mdb_dn2sups (
+	Operation *op,
+	MDB_txn *tid,
+	struct berval *dn,
+	ID *sups
+	);
 
 int mdb_dn2idl(
 	Operation *op,

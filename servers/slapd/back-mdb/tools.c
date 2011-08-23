@@ -29,7 +29,6 @@ static MDB_cursor *cursor = NULL;
 static MDB_val key, data;
 static EntryHeader eh;
 static ID previd = NOID;
-static char ehbuf[16];
 
 typedef struct dn_id {
 	ID id;
@@ -41,13 +40,12 @@ static dn_id hbuf[HOLE_SIZE], *holes = hbuf;
 static unsigned nhmax = HOLE_SIZE;
 static unsigned nholes;
 
-static int index_nattrs;
-
 static struct berval	*tool_base;
 static int		tool_scope;
 static Filter		*tool_filter;
 static Entry		*tool_next_entry;
 
+#if 0
 static ID mdb_tool_ix_id;
 static Operation *mdb_tool_ix_op;
 static int *mdb_tool_index_threads, mdb_tool_index_tcount;
@@ -56,10 +54,10 @@ static struct mdb_info *mdb_tool_info;
 static ldap_pvt_thread_mutex_t mdb_tool_index_mutex;
 static ldap_pvt_thread_cond_t mdb_tool_index_cond_main;
 static ldap_pvt_thread_cond_t mdb_tool_index_cond_work;
+static void * mdb_tool_index_task( void *ctx, void *ptr );
+#endif
 
 static int	mdb_writes, mdb_writes_per_commit;
-
-static void * mdb_tool_index_task( void *ctx, void *ptr );
 
 static int
 mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep );
@@ -67,8 +65,6 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep );
 int mdb_tool_entry_open(
 	BackendDB *be, int mode )
 {
-	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-
 	/* In Quick mode, commit once per 1000 entries */
 	mdb_writes = 0;
 	if ( slapMode & SLAP_TOOL_QUICK )
@@ -188,7 +184,7 @@ ID mdb_tool_entry_next(
 		rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
 		if ( rc )
 			return NOID;
-		rc = mdb_cursor_open( txn, mdb->mi_id2entry->mdi_dbi, &cursor );
+		rc = mdb_cursor_open( txn, mdb->mi_id2entry, &cursor );
 		if ( rc ) {
 			mdb_txn_abort( txn );
 			return NOID;
@@ -266,9 +262,8 @@ static int
 mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 {
 	Entry *e = NULL;
-	char *dptr;
-	int rc, eoff;
 	struct berval dn = BER_BVNULL, ndn = BER_BVNULL;
+	int rc;
 
 	assert( be != NULL );
 	assert( slapMode & SLAP_TOOL_MODE );
@@ -290,7 +285,6 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 	}
 
 	if ( slapMode & SLAP_TOOL_READONLY ) {
-		struct mdb_info *mdb = (struct mdb_info *) be->be_private;
 		Operation op = {0};
 		Opheader ohdr = {0};
 

@@ -87,6 +87,84 @@ mdb_attr_mask(
 	return i < 0 ? NULL : mdb->mi_attrs[i];
 }
 
+/* Open all un-opened index DB handles */
+int
+mdb_attr_dbs_open(
+	BackendDB *be, MDB_txn *tx0, ConfigReply *cr )
+{
+	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
+	MDB_txn *txn;
+	int i, flags;
+	int rc;
+
+	txn = tx0;
+	if ( txn == NULL ) {
+		rc = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
+		if ( rc ) {
+			snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
+				"txn_begin failed: %s (%d).",
+				be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+			Debug( LDAP_DEBUG_ANY,
+				LDAP_XSTRING(mdb_attr_dbs) ": %s\n",
+				cr->msg, 0, 0 );
+			return rc;
+		}
+	}
+
+	flags = MDB_DUPSORT|MDB_DUPFIXED|MDB_INTEGERDUP;
+	if ( !(slapMode & SLAP_TOOL_READONLY) )
+		flags |= MDB_CREATE;
+
+	for ( i=0; i<mdb->mi_nattrs; i++ ) {
+		if ( mdb->mi_attrs[i]->ai_dbi )	/* already open */
+			continue;
+		rc = mdb_open( txn, mdb->mi_attrs[i]->ai_desc->ad_type->sat_cname.bv_val,
+			flags, &mdb->mi_attrs[i]->ai_dbi );
+		if ( rc ) {
+			snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
+				"mdb_open(%s) failed: %s (%d).",
+				be->be_suffix[0].bv_val,
+				mdb->mi_attrs[i]->ai_desc->ad_type->sat_cname.bv_val,
+				mdb_strerror(rc), rc );
+			Debug( LDAP_DEBUG_ANY,
+				LDAP_XSTRING(mdb_attr_dbs) ": %s\n",
+				cr->msg, 0, 0 );
+			break;
+		}
+	}
+
+	/* Only commit if this is our txn */
+	if ( tx0 == NULL ) {
+		if ( !rc ) {
+			rc = mdb_txn_commit( txn );
+			if ( rc ) {
+				snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
+					"txn_commit failed: %s (%d).",
+					be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+				Debug( LDAP_DEBUG_ANY,
+					LDAP_XSTRING(mdb_attr_dbs) ": %s\n",
+					cr->msg, 0, 0 );
+			}
+		} else {
+			mdb_txn_abort( txn );
+		}
+	}
+
+	return rc;
+}
+
+void
+mdb_attr_dbs_close(
+	struct mdb_info *mdb,
+	MDB_txn *txn
+)
+{
+	int i;
+	for ( i=0; i<mdb->mi_nattrs; i++ )
+		if ( mdb->mi_attrs[i]->ai_dbi )
+			mdb_close( txn, mdb->mi_attrs[i]->ai_dbi );
+}
+
 int
 mdb_attr_index_config(
 	struct mdb_info	*mdb,

@@ -488,6 +488,7 @@ ext_candidates(
 
 		MDB_IDL_ZERO( ids );
 		if ( mra->ma_rule == slap_schema.si_mr_distinguishedNameMatch ) {
+base:
 			rc = mdb_dn2id( op, rtxn, &mra->ma_value, &id, NULL );
 			if ( rc == MDB_SUCCESS ) {
 				mdb_idl_insert( ids, id );
@@ -498,15 +499,7 @@ ext_candidates(
 				op->o_bd->be_nsuffix )) {
 			int scope;
 			if ( mra->ma_rule == slap_schema.si_mr_dnSuperiorMatch ) {
-				struct berval pdn;
-				dnParent( &mra->ma_value, &pdn );
-				rc = mdb_dn2id( op, rtxn, &pdn, &id, NULL );
-				if ( rc == MDB_SUCCESS ) {
-					while ( ei && ei->bei_id ) {
-						mdb_idl_insert( ids, ei->bei_id );
-						ei = ei->bei_parent;
-					}
-				}
+				mdb_dn2sups( op, rtxn, &mra->ma_value, ids );
 				return 0;
 			}
 			if ( mra->ma_rule == slap_schema.si_mr_dnSubtreeMatch )
@@ -516,7 +509,8 @@ ext_candidates(
 			else if ( mra->ma_rule == slap_schema.si_mr_dnSubordinateMatch )
 				scope = LDAP_SCOPE_SUBORDINATE;
 			else
-				scope = LDAP_SCOPE_BASE;
+				goto base;	/* scope = LDAP_SCOPE_BASE; */
+#if 0
 			if ( scope > LDAP_SCOPE_BASE ) {
 				ei = NULL;
 				rc = mdb_cache_find_ndn( op, rtxn, &mra->ma_value, &ei );
@@ -531,6 +525,7 @@ ext_candidates(
 				}
 				return 0;
 			}
+#endif
 		}
 	}
 
@@ -682,7 +677,6 @@ equality_candidates(
 	ID *ids,
 	ID *tmp )
 {
-	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	MDB_dbi	dbi;
 	int i;
 	int rc;

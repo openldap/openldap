@@ -95,7 +95,7 @@ mdb_checkpoint( void *ctx, void *arg )
 {
 	struct re_s *rtask = arg;
 	struct mdb_info *mdb = rtask->arg;
-	
+
 	mdb_env_sync( mdb->mi_dbenv, 0 );
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 	ldap_pvt_runqueue_stoptask( &slapd_rq, rtask );
@@ -132,7 +132,7 @@ mdb_online_index( void *ctx, void *arg )
 
 	DBTzero( &key );
 	DBTzero( &data );
-	
+
 	id = 1;
 	key.data = &nid;
 	key.size = key.ulen = sizeof(ID);
@@ -146,7 +146,7 @@ mdb_online_index( void *ctx, void *arg )
 			break;
 
 		rc = TXN_BEGIN( mdb->bi_dbenv, NULL, &txn, mdb->bi_db_opflags );
-		if ( rc ) 
+		if ( rc )
 			break;
 		if ( getnext ) {
 			getnext = 0;
@@ -236,7 +236,7 @@ mdb_cf_cleanup( ConfigArgs *c )
 		mdb_attr_flush( mdb );
 		mdb->mi_flags ^= MDB_DEL_INDEX;
 	}
-	
+
 	if ( mdb->mi_flags & MDB_RE_OPEN ) {
 		mdb->mi_flags ^= MDB_RE_OPEN;
 		rc = c->be->bd_info->bi_db_close( c->be, &c->reply );
@@ -251,6 +251,12 @@ mdb_cf_cleanup( ConfigArgs *c )
 				": %s\n", c->cr_msg, 0, 0 );
 			rc = LDAP_OTHER;
 		}
+	}
+
+	if ( mdb->mi_flags & MDB_OPEN_INDEX ) {
+		rc = mdb_attr_dbs_open( c->be, NULL, &c->reply );
+		if ( rc )
+			rc = LDAP_OTHER;
 	}
 	return rc;
 }
@@ -305,7 +311,7 @@ mdb_cf_gen( ConfigArgs *c )
 			if ( mdb->mi_dbenv_flags & MDB_NOSYNC )
 				c->value_int = 1;
 			break;
-			
+
 		case MDB_INDEX:
 			mdb_attr_index_unparse( mdb, &c->rvalue_vals );
 			if ( !c->rvalue_vals ) rc = 1;
@@ -543,6 +549,8 @@ mdb_cf_gen( ConfigArgs *c )
 			c->argc - 1, &c->argv[1], &c->reply);
 
 		if( rc != LDAP_SUCCESS ) return 1;
+		c->cleanup = mdb_cf_cleanup;
+		mdb->mi_flags |= MDB_OPEN_INDEX;
 		if (( mdb->mi_flags & MDB_IS_OPEN ) && !mdb->mi_index_task ) {
 			/* Start the task as soon as we finish here. Set a long
 			 * interval (10 hours) so that it only gets scheduled once.

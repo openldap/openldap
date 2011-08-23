@@ -57,8 +57,6 @@ mdb_db_init( BackendDB *be, ConfigReply *cr )
 
 	mdb->mi_mapsize = DEFAULT_MAPSIZE;
 
-	ldap_pvt_thread_mutex_init( &mdb->mi_database_mutex );
-
 	be->be_private = mdb;
 	be->be_cf_ocs = be->bd_info->bi_cf_ocs;
 
@@ -79,11 +77,9 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 {
 	int rc, i;
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	struct stat stat1, stat2;
+	struct stat stat1;
 	u_int32_t flags;
-	char path[MAXPATHLEN];
 	char *dbhome;
-	Entry *e = NULL;
 	MDB_txn *txn;
 
 	if ( be->be_suffix == NULL ) {
@@ -169,9 +165,6 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 		goto fail;
 	}
 
-	mdb->mi_databases = (struct mdb_db_info **) ch_malloc(
-		MDB_INDICES * sizeof(struct mdb_db_info *) );
-
 	rc = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -183,10 +176,6 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 
 	/* open (and create) main databases */
 	for( i = 0; mdmi_databases[i].bv_val; i++ ) {
-		struct mdb_db_info *db;
-
-		db = (struct mdb_db_info *) ch_calloc(1, sizeof(struct mdb_db_info));
-
 		flags = MDB_INTEGERKEY;
 		if( i == MDB_ID2ENTRY ) {
 			if ( !(slapMode & (SLAP_TOOL_READMAIN|SLAP_TOOL_READONLY) ))
@@ -201,7 +190,7 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 		rc = mdb_open( txn,
 			mdmi_databases[i].bv_val,
 			flags,
-			&db->mdi_dbi );
+			&mdb->mi_dbis[i] );
 
 		if ( rc != 0 ) {
 			snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
@@ -216,19 +205,20 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 		}
 
 		if ( i == MDB_DN2ID )
-			mdb_set_dupsort( txn, db->mdi_dbi, mdb_dup_compare );
+			mdb_set_dupsort( txn, mdb->mi_dbis[i], mdb_dup_compare );
 
-		db->mdi_name = mdmi_databases[i];
-		mdb->mi_databases[i] = db;
+	}
+
+	rc = mdb_attr_dbs_open( be, txn, cr );
+	if ( rc ) {
+		mdb_txn_abort( txn );
+		goto fail;
 	}
 
 	rc = mdb_txn_commit(txn);
 	if ( rc != 0 ) {
 		goto fail;
 	}
-
-	mdb->mi_databases[i] = NULL;
-	mdb->mi_ndatabases = i;
 
 	/* monitor setup */
 	rc = mdb_monitor_db_open( be );
@@ -250,7 +240,6 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 {
 	int rc;
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	struct mdb_db_info *db;
 	MDB_txn *txn;
 
 	/* monitor handling */
@@ -265,17 +254,14 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 #endif
 
 	if ( mdb->mi_dbenv ) {
-		if ( mdb->mi_ndatabases ) {
+		if ( mdb->mi_dbis[0] ) {
+			int i;
 			rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
 
-			while( mdb->mi_databases && mdb->mi_ndatabases-- ) {
-				db = mdb->mi_databases[mdb->mi_ndatabases];
-				mdb_close( txn, db->mdi_dbi );
-				/* Lower numbered names are not strdup'd */
-				if( mdb->mi_ndatabases >= MDB_NDB )
-					free( db->mdi_name.bv_val );
-				free( db );
-			}
+			mdb_attr_dbs_close( mdb, txn );
+			for ( i=0; i<MDB_NDB; i++ )
+				mdb_close( txn, mdb->mi_dbis[i] );
+
 			mdb_txn_abort( txn );
 
 			/* force a sync */
@@ -291,9 +277,6 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 		mdb_env_close( mdb->mi_dbenv );
 		mdb->mi_dbenv = NULL;
 	}
-
-	free( mdb->mi_databases );
-	mdb->mi_databases = NULL;
 
 	return 0;
 }
@@ -320,8 +303,6 @@ mdb_db_destroy( BackendDB *be, ConfigReply *cr )
 	if( mdb->mi_dbenv_home ) ch_free( mdb->mi_dbenv_home );
 
 	mdb_attr_index_destroy( mdb );
-
-	ldap_pvt_thread_mutex_destroy( &mdb->mi_database_mutex );
 
 	ch_free( mdb );
 	be->be_private = NULL;

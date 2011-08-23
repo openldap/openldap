@@ -29,7 +29,7 @@ static int mdb_id2entry_put(
 	int flag )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	MDB_dbi dbi = mdb->mi_id2entry->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_id2entry;
 	MDB_val key, data;
 	struct berval bv;
 	int rc;
@@ -89,7 +89,7 @@ int mdb_id2entry(
 	Entry **e )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	MDB_dbi dbi = mdb->mi_id2entry->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_id2entry;
 	MDB_val key, data;
 	EntryHeader eh;
 	int rc = 0;
@@ -128,7 +128,7 @@ int mdb_id2entry_delete(
 	Entry *e )
 {
 	struct mdb_info *mdb = (struct mdb_info *) be->be_private;
-	MDB_dbi dbi = mdb->mi_id2entry->mdi_dbi;
+	MDB_dbi dbi = mdb->mi_id2entry;
 	MDB_val key;
 	int rc;
 

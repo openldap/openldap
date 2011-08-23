@@ -43,11 +43,6 @@ LDAP_BEGIN_DECL
 /* Default to 10MB max */
 #define DEFAULT_MAPSIZE	(10*1048576)
 
-struct mdb_db_info {
-	struct berval	mdi_name;
-	MDB_dbi	mdi_dbi;
-};
-
 #ifdef LDAP_DEVEL
 #define MDB_MONITOR_IDX
 #endif /* LDAP_DEVEL */
@@ -71,11 +66,6 @@ struct mdb_info {
 
 	size_t		mi_mapsize;
 
-	int			mi_ndatabases;
-	int			mi_db_opflags;	/* db-specific flags */
-	struct mdb_db_info **mi_databases;
-	ldap_pvt_thread_mutex_t	mi_database_mutex;
-
 	slap_mask_t	mi_defaultmask;
 	struct mdb_attrinfo		**mi_attrs;
 	int			mi_nattrs;
@@ -97,13 +87,16 @@ struct mdb_info {
 
 	int		mi_flags;
 #define	MDB_IS_OPEN		0x01
+#define	MDB_OPEN_INDEX	0x02
 #define	MDB_DEL_INDEX	0x08
 #define	MDB_RE_OPEN		0x10
+
+	MDB_dbi	mi_dbis[MDB_NDB];
 };
 
-#define mi_id2entry	mi_databases[MDB_ID2ENTRY]
-#define mi_dn2id	mi_databases[MDB_DN2ID]
-#define mi_ad2id	mi_databases[MDB_AD2ID]
+#define mi_id2entry	mi_dbis[MDB_ID2ENTRY]
+#define mi_dn2id	mi_dbis[MDB_DN2ID]
+#define mi_ad2id	mi_dbis[MDB_AD2ID]
 
 struct mdb_op_info {
 	OpExtra		moi_oe;
@@ -143,6 +136,7 @@ typedef struct mdb_attrinfo {
 	ComponentReference* ai_cr; /*component indexing*/
 #endif
 	int ai_idx;	/* position in AI array */
+	MDB_dbi ai_dbi;
 } AttrInfo;
 
 /* These flags must not clash with SLAP_INDEX flags or ops in slap.h! */

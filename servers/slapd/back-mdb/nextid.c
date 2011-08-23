@@ -30,7 +30,7 @@ int mdb_next_id( BackendDB *be, MDB_txn *tid, ID *out )
 	MDB_cursor *cursor;
 
 	/* Get a read cursor */
-	rc = mdb_cursor_open( tid, mdb->mi_id2entry->mdi_dbi, &cursor );
+	rc = mdb_cursor_open( tid, mdb->mi_id2entry, &cursor );
 
 	if (rc == 0) {
 		rc = mdb_cursor_get(cursor, &key, NULL, MDB_LAST);
