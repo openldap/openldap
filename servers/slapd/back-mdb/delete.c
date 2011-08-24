@@ -387,7 +387,7 @@ txnReturn:
 			}
 			parent_is_leaf = 1;
 		}
-		meb_entry_return( p );
+		mdb_entry_return( p );
 		p = NULL;
 	}
 
