@@ -479,8 +479,6 @@ txnReturn:
 
 	opinfo.moi_oe.oe_key = mdb;
 	opinfo.moi_txn = txn;
-	opinfo.moi_err = 0;
-	opinfo.moi_acl_cache = op->o_do_not_cache;
 	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
 
 	/* get entry or ancestor */
@@ -578,9 +576,6 @@ txnReturn:
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_modify) ": modify failed (%d)\n",
 			rs->sr_err, 0, 0 );
-		if ( (rs->sr_err == LDAP_INSUFFICIENT_ACCESS) && opinfo.moi_err ) {
-			rs->sr_err = opinfo.moi_err;
-		}
 		/* Only free attrs if they were dup'd.  */
 		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
 		goto return_results;

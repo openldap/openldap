@@ -101,8 +101,6 @@ struct mdb_info {
 struct mdb_op_info {
 	OpExtra		moi_oe;
 	MDB_txn*	moi_txn;
-	u_int32_t	moi_err;
-	char		moi_acl_cache;
 	char		moi_flag;
 };
 #define MOI_DONTFREE	1

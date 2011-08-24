@@ -384,7 +384,6 @@ mdb_back_initialize(
 	bi->bi_db_close = mdb_db_close;
 	bi->bi_db_destroy = mdb_db_destroy;
 
-#if 0
 	bi->bi_op_add = mdb_add;
 	bi->bi_op_bind = mdb_bind;
 	bi->bi_op_compare = mdb_compare;
@@ -401,7 +400,6 @@ mdb_back_initialize(
 	bi->bi_operational = mdb_operational;
 
 	bi->bi_has_subordinates = mdb_hasSubordinates;
-#endif
 	bi->bi_entry_release_rw = mdb_entry_release;
 	bi->bi_entry_get_rw = mdb_entry_get;
 
@@ -415,11 +413,9 @@ mdb_back_initialize(
 	bi->bi_tool_entry_next = mdb_tool_entry_next;
 	bi->bi_tool_entry_get = mdb_tool_entry_get;
 	bi->bi_tool_entry_put = mdb_tool_entry_put;
-#if 0
 	bi->bi_tool_entry_reindex = mdb_tool_entry_reindex;
 	bi->bi_tool_sync = 0;
 	bi->bi_tool_dn2id_get = mdb_tool_dn2id_get;
-#endif
 	bi->bi_tool_entry_modify = mdb_tool_entry_modify;
 
 	bi->bi_connection_init = 0;

@@ -111,9 +111,24 @@ int mdb_dn2id_parent(
 int mdb_id2name(
 	Operation *op,
 	MDB_txn *txn,
+	MDB_cursor **cursp,
 	ID eid,
 	struct berval *name,
 	struct berval *nname);
+
+int mdb_idscope(
+	Operation *op,
+	MDB_txn *txn,
+	ID base,
+	ID *ids,
+	ID *res );
+
+int mdb_idscopes(
+	Operation *op,
+	MDB_txn *txn,
+	MDB_cursor **cursp,
+	ID base,
+	ID *scopes );
 
 MDB_cmp_func mdb_dup_compare;
 

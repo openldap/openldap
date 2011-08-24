@@ -538,6 +538,7 @@ int
 mdb_id2name(
 	Operation *op,
 	MDB_txn *txn,
+	MDB_cursor **cursp,
 	ID id,
 	struct berval *name,
 	struct berval *nname )
@@ -553,8 +554,11 @@ mdb_id2name(
 
 	key.mv_size = sizeof(ID);
 
-	rc = mdb_cursor_open( txn, dbi, &cursor );
-	if ( rc ) return rc;
+	if ( !*cursp ) {
+		rc = mdb_cursor_open( txn, dbi, cursp );
+		if ( rc ) return rc;
+	}
+	cursor = *cursp;
 
 	len = 0;
 	nlen = 0;
@@ -595,6 +599,126 @@ mdb_id2name(
 	}
 	mdb_cursor_close( cursor );
 	return rc;
+}
+
+/* Find each id in ids that is a child of base and move it to res.
+ */
+int
+mdb_idscope(
+	Operation *op,
+	MDB_txn *txn,
+	ID base,
+	ID *ids,
+	ID *res )
+{
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_dbi dbi = mdb->mi_dn2id;
+	MDB_val		key, data;
+	MDB_cursor	*cursor;
+	ID ida, id, cid, ci0, idc = 0;
+	char	*ptr;
+	int		rc;
+
+	key.mv_size = sizeof(ID);
+
+	MDB_IDL_ZERO( res );
+
+	rc = mdb_cursor_open( txn, dbi, &cursor );
+	if ( rc ) return rc;
+
+	ida = mdb_idl_first( ids, &cid );
+
+	/* Don't bother moving out of ids if it's a range */
+	if (!MDB_IDL_IS_RANGE(ids)) {
+		idc = ids[0];
+		ci0 = cid;
+	}
+
+	while (ida != NOID) {
+		id = ida;
+		while (id) {
+			key.mv_data = &id;
+			rc = mdb_cursor_get( cursor, &key, &data, MDB_SET );
+			if ( rc ) {
+				/* not found, move on to next */
+				if (idc) {
+					if (ci0 != cid)
+						ids[ci0] = ids[cid];
+					ci0++;
+				}
+				break;
+			}
+			ptr = data.mv_data;
+			ptr += data.mv_size - sizeof(ID);
+			memcpy( &id, ptr, sizeof(ID) );
+			if ( id == base ) {
+				res[0]++;
+				res[res[0]] = ida;
+				if (idc)
+					idc--;
+				break;
+			} else {
+				if (idc) {
+					if (ci0 != cid)
+						ids[ci0] = ids[cid];
+					ci0++;
+				}
+			}
+			if ( op->ors_scope == LDAP_SCOPE_ONELEVEL )
+				break;
+		}
+		ida = mdb_idl_next( ids, &cid );
+	}
+	if (!MDB_IDL_IS_RANGE( ids ))
+		ids[0] = idc;
+
+	mdb_cursor_close( cursor );
+	return rc;
+}
+
+/* See if base is a child of any of the scopes
+ */
+int
+mdb_idscopes(
+	Operation *op,
+	MDB_txn *txn,
+	MDB_cursor **cursp,
+	ID base,
+	ID *scopes )
+{
+	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
+	MDB_dbi dbi = mdb->mi_dn2id;
+	MDB_val		key, data;
+	MDB_cursor	*cursor;
+	ID id;
+	char	*ptr;
+	int		rc;
+	unsigned int x;
+
+	key.mv_size = sizeof(ID);
+
+	if ( !*cursp ) {
+		rc = mdb_cursor_open( txn, dbi, cursp );
+		if ( rc ) return rc;
+	}
+	cursor = *cursp;
+
+	id = base;
+	while (id) {
+		key.mv_data = &id;
+		rc = mdb_cursor_get( cursor, &key, &data, MDB_SET );
+		if ( rc )
+			break;
+		ptr = data.mv_data;
+		ptr += data.mv_size - sizeof(ID);
+		memcpy( &id, ptr, sizeof(ID) );
+		x = mdb_idl_search( scopes, id );
+		if ( scopes[x] == id )
+			return MDB_SUCCESS;
+		if ( op->ors_scope == LDAP_SCOPE_ONELEVEL )
+			break;
+	}
+	return MDB_NOTFOUND;
 }
 
 #if 0

@@ -25,7 +25,7 @@
 #include "idl.h"
 
 static MDB_txn *txn = NULL;
-static MDB_cursor *cursor = NULL;
+static MDB_cursor *cursor = NULL, *idcursor = NULL;
 static MDB_val key, data;
 static EntryHeader eh;
 static ID previd = NOID;
@@ -131,6 +131,10 @@ int mdb_tool_entry_close(
 	}
 #endif
 
+	if( idcursor ) {
+		mdb_cursor_close( idcursor );
+		idcursor = NULL;
+	}
 	if( cursor ) {
 		mdb_cursor_close( cursor );
 		cursor = NULL;
@@ -293,7 +297,7 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 		op.o_tmpmemctx = NULL;
 		op.o_tmpmfuncs = &ch_mfuncs;
 
-		rc = mdb_id2name( &op, txn, id, &dn, &ndn );
+		rc = mdb_id2name( &op, txn, &idcursor, id, &dn, &ndn );
 		if ( rc  ) {
 			rc = LDAP_OTHER;
 			mdb_entry_return( e );
@@ -437,18 +441,18 @@ static int mdb_tool_next_id(
 	return rc;
 }
 
-#if 0
 static int
 mdb_tool_index_add(
 	Operation *op,
-	DB_TXN *txn,
+	MDB_txn *txn,
 	Entry *e )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 
-	if ( !mdb->bi_nattrs )
+	if ( !mdb->mi_nattrs )
 		return 0;
 
+#if 0
 	if ( slapMode & SLAP_TOOL_QUICK ) {
 		IndexRec *ir;
 		int i, rc;
@@ -494,11 +498,12 @@ mdb_tool_index_add(
 		}
 		ldap_pvt_thread_mutex_unlock( &mdb_tool_index_mutex );
 		return rc;
-	} else {
+	} else
+#endif
+	{
 		return mdb_index_entry_add( op, txn, e );
 	}
 }
-#endif
 
 ID mdb_tool_entry_put(
 	BackendDB *be,
@@ -608,16 +613,15 @@ done:
 	return e->e_id;
 }
 
-#if 0
 int mdb_tool_entry_reindex(
 	BackendDB *be,
 	ID id,
 	AttributeDescription **adv )
 {
-	struct mdb_info *bi = (struct mdb_info *) be->be_private;
+	struct mdb_info *mi = (struct mdb_info *) be->be_private;
 	int rc;
 	Entry *e;
-	DB_TXN *tid = NULL;
+	MDB_txn *tid = NULL;
 	Operation op = {0};
 	Opheader ohdr = {0};
 
@@ -630,7 +634,7 @@ int mdb_tool_entry_reindex(
 	/* No indexes configured, nothing to do. Could return an
 	 * error here to shortcut things.
 	 */
-	if (!bi->bi_attrs) {
+	if (!mi->mi_attrs) {
 		return 0;
 	}
 
@@ -638,7 +642,7 @@ int mdb_tool_entry_reindex(
 	if ( adv ) {
 		int i, j, n;
 
-		if ( bi->bi_attrs[0]->ai_desc != adv[0] ) {
+		if ( mi->mi_attrs[0]->ai_desc != adv[0] ) {
 			/* count */
 			for ( n = 0; adv[n]; n++ ) ;
 
@@ -654,16 +658,16 @@ int mdb_tool_entry_reindex(
 		}
 
 		for ( i = 0; adv[i]; i++ ) {
-			if ( bi->bi_attrs[i]->ai_desc != adv[i] ) {
-				for ( j = i+1; j < bi->bi_nattrs; j++ ) {
-					if ( bi->bi_attrs[j]->ai_desc == adv[i] ) {
-						AttrInfo *ai = bi->bi_attrs[i];
-						bi->bi_attrs[i] = bi->bi_attrs[j];
-						bi->bi_attrs[j] = ai;
+			if ( mi->mi_attrs[i]->ai_desc != adv[i] ) {
+				for ( j = i+1; j < mi->mi_nattrs; j++ ) {
+					if ( mi->mi_attrs[j]->ai_desc == adv[i] ) {
+						AttrInfo *ai = mi->mi_attrs[i];
+						mi->mi_attrs[i] = mi->mi_attrs[j];
+						mi->mi_attrs[j] = ai;
 						break;
 					}
 				}
-				if ( j == bi->bi_nattrs ) {
+				if ( j == mi->mi_nattrs ) {
 					Debug( LDAP_DEBUG_ANY,
 						LDAP_XSTRING(mdb_tool_entry_reindex)
 						": no index configured for %s\n",
@@ -672,13 +676,7 @@ int mdb_tool_entry_reindex(
 				}
 			}
 		}
-		bi->bi_nattrs = i;
-	}
-
-	/* Get the first attribute to index */
-	if (bi->bi_linear_index && !index_nattrs) {
-		index_nattrs = bi->bi_nattrs - 1;
-		bi->bi_nattrs = 1;
+		mi->mi_nattrs = i;
 	}
 
 	e = mdb_tool_entry_get( be, id );
@@ -691,15 +689,15 @@ int mdb_tool_entry_reindex(
 		return -1;
 	}
 
-	if (! (slapMode & SLAP_TOOL_QUICK)) {
-	rc = TXN_BEGIN( bi->bi_dbenv, NULL, &tid, bi->bi_db_opflags );
-	if( rc != 0 ) {
-		Debug( LDAP_DEBUG_ANY,
-			"=> " LDAP_XSTRING(mdb_tool_entry_reindex) ": "
-			"txn_begin failed: %s (%d)\n",
-			db_strerror(rc), rc, 0 );
-		goto done;
-	}
+	if ( !txn ) {
+		rc = mdb_txn_begin( mi->mi_dbenv, 0, &tid );
+		if( rc != 0 ) {
+			Debug( LDAP_DEBUG_ANY,
+				"=> " LDAP_XSTRING(mdb_tool_entry_reindex) ": "
+				"txn_begin failed: %s (%d)\n",
+				mdb_strerror(rc), rc, 0 );
+			goto done;
+		}
 	}
  	
 	/*
@@ -722,32 +720,30 @@ int mdb_tool_entry_reindex(
 
 done:
 	if( rc == 0 ) {
-		if (! (slapMode & SLAP_TOOL_QUICK)) {
-		rc = TXN_COMMIT( tid, 0 );
-		if( rc != 0 ) {
-			Debug( LDAP_DEBUG_ANY,
-				"=> " LDAP_XSTRING(mdb_tool_entry_reindex)
-				": txn_commit failed: %s (%d)\n",
-				db_strerror(rc), rc, 0 );
-			e->e_id = NOID;
-		}
+		mdb_writes++;
+		if ( mdb_writes >= mdb_writes_per_commit ) {
+			rc = mdb_txn_commit( tid );
+			if( rc != 0 ) {
+				Debug( LDAP_DEBUG_ANY,
+					"=> " LDAP_XSTRING(mdb_tool_entry_reindex)
+					": txn_commit failed: %s (%d)\n",
+					mdb_strerror(rc), rc, 0 );
+				e->e_id = NOID;
+			}
 		}
 
 	} else {
-		if (! (slapMode & SLAP_TOOL_QUICK)) {
-		TXN_ABORT( tid );
+		mdb_txn_abort( tid );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_reindex)
 			": txn_aborted! %s (%d)\n",
-			db_strerror(rc), rc, 0 );
-		}
+			mdb_strerror(rc), rc, 0 );
 		e->e_id = NOID;
 	}
 	mdb_entry_release( &op, e, 0 );
 
 	return rc;
 }
-#endif
 
 ID mdb_tool_entry_modify(
 	BackendDB *be,

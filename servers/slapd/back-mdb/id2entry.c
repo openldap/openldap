@@ -220,12 +220,10 @@ int mdb_entry_get(
 	int rw,
 	Entry **ent )
 {
-#if 0
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	struct mdb_op_info *boi = NULL;
+	struct mdb_op_info *moi = NULL;
 	MDB_txn *txn = NULL;
 	Entry *e = NULL;
-	EntryInfo *ei;
 	int	rc;
 	const char *at_name = at ? at->ad_cname.bv_val : "(null)";
 
@@ -240,13 +238,13 @@ int mdb_entry_get(
 		LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
 			if ( oex->oe_key == mdb ) break;
 		}
-		boi = (struct mdb_op_info *)oex;
-		if ( boi )
-			txn = boi->boi_txn;
+		moi = (struct mdb_op_info *)oex;
+		if ( moi )
+			txn = moi->moi_txn;
 	}
 
 	if ( !txn ) {
-		rc = mdb_reader_get( op, mdb->bi_dbenv, &txn );
+		rc = mdb_reader_get( op, mdb->mi_dbenv, &txn );
 		switch(rc) {
 		case 0:
 			break;
@@ -255,18 +253,15 @@ int mdb_entry_get(
 		}
 	}
 
-dn2entry_retry:
 	/* can we find entry */
-	rc = mdb_dn2entry( op, txn, ndn, &ei, 0, &lock );
+	rc = mdb_dn2entry( op, txn, ndn, &e, 0 );
 	switch( rc ) {
 	case MDB_NOTFOUND:
 	case 0:
 		break;
 	default:
-		if ( boi ) boi->boi_err = rc;
 		return (rc != LDAP_BUSY) ? LDAP_OTHER : LDAP_BUSY;
 	}
-	if (ei) e = ei->bei_e;
 	if (e == NULL) {
 		Debug( LDAP_DEBUG_ACL,
 			"=> mdb_entry_get: cannot find entry: \"%s\"\n",
@@ -298,41 +293,14 @@ dn2entry_retry:
 return_results:
 	if( rc != LDAP_SUCCESS ) {
 		/* free entry */
-		mdb_cache_return_entry_rw(mdb, e, rw, &lock);
+		mdb_entry_return( e );
 
 	} else {
-		if ( slapMode == SLAP_SERVER_MODE ) {
-			*ent = e;
-			/* big drag. we need a place to store a read lock so we can
-			 * release it later?? If we're in a txn, nothing is needed
-			 * here because the locks will go away with the txn.
-			 */
-			if ( op ) {
-				if ( !boi ) {
-					boi = op->o_tmpcalloc(1,sizeof(struct mdb_op_info),op->o_tmpmemctx);
-					boi->boi_oe.oe_key = mdb;
-					LDAP_SLIST_INSERT_HEAD( &op->o_extra, &boi->boi_oe, oe_next );
-				}
-				if ( !boi->boi_txn ) {
-					struct mdb_lock_info *bli;
-					bli = op->o_tmpalloc( sizeof(struct mdb_lock_info),
-						op->o_tmpmemctx );
-					bli->bli_next = boi->boi_locks;
-					bli->bli_id = e->e_id;
-					bli->bli_flag = 0;
-					bli->bli_lock = lock;
-					boi->boi_locks = bli;
-				}
-			}
-		} else {
-			*ent = entry_dup( e );
-			mdb_cache_return_entry_rw(mdb, e, rw, &lock);
-		}
+		*ent = entry_dup( e );
 	}
 
 	Debug( LDAP_DEBUG_TRACE,
 		"mdb_entry_get: rc=%d\n",
 		rc, 0, 0 ); 
 	return(rc);
-#endif
 }

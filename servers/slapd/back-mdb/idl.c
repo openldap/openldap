@@ -896,8 +896,6 @@ ID mdb_idl_next( ID *ids, ID *cursor )
 	return NOID;
 }
 
-#ifdef MDB_HIER
-
 /* Add one ID to an unsorted list. We ensure that the first element is the
  * minimum and the last element is the maximum, for fast range compaction.
  *   this means IDLs up to length 3 are always sorted...
@@ -1166,5 +1164,3 @@ mdb_idl_sort( ID *ids, ID *tmp )
 	}
 }
 #endif	/* Quick vs Radix */
-
-#endif	/* MDB_HIER */

@@ -132,8 +132,6 @@ txnReturn:
 
 	opinfo.moi_oe.oe_key = mdb;
 	opinfo.moi_txn = txn;
-	opinfo.moi_err = 0;
-	opinfo.moi_acl_cache = op->o_do_not_cache;
 	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
 
 	/*
