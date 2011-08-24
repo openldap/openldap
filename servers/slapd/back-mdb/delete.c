@@ -33,7 +33,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
 	MDB_txn		*txn = NULL;
-	struct mdb_op_info opinfo = {{{ 0 }}};
+	mdb_op_info opinfo = {{{ 0 }}}, *moi = &opinfo;
 
 	LDAPControl **preread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
@@ -100,7 +100,7 @@ txnReturn:
 	}
 
 	/* begin transaction */
-	rs->sr_err = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
+	rs->sr_err = mdb_opinfo_get( op, mdb, 0, &moi );
 	rs->sr_text = NULL;
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
@@ -111,9 +111,7 @@ txnReturn:
 		goto return_results;
 	}
 
-	opinfo.moi_oe.oe_key = mdb;
-	opinfo.moi_txn = txn;
-	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
+	txn = moi->moi_txn;
 
 	if ( !be_issuffix( op->o_bd, &op->o_req_ndn ) ) {
 		dnParent( &op->o_req_ndn, &pdn );
@@ -389,17 +387,19 @@ txnReturn:
 		p = NULL;
 	}
 
-	if( op->o_noop ) {
-		mdb_txn_abort( txn );
-		rs->sr_err = LDAP_X_NO_OPERATION;
-		txn = NULL;
-		goto return_results;
-	} else {
-		rs->sr_err = mdb_txn_commit( txn );
+	if( moi == &opinfo ) {
+		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+		opinfo.moi_oe.oe_key = NULL;
+		if( op->o_noop ) {
+			mdb_txn_abort( txn );
+			rs->sr_err = LDAP_X_NO_OPERATION;
+			txn = NULL;
+			goto return_results;
+		} else {
+			rs->sr_err = mdb_txn_commit( txn );
+		}
 		txn = NULL;
 	}
-	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
-	opinfo.moi_oe.oe_key = NULL;
 
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
@@ -434,11 +434,13 @@ return_results:
 		mdb_entry_return( e );
 	}
 
-	if( txn != NULL ) {
-		mdb_txn_abort( txn );
-	}
-	if ( opinfo.moi_oe.oe_key ) {
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+	if( moi == &opinfo ) {
+		if( txn != NULL ) {
+			mdb_txn_abort( txn );
+		}
+		if ( opinfo.moi_oe.oe_key ) {
+			LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+		}
 	}
 
 	send_ldap_result( op, rs );

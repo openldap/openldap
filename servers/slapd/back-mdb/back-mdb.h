@@ -98,12 +98,14 @@ struct mdb_info {
 #define mi_dn2id	mi_dbis[MDB_DN2ID]
 #define mi_ad2id	mi_dbis[MDB_AD2ID]
 
-struct mdb_op_info {
+typedef struct mdb_op_info {
 	OpExtra		moi_oe;
 	MDB_txn*	moi_txn;
+	int			moi_ref;
 	char		moi_flag;
-};
-#define MOI_DONTFREE	1
+} mdb_op_info;
+#define MOI_READER	0x01
+#define MOI_FREEIT	0x02
 
 /* Copy an ID "src" to pointer "dst" in big-endian byte order */
 #define MDB_ID2DISK( src, dst )	\

@@ -29,8 +29,9 @@ mdb_compare( Operation *op, SlapReply *rs )
 	int		manageDSAit = get_manageDSAit( op );
 
 	MDB_txn		*rtxn;
+	mdb_op_info	opinfo = {0}, *moi = &opinfo;
 
-	rs->sr_err = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
+	rs->sr_err = mdb_opinfo_get(op, mdb, 1, &moi);
 	switch(rs->sr_err) {
 	case 0:
 		break;
@@ -38,6 +39,8 @@ mdb_compare( Operation *op, SlapReply *rs )
 		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
 		return rs->sr_err;
 	}
+
+	rtxn = moi->moi_txn;
 
 	/* get entry */
 	rs->sr_err = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &e, 1 );
@@ -120,6 +123,16 @@ return_results:
 	}
 
 done:
+	moi->moi_ref--;
+	if ( moi->moi_ref < 1 ) {
+		if ( moi->moi_flag & MOI_READER ) {
+			mdb_txn_reset( moi->moi_txn );
+		}	/* writers can abort themselves */
+		LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+		if ( moi->moi_flag & MOI_FREEIT ) {
+			op->o_tmpfree( moi, op->o_tmpmemctx );
+		}
+	}
 	/* free entry */
 	if ( e != NULL ) {
 		mdb_entry_return( e );

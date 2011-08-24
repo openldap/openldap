@@ -174,6 +174,8 @@ int mdb_entry_return( Entry *e );
 BI_entry_release_rw mdb_entry_release;
 BI_entry_get_rw mdb_entry_get;
 
+void mdb_reader_flush( MDB_env *env );
+int mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **moi );
 
 /*
  * idl.c

@@ -32,6 +32,7 @@ mdb_bind( Operation *op, SlapReply *rs )
 	AttributeDescription *password = slap_schema.si_ad_userPassword;
 
 	MDB_txn		*rtxn;
+	mdb_op_info	opinfo = {0}, *moi = &opinfo;
 
 	Debug( LDAP_DEBUG_ARGS,
 		"==> " LDAP_XSTRING(mdb_bind) ": dn: %s\n",
@@ -53,7 +54,7 @@ mdb_bind( Operation *op, SlapReply *rs )
 		break;
 	}
 
-	rs->sr_err = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
+	rs->sr_err = mdb_opinfo_get(op, mdb, 1, &moi);
 	switch(rs->sr_err) {
 	case 0:
 		break;
@@ -63,22 +64,24 @@ mdb_bind( Operation *op, SlapReply *rs )
 		return rs->sr_err;
 	}
 
+	rtxn = moi->moi_txn;
+
 	/* get entry with reader lock */
 	rs->sr_err = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &e, 0 );
 
 	switch(rs->sr_err) {
 	case MDB_NOTFOUND:
 		rs->sr_err = LDAP_INVALID_CREDENTIALS;
-		send_ldap_result( op, rs );
-		return rs->sr_err;
+		goto done;
 	case 0:
 		break;
 	case LDAP_BUSY:
-		send_ldap_error( op, rs, LDAP_BUSY, "ldap_server_busy" );
-		return LDAP_BUSY;
+		rs->sr_text = "ldap_server_busy";
+		goto done;
 	default:
-		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
-		return rs->sr_err;
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "internal error";
+		goto done;
 	}
 
 	ber_dupbv( &op->oq_bind.rb_edn, &e->e_name );
@@ -132,6 +135,16 @@ mdb_bind( Operation *op, SlapReply *rs )
 	}
 
 done:
+	moi->moi_ref--;
+	if ( moi->moi_ref < 1 ) {
+		if ( moi->moi_flag & MOI_READER ) {
+			mdb_txn_reset( moi->moi_txn );
+		}	/* writers can abort themselves */
+		LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+		if ( moi->moi_flag & MOI_FREEIT ) {
+			op->o_tmpfree( moi, op->o_tmpmemctx );
+		}
+	}
 	/* free entry and reader lock */
 	if( e != NULL ) {
 		mdb_entry_return( e );

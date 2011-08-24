@@ -247,11 +247,9 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 
 	mdb->mi_flags &= ~MDB_IS_OPEN;
 
-#if 0
 	if( mdb->mi_dbenv ) {
 		mdb_reader_flush( mdb->mi_dbenv );
 	}
-#endif
 
 	if ( mdb->mi_dbenv ) {
 		if ( mdb->mi_dbis[0] ) {

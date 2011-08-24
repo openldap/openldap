@@ -33,7 +33,7 @@ mdb_add(Operation *op, SlapReply *rs )
 	AttributeDescription *entry = slap_schema.si_ad_entry;
 	MDB_txn		*txn = NULL;
 	ID eid = NOID, pid = 0;
-	struct mdb_op_info opinfo = {{{ 0 }}};
+	mdb_op_info opinfo = {{{ 0 }}}, *moi = &opinfo;
 	int subentry;
 
 	int		success;
@@ -119,7 +119,7 @@ txnReturn:
 	subentry = is_entry_subentry( op->ora_e );
 
 	/* begin transaction */
-	rs->sr_err = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
+	rs->sr_err = mdb_opinfo_get( op, mdb, 0, &moi );
 	rs->sr_text = NULL;
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
@@ -130,9 +130,7 @@ txnReturn:
 		goto return_results;
 	}
 
-	opinfo.moi_oe.oe_key = mdb;
-	opinfo.moi_txn = txn;
-	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
+	txn = moi->moi_txn;
 
 	/*
 	 * Get the parent dn and see if the corresponding entry exists.
@@ -371,25 +369,26 @@ txnReturn:
 		}
 	}
 
-	if ( op->o_noop ) {
-		mdb_txn_abort( txn );
-		rs->sr_err = LDAP_X_NO_OPERATION;
+	if ( moi == &opinfo ) {
+		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+		opinfo.moi_oe.oe_key = NULL;
+		if ( op->o_noop ) {
+			mdb_txn_abort( txn );
+			rs->sr_err = LDAP_X_NO_OPERATION;
+			txn = NULL;
+			goto return_results;
+		}
+
+		if (( rs->sr_err = mdb_txn_commit( txn )) != 0 ) {
+			rs->sr_text = "txn_commit failed";
+			Debug( LDAP_DEBUG_TRACE,
+				LDAP_XSTRING(mdb_add) ": %s : %s (%d)\n",
+				rs->sr_text, mdb_strerror(rs->sr_err), rs->sr_err );
+			rs->sr_err = LDAP_OTHER;
+			goto return_results;
+		}
 		txn = NULL;
-		goto return_results;
 	}
-
-	if (( rs->sr_err = mdb_txn_commit( txn )) != 0 ) {
-		rs->sr_text = "txn_commit failed";
-		Debug( LDAP_DEBUG_TRACE,
-			LDAP_XSTRING(mdb_add) ": %s : %s (%d)\n",
-			rs->sr_text, mdb_strerror(rs->sr_err), rs->sr_err );
-		rs->sr_err = LDAP_OTHER;
-		goto return_results;
-	}
-	txn = NULL;
-
-	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
-	opinfo.moi_oe.oe_key = NULL;
 
 	Debug(LDAP_DEBUG_TRACE,
 		LDAP_XSTRING(mdb_add) ": added%s id=%08lx dn=\"%s\"\n",
@@ -403,11 +402,13 @@ return_results:
 	success = rs->sr_err;
 	send_ldap_result( op, rs );
 
-	if( txn != NULL ) {
-		mdb_txn_abort( txn );
-	}
-	if ( opinfo.moi_oe.oe_key ) {
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+	if( moi == &opinfo ) {
+		if( txn != NULL ) {
+			mdb_txn_abort( txn );
+		}
+		if ( opinfo.moi_oe.oe_key ) {
+			LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+		}
 	}
 
 	if( success == LDAP_SUCCESS ) {

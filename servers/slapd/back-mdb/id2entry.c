@@ -154,60 +154,33 @@ int mdb_entry_release(
 	Entry *e,
 	int rw )
 {
-#if 0
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	struct mdb_op_info *moi;
-	OpExtra *oex;
+	struct mdb_op_info *moi = NULL;
+	MDB_txn *txn = NULL;
+	int rc;
  
 	/* slapMode : SLAP_SERVER_MODE, SLAP_TOOL_MODE,
 			SLAP_TRUNCATE_MODE, SLAP_UNDEFINED_MODE */
  
+	mdb_entry_return ( e );
 	if ( slapMode == SLAP_SERVER_MODE ) {
-		/* If not in our cache, just free it */
-		if ( !e->e_private ) {
-			return mdb_entry_return( e );
-		}
-		/* free entry and reader or writer lock */
-		LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
-			if ( oex->oe_key == mdb ) break;
-		}
-		moi = (struct mdb_op_info *)oex;
+		rc = mdb_opinfo_get( op, mdb, 1, &moi );
+		if ( rc )
+			return rc;
 
-		/* lock is freed with txn */
-		if ( !moi || moi->moi_txn ) {
-			mdb_unlocked_cache_return_entry_rw( mdb, e, rw );
-		} else {
-			struct mdb_lock_info *bli, *prev;
-			for ( prev=(struct mdb_lock_info *)&moi->boi_locks,
-				bli = boi->boi_locks; bli; prev=bli, bli=bli->bli_next ) {
-				if ( bli->bli_id == e->e_id ) {
-					mdb_cache_return_entry_rw( mdb, e, rw, &bli->bli_lock );
-					prev->bli_next = bli->bli_next;
-					/* Cleanup, or let caller know we unlocked */
-					if ( bli->bli_flag & BLI_DONTFREE )
-						bli->bli_flag = 0;
-					else
-						op->o_tmpfree( bli, op->o_tmpmemctx );
-					break;
-				}
+		moi->moi_ref--;
+		if ( moi->moi_ref < 1 ) {
+			if ( moi->moi_flag & MOI_READER ) {
+				mdb_txn_reset( moi->moi_txn );
 			}
-			if ( !boi->boi_locks ) {
-				LDAP_SLIST_REMOVE( &op->o_extra, &boi->boi_oe, OpExtra, oe_next );
-				if ( !(boi->boi_flag & BOI_DONTFREE))
-					op->o_tmpfree( boi, op->o_tmpmemctx );
+			LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+			if ( moi->moi_flag & MOI_FREEIT ) {
+				op->o_tmpfree( moi, op->o_tmpmemctx );
 			}
 		}
-	} else {
-		if (e->e_private != NULL)
-			BEI(e)->bei_e = NULL;
-		e->e_private = NULL;
-		mdb_entry_return ( e );
 	}
  
 	return 0;
-#else
-	return mdb_entry_return( e );
-#endif
 }
 
 /* return LDAP_SUCCESS IFF we can retrieve the specified entry.
@@ -233,25 +206,10 @@ int mdb_entry_get(
 		"=> mdb_entry_get: oc: \"%s\", at: \"%s\"\n",
 		oc ? oc->soc_cname.bv_val : "(null)", at_name, 0);
 
-	if( op ) {
-		OpExtra *oex;
-		LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
-			if ( oex->oe_key == mdb ) break;
-		}
-		moi = (struct mdb_op_info *)oex;
-		if ( moi )
-			txn = moi->moi_txn;
-	}
-
-	if ( !txn ) {
-		rc = mdb_reader_get( op, mdb->mi_dbenv, &txn );
-		switch(rc) {
-		case 0:
-			break;
-		default:
-			return LDAP_OTHER;
-		}
-	}
+	rc = mdb_opinfo_get( op, mdb, 0, &moi );
+	if ( rc )
+		return LDAP_OTHER;
+	txn = moi->moi_txn;
 
 	/* can we find entry */
 	rc = mdb_dn2entry( op, txn, ndn, &e, 0 );
@@ -303,4 +261,130 @@ return_results:
 		"mdb_entry_get: rc=%d\n",
 		rc, 0, 0 ); 
 	return(rc);
+}
+
+static void
+mdb_reader_free( void *key, void *data )
+{
+	MDB_txn *txn = data;
+
+	if ( txn ) mdb_txn_abort( txn );
+}
+
+/* free up any keys used by the main thread */
+void
+mdb_reader_flush( MDB_env *env )
+{
+	void *data;
+	void *ctx = ldap_pvt_thread_pool_context();
+
+	if ( !ldap_pvt_thread_pool_getkey( ctx, env, &data, NULL ) ) {
+		ldap_pvt_thread_pool_setkey( ctx, env, NULL, 0, NULL, NULL );
+		mdb_reader_free( env, data );
+	}
+}
+
+int
+mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **moip )
+{
+	int rc;
+	void *data;
+	void *ctx;
+	mdb_op_info *moi = NULL;
+	OpExtra *oex;
+
+	if ( !mdb || !moip ) return -1;
+
+	/* If no op was provided, try to find the ctx anyway... */
+	if ( op ) {
+		ctx = op->o_threadctx;
+	} else {
+		ctx = ldap_pvt_thread_pool_context();
+	}
+
+	if ( op ) {
+		LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
+			if ( oex->oe_key == mdb ) break;
+		}
+		moi = (mdb_op_info *)oex;
+	}
+
+	if ( !moi ) {
+		moi = *moip;
+
+		if ( !moi ) {
+			if ( op ) {
+				moi = op->o_tmpalloc(sizeof(struct mdb_op_info),op->o_tmpmemctx);
+				LDAP_SLIST_INSERT_HEAD( &op->o_extra, &moi->moi_oe, oe_next );
+			} else {
+				moi = ch_malloc(sizeof(mdb_op_info));
+			}
+			moi->moi_flag = MOI_FREEIT;
+			*moip = moi;
+		}
+		moi->moi_oe.oe_key = mdb;
+		moi->moi_ref = 0;
+		moi->moi_txn = NULL;
+	}
+
+	if ( !rdonly ) {
+		/* This op started as a reader, but now wants to write. */
+		if ( moi->moi_flag & MOI_READER ) {
+			moi = *moip;
+			LDAP_SLIST_INSERT_HEAD( &op->o_extra, &moi->moi_oe, oe_next );
+		} else {
+		/* This op is continuing an existing write txn */
+			*moip = moi;
+		}
+		moi->moi_ref++;
+		if ( !moi->moi_txn ) {
+			rc = mdb_txn_begin( mdb->mi_dbenv, 1, &moi->moi_txn );
+			if (rc) {
+				Debug( LDAP_DEBUG_ANY, "mdb_opinfo_get: err %s(%d)\n",
+					mdb_strerror(rc), rc, 0 );
+			}
+			return rc;
+		}
+		return 0;
+	}
+
+	/* OK, this is a reader */
+	if ( !moi->moi_txn ) {
+		if ( !ctx ) {
+			/* Shouldn't happen unless we're single-threaded */
+			rc = mdb_txn_begin( mdb->mi_dbenv, 1, &moi->moi_txn );
+			if (rc) {
+				Debug( LDAP_DEBUG_ANY, "mdb_opinfo_get: err %s(%d)\n",
+					mdb_strerror(rc), rc, 0 );
+			}
+			return rc;
+		}
+		if ( ldap_pvt_thread_pool_getkey( ctx, mdb->mi_dbenv, &data, NULL ) ) {
+			rc = mdb_txn_begin( mdb->mi_dbenv, 1, &moi->moi_txn );
+			if (rc) {
+				Debug( LDAP_DEBUG_ANY, "mdb_opinfo_get: err %s(%d)\n",
+					mdb_strerror(rc), rc, 0 );
+				return rc;
+			}
+			data = moi->moi_txn;
+			if ( ( rc = ldap_pvt_thread_pool_setkey( ctx, mdb->mi_dbenv,
+				data, mdb_reader_free, NULL, NULL ) ) ) {
+				mdb_txn_abort( moi->moi_txn );
+				moi->moi_txn = NULL;
+				Debug( LDAP_DEBUG_ANY, "mdb_opinfo_get: thread_pool_setkey failed err (%d)\n",
+					rc, 0, 0 );
+				return rc;
+			}
+		} else {
+			moi->moi_txn = data;
+		}
+	} else {
+		if ( moi->moi_ref < 1 ) {
+			moi->moi_ref = 0;
+			mdb_txn_renew( moi->moi_txn );
+		}
+	}
+	moi->moi_ref++;
+
+	return 0;
 }

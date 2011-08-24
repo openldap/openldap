@@ -28,6 +28,7 @@ mdb_referrals( Operation *op, SlapReply *rs )
 	int rc = LDAP_SUCCESS;
 
 	MDB_txn		*rtxn;
+	mdb_op_info	opinfo = {0}, *moi = &opinfo;
 
 	if( op->o_tag == LDAP_REQ_SEARCH ) {
 		/* let search take care of itself */
@@ -39,13 +40,15 @@ mdb_referrals( Operation *op, SlapReply *rs )
 		return rc;
 	} 
 
-	rc = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
+	rc = mdb_opinfo_get(op, mdb, 1, &moi);
 	switch(rc) {
 	case 0:
 		break;
 	default:
 		return LDAP_OTHER;
 	}
+
+	rtxn = moi->moi_txn;
 
 	/* get entry */
 	rc = mdb_dn2entry( op, rtxn, &op->o_req_ndn, &e, 1 );
@@ -56,14 +59,15 @@ mdb_referrals( Operation *op, SlapReply *rs )
 		break;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
-		return LDAP_BUSY;
+		goto done;
 	default:
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_referrals)
 			": dn2entry failed: %s (%d)\n",
 			mdb_strerror(rc), rc, 0 );
 		rs->sr_text = "internal error";
-		return LDAP_OTHER;
+		rc = LDAP_OTHER;
+		goto done;
 	}
 
 	if ( rc == MDB_NOTFOUND ) {
@@ -105,7 +109,7 @@ mdb_referrals( Operation *op, SlapReply *rs )
 			op->o_tmpfree( (char *)rs->sr_matched, op->o_tmpmemctx );
 			rs->sr_matched = NULL;
 		}
-		return rc;
+		goto done;
 	}
 
 	if ( is_entry_referral( e ) ) {
@@ -134,6 +138,17 @@ mdb_referrals( Operation *op, SlapReply *rs )
 		ber_bvarray_free( refs );
 	}
 
+done:
+	moi->moi_ref--;
+	if ( moi->moi_ref < 1 ) {
+		if ( moi->moi_flag & MOI_READER ) {
+			mdb_txn_reset( moi->moi_txn );
+		}	/* writers can abort themselves */
+		LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+		if ( moi->moi_flag & MOI_FREEIT ) {
+			op->o_tmpfree( moi, op->o_tmpmemctx );
+		}
+	}
 	mdb_entry_return( e );
 	return rc;
 }

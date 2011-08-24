@@ -35,28 +35,22 @@ mdb_hasSubordinates(
 	int		*hasSubordinates )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
-	struct mdb_op_info	*opinfo;
-	OpExtra *oex;
 	MDB_txn		*rtxn;
+	mdb_op_info	opinfo = {0}, *moi = &opinfo;
 	int		rc;
 	
 	assert( e != NULL );
 
-	/* Check for a txn in a parent op, otherwise use reader txn */
-	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
-		if ( oex->oe_key == mdb )
-			break;
+	rc = mdb_opinfo_get(op, mdb, 1, &moi);
+	switch(rc) {
+	case 0:
+		break;
+	default:
+		rc = LDAP_OTHER;
+		goto done;
 	}
-	opinfo = (struct mdb_op_info *) oex;
-	if ( opinfo && opinfo->moi_txn ) {
-		rtxn = opinfo->moi_txn;
-	} else {
-		rc = mdb_reader_get(op, mdb->mi_dbenv, &rtxn);
-		if ( rc ) {
-			rc = LDAP_OTHER;
-			goto done;
-		}
-	}
+
+	rtxn = moi->moi_txn;
 
 	rc = mdb_dn2id_children( op, rtxn, e );
 
@@ -79,6 +73,16 @@ mdb_hasSubordinates(
 	}
 
 done:;
+	moi->moi_ref--;
+	if ( moi->moi_ref < 1 ) {
+		if ( moi->moi_flag & MOI_READER ) {
+			mdb_txn_reset( moi->moi_txn );
+		}	/* writers can abort themselves */
+		LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+		if ( moi->moi_flag & MOI_FREEIT ) {
+			op->o_tmpfree( moi, op->o_tmpmemctx );
+		}
+	}
 	return rc;
 }
 

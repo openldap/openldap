@@ -293,35 +293,25 @@ mdb_search( Operation *op, SlapReply *rs )
 	int		manageDSAit;
 	int		tentries = 0;
 
-	struct	mdb_op_info	*opinfo = NULL;
+	mdb_op_info	opinfo = {0}, *moi = &opinfo;
 	MDB_txn			*ltid = NULL;
 	MDB_cursor	*idcursor = NULL;
-	OpExtra *oex;
 
 	Debug( LDAP_DEBUG_TRACE, "=> " LDAP_XSTRING(mdb_search) "\n", 0, 0, 0);
 	attrs = op->oq_search.rs_attrs;
 
-	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
-		if ( oex->oe_key == mdb )
-			break;
-	}
-	opinfo = (struct mdb_op_info *) oex;
-
 	manageDSAit = get_manageDSAit( op );
 
-	if ( opinfo && opinfo->moi_txn ) {
-		ltid = opinfo->moi_txn;
-	} else {
-		rs->sr_err = mdb_reader_get( op, mdb->mi_dbenv, &ltid );
-
-		switch(rs->sr_err) {
-		case 0:
-			break;
-		default:
-			send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
-			return rs->sr_err;
-		}
+	rs->sr_err = mdb_opinfo_get( op, mdb, 1, &moi );
+	switch(rs->sr_err) {
+	case 0:
+		break;
+	default:
+		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
+		return rs->sr_err;
 	}
+
+	ltid = moi->moi_txn;
 
 	if ( op->ors_deref & LDAP_DEREF_FINDING ) {
 		MDB_IDL_ZERO(candidates);
@@ -338,10 +328,10 @@ dn2entry_retry:
 		break;
 	case LDAP_BUSY:
 		send_ldap_error( op, rs, LDAP_BUSY, "ldap server busy" );
-		return LDAP_BUSY;
+		goto done;
 	default:
 		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
-		return rs->sr_err;
+		goto done;
 	}
 
 	if ( op->ors_deref & LDAP_DEREF_FINDING ) {
@@ -415,7 +405,7 @@ dn2entry_retry:
 			ber_memfree( matched_dn.bv_val );
 			rs->sr_matched = NULL;
 		}
-		return rs->sr_err;
+		goto done;
 	}
 
 	/* NOTE: __NEW__ "search" access is required
@@ -431,7 +421,7 @@ dn2entry_retry:
 
 		mdb_entry_return(e);
 		send_ldap_result( op, rs );
-		return rs->sr_err;
+		goto done;
 	}
 
 	if ( !manageDSAit && is_entry_referral( e ) ) {
@@ -468,7 +458,7 @@ dn2entry_retry:
 		rs->sr_ref = NULL;
 		ber_memfree( matched_dn.bv_val );
 		rs->sr_matched = NULL;
-		return 1;
+		goto done;
 	}
 
 	if ( get_assert( op ) &&
@@ -477,7 +467,7 @@ dn2entry_retry:
 		rs->sr_err = LDAP_ASSERTION_FAILED;
 		mdb_entry_return(e);
 		send_ldap_result( op, rs );
-		return 1;
+		goto done;
 	}
 
 	/* compute it anyway; root does not use it */
@@ -820,6 +810,16 @@ nochange:
 	rs->sr_err = LDAP_SUCCESS;
 
 done:
+	moi->moi_ref--;
+	if ( moi->moi_ref < 1 ) {
+		if ( moi->moi_flag & MOI_READER ) {
+			mdb_txn_reset( moi->moi_txn );
+		}	/* writers can abort themselves */
+		LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+		if ( moi->moi_flag & MOI_FREEIT ) {
+			op->o_tmpfree( moi, op->o_tmpmemctx );
+		}
+	}
 	if( idcursor )
 		mdb_cursor_close( idcursor );
 	if( rs->sr_v2ref ) {

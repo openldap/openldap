@@ -402,7 +402,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 	char textbuf[SLAP_TEXT_BUFLEN];
 	size_t textlen = sizeof textbuf;
 	MDB_txn	*txn = NULL;
-	struct mdb_op_info opinfo = {{{ 0 }}};
+	mdb_op_info opinfo = {{{ 0 }}}, *moi = &opinfo;
 	Entry		dummy = {0};
 
 	LDAPControl **preread_ctrl = NULL;
@@ -466,7 +466,7 @@ txnReturn:
 	}
 
 	/* begin transaction */
-	rs->sr_err = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
+	rs->sr_err = mdb_opinfo_get( op, mdb, 0, &moi );
 	rs->sr_text = NULL;
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
@@ -477,9 +477,7 @@ txnReturn:
 		goto return_results;
 	}
 
-	opinfo.moi_oe.oe_key = mdb;
-	opinfo.moi_txn = txn;
-	LDAP_SLIST_INSERT_HEAD( &op->o_extra, &opinfo.moi_oe, oe_next );
+	txn = moi->moi_txn;
 
 	/* get entry or ancestor */
 	rs->sr_err = mdb_dn2entry( op, txn, &op->o_req_ndn, &e, 1 );
@@ -610,21 +608,23 @@ txnReturn:
 		}
 	}
 
-	if( op->o_noop ) {
-		mdb_txn_abort( txn );
-		rs->sr_err = LDAP_X_NO_OPERATION;
-		txn = NULL;
-		/* Only free attrs if they were dup'd.  */
-		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
-		goto return_results;
-	} else {
-		dummy.e_attrs = NULL;
+	if( moi == &opinfo ) {
+		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+		opinfo.moi_oe.oe_key = NULL;
+		if( op->o_noop ) {
+			mdb_txn_abort( txn );
+			rs->sr_err = LDAP_X_NO_OPERATION;
+			txn = NULL;
+			/* Only free attrs if they were dup'd.  */
+			if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
+			goto return_results;
+		} else {
+			dummy.e_attrs = NULL;
 
-		rs->sr_err = mdb_txn_commit( txn );
+			rs->sr_err = mdb_txn_commit( txn );
+			txn = NULL;
+		}
 	}
-	txn = NULL;
-	LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
-	opinfo.moi_oe.oe_key = NULL;
 
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_TRACE,
@@ -662,11 +662,13 @@ return_results:
 done:
 	slap_graduate_commit_csn( op );
 
-	if( txn != NULL ) {
-		mdb_txn_abort( txn );
-	}
-	if ( opinfo.moi_oe.oe_key ) {
-		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+	if( moi == &opinfo ) {
+		if( txn != NULL ) {
+			mdb_txn_abort( txn );
+		}
+		if ( opinfo.moi_oe.oe_key ) {
+			LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
+		}
 	}
 
 	if( e != NULL ) {
