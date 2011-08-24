@@ -24,7 +24,7 @@
 #include "back-mdb.h"
 #include "idl.h"
 
-static MDB_txn *txn = NULL;
+static MDB_txn *txn = NULL, *txi = NULL;
 static MDB_cursor *cursor = NULL, *idcursor = NULL;
 static MDB_val key, data;
 static EntryHeader eh;
@@ -328,6 +328,9 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 	if ( !BER_BVISNULL( &dn )) {
 		e->e_name = dn;
 		e->e_nname = ndn;
+	} else {
+		e->e_name.bv_val = NULL;
+		e->e_nname.bv_val = NULL;
 	}
 	e->e_bv = eh.bv;
 
@@ -551,20 +554,17 @@ ID mdb_tool_entry_put(
 		goto done;
 	}
 
-#if 0
-	if ( !mdb->bi_linear_index )
-		rc = mdb_tool_index_add( &op, tid, e );
+	rc = mdb_tool_index_add( &op, txn, e );
 	if( rc != 0 ) {
 		snprintf( text->bv_val, text->bv_len,
 				"index_entry_add failed: %s (%d)",
 				rc == LDAP_OTHER ? "Internal error" :
-				db_strerror(rc), rc );
+				mdb_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_put) ": %s\n",
 			text->bv_val, 0, 0 );
 		goto done;
 	}
-#endif
 
 
 	/* id2entry index */
@@ -621,7 +621,6 @@ int mdb_tool_entry_reindex(
 	struct mdb_info *mi = (struct mdb_info *) be->be_private;
 	int rc;
 	Entry *e;
-	MDB_txn *tid = NULL;
 	Operation op = {0};
 	Opheader ohdr = {0};
 
@@ -689,8 +688,8 @@ int mdb_tool_entry_reindex(
 		return -1;
 	}
 
-	if ( !txn ) {
-		rc = mdb_txn_begin( mi->mi_dbenv, 0, &tid );
+	if ( !txi ) {
+		rc = mdb_txn_begin( mi->mi_dbenv, 0, &txi );
 		if( rc != 0 ) {
 			Debug( LDAP_DEBUG_ANY,
 				"=> " LDAP_XSTRING(mdb_tool_entry_reindex) ": "
@@ -716,13 +715,13 @@ int mdb_tool_entry_reindex(
 	op.o_tmpmemctx = NULL;
 	op.o_tmpmfuncs = &ch_mfuncs;
 
-	rc = mdb_tool_index_add( &op, tid, e );
+	rc = mdb_tool_index_add( &op, txi, e );
 
 done:
 	if( rc == 0 ) {
 		mdb_writes++;
 		if ( mdb_writes >= mdb_writes_per_commit ) {
-			rc = mdb_txn_commit( tid );
+			rc = mdb_txn_commit( txi );
 			if( rc != 0 ) {
 				Debug( LDAP_DEBUG_ANY,
 					"=> " LDAP_XSTRING(mdb_tool_entry_reindex)
@@ -730,15 +729,17 @@ done:
 					mdb_strerror(rc), rc, 0 );
 				e->e_id = NOID;
 			}
+			txi = NULL;
 		}
 
 	} else {
-		mdb_txn_abort( tid );
+		mdb_txn_abort( txi );
 		Debug( LDAP_DEBUG_ANY,
 			"=> " LDAP_XSTRING(mdb_tool_entry_reindex)
 			": txn_aborted! %s (%d)\n",
 			mdb_strerror(rc), rc, 0 );
 		e->e_id = NOID;
+		txi = NULL;
 	}
 	mdb_entry_release( &op, e, 0 );
 

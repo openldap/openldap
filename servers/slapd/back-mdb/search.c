@@ -665,8 +665,13 @@ loop_begin:
 			if ( id == base.e_id ) break;
 			/* Fall-thru */
 #endif
-		case LDAP_SCOPE_ONELEVEL:
 		case LDAP_SCOPE_SUBTREE:
+			if ( id == base.e_id ) {
+				scopeok = 1;
+				break;
+			}
+			/* Fall-thru */
+		case LDAP_SCOPE_ONELEVEL:
 			if ( mdb_idscopes( op, ltid, &idcursor, id, scopes ) == MDB_SUCCESS ) scopeok = 1;
 			break;
 		}

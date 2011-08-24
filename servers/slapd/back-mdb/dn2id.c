@@ -310,13 +310,6 @@ mdb_dn2id(
 		data.mv_data = d;
 		rc = mdb_cursor_get( cursor, &key, &data, MDB_GET_BOTH );
 		op->o_tmpfree( d, op->o_tmpmemctx );
-		if ( rc == MDB_NOTFOUND ) {
-			if ( matched && matched->bv_len ) {
-				ptr = op->o_tmpalloc( matched->bv_len+1, op->o_tmpmemctx );
-				strcpy( ptr, matched->bv_val );
-				matched->bv_val = ptr;
-			}
-		}
 		if ( rc ) {
 			mdb_cursor_close( cursor );
 			break;
@@ -350,6 +343,11 @@ mdb_dn2id(
 		}
 	}
 	*id = nid; 
+	if ( matched && matched->bv_len ) {
+		ptr = op->o_tmpalloc( matched->bv_len+1, op->o_tmpmemctx );
+		strcpy( ptr, matched->bv_val );
+		matched->bv_val = ptr;
+	}
 
 done:
 	if( rc != 0 ) {
@@ -597,7 +595,6 @@ mdb_id2name(
 		memcpy( nname->bv_val, ndn, nname->bv_len );
 		nname->bv_val[nname->bv_len] = '\0';
 	}
-	mdb_cursor_close( cursor );
 	return rc;
 }
 

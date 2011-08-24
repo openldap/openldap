@@ -115,6 +115,8 @@ int mdb_id2entry(
 	if( rc == 0 ) {
 		(*e)->e_id = id;
 		(*e)->e_bv = eh.bv;
+		(*e)->e_name.bv_val = NULL;
+		(*e)->e_nname.bv_val = NULL;
 	} else {
 		ch_free( eh.bv.bv_val );
 	}
@@ -156,7 +158,6 @@ int mdb_entry_release(
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	struct mdb_op_info *moi = NULL;
-	MDB_txn *txn = NULL;
 	int rc;
  
 	/* slapMode : SLAP_SERVER_MODE, SLAP_TOOL_MODE,
@@ -293,6 +294,8 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 	mdb_op_info *moi = NULL;
 	OpExtra *oex;
 
+	assert( op != NULL );
+
 	if ( !mdb || !moip ) return -1;
 
 	/* If no op was provided, try to find the ctx anyway... */
@@ -315,13 +318,13 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 		if ( !moi ) {
 			if ( op ) {
 				moi = op->o_tmpalloc(sizeof(struct mdb_op_info),op->o_tmpmemctx);
-				LDAP_SLIST_INSERT_HEAD( &op->o_extra, &moi->moi_oe, oe_next );
 			} else {
 				moi = ch_malloc(sizeof(mdb_op_info));
 			}
 			moi->moi_flag = MOI_FREEIT;
 			*moip = moi;
 		}
+		LDAP_SLIST_INSERT_HEAD( &op->o_extra, &moi->moi_oe, oe_next );
 		moi->moi_oe.oe_key = mdb;
 		moi->moi_ref = 0;
 		moi->moi_txn = NULL;
@@ -378,6 +381,7 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 		} else {
 			moi->moi_txn = data;
 		}
+		moi->moi_flag |= MOI_READER;
 	} else {
 		if ( moi->moi_ref < 1 ) {
 			moi->moi_ref = 0;

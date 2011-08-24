@@ -358,6 +358,7 @@ mdb_attr_index_config(
 		a->ai_cr = NULL;
 #endif
 		a->ai_desc = ad;
+		a->ai_dbi = 0;
 
 		if ( mdb->mi_flags & MDB_IS_OPEN ) {
 			a->ai_indexmask = 0;
