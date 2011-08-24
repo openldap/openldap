@@ -118,7 +118,7 @@ txnReturn:
 
 	txn = moi->moi_txn;
 
-	if ( be_issuffix( op->o_bd, &e->e_nname ) ) {
+	if ( be_issuffix( op->o_bd, &op->o_req_ndn ) ) {
 #ifdef MDB_MULTIPLE_SUFFIXES
 		/* Allow renaming one suffix entry to another */
 		p_ndn = slap_empty_bv;
@@ -129,7 +129,7 @@ txnReturn:
 		goto return_results;
 #endif
 	} else {
-		dnParent( &e->e_nname, &p_ndn );
+		dnParent( &op->o_req_ndn, &p_ndn );
 	}
 	np_ndn = &p_ndn;
 	/* Make sure parent entry exist and we can write its
@@ -176,7 +176,7 @@ txnReturn:
 	if ( p_ndn.bv_val == slap_empty_bv.bv_val ) {
 		p_dn = slap_empty_bv;
 	} else {
-		dnParent( &e->e_name, &p_dn );
+		dnParent( &op->o_req_dn, &p_dn );
 	}
 
 	Debug( LDAP_DEBUG_TRACE,

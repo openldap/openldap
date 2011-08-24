@@ -149,6 +149,7 @@ done:
 			op->o_tmpfree( moi, op->o_tmpmemctx );
 		}
 	}
-	mdb_entry_return( e );
+	if ( e )
+		mdb_entry_return( e );
 	return rc;
 }
