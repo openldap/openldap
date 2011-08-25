@@ -165,18 +165,21 @@ int mdb_entry_release(
  
 	mdb_entry_return ( e );
 	if ( slapMode == SLAP_SERVER_MODE ) {
-		rc = mdb_opinfo_get( op, mdb, 1, &moi );
-		if ( rc )
-			return rc;
-
-		moi->moi_ref--;
-		if ( moi->moi_ref < 1 ) {
-			if ( moi->moi_flag & MOI_READER ) {
-				mdb_txn_reset( moi->moi_txn );
-			}
-			LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
-			if ( moi->moi_flag & MOI_FREEIT ) {
-				op->o_tmpfree( moi, op->o_tmpmemctx );
+		OpExtra *oex;
+		LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
+			if ( oex->oe_key == mdb ) {
+				moi = (mdb_op_info *)oex;
+				/* If it was setup by entry_get we should probably free it */
+				if ( moi->moi_flag & MOI_FREEIT ) {
+					moi->moi_ref--;
+					if ( moi->moi_ref < 1 ) {
+						mdb_txn_reset( moi->moi_txn );
+						moi->moi_ref = 0;
+						LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+						op->o_tmpfree( moi, op->o_tmpmemctx );
+					}
+				}
+				break;
 			}
 		}
 	}
@@ -382,11 +385,10 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 			moi->moi_txn = data;
 		}
 		moi->moi_flag |= MOI_READER;
-	} else {
-		if ( moi->moi_ref < 1 ) {
-			moi->moi_ref = 0;
-			mdb_txn_renew( moi->moi_txn );
-		}
+	}
+	if ( moi->moi_ref < 1 ) {
+		moi->moi_ref = 0;
+		mdb_txn_renew( moi->moi_txn );
 	}
 	moi->moi_ref++;
 
