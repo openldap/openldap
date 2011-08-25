@@ -136,18 +136,18 @@ txnReturn:
 			"<=- " LDAP_XSTRING(mdb_delete) ": no such object %s\n",
 			op->o_req_dn.bv_val, 0, 0);
 
-		if ( !BER_BVISEMPTY( &p->e_name )) {
+		if ( p && !BER_BVISEMPTY( &p->e_name )) {
 			rs->sr_matched = ch_strdup( p->e_name.bv_val );
-			rs->sr_ref = ( p && is_entry_referral( p ))
+			rs->sr_ref = ( is_entry_referral( p ))
 				? get_entry_referrals( op, p )
 				: NULL;
-			if ( p ) {
-				mdb_entry_return( p );
-				p = NULL;
-			}
 		} else {
 			rs->sr_ref = referral_rewrite( default_referral, NULL,
 					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+		}
+		if ( p ) {
+			mdb_entry_return( p );
+			p = NULL;
 		}
 
 		rs->sr_err = LDAP_REFERRAL;
