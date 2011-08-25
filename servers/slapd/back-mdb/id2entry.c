@@ -56,7 +56,7 @@ static int mdb_id2entry_put(
 
 	rc = mdb_put( tid, dbi, &key, &data, flag );
 
-	op->o_tmpfree( op->o_tmpmemctx, bv.bv_val );
+	op->o_tmpfree( bv.bv_val, op->o_tmpmemctx );
 	return rc;
 }
 
@@ -341,7 +341,7 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 		}
 		moi->moi_ref++;
 		if ( !moi->moi_txn ) {
-			rc = mdb_txn_begin( mdb->mi_dbenv, 1, &moi->moi_txn );
+			rc = mdb_txn_begin( mdb->mi_dbenv, 0, &moi->moi_txn );
 			if (rc) {
 				Debug( LDAP_DEBUG_ANY, "mdb_opinfo_get: err %s(%d)\n",
 					mdb_strerror(rc), rc, 0 );
