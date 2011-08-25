@@ -231,6 +231,7 @@ mdb_dn2id_delete(
 	d->nrdnlen[1] = nrlen & 0xff;
 	d->nrdnlen[0] = (nrlen >> 8) | 0x80;
 	memcpy( d->nrdn, e->e_nname.bv_val, nrlen );
+	d->nrdn[nrlen] = '\0';
 	data.mv_data = d;
 
 	/* Delete our ID from the parent's list */
