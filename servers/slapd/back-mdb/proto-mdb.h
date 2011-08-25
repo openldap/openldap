@@ -66,9 +66,10 @@ int mdb_dn2entry LDAP_P(( Operation *op, MDB_txn *tid,
 int mdb_dn2id(
 	Operation *op,
 	MDB_txn *txn,
-	struct berval *dn,
+	struct berval *ndn,
 	ID *id,
-	struct berval *matched );
+	struct berval *matched,
+	struct berval *nmatched );
 
 int mdb_dn2id_add(
 	Operation *op,

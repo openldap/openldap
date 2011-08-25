@@ -415,7 +415,7 @@ txnReturn:
 		new_ndn.bv_val, 0, 0 );
 
 	/* Shortcut the search */
-	rs->sr_err = mdb_dn2id ( op, txn, &new_ndn, &nid, NULL );
+	rs->sr_err = mdb_dn2id ( op, txn, &new_ndn, &nid, NULL, NULL );
 	switch( rs->sr_err ) {
 	case MDB_NOTFOUND:
 		break;

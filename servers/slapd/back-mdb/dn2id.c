@@ -259,7 +259,8 @@ mdb_dn2id(
 	MDB_txn *txn,
 	struct berval	*in,
 	ID	*id,
-	struct berval	*matched )
+	struct berval	*matched,
+	struct berval	*nmatched )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	MDB_cursor *cursor;
@@ -286,6 +287,10 @@ mdb_dn2id(
 		matched->bv_val = dn + sizeof(dn) - 1;
 		matched->bv_len = 0;
 		*matched->bv_val-- = '\0';
+	}
+	if ( nmatched ) {
+		nmatched->bv_len = 0;
+		nmatched->bv_val = 0;
 	}
 
 	nrlen = tmp.bv_len - op->o_bd->be_nsuffix[0].bv_len;
@@ -328,6 +333,10 @@ mdb_dn2id(
 				matched->bv_len++;
 			}
 		}
+		if ( nmatched ) {
+			nmatched->bv_val = tmp.bv_val;
+		}
+
 		if ( tmp.bv_val > in->bv_val ) {
 			for (ptr = tmp.bv_val - 2; ptr > in->bv_val &&
 				!DN_SEPARATOR(*ptr); ptr--)	/* empty */;
@@ -346,6 +355,9 @@ mdb_dn2id(
 		ptr = op->o_tmpalloc( matched->bv_len+1, op->o_tmpmemctx );
 		strcpy( ptr, matched->bv_val );
 		matched->bv_val = ptr;
+	}
+	if ( nmatched ) {
+		nmatched->bv_len = in->bv_len - (nmatched->bv_val - in->bv_val);
 	}
 
 done:

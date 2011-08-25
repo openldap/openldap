@@ -37,14 +37,14 @@ mdb_dn2entry(
 {
 	int rc, rc2;
 	ID id = NOID;
-	struct berval bvm;
+	struct berval mbv, nmbv;
 
 	Debug(LDAP_DEBUG_TRACE, "mdb_dn2entry(\"%s\")\n",
 		dn->bv_val, 0, 0 );
 
 	*e = NULL;
 
-	rc = mdb_dn2id( op, tid, dn, &id, &bvm );
+	rc = mdb_dn2id( op, tid, dn, &id, &mbv, &nmbv );
 	if ( rc ) {
 		if ( matched )
 			rc2 = mdb_id2entry( op, tid, id, e );
@@ -53,9 +53,11 @@ mdb_dn2entry(
 		rc = mdb_id2entry( op, tid, id, e );
 	}
 	if ( *e ) {
-		(*e)->e_name = bvm;
+		(*e)->e_name = mbv;
 		if ( rc == MDB_SUCCESS )
 			ber_dupbv_x( &(*e)->e_nname, dn, op->o_tmpmemctx );
+		else
+			ber_dupbv_x( &(*e)->e_nname, &nmbv, op->o_tmpmemctx );
 	}
 
 	return rc;
