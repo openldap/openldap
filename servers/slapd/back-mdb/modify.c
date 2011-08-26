@@ -608,6 +608,8 @@ txnReturn:
 		}
 	}
 
+	/* Only free attrs if they were dup'd.  */
+	if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
 	if( moi == &opinfo ) {
 		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 		opinfo.moi_oe.oe_key = NULL;
@@ -615,12 +617,8 @@ txnReturn:
 			mdb_txn_abort( txn );
 			rs->sr_err = LDAP_X_NO_OPERATION;
 			txn = NULL;
-			/* Only free attrs if they were dup'd.  */
-			if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
 			goto return_results;
 		} else {
-			dummy.e_attrs = NULL;
-
 			rs->sr_err = mdb_txn_commit( txn );
 			txn = NULL;
 		}
