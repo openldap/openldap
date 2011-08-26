@@ -142,6 +142,7 @@ int mdb_tool_entry_close(
 	if( txn ) {
 		if ( mdb_txn_commit( txn ))
 			return -1;
+		txn = NULL;
 	}
 
 	if( nholes ) {
@@ -151,6 +152,7 @@ int mdb_tool_entry_close(
 			fprintf(stderr, "  entry %ld: %s\n",
 				holes[i].id, holes[i].dn.bv_val);
 		}
+		nholes = 0;
 		return -1;
 	}
 			
@@ -242,6 +244,7 @@ ID mdb_tool_dn2id_get(
 	struct berval *dn
 )
 {
+	struct mdb_info *mdb;
 	Operation op = {0};
 	Opheader ohdr = {0};
 	ID id;
@@ -249,6 +252,14 @@ ID mdb_tool_dn2id_get(
 
 	if ( BER_BVISEMPTY(dn) )
 		return 0;
+
+	mdb = (struct mdb_info *) be->be_private;
+
+	if ( !txn ) {
+		rc = mdb_txn_begin( mdb->mi_dbenv, (slapMode & SLAP_TOOL_READONLY) != 0, &txn );
+		if ( rc )
+			return NOID;
+	}
 
 	op.o_hdr = &ohdr;
 	op.o_bd = be;
