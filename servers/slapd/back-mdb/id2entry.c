@@ -210,7 +210,7 @@ int mdb_entry_get(
 		"=> mdb_entry_get: oc: \"%s\", at: \"%s\"\n",
 		oc ? oc->soc_cname.bv_val : "(null)", at_name, 0);
 
-	rc = mdb_opinfo_get( op, mdb, 0, &moi );
+	rc = mdb_opinfo_get( op, mdb, rw == 0, &moi );
 	if ( rc )
 		return LDAP_OTHER;
 	txn = moi->moi_txn;
@@ -391,6 +391,8 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 		mdb_txn_renew( moi->moi_txn );
 	}
 	moi->moi_ref++;
+	if ( !*moip != moi )
+		*moip = moi;
 
 	return 0;
 }
