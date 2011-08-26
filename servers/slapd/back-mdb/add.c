@@ -166,8 +166,8 @@ txnReturn:
 	if ( !bvmatch( &pdn, &p->e_nname ) ) {
 		rs->sr_matched = ber_strdup_x( p->e_name.bv_val,
 			op->o_tmpmemctx );
-		rs->sr_ref = is_entry_referral( p )
-			? get_entry_referrals( op, p )
+		rs->sr_ref = p != (Entry *)&slap_entry_root &&
+			is_entry_referral( p ) ? get_entry_referrals( op, p )
 			: NULL;
 		if ( p != (Entry *)&slap_entry_root )
 			mdb_entry_return( p );
@@ -245,7 +245,7 @@ txnReturn:
 		/* parent must be an administrative point of the required kind */
 	}
 
-	/* free parent and reader lock */
+	/* free parent */
 	if ( p != (Entry *)&slap_entry_root ) {
 		pid = p->e_id;
 		if ( p->e_nname.bv_len ) {
