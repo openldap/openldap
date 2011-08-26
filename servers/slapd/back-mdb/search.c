@@ -323,6 +323,7 @@ dn2entry_retry:
 	switch(rs->sr_err) {
 	case MDB_NOTFOUND:
 		matched = e;
+		e = NULL;
 		break;
 	case 0:
 		break;
