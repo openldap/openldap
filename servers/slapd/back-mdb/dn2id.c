@@ -276,14 +276,6 @@ mdb_dn2id(
 
 	Debug( LDAP_DEBUG_TRACE, "=> mdb_dn2id(\"%s\")\n", in->bv_val, 0, 0 );
 
-	if ( !in->bv_len ) {
-		*id = 0;
-		nid = 0;
-		goto done;
-	}
-
-	tmp = *in;
-
 	if ( matched ) {
 		matched->bv_val = dn + sizeof(dn) - 1;
 		matched->bv_len = 0;
@@ -294,9 +286,26 @@ mdb_dn2id(
 		nmatched->bv_val = 0;
 	}
 
-	nrlen = tmp.bv_len - op->o_bd->be_nsuffix[0].bv_len;
-	tmp.bv_val += nrlen;
-	tmp.bv_len = op->o_bd->be_nsuffix[0].bv_len;
+	if ( !in->bv_len ) {
+		*id = 0;
+		nid = 0;
+		goto done;
+	}
+
+	tmp = *in;
+
+	if ( op->o_bd->be_nsuffix[0].bv_len ) {
+		nrlen = tmp.bv_len - op->o_bd->be_nsuffix[0].bv_len;
+		tmp.bv_val += nrlen;
+		tmp.bv_len = op->o_bd->be_nsuffix[0].bv_len;
+	} else {
+		for ( ptr = tmp.bv_val + tmp.bv_len - 1; ptr >= tmp.bv_val; ptr-- )
+			if (DN_SEPARATOR(*ptr))
+				break;
+		ptr++;
+		tmp.bv_len -= ptr - tmp.bv_val;
+		tmp.bv_val = ptr;
+	}
 	nid = 0;
 	key.mv_size = sizeof(ID);
 
@@ -352,16 +361,28 @@ mdb_dn2id(
 	}
 	*id = nid; 
 	mdb_cursor_close( cursor );
-	if ( matched && matched->bv_len ) {
-		ptr = op->o_tmpalloc( matched->bv_len+1, op->o_tmpmemctx );
-		strcpy( ptr, matched->bv_val );
-		matched->bv_val = ptr;
+done:
+	if ( matched ) {
+		if ( matched->bv_len ) {
+			ptr = op->o_tmpalloc( matched->bv_len+1, op->o_tmpmemctx );
+			strcpy( ptr, matched->bv_val );
+			matched->bv_val = ptr;
+		} else {
+			if ( BER_BVISEMPTY( &op->o_bd->be_nsuffix[0] ) && !nid ) {
+				ber_dupbv( matched, (struct berval *)&slap_empty_bv );
+			} else {
+				matched->bv_val = NULL;
+			}
+		}
 	}
 	if ( nmatched ) {
-		nmatched->bv_len = in->bv_len - (nmatched->bv_val - in->bv_val);
+		if ( nmatched->bv_val ) {
+			nmatched->bv_len = in->bv_len - (nmatched->bv_val - in->bv_val);
+		} else {
+			*nmatched = slap_empty_bv;
+		}
 	}
 
-done:
 	if( rc != 0 ) {
 		Debug( LDAP_DEBUG_TRACE, "<= mdb_dn2id: get failed: %s (%d)\n",
 			mdb_strerror( rc ), rc, 0 );

@@ -101,6 +101,20 @@ int mdb_id2entry(
 
 	/* fetch it */
 	rc = mdb_get( tid, dbi, &key, &data );
+	if ( rc == MDB_NOTFOUND ) {
+		/* Looking for root entry on an empty-dn suffix? */
+		if ( !id && BER_BVISEMPTY( &op->o_bd->be_nsuffix[0] )) {
+			struct berval gluebv = BER_BVC("glue");
+			Entry *r = entry_alloc();
+
+			r->e_id = 0;
+			attr_merge_one( r, slap_schema.si_ad_objectClass, &gluebv, NULL );
+			attr_merge_one( r, slap_schema.si_ad_structuralObjectClass, &gluebv, NULL );
+			r->e_ocflags = SLAP_OC_GLUE|SLAP_OC__END;
+			*e = r;
+			return MDB_SUCCESS;
+		}
+	}
 	if ( rc ) return rc;
 
 	eh.bv.bv_val = data.mv_data;
