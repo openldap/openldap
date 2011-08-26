@@ -815,15 +815,9 @@ nochange:
 	rs->sr_err = LDAP_SUCCESS;
 
 done:
-	moi->moi_ref--;
-	if ( moi->moi_ref < 1 ) {
-		if ( moi->moi_flag & MOI_READER ) {
-			mdb_txn_reset( moi->moi_txn );
-		}	/* writers can abort themselves */
+	if ( moi == &opinfo ) {
+		mdb_txn_reset( moi->moi_txn );
 		LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
-		if ( moi->moi_flag & MOI_FREEIT ) {
-			op->o_tmpfree( moi, op->o_tmpmemctx );
-		}
 	}
 	if( idcursor )
 		mdb_cursor_close( idcursor );
