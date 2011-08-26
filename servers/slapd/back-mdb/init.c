@@ -394,7 +394,9 @@ mdb_back_initialize(
 
 	bi->bi_extended = mdb_extended;
 
+#if 0	/* FIXME: Redundant, why does this exist? */
 	bi->bi_chk_referrals = mdb_referrals;
+#endif
 	bi->bi_operational = mdb_operational;
 
 	bi->bi_has_subordinates = mdb_hasSubordinates;

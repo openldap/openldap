@@ -575,7 +575,7 @@ mdb_id2name(
 	dptr = dn;
 	nptr = ndn;
 	while (id) {
-		int nrlen, rlen;
+		unsigned int nrlen, rlen;
 		key.mv_data = &id;
 		data.mv_size = 0;
 		data.mv_data = "";
@@ -586,13 +586,14 @@ mdb_id2name(
 		memcpy( &id, ptr, sizeof(ID) );
 		d = data.mv_data;
 		nrlen = (d->nrdnlen[0] << 8) | d->nrdnlen[1];
+		rlen = data.mv_size - sizeof(diskNode) - nrlen;
+		assert( nrlen < 1024 && rlen < 1024 );	/* FIXME: Sanity check */
 		if (nptr > ndn) {
 			*nptr++ = ',';
 			*dptr++ = ',';
 		}
 		/* copy name and trailing NUL */
 		memcpy( nptr, d->nrdn, nrlen+1 );
-		rlen = data.mv_size - sizeof(diskNode) - nrlen;
 		memcpy( dptr, d->nrdn+nrlen+1, rlen+1 );
 		nptr += nrlen;
 		dptr += rlen;

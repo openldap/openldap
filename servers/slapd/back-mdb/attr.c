@@ -109,6 +109,8 @@ mdb_attr_dbs_open(
 				cr->msg, 0, 0 );
 			return rc;
 		}
+	} else {
+		rc = 0;
 	}
 
 	flags = MDB_DUPSORT|MDB_DUPFIXED|MDB_INTEGERDUP;
