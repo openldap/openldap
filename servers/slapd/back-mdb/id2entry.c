@@ -242,7 +242,8 @@ int mdb_entry_get(
 		Debug( LDAP_DEBUG_ACL,
 			"=> mdb_entry_get: cannot find entry: \"%s\"\n",
 				ndn->bv_val, 0, 0 ); 
-		return LDAP_NO_SUCH_OBJECT; 
+		rc = LDAP_NO_SUCH_OBJECT;
+		goto return_results;
 	}
 	
 	Debug( LDAP_DEBUG_ACL,
@@ -269,10 +270,16 @@ int mdb_entry_get(
 return_results:
 	if( rc != LDAP_SUCCESS ) {
 		/* free entry */
-		mdb_entry_return( e );
+		if ( e )
+			mdb_entry_return( e );
 
+		if (moi->moi_ref == 1) {
+			LDAP_SLIST_REMOVE( &op->o_extra, &moi->moi_oe, OpExtra, oe_next );
+			mdb_txn_reset( txn );
+			op->o_tmpfree( moi, op->o_tmpmemctx );
+		}
 	} else {
-		*ent = entry_dup( e );
+		*ent = e;
 	}
 
 	Debug( LDAP_DEBUG_TRACE,
