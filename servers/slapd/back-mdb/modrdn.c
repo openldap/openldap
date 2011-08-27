@@ -140,9 +140,14 @@ txnReturn:
 	case MDB_NOTFOUND:
 		Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(mdb_modrdn)
 			": parent does not exist\n", 0, 0, 0);
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "entry's parent does not exist";
-		goto return_results;
+		rs->sr_ref = referral_rewrite( default_referral, NULL,
+					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+		rs->sr_err = LDAP_REFERRAL;
+
+		send_ldap_result( op, rs );
+
+		ber_bvarray_free( rs->sr_ref );
+		goto done;
 	case 0:
 		break;
 	case LDAP_BUSY:
