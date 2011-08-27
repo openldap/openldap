@@ -501,7 +501,7 @@ case $RC in
 	;;
 esac
 
-case $BACKEND in bdb | hdb)
+case $BACKEND in bdb | hdb | mdb)
 
 echo "Testing higher than unchecked limit requested for unchecked limited ID..."
 $LDAPRSEARCH -S "" -b "$BASEDN" -h $LOCALHOST -p $PORT1 -w secret \
@@ -750,7 +750,7 @@ case $RC in
 esac
 
 case $BACKEND in
-	bdb | hdb)
+	bdb | hdb | mdb)
 		# only bdb|hdb currently supports pagedResults control
 		;;
 	*)
