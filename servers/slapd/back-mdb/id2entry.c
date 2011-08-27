@@ -122,13 +122,16 @@ int mdb_id2entry(
 	rc = entry_header( &eh );
 	if ( rc ) return rc;
 
-	eh.bv.bv_len = eh.nvals * sizeof( struct berval );
-	eh.bv.bv_val = ch_malloc( eh.bv.bv_len );
-	rc = entry_decode(&eh, e);
+	if ( eh.nvals ) {
+		eh.bv.bv_len = eh.nvals * sizeof( struct berval );
+		eh.bv.bv_val = ch_malloc( eh.bv.bv_len );
+		rc = entry_decode(&eh, e);
+	} else {
+		*e = entry_alloc();
+	}
 
 	if( rc == 0 ) {
 		(*e)->e_id = id;
-		(*e)->e_bv = eh.bv;
 		(*e)->e_name.bv_val = NULL;
 		(*e)->e_nname.bv_val = NULL;
 	} else {
