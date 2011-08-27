@@ -138,9 +138,14 @@ txnReturn:
 
 		if ( p && !BER_BVISEMPTY( &p->e_name )) {
 			rs->sr_matched = ch_strdup( p->e_name.bv_val );
-			rs->sr_ref = ( is_entry_referral( p ))
-				? get_entry_referrals( op, p )
-				: NULL;
+			if ( is_entry_referral( p )) {
+				BerVarray ref = get_entry_referrals( op, p );
+				rs->sr_ref = referral_rewrite( ref, &p->e_name,
+					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+				ber_bvarray_free( ref );
+			} else {
+				rs->sr_ref = NULL;
+			}
 		} else {
 			rs->sr_ref = referral_rewrite( default_referral, NULL,
 					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
@@ -158,8 +163,10 @@ txnReturn:
 	/* get entry */
 	rs->sr_err = mdb_dn2entry( op, txn, &op->o_req_ndn, &e, 0 );
 	switch( rs->sr_err ) {
-	case 0:
 	case MDB_NOTFOUND:
+		e = p;
+		p = NULL;
+	case 0:
 		break;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
@@ -176,15 +183,17 @@ txnReturn:
 			"<=- " LDAP_XSTRING(mdb_delete) ": no such object %s\n",
 			op->o_req_dn.bv_val, 0, 0);
 
-		rs->sr_matched = ch_strdup( p->e_dn );
-		rs->sr_ref = is_entry_referral( p )
-			? get_entry_referrals( op, p ) : NULL;
-		if ( e ) {
-			mdb_entry_return( e );
-			e = NULL;
+		rs->sr_matched = ch_strdup( e->e_dn );
+		if ( is_entry_referral( e )) {
+			BerVarray ref = get_entry_referrals( op, e );
+			rs->sr_ref = referral_rewrite( ref, &e->e_name,
+				&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+			ber_bvarray_free( ref );
+		} else {
+			rs->sr_ref = NULL;
 		}
-		mdb_entry_return( p );
-		p = NULL;
+		mdb_entry_return( e );
+		e = NULL;
 
 		rs->sr_err = LDAP_REFERRAL;
 		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;

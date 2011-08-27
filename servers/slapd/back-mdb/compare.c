@@ -67,12 +67,16 @@ mdb_compare( Operation *op, SlapReply *rs )
 
 			} else {
 				rs->sr_matched = ch_strdup( e->e_dn );
-				rs->sr_ref = is_entry_referral( e )
-					? get_entry_referrals( op, e )
-					: NULL;
+				if ( is_entry_referral( e )) {
+					BerVarray ref = get_entry_referrals( op, e );
+					rs->sr_ref = referral_rewrite( ref, &e->e_name,
+						&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+					ber_bvarray_free( ref );
+				} else {
+					rs->sr_ref = NULL;
+				}
 				rs->sr_err = LDAP_REFERRAL;
 			}
-
 			mdb_entry_return( e );
 			e = NULL;
 

@@ -186,8 +186,10 @@ txnReturn:
 	/* get entry */
 	rs->sr_err = mdb_dn2entry( op, txn, &op->o_req_ndn, &e, 0 );
 	switch( rs->sr_err ) {
-	case 0:
 	case MDB_NOTFOUND:
+		e = p;
+		p = NULL;
+	case 0:
 		break;
 	case LDAP_BUSY:
 		rs->sr_text = "ldap server busy";
@@ -204,9 +206,14 @@ txnReturn:
 	{
 		if( e != NULL ) {
 			rs->sr_matched = ch_strdup( e->e_dn );
-			rs->sr_ref = is_entry_referral( e )
-				? get_entry_referrals( op, e )
-				: NULL;
+			if ( is_entry_referral( e )) {
+				BerVarray ref = get_entry_referrals( op, e );
+				rs->sr_ref = referral_rewrite( ref, &e->e_name,
+					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+				ber_bvarray_free( ref );
+			} else {
+				rs->sr_ref = NULL;
+			}
 			mdb_entry_return( e );
 			e = NULL;
 

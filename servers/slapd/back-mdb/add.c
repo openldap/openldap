@@ -166,9 +166,14 @@ txnReturn:
 	if ( !bvmatch( &pdn, &p->e_nname ) ) {
 		rs->sr_matched = ber_strdup_x( p->e_name.bv_val,
 			op->o_tmpmemctx );
-		rs->sr_ref = p != (Entry *)&slap_entry_root &&
-			is_entry_referral( p ) ? get_entry_referrals( op, p )
-			: NULL;
+		if ( p != (Entry *)&slap_entry_root && is_entry_referral( p )) {
+			BerVarray ref = get_entry_referrals( op, p );
+			rs->sr_ref = referral_rewrite( ref, &p->e_name,
+				&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+			ber_bvarray_free( ref );
+		} else {
+			rs->sr_ref = NULL;
+		}
 		if ( p != (Entry *)&slap_entry_root )
 			mdb_entry_return( p );
 		p = NULL;
@@ -223,10 +228,13 @@ txnReturn:
 		}
 
 		if ( is_entry_referral( p ) ) {
+			BerVarray ref = get_entry_referrals( op, p );
 			/* parent is a referral, don't allow add */
 			rs->sr_matched = ber_strdup_x( p->e_name.bv_val,
 				op->o_tmpmemctx );
-			rs->sr_ref = get_entry_referrals( op, p );
+			rs->sr_ref = referral_rewrite( ref, &p->e_name,
+				&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+			ber_bvarray_free( ref );
 			mdb_entry_return( p );
 			p = NULL;
 			Debug( LDAP_DEBUG_TRACE,
