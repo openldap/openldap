@@ -341,7 +341,7 @@ mdb_idl_fetch_key(
 			rc = mdb_cursor_get( cursor, key, &data, MDB_NEXT_MULTIPLE );
 		}
 		if ( rc == MDB_NOTFOUND ) rc = 0;
-		ids[0] = i - ids;
+		ids[0] = i - &ids[1];
 		/* On disk, a range is denoted by 0 in the first element */
 		if (ids[1] == 0) {
 			if (ids[0] != MDB_IDL_RANGE_SIZE) {
