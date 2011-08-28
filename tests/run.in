@@ -169,8 +169,8 @@ if test "x$BACKENDTYPE" = "x" ; then
 	BACKENDTYPE="unknown"
 fi
 
-# DB types with indexing, and the main DB types with some other stuff:
-# currently mode, limits, paged results.
+# Backend features.  indexdb: indexing and unchecked limit.
+# maindb: main storage backend.  Currently index,limits,mode,paged results.
 INDEXDB=noindexdb MAINDB=nomaindb
 case $BACKEND in
 	bdb|hdb|mdb) INDEXDB=indexdb MAINDB=maindb ;;

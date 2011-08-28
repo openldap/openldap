@@ -501,7 +501,7 @@ case $RC in
 	;;
 esac
 
-if test $MAINDB = maindb ; then
+if test $INDEXDB = indexdb ; then
 
 echo "Testing higher than unchecked limit requested for unchecked limited ID..."
 $LDAPRSEARCH -S "" -b "$BASEDN" -h $LOCALHOST -p $PORT1 -w secret \
