@@ -92,6 +92,11 @@ Specify the maximum size of the database in bytes. A memory map of this
 size is allocated at startup time and the database will not be allowed
 to grow beyond this size. The default is 10485760 bytes. This setting
 may be changed upward if the configured limit needs to be increased.
+
+Note: It is important to set this to as large a value as possible,
+(relative to anticipated growth of the actual data over time) since
+growing the size later may not be practical when the system is under
+heavy load.
 .TP
 .BI mode \ <integer>
 Specify the file protection mode that newly created database 
