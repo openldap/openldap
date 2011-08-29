@@ -315,7 +315,7 @@ mdb_reader_flush( MDB_env *env )
 int
 mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **moip )
 {
-	int rc;
+	int rc, renew = 0;
 	void *data;
 	void *ctx;
 	mdb_op_info *moi = NULL;
@@ -407,11 +407,14 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 			}
 		} else {
 			moi->moi_txn = data;
+			renew = 1;
 		}
 		moi->moi_flag |= MOI_READER;
 	}
 	if ( moi->moi_ref < 1 ) {
 		moi->moi_ref = 0;
+	}
+	if ( renew ) {
 		mdb_txn_renew( moi->moi_txn );
 	}
 	moi->moi_ref++;
