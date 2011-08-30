@@ -31,12 +31,12 @@ manual page.
 .BI checkpoint \ <kbyte>\ <min>
 Specify the frequency for flushing the database disk buffers.
 This setting is only needed if the \fBdbnosync\fP option is used.
-Note: this feature is not yet implemented.
 The checkpoint will occur if either \fI<kbyte>\fP data has been written or
 \fI<min>\fP minutes have passed since the last checkpoint.
 Both arguments default to zero, in which case they are ignored. When
 the \fI<min>\fP argument is non-zero, an internal task will run every 
 \fI<min>\fP minutes to perform the checkpoint.
+Note: currently the \fI<kbyte>\fP setting is unimplemented.
 .TP
 .B dbnosync
 Specify that on-disk database contents should not be immediately
@@ -86,6 +86,12 @@ requires rebuilding indices, see
 changing \fBindex\fP settings
 dynamically by LDAPModifying "cn=config" automatically causes rebuilding
 of the indices online in a background task.
+.TP
+.BI maxreaders \ <integer>
+Specify the maximum number of threads that may have concurrent read access
+to the database. Tools such as slapcat count as a single thread,
+in addition to threads in any active slapd processes. The
+default is 126.
 .TP
 .BI maxsize \ <bytes>
 Specify the maximum size of the database in bytes. A memory map of this

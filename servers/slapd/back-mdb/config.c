@@ -35,6 +35,7 @@ enum {
 	MDB_DIRECTORY,
 	MDB_DBNOSYNC,
 	MDB_INDEX,
+	MDB_MAXREADERS,
 	MDB_MAXSIZE,
 	MDB_MODE,
 	MDB_SSTACK,
@@ -59,8 +60,12 @@ static ConfigTable mdbcfg[] = {
 		"DESC 'Attribute index parameters' "
 		"EQUALITY caseIgnoreMatch "
 		"SYNTAX OMsDirectoryString )", NULL, NULL },
+	{ "maxreaders", "num", 2, 2, 0, ARG_INT|ARG_MAGIC|MDB_MAXREADERS,
+		mdb_cf_gen, "( OLcfgDbAt:12.1 NAME 'olcDbMaxReaders' "
+		"DESC 'Maximum number of threads that may access the DB concurrently' "
+		"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ "maxsize", "size", 2, 2, 0, ARG_ULONG|ARG_MAGIC|MDB_MAXSIZE,
-		mdb_cf_gen, "( OLcfgDbAt:12.1 NAME 'olcDbMaxSize' "
+		mdb_cf_gen, "( OLcfgDbAt:12.2 NAME 'olcDbMaxSize' "
 		"DESC 'Maximum size of DB in bytes' "
 		"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ "mode", "mode", 2, 2, 0, ARG_MAGIC|MDB_MODE,
@@ -83,7 +88,7 @@ static ConfigOCs mdbocs[] = {
 		"SUP olcDatabaseConfig "
 		"MUST olcDbDirectory "
 		"MAY ( olcDbCheckpoint $ "
-		"olcDbNoSync $ olcDbIndex $ olcDbMaxsize $ "
+		"olcDbNoSync $ olcDbIndex $ olcDbMaxReaders $ olcDbMaxsize $ "
 		"olcDbMode $ olcDbSearchStack ) )",
 		 	Cft_Database, mdbcfg },
 	{ NULL, 0, NULL }
@@ -107,7 +112,6 @@ mdb_checkpoint( void *ctx, void *arg )
 static void *
 mdb_online_index( void *ctx, void *arg )
 {
-#if 0
 	struct re_s *rtask = arg;
 	BackendDB *be = rtask->arg;
 	struct mdb_info *mdb = be->be_private;
@@ -116,12 +120,11 @@ mdb_online_index( void *ctx, void *arg )
 	OperationBuffer opbuf;
 	Operation *op;
 
-	DBC *curs;
-	DBT key, data;
-	DB_TXN *txn;
-	DB_LOCK lock;
-	ID id, nid;
-	EntryInfo *ei;
+	MDB_cursor *curs;
+	MDB_val key, data;
+	MDB_txn *txn;
+	ID id;
+	Entry *e;
 	int rc, getnext = 1;
 	int i;
 
@@ -130,98 +133,72 @@ mdb_online_index( void *ctx, void *arg )
 
 	op->o_bd = be;
 
-	DBTzero( &key );
-	DBTzero( &data );
-
 	id = 1;
-	key.data = &nid;
-	key.size = key.ulen = sizeof(ID);
-	key.flags = DB_DBT_USERMEM;
-
-	data.flags = DB_DBT_USERMEM | DB_DBT_PARTIAL;
-	data.dlen = data.ulen = 0;
+	key.mv_data = &id;
+	key.mv_size = sizeof(ID);
 
 	while ( 1 ) {
 		if ( slapd_shutdown )
 			break;
 
-		rc = TXN_BEGIN( mdb->bi_dbenv, NULL, &txn, mdb->bi_db_opflags );
+		rc = mdb_txn_begin( mdb->mi_dbenv, 0, &txn );
 		if ( rc )
 			break;
 		if ( getnext ) {
 			getnext = 0;
-			MDB_ID2DISK( id, &nid );
-			rc = mdb->bi_id2entry->bdi_db->cursor(
-				mdb->bi_id2entry->bdi_db, txn, &curs, mdb->bi_db_opflags );
+			rc = mdb_cursor_open( txn, mdb->mi_id2entry, &curs );
 			if ( rc ) {
-				TXN_ABORT( txn );
+				mdb_txn_abort( txn );
 				break;
 			}
-			rc = curs->c_get( curs, &key, &data, DB_SET_RANGE );
-			curs->c_close( curs );
+			rc = mdb_cursor_get( curs, &key, &data, MDB_SET_RANGE );
+			memcpy( &id, key.mv_data, sizeof( id ));
+			mdb_cursor_close( curs );
 			if ( rc ) {
-				TXN_ABORT( txn );
-				if ( rc == DB_NOTFOUND )
+				mdb_txn_abort( txn );
+				if ( rc == MDB_NOTFOUND )
 					rc = 0;
-				if ( rc == DB_LOCK_DEADLOCK ) {
-					ldap_pvt_thread_yield();
-					continue;
-				}
 				break;
 			}
-			MDB_DISK2ID( &nid, &id );
 		}
 
-		ei = NULL;
-		rc = mdb_cache_find_id( op, txn, id, &ei, 0, &lock );
+		rc = mdb_id2entry( op, txn, id, &e );
 		if ( rc ) {
-			TXN_ABORT( txn );
-			if ( rc == DB_LOCK_DEADLOCK ) {
-				ldap_pvt_thread_yield();
-				continue;
-			}
-			if ( rc == DB_NOTFOUND ) {
+			mdb_txn_abort( txn );
+			if ( rc == MDB_NOTFOUND ) {
 				id++;
 				getnext = 1;
 				continue;
 			}
 			break;
 		}
-		if ( ei->bei_e ) {
-			rc = mdb_index_entry( op, txn, MDB_INDEX_UPDATE_OP, ei->bei_e );
-			if ( rc == DB_LOCK_DEADLOCK ) {
-				TXN_ABORT( txn );
-				ldap_pvt_thread_yield();
-				continue;
-			}
-			if ( rc == 0 ) {
-				rc = TXN_COMMIT( txn, 0 );
-				txn = NULL;
-			}
-			if ( rc )
-				break;
+		rc = mdb_index_entry( op, txn, MDB_INDEX_UPDATE_OP, e );
+		if ( rc == 0 ) {
+			rc = mdb_txn_commit( txn );
+			txn = NULL;
 		}
+		if ( rc )
+			break;
 		id++;
 		getnext = 1;
 	}
 
-	for ( i = 0; i < mdb->bi_nattrs; i++ ) {
-		if ( mdb->bi_attrs[ i ]->ai_indexmask & MDB_INDEX_DELETING
-			|| mdb->bi_attrs[ i ]->ai_newmask == 0 )
+	for ( i = 0; i < mdb->mi_nattrs; i++ ) {
+		if ( mdb->mi_attrs[ i ]->ai_indexmask & MDB_INDEX_DELETING
+			|| mdb->mi_attrs[ i ]->ai_newmask == 0 )
 		{
 			continue;
 		}
-		mdb->bi_attrs[ i ]->ai_indexmask = mdb->bi_attrs[ i ]->ai_newmask;
-		mdb->bi_attrs[ i ]->ai_newmask = 0;
+		mdb->mi_attrs[ i ]->ai_indexmask = mdb->mi_attrs[ i ]->ai_newmask;
+		mdb->mi_attrs[ i ]->ai_newmask = 0;
 	}
 
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 	ldap_pvt_runqueue_stoptask( &slapd_rq, rtask );
-	mdb->bi_index_task = NULL;
+	mdb->mi_index_task = NULL;
 	ldap_pvt_runqueue_remove( &slapd_rq, rtask );
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 
-#endif
 	return NULL;
 }
 
@@ -321,6 +298,10 @@ mdb_cf_gen( ConfigArgs *c )
 			c->value_int = mdb->mi_search_stack_depth;
 			break;
 
+		case MDB_MAXREADERS:
+			c->value_int = mdb->mi_readers;
+			break;
+
 		case MDB_MAXSIZE:
 			c->value_ulong = mdb->mi_mapsize;
 			break;
@@ -339,6 +320,7 @@ mdb_cf_gen( ConfigArgs *c )
 
 		/* single-valued no-ops */
 		case MDB_SSTACK:
+		case MDB_MAXREADERS:
 		case MDB_MAXSIZE:
 			break;
 
@@ -577,6 +559,12 @@ mdb_cf_gen( ConfigArgs *c )
 			c->value_int = MINIMUM_SEARCH_STACK_DEPTH;
 		}
 		mdb->mi_search_stack_depth = c->value_int;
+		break;
+
+	case MDB_MAXREADERS:
+		mdb->mi_readers = c->value_int;
+		if ( mdb->mi_flags & MDB_IS_OPEN )
+			mdb->mi_flags |= MDB_RE_OPEN;
 		break;
 
 	case MDB_MAXSIZE:

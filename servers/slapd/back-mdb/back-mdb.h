@@ -67,10 +67,11 @@ struct mdb_info {
 	size_t		mi_mapsize;
 
 	slap_mask_t	mi_defaultmask;
-	struct mdb_attrinfo		**mi_attrs;
 	int			mi_nattrs;
+	struct mdb_attrinfo		**mi_attrs;
 	void		*mi_search_stack;
 	int			mi_search_stack_depth;
+	int			mi_readers;
 
 	int			mi_txn_cp;
 	u_int32_t	mi_txn_cp_min;

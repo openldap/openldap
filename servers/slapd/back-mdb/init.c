@@ -115,6 +115,17 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 		goto fail;
 	}
 
+	if ( mdb->mi_readers ) {
+		rc = mdb_env_set_maxreaders( mdb->mi_dbenv, mdb->mi_readers );
+		if( rc != 0 ) {
+			Debug( LDAP_DEBUG_ANY,
+				LDAP_XSTRING(mdb_db_open) ": database \"%s\": "
+				"mdb_env_set_maxreaders failed: %s (%d).\n",
+				be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+			goto fail;
+		}
+	}
+
 	rc = mdb_env_set_mapsize( mdb->mi_dbenv, mdb->mi_mapsize );
 	if( rc != 0 ) {
 		Debug( LDAP_DEBUG_ANY,
