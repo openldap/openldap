@@ -412,15 +412,11 @@ txnReturn:
 
 	/* Build target dn and make sure target entry doesn't exist already. */
 	if (!new_dn.bv_val) {
-		build_new_dn( &new_dn, new_parent_dn, &op->oq_modrdn.rs_newrdn, NULL );
+		build_new_dn( &new_dn, new_parent_dn, &op->oq_modrdn.rs_newrdn, op->o_tmpmemctx );
 	}
 
 	if (!new_ndn.bv_val) {
-		struct berval bv = {0, NULL};
-		dnNormalize( 0, NULL, NULL, &new_dn, &bv, op->o_tmpmemctx );
-		ber_dupbv( &new_ndn, &bv );
-		/* FIXME: why not call dnNormalize() w/o ctx? */
-		op->o_tmpfree( bv.bv_val, op->o_tmpmemctx );
+		dnNormalize( 0, NULL, NULL, &new_dn, &new_ndn, op->o_tmpmemctx );
 	}
 
 	Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(mdb_modrdn) ": new ndn=%s\n",
@@ -573,10 +569,6 @@ txnReturn:
 			goto return_results;
 
 		} else {
-			dummy.e_attrs = NULL;
-			new_dn.bv_val = NULL;
-			new_ndn.bv_val = NULL;
-
 			if(( rs->sr_err=mdb_txn_commit( txn )) != 0 ) {
 				rs->sr_text = "txn_commit failed";
 			} else {
@@ -623,8 +615,8 @@ return_results:
 done:
 	slap_graduate_commit_csn( op );
 
-	if( new_dn.bv_val != NULL ) free( new_dn.bv_val );
-	if( new_ndn.bv_val != NULL ) free( new_ndn.bv_val );
+	if( new_ndn.bv_val != NULL ) op->o_tmpfree( new_ndn.bv_val, op->o_tmpmemctx );
+	if( new_dn.bv_val != NULL ) op->o_tmpfree( new_dn.bv_val, op->o_tmpmemctx );
 
 	/* LDAP v3 Support */
 	if( np != NULL ) {
