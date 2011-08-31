@@ -235,7 +235,7 @@ mdb_dn2id_delete(
 	data.mv_data = d;
 
 	/* Delete our ID from the parent's list */
-	rc = mdb_del( txn, dbi, &key, &data, MDB_DEL_DUP );
+	rc = mdb_del( txn, dbi, &key, &data );
 
 	/* Delete our ID from the tree. With sorted duplicates, this
 	 * will leave any child nodes still hanging around. This is OK
@@ -244,7 +244,7 @@ mdb_dn2id_delete(
 	if ( rc == 0 ) {
 		nid = e->e_id;
 		d->nrdnlen[0] ^= 0x80;
-		rc = mdb_del( txn, dbi, &key, &data, MDB_DEL_DUP );
+		rc = mdb_del( txn, dbi, &key, &data );
 	}
 
 	op->o_tmpfree( d, op->o_tmpmemctx );

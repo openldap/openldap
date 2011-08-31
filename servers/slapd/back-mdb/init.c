@@ -265,7 +265,7 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 	if ( mdb->mi_dbenv ) {
 		if ( mdb->mi_dbis[0] ) {
 			int i;
-			rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
+			rc = mdb_txn_begin( mdb->mi_dbenv, MDB_RDONLY, &txn );
 
 			mdb_attr_dbs_close( mdb, txn );
 			for ( i=0; i<MDB_NDB; i++ )

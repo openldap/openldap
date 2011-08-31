@@ -467,7 +467,7 @@ mdb_idl_insert_key(
 					hi = id;
 				}
 				/* delete the old key */
-				rc = mdb_del( txn, dbi, key, NULL, 0 );
+				rc = mdb_del( txn, dbi, key, NULL );
 				if ( rc != 0 ) {
 					err = "mdb_del";
 					goto fail;
@@ -510,7 +510,7 @@ mdb_idl_insert_key(
 					data.mv_data = &hi;
 				data.mv_size = sizeof(ID);
 				/* Delete the current lo/hi */
-				rc = mdb_del( txn, dbi, key, &data, MDB_DEL_DUP );
+				rc = mdb_del( txn, dbi, key, &data );
 				if ( rc != 0 ) {
 					err = "mdb_del lo/hi";
 					goto fail;
@@ -576,7 +576,7 @@ mdb_idl_delete_key(
 		if ( tmp != 0 ) {
 			/* Not a range, just delete it */
 			data.mv_data = &id;
-			rc = mdb_del( txn, dbi, key, &data, MDB_DEL_DUP );
+			rc = mdb_del( txn, dbi, key, &data );
 			if ( rc != 0 ) {
 				err = "mdb_del id";
 				goto fail;
@@ -596,7 +596,7 @@ mdb_idl_delete_key(
 				}
 				if ( lo2 >= hi2 ) {
 				/* The range has collapsed... */
-					rc = mdb_del( txn, dbi, key, NULL, 0 );
+					rc = mdb_del( txn, dbi, key, NULL );
 					if ( rc != 0 ) {
 						err = "mdb_del";
 						goto fail;
@@ -607,7 +607,7 @@ mdb_idl_delete_key(
 						data.mv_data = &lo;
 					else
 						data.mv_data = &hi;
-					rc = mdb_del( txn, dbi, key, &data, MDB_DEL_DUP );
+					rc = mdb_del( txn, dbi, key, &data );
 					if ( rc != 0 ) {
 						err = "c_del";
 						goto fail;

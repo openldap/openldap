@@ -187,7 +187,7 @@ ID mdb_tool_entry_next(
 	assert( mdb != NULL );
 
 	if ( !txn ) {
-		rc = mdb_txn_begin( mdb->mi_dbenv, 1, &txn );
+		rc = mdb_txn_begin( mdb->mi_dbenv, MDB_RDONLY, &txn );
 		if ( rc )
 			return NOID;
 		rc = mdb_cursor_open( txn, mdb->mi_id2entry, &cursor );
@@ -256,7 +256,8 @@ ID mdb_tool_dn2id_get(
 	mdb = (struct mdb_info *) be->be_private;
 
 	if ( !txn ) {
-		rc = mdb_txn_begin( mdb->mi_dbenv, (slapMode & SLAP_TOOL_READONLY) != 0, &txn );
+		rc = mdb_txn_begin( mdb->mi_dbenv, (slapMode & SLAP_TOOL_READONLY) != 0 ?
+			MDB_RDONLY : 0, &txn );
 		if ( rc )
 			return NOID;
 	}
