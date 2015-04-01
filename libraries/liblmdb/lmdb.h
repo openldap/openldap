@@ -372,6 +372,13 @@ typedef void (MDB_sum_func)(const MDB_val *src, MDB_val *dst, const MDB_val *key
 #define MDB_REMAP_CHUNKS	0x4000000
 /** @} */
 
+/** @defgroup	mdb_txn_begin	Transaction Flags
+ *	@{
+ */
+	/** don't initialize read-only txn; #mdb_txn_renew() must be called before first use */
+#define MDB_ROTXN_RESET	0x8000000
+/** @} */
+
 /**	@defgroup	mdb_dbi_open	Database Flags
  *	@{
  */
@@ -1143,6 +1150,8 @@ int mdb_env_set_checksum(MDB_env *env, MDB_sum_func *func, unsigned int size);
 	 *		Don't flush system buffers to disk when committing this transaction.
 	 *	<li>#MDB_NOMETASYNC
 	 *		Flush system buffers but omit metadata flush when committing this transaction.
+	 *	<li>#MDB_ROTXN_RESET
+	 *		Must call #mdb_txn_renew() before using this readonly transaction.
 	 * </ul>
 	 * @param[out] txn Address where the new #MDB_txn handle will be stored
 	 * @return A non-zero error value on failure and 0 on success. Some possible
