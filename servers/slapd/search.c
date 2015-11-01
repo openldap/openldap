@@ -209,37 +209,44 @@ do_search(
 	Debug( LDAP_DEBUG_ARGS, "\n", 0, 0, 0 );
 
 	if ( StatslogTest( LDAP_DEBUG_STATS ) ) {
-		char abuf[BUFSIZ/2], *ptr = abuf;
+		char *ptr;
 		unsigned len = 0, alen;
 
-		sprintf(abuf, "scope=%d deref=%d", op->ors_scope, op->ors_deref);
-		Statslog( LDAP_DEBUG_STATS,
-		        "%s SRCH base=\"%s\" %s filter=\"%s\"\n",
-		        op->o_log_prefix, op->o_req_dn.bv_val, abuf,
-		        op->ors_filterstr.bv_val, 0 );
+		ptr = op->o_logptr;
+		ptr += snprintf( ptr, LOGBUFSIZ - (ptr - op->o_logbuf), " SRCH base=\"%s\" scope=%d "
+			"deref=%d filter=\"%s\"\n",
+				op->o_req_dn.bv_val, op->ors_scope, op->ors_deref,
+				op->ors_filterstr.bv_val );
 
+		len = ptr - op->o_logbuf;
+		if ( siz ) {
+			ptr += snprintf( ptr, LOGBUFSIZ - len, " SRCH attr=" );
+			len = ptr - op->o_logbuf;
+		}
 		for ( i = 0; i<siz; i++ ) {
 			alen = op->ors_attrs[i].an_name.bv_len;
-			if (alen >= sizeof(abuf)) {
-				alen = sizeof(abuf)-1;
+			if (alen >= 256) {
+				alen = 255;
 			}
-			if (len && (len + 1 + alen >= sizeof(abuf))) {
-				Statslog( LDAP_DEBUG_STATS, "%s SRCH attr=%s\n",
-				    op->o_log_prefix, abuf, 0, 0, 0 );
-				len = 0;
-				ptr = abuf;
-			}
-			if (len) {
-				*ptr++ = ' ';
-				len++;
+			if (len && (len + 1 + alen >= LOGBUFSIZ)) {
+				if ( ldap_debug & LDAP_DEBUG_STATS )
+					lutil_debug( ldap_debug, LDAP_DEBUG_STATS, "%s", op->o_log_prefix );
+				if ( ldap_syslog & LDAP_DEBUG_STATS )
+					sendlog( op->o_logbuf, ptr - op->o_logbuf );
+				ptr = lutil_strcopy( op->o_logptr, " SRCH attr=" );
+				len = ptr - op->o_logbuf;
 			}
 			ptr = lutil_strncopy(ptr, op->ors_attrs[i].an_name.bv_val, alen);
 			len += alen;
+			*ptr++ = ' ';
 			*ptr = '\0';
 		}
-		if (len) {
-			Statslog( LDAP_DEBUG_STATS, "%s SRCH attr=%s\n",
-	    			op->o_log_prefix, abuf, 0, 0, 0 );
+		if ( ptr != op->o_logptr ) {
+			if ( ldap_debug & LDAP_DEBUG_STATS )
+				lutil_debug( ldap_debug, LDAP_DEBUG_STATS, "%s\n", op->o_log_prefix );
+			if ( ldap_syslog & LDAP_DEBUG_STATS )
+				sendlog( op->o_logbuf, ptr - op->o_logbuf );
+			*op->o_logptr = '\0';
 		}
 	}
 
