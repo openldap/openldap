@@ -156,6 +156,7 @@ sendlog(char *tbuf, int cnt)
 		openlog(LogTag, LogStat, 0);
 	connectlog();
 
+#if 1
 	/*
 	 * If the send() failed, there are two likely scenarios:
 	 *  1) syslogd was restarted
@@ -175,6 +176,7 @@ sendlog(char *tbuf, int cnt)
 				break;
 		} while (errno == ENOBUFS);
 	}
+#endif
 }
 
 static void

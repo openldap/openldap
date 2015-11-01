@@ -131,36 +131,42 @@ do_modify(
 	}
 
 	if ( StatslogTest( LDAP_DEBUG_STATS ) ) {
-		char abuf[BUFSIZ/2], *ptr = abuf;
-		int len = 0;
+		char *ptr;
+		unsigned len = 0, alen;
 
-		Statslog( LDAP_DEBUG_STATS, "%s MOD dn=\"%s\"\n",
-			op->o_log_prefix, op->o_req_dn.bv_val, 0, 0, 0 );
+		ptr = op->o_logptr;
+		ptr += snprintf( ptr, LOGBUFSIZ - (ptr - op->o_logbuf),
+			" MOD dn=\"%s\"\n",
+			op->o_req_dn.bv_val );
 
-		for ( tmp = op->orm_modlist; tmp != NULL; tmp = tmp->sml_next ) {
-			if (len + 1 + tmp->sml_type.bv_len > sizeof(abuf)) {
-				Statslog( LDAP_DEBUG_STATS, "%s MOD attr=%s\n",
-				    op->o_log_prefix, abuf, 0, 0, 0 );
-
-				len = 0;
-				ptr = abuf;
-
-				if( 1 + tmp->sml_type.bv_len > sizeof(abuf)) {
-					Statslog( LDAP_DEBUG_STATS, "%s MOD attr=%s\n",
-						op->o_log_prefix, tmp->sml_type.bv_val, 0, 0, 0 );
-					continue;
-				}
-			}
-			if (len) {
-				*ptr++ = ' ';
-				len++;
-			}
-			ptr = lutil_strcopy(ptr, tmp->sml_type.bv_val);
-			len += tmp->sml_type.bv_len;
+		len = ptr - op->o_logbuf;
+		if ( op->orm_modlist ) {
+			ptr += snprintf( ptr, LOGBUFSIZ - len, " MOD attr=" );
+			len = ptr - op->o_logbuf;
 		}
-		if (len) {
-			Statslog( LDAP_DEBUG_STATS, "%s MOD attr=%s\n",
-	    			op->o_log_prefix, abuf, 0, 0, 0 );
+		for ( tmp = op->orm_modlist; tmp != NULL; tmp = tmp->sml_next ) {
+			alen = tmp->sml_type.bv_len;
+			if ( alen >= 256 )
+				alen = 255;
+			if (len + 1 + alen >= LOGBUFSIZ ) {
+				if ( ldap_debug & LDAP_DEBUG_STATS )
+					lutil_debug( ldap_debug, LDAP_DEBUG_STATS, "%s", op->o_log_prefix );
+				if ( ldap_syslog & LDAP_DEBUG_STATS )
+					sendlog( op->o_logbuf, ptr - op->o_logbuf );
+				ptr = lutil_strcopy( op->o_logptr, " MOD attr=" );
+				len = ptr - op->o_logbuf;
+			}
+			ptr = lutil_strncopy( ptr, tmp->sml_type.bv_val, alen );
+			len += alen;
+			*ptr++ = ' ';
+			*ptr = '\0';
+		}
+		if ( ptr != op->o_logptr ) {
+			if ( ldap_debug & LDAP_DEBUG_STATS )
+				lutil_debug( ldap_debug, LDAP_DEBUG_STATS, "%s", op->o_log_prefix );
+			if ( ldap_syslog & LDAP_DEBUG_STATS )
+				sendlog( op->o_logbuf, ptr - op->o_logbuf );
+			*op->o_logptr = '\0';
 		}
 	}
 #endif	/* LDAP_DEBUG */
