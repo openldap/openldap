@@ -46,6 +46,7 @@
 #define ldap_debug slap_debug
 #endif
 
+#define syslog	slap_syslog
 #include "ldap_log.h"
 
 #include <ldap.h>
@@ -2547,6 +2548,8 @@ typedef struct slap_counters_t {
 #endif /* SLAPD_MONITOR */
 } slap_counters_t;
 
+#define LOGBUFSIZ	2048	/* max msg size for syslogd */
+
 /*
  * represents an operation pending from an ldap client
  */
@@ -2565,8 +2568,10 @@ typedef struct Opheader {
 	BerMemoryFunctions *oh_tmpmfuncs;
 
 	slap_counters_t	*oh_counters;
+	char	*oh_logbuf;		/* for Statslog, mainly */
+	char	*oh_logptr;
 
-	char		oh_log_prefix[ /* sizeof("conn= op=") + 2*LDAP_PVT_INTTYPE_CHARS(unsigned long) */ SLAP_TEXT_BUFLEN ];
+	char	*oh_log_prefix;
 
 #ifdef LDAP_SLAPI
 	void	*oh_extensions;		/* NS-SLAPI plugin */
@@ -2620,6 +2625,9 @@ struct Operation {
 #define	o_tmpfree	o_tmpmfuncs->bmf_free
 
 #define o_log_prefix o_hdr->oh_log_prefix
+#define o_logbuf o_hdr->oh_logbuf
+#define o_logptr o_hdr->oh_logptr
+
 
 	ber_tag_t	o_tag;		/* tag of the request */
 	time_t		o_time;		/* time op was initiated */

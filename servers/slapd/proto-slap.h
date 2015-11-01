@@ -1916,6 +1916,10 @@ LDAP_SLAPD_F (void) syn_delete LDAP_P(( Syntax *at ));
 LDAP_SLAPD_F (void) syn_unparse LDAP_P((
 	BerVarray *bva, Syntax *start, Syntax *end, int system ));
 
+/* syslog.c */
+LDAP_SLAPD_F (char *) preplog LDAP_P(( char *buf ));
+LDAP_SLAPD_F (void) sendlog LDAP_P(( char *buf, int len ));
+
 /*
  * user.c
  */

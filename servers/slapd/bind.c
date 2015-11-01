@@ -32,6 +32,7 @@
 #include <ac/socket.h>
 
 #include "slap.h"
+#include "lutil.h"
 
 int
 do_bind(
@@ -45,6 +46,7 @@ do_bind(
 	struct berval dn = BER_BVNULL;
 	ber_tag_t tag;
 	Backend *be = NULL;
+	char *sl = op->o_logptr;
 
 	Debug( LDAP_DEBUG_TRACE, "%s do_bind\n",
 		op->o_log_prefix, 0, 0 );
@@ -56,11 +58,9 @@ do_bind(
 	if ( op->o_conn->c_sasl_bind_in_progress ) {
 		be = op->o_conn->c_authz_backend;
 	}
-	if ( !BER_BVISEMPTY( &op->o_conn->c_dn ) ) {
+	if ( !BER_BVISEMPTY( &op->o_conn->c_dn ) && StatslogTest( LDAP_DEBUG_STATS )) {
 		/* log authorization identity demotion */
-		Statslog( LDAP_DEBUG_STATS,
-			"%s BIND anonymous mech=implicit ssf=0\n",
-			op->o_log_prefix, 0, 0, 0, 0 );
+		sl = lutil_strcopy( sl, " BIND anonymous mech=implicit ssf=0\n" );
 	}
 	connection2anonymous( op->o_conn );
 	if ( op->o_conn->c_sasl_bind_in_progress ) {
@@ -162,9 +162,16 @@ do_bind(
 		goto cleanup;
 	}
 
-	Statslog( LDAP_DEBUG_STATS, "%s BIND dn=\"%s\" method=%ld\n",
-	    op->o_log_prefix, op->o_req_dn.bv_val,
-		(unsigned long) op->orb_method, 0, 0 );
+	if ( StatslogTest( LDAP_DEBUG_STATS )) {
+		sl += sprintf( sl, " BIND dn=\"%s\" method=%ld\n",
+		op->o_req_dn.bv_val, (unsigned long) op->orb_method );
+		if ( ldap_debug & LDAP_DEBUG_STATS )
+			lutil_debug( ldap_debug, LDAP_DEBUG_STATS, "%s", op->o_log_prefix );
+		if ( ldap_syslog & LDAP_DEBUG_STATS )
+			sendlog( op->o_logbuf, sl - op->o_logbuf );
+		sl = op->o_logptr;
+		*sl = '\0';
+	}
 
 	if( op->orb_method == LDAP_AUTH_SASL ) {
 		Debug( LDAP_DEBUG_TRACE, "do_bind: dn (%s) SASL mech %s\n",
@@ -205,6 +212,13 @@ do_bind(
 	rs->sr_err = frontendDB->be_bind( op, rs );
 
 cleanup:
+	if ( sl != op->o_logptr ) {
+		if ( ldap_debug & LDAP_DEBUG_STATS )
+			lutil_debug( ldap_debug, LDAP_DEBUG_STATS, "%s", op->o_log_prefix );
+		if ( ldap_syslog & LDAP_DEBUG_STATS )
+			sendlog( op->o_logbuf, sl - op->o_logbuf );
+		*op->o_logptr = '\0';
+	}
 	if ( rs->sr_err == LDAP_SUCCESS ) {
 		if ( op->orb_method != LDAP_AUTH_SASL ) {
 			ber_dupbv( &op->o_conn->c_authmech, &mech );

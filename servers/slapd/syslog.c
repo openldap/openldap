@@ -61,6 +61,8 @@ static void connectlog(void);
 
 static void my_localtime(const time_t *t, struct tm *tm);
 
+static struct berval LogPfx;
+
 /*
  * syslog
  *	print message on log file; output is intended for syslogd(8).
@@ -74,11 +76,11 @@ syslog(int pri, const char *fmt, ...)
 #define	FMT_LEN		1024
 	char tbuf[TBUF_LEN];
 	int cnt;
-	int error;
 	int tbuf_left, prlen;
 
 	va_start(ap, fmt);
 
+#if 0
 	/* Check for invalid bits. */
 	if (pri & ~(LOG_PRIMASK|LOG_FACMASK)) {
 		if (LogTest(LOG_ERR))
@@ -116,6 +118,9 @@ syslog(int pri, const char *fmt, ...)
 		*p++ = ':';
 		*p++ = ' ';
 	}
+#endif
+	pend = tbuf + sizeof(tbuf);
+	p = preplog(tbuf);
 
 	tbuf_left = pend - p;
 	prlen = vsnprintf(p, tbuf_left, fmt, ap);
@@ -126,6 +131,25 @@ syslog(int pri, const char *fmt, ...)
 		prlen = tbuf_left - 1;
 	p += prlen;
 	cnt = p - tbuf;
+
+	sendlog(tbuf, cnt);
+}
+
+/* Copy the syslog header into tbuf and return a pointer
+ * to end of header, where caller can begin writing the
+ * actual message.
+ */
+char *
+preplog(char *tbuf)
+{
+	memcpy(tbuf, LogPfx.bv_val, LogPfx.bv_len);
+	return tbuf + LogPfx.bv_len;
+}
+
+void
+sendlog(char *tbuf, int cnt)
+{
+	int error;
 
 	/* Get connected, output the message to the local logger. */
 	if (LogFile == -1)
@@ -198,11 +222,35 @@ connectlog(void)
 void
 openlog(const char *ident, int logstat, int logfac)
 {
+	char buf[512], *p = buf;
+
+
 	if (ident != NULL)
 		LogTag = ident;
 	LogStat = logstat;
 	if (logfac != 0 && (logfac &~ LOG_FACMASK) == 0)
 		LogFacility = logfac;
+
+	logfac |= LOG_DEBUG;	/* we currently hardcode severity */
+
+	/* Our facility, pid, and ident never change so
+	 * just build the message header now. Avoiding
+	 * sprintf() and multiple calls to getpid()
+	 * saves a lot of time.
+	 */
+	*p++ = '<';
+	p += sprintf(p, "%d", logfac);
+	*p++ = '>';
+	/* timestamp goes here but rsyslog ignores it, so skip it */
+	p = lutil_strcopy(p, ident);
+	*p++ = '[';
+	p += sprintf(p, "%ld", (long)getpid());
+	*p++ = ']';
+	*p++ = ':';
+	*p++ = ' ';
+	LogPfx.bv_len = p - buf;
+	LogPfx.bv_val = ch_malloc(LogPfx.bv_len);
+	memcpy(LogPfx.bv_val, buf, LogPfx.bv_len);
 
 	if (LogStat & LOG_NDELAY)	/* open immediately */
 		connectlog();
@@ -215,6 +263,7 @@ closelog()
 	LogFile = -1;
 	connected = 0;
 	LogTag = NULL;
+	ch_free(LogPfx.bv_val);
 }
 
 #if 0

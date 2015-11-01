@@ -1040,6 +1040,9 @@ conn_counter_init( Operation *op, void *ctx )
 	op->o_counters = vsc;
 }
 
+static void
+connection_init_log_prefix( Operation *op );
+
 static void *
 connection_operation( void *ctx, void *arg_v )
 {
@@ -1130,6 +1133,7 @@ connection_operation( void *ctx, void *arg_v )
 		ber_set_option( op->o_ber, LBER_OPT_BER_MEMCTX, &memctx );
 	}
 	}
+	connection_init_log_prefix( op );
 
 	opidx = slap_req2op( tag );
 	assert( opidx != SLAP_OP_LAST );
@@ -1787,14 +1791,19 @@ connection_resched( Connection *conn )
 static void
 connection_init_log_prefix( Operation *op )
 {
+	int len;
+	op->o_logbuf = op->o_tmpalloc( LOGBUFSIZ, op->o_tmpmemctx );
+	op->o_log_prefix = preplog( op->o_logbuf );
+	len = op->o_log_prefix - op->o_logbuf;
 	if ( op->o_connid == (unsigned long)(-1) ) {
-		snprintf( op->o_log_prefix, sizeof( op->o_log_prefix ),
+		len = snprintf( op->o_log_prefix, LOGBUFSIZ-len,
 			"conn=-1 op=%lu", op->o_opid );
 
 	} else {
-		snprintf( op->o_log_prefix, sizeof( op->o_log_prefix ),
+		len = snprintf( op->o_log_prefix, LOGBUFSIZ-len,
 			"conn=%lu op=%lu", op->o_connid, op->o_opid );
 	}
+	op->o_logptr = op->o_log_prefix + len;
 }
 
 static int connection_bind_cleanup_cb( Operation *op, SlapReply *rs )
@@ -1906,7 +1915,6 @@ static void connection_op_queue( Operation *op )
 	}
 
 	op->o_connid = op->o_conn->c_connid;
-	connection_init_log_prefix( op );
 
 	LDAP_STAILQ_INSERT_TAIL( &op->o_conn->c_ops, op, o_next );
 }
