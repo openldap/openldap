@@ -465,8 +465,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		X509_free( cert );
 	} else
 	if ( lo->ldo_tls_certfile &&
-		!SSL_CTX_use_certificate_file( ctx,
-			lt->lt_certfile, SSL_FILETYPE_PEM ) )
+		!SSL_CTX_use_certificate_chain_file( ctx, lt->lt_certfile) )
 	{
 		Debug1( LDAP_DEBUG_ANY,
 			"TLS: could not use certificate file `%s'.\n",

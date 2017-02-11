@@ -1148,7 +1148,7 @@ Specifies the file that contains certificates for all of the Certificate
 Authorities that
 .B slapd
 will recognize.  The certificate for
-the CA that signed the server certificate must be included among
+the CA that signed the server certificate must(GnuTLS)/may(OpenSSL) be included among
 these certificates. If the signing CA was not a top-level (root) CA,
 certificates for the entire sequence of CA's from the signing CA to
 the top-level CA should be present. Multiple certificates are simply
@@ -1164,6 +1164,9 @@ locations will be used.
 Specifies the file that contains the
 .B slapd
 server certificate.
+
+When using OpenSSL that file may also contain any number or intermediate
+certificates.
 .TP
 .B TLSCertificateKeyFile <filename>
 Specifies the file that contains the
