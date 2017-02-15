@@ -10257,7 +10257,14 @@ mdb_env_copythr(void *arg)
 #else
 	int len;
 #define DO_WRITE(rc, fd, ptr, w2, len)	len = write(fd, ptr, w2); rc = (len >= 0)
-#ifdef SIGPIPE
+#ifdef F_SETNOSIGPIPE
+	/* OS X delivers SIGPIPE to the whole process, not the thread that caused it.
+	 * Disable SIGPIPE using platform specific fcntl.
+	 */
+	int enabled = 1;
+	if ((rc = fcntl(my->mc_fd, F_SETNOSIGPIPE, &enabled)) != 0)
+		my->mc_error = errno;
+#elif defined SIGPIPE
 	sigset_t set;
 	sigemptyset(&set);
 	sigaddset(&set, SIGPIPE);
@@ -10280,15 +10287,6 @@ again:
 			DO_WRITE(rc, my->mc_fd, ptr, wsize, len);
 			if (!rc) {
 				rc = ErrCode();
-#if defined(SIGPIPE) && !defined(_WIN32)
-				if (rc == EPIPE) {
-					/* Collect the pending SIGPIPE, otherwise at least OS X
-					 * gives it to the process on thread-exit (ITS#8504).
-					 */
-					int tmp;
-					sigwait(&set, &tmp);
-				}
-#endif
 				break;
 			} else if (len > 0) {
 				rc = MDB_SUCCESS;
