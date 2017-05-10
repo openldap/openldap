@@ -464,7 +464,7 @@ static int smbk5pwd_exop_passwd(
 		}
 
 		ret = hdb_generate_key_set_password(context, ent.principal,
-			qpw->rs_new.bv_val, &ent.keys.val, &nkeys);
+			qpw->rs_new.bv_val, NULL, 0, &ent.keys.val, &nkeys);
 		ent.keys.len = nkeys;
 		hdb_seal_keys(context, db, &ent);
 		krb5_free_principal( context, ent.principal );
