@@ -29,7 +29,7 @@ OBJS	= $(patsubst %.c,%.o,$(SRCS)) $(@PLAT@_OBJS)
 BUILD_OPT = "--enable-balancer"
 BUILD_SRV = @BUILD_BALANCER@
 
-all-local-srv: 	$(PROGRAMS)
+all-local-srv: 	$(PROGRAMS) all-cffiles
 
 # $(LTHREAD_LIBS) must be last!
 XLIBS = $(LLOADD_L)
@@ -58,7 +58,19 @@ version.c: Makefile
 
 version.o: version.c $(OBJS) $(LLOADD_L)
 
-install-local-srv: FORCE
+all-cffiles:
+	@if test -n "$(systemdsystemunitdir)"; then \
+		$(SED) -e "s;%LIBEXECDIR%;$(libexecdir);" \
+			$(srcdir)/lloadd.service > lloadd.service.tmp ; \
+	fi
+	touch all-cffiles
+
+clean-local-srv: FORCE
+	$(RM) *.tmp all-cffiles
+
+install-local-srv: install-lloadd install-conf
+
+install-lloadd: FORCE
 	-$(MKDIR) $(DESTDIR)$(libexecdir)
 	@-$(INSTALL) -m 700 -d $(DESTDIR)$(localstatedir)/openldap-lloadd
 	@(								\
@@ -67,3 +79,12 @@ install-local-srv: FORCE
 		    $(DESTDIR)$(libexecdir);				\
 	    done							\
 	)
+
+install-conf: FORCE
+	@-$(MKDIR) $(DESTDIR)$(sysconfdir)
+	if test -n "$(systemdsystemunitdir)" && test ! -f $(DESTDIR)$(systemdsystemunitdir)/lloadd.service; then \
+		$(MKDIR) $(DESTDIR)$(systemdsystemunitdir); \
+		echo "installing lloadd.service in $(systemdsystemunitdir)"; \
+		echo "$(INSTALL) $(INSTALLFLAGS) -m 644 lloadd.service.tmp $(DESTDIR)$(systemdsystemunitdir)/lloadd.service"; \
+		$(INSTALL) $(INSTALLFLAGS) -m 644 lloadd.service.tmp $(DESTDIR)$(systemdsystemunitdir)/lloadd.service; \
+	fi

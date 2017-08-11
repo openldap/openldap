@@ -45,6 +45,7 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@$(ldap_subdir)
 schemadir = $(sysconfdir)/schema
+systemdsystemunitdir = @systemdsystemunitdir@
 
 PLAT = @PLAT@
 EXEEXT = @EXEEXT@
