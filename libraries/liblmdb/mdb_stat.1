@@ -20,6 +20,8 @@ mdb_stat \- LMDB environment status tool
 [\c
 .BI \-w \ password\fR]]
 [\c
+.BR \-L ]
+[\c
 .BR \-r [ r ]]
 [\c
 .BR \-a \ |
@@ -43,7 +45,7 @@ If \fB\-ff\fP is given, summarize each freelist entry.
 If \fB\-fff\fP is given, display the full list of page IDs in the freelist.
 .TP
 .BR \-n
-Display the status of an LMDB database which does not use subdirectories.
+Display the status of an LMDB environment which does not use subdirectories.
 .TP
 .BR \-v
 Use the previous environment state instead of the latest state.
@@ -57,6 +59,10 @@ with page-level checksums or encryption.
 .BI \-w \ password
 Specify the password for an encrypted environment. This is only
 used if a cryptography module has been loaded.
+.TP
+.BR \-L
+Access the LMDB environment without any locking. If concurrent
+access is anticipated, the caller must manage all concurrency itself.
 .TP
 .BR \-r
 Display information about the environment reader table.

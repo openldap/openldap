@@ -20,6 +20,8 @@ mdb_load \- LMDB environment import tool
 [\c
 .BI \-w \ password\fR]]
 [\c
+.BR \-L ]
+[\c
 .BI \-s \ subdb\fR]
 [\c
 .BR \-N ]
@@ -61,7 +63,7 @@ Read from the specified file instead of from the standard input.
 Load an incremental backup.
 .TP
 .BR \-n
-Load an LMDB database which does not use subdirectories.
+Load an LMDB environment which does not use subdirectories.
 .TP
 .BI \-m \ module
 Load the specified dynamic module to utilize cryptographic functions.
@@ -71,6 +73,10 @@ with page-level checksums or encryption.
 .BI \-w \ password
 Specify the password for an encrypted environment. This is only
 used if a cryptography module has been loaded.
+.TP
+.BR \-L
+Access the LMDB environment without any locking. If concurrent access is
+anticipated, the caller must manage all concurrency itself.
 .TP
 .BR \-s \ subdb
 Load a specific subdatabase. If no database is specified, data is loaded into the main database.

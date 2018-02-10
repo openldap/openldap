@@ -32,7 +32,7 @@ static void prstat(MDB_stat *ms)
 
 static void usage(char *prog)
 {
-	fprintf(stderr, "usage: %s [-V] [-n] [-e] [-r[r]] [-f[f[f]]] [-v] [-m module [-w password]] [-a|-s subdb] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-n] [-L] [-e] [-r[r]] [-f[f[f]]] [-v] [-m module [-w password]] [-a|-s subdb] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -61,11 +61,12 @@ int main(int argc, char *argv[])
 	 * -f: print freelist info
 	 * -r: print reader info
 	 * -n: use NOSUBDIR flag on env_open
+	 * -L: use NOLOCK flag on env_open
 	 * -v: use previous snapshot
 	 * -V: print version and exit
 	 * (default) print stat of only the main DB
 	 */
-	while ((i = getopt(argc, argv, "Vaefm:nrs:vw:")) != EOF) {
+	while ((i = getopt(argc, argv, "Vaefm:nLrs:vw:")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -87,6 +88,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			envflags |= MDB_PREVSNAPSHOT;
+			break;
+		case 'L':
+			envflags |= MDB_NOLOCK;
 			break;
 		case 'r':
 			rdrinfo++;

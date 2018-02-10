@@ -29,7 +29,7 @@ static void dumpsig( int sig )
 
 static void usage(char *prog)
 {
-	fprintf(stderr, "usage: %s [-V] [-n] [-d] [-m module [-w password]] [-s subdb] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-n] [-L] [-d] [-m module [-w password]] [-s subdb] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -54,10 +54,11 @@ int main(int argc, char *argv[])
 	/* -d: delete the db, don't just empty it
 	 * -s: drop the named subDB
 	 * -n: use NOSUBDIR flag on env_open
+	 * -L: use NOLOCK flag on env_open
 	 * -V: print version and exit
 	 * (default) empty the main DB
 	 */
-	while ((i = getopt(argc, argv, "dm:ns:w:V")) != EOF) {
+	while ((i = getopt(argc, argv, "dm:nLs:w:V")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -68,6 +69,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'n':
 			envflags |= MDB_NOSUBDIR;
+			break;
+		case 'L':
+			envflags |= MDB_NOLOCK;
 			break;
 		case 's':
 			subname = optarg;

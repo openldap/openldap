@@ -41,6 +41,8 @@ int main(int argc,char * argv[])
 	for (; argc > 1 && argv[1][0] == '-'; argc--, argv++) {
 		if (argv[1][1] == 'n' && argv[1][2] == '\0')
 			flags |= MDB_NOSUBDIR;
+		else if (argv[1][1] == 'L' && argv[1][2] == '\0')
+			flags |= MDB_NOLOCK;
 		else if (argv[1][1] == 'v' && argv[1][2] == '\0')
 			flags |= MDB_PREVSNAPSHOT;
 		else if (argv[1][1] == 'c' && argv[1][2] == '\0')
@@ -61,7 +63,7 @@ int main(int argc,char * argv[])
 	}
 
 	if (argc<2 || argc>3) {
-		fprintf(stderr, "usage: %s [-V] [-c] [-n] [-v] [-m module [-w password]] srcpath [dstpath]\n", progname);
+		fprintf(stderr, "usage: %s [-V] [-c] [-n] [-L] [-v] [-m module [-w password]] srcpath [dstpath]\n", progname);
 		exit(EXIT_FAILURE);
 	}
 

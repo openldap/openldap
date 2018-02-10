@@ -160,7 +160,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 
 static void usage(char *prog)
 {
-	fprintf(stderr, "usage: %s [-V] [-f output] [-i txnid] [-l] [-n] [-p] [-v] [-m module [-w password]] [-a|-s subdb] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-f output] [-i txnid] [-l] [-n] [-L] [-p] [-v] [-m module [-w password]] [-a|-s subdb] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -185,6 +185,7 @@ int main(int argc, char *argv[])
 	/* -a: dump all subDBs
 	 * -s: dump only the named subDB
 	 * -n: use NOSUBDIR flag on env_open
+	 * -n: use NOLOCK flag on env_open
 	 * -p: use printable characters
 	 * -f: write to file instead of stdout
 	 * -i: do incremental dump from txnid
@@ -192,7 +193,7 @@ int main(int argc, char *argv[])
 	 * -V: print version and exit
 	 * (default) dump only the main DB
 	 */
-	while ((i = getopt(argc, argv, "af:i:lm:nps:vw:V")) != EOF) {
+	while ((i = getopt(argc, argv, "af:i:lm:nLps:vw:V")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -221,6 +222,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			envflags |= MDB_PREVSNAPSHOT;
+			break;
+		case 'L':
+			envflags |= MDB_NOLOCK;
 			break;
 		case 'p':
 			mode |= PRINT;

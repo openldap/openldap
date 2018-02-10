@@ -302,7 +302,7 @@ badend:
 
 static void usage(void)
 {
-	fprintf(stderr, "usage: %s [-V] [-a] [-f input] [-i] [-n] [-m module [-w password]] [-s name] [-N] [-Q] [-T] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-a] [-f input] [-i] [-n] [-L] [-m module [-w password]] [-s name] [-N] [-Q] [-T] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -336,13 +336,14 @@ int main(int argc, char *argv[])
 	 * -i: load an incremental dump
 	 * -m: dynamically load a module
 	 * -n: use NOSUBDIR flag on env_open
+	 * -L: use NOLOCK flag on env_open
 	 * -s: load into named subDB
 	 * -N: use NOOVERWRITE on puts
 	 * -Q: quick mode using NOSYNC
 	 * -T: read plaintext
 	 * -V: print version and exit
 	 */
-	while ((i = getopt(argc, argv, "af:im:ns:w:NQTV")) != EOF) {
+	while ((i = getopt(argc, argv, "af:im:nLs:w:NQTV")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -363,6 +364,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'n':
 			envflags |= MDB_NOSUBDIR;
+			break;
+		case 'L':
+			envflags |= MDB_NOLOCK;
 			break;
 		case 's':
 			subname = strdup(optarg);
