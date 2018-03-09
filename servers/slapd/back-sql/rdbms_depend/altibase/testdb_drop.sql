@@ -1,0 +1,11 @@
+drop sequence person_ids;
+drop sequence document_ids;
+drop sequence institute_ids;
+drop sequence phone_ids;
+drop sequence referral_ids;
+DROP TABLE REFERRALS;
+DROP TABLE persons;
+DROP TABLE institutes;
+DROP TABLE documents;
+DROP TABLE authors_docs;
+DROP TABLE phones;
