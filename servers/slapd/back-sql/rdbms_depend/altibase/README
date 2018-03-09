@@ -5,7 +5,7 @@ Altibase must be already installed.
 
 1) Add to the odbc.ini file a block of the form
 
-[example]
+[ldap_altibase]
 Description         = Example for OpenLDAP's back-sql
 Driver              = Altibase
 Trace               = No
