@@ -1,0 +1,5 @@
+dn: cn=Younghee Bae,dc=example,dc=com
+objectClass: inetOrgPerson
+sn: Bae
+givenName: Younghee
+

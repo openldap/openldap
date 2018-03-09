@@ -1,0 +1,7 @@
+$LDAP_HOME/bin/ldapsearch -H ldap://127.0.0.1:3890 -x -D "cn=Manager,dc=example,dc=com" -w secret -b "dc=example,dc=com" 
+$LDAP_HOME/bin/ldapadd -H ldap://127.0.0.1:3890 -x -D "cn=Manager,dc=example,dc=com" -w secret -f add1.ldif
+$LDAP_HOME/bin/ldapsearch -H ldap://127.0.0.1:3890 -x -D "cn=Manager,dc=example,dc=com" -w secret -b "dc=example,dc=com" "(cn=Young*)"
+$LDAP_HOME/bin/ldapadd -H ldap://127.0.0.1:3890 -x -D "cn=Manager,dc=example,dc=com" -w secret -f add2.ldif
+$LDAP_HOME/bin/ldapmodify -H ldap://127.0.0.1:3890 -x -D "cn=Manager,dc=example,dc=com" -w secret -f mod.ldif
+$LDAP_HOME/bin/ldapdelete -H ldap://127.0.0.1:3890 -x -D "cn=Manager,dc=example,dc=com" -w secret 'cn=Younghee Bae,dc=example,dc=com'
+$LDAP_HOME/bin/ldapdelete -H ldap://127.0.0.1:3890 -x -D "cn=Manager,dc=example,dc=com" -w secret 'documentTitle=book3,dc=example,dc=com'

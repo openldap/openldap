@@ -1,0 +1,27 @@
+Author: Younghee Bae <grace.bae@altibase.com>
+
+This document briefly describes to access Altibase database from OpenLDAP by using back-sql with Altibase ODBC Driver.
+Altibase must be already installed.
+
+1) Add to the odbc.ini file a block of the form
+
+[example]
+Description         = Example for OpenLDAP's back-sql
+Driver              = Altibase
+Trace               = No
+Server              = localhost
+Port                = 20030
+
+2) Add to the odbcinst.ini file a block of the form
+
+[Altibase]
+Description     = ODBC for Altibase
+Driver          = /altibase_home/lib/libaltibase_odbc-64bit-ul64.so
+FileUsage       = 1
+
+3) Populate the data on Altibase:
+# sh create_meta.sh
+
+4) Test:
+Refer to TEST file.
+

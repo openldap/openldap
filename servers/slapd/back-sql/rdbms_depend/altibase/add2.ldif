@@ -1,0 +1,7 @@
+dn: documentTitle=book3,dc=example,dc=com
+objectClass: document
+description: abstract2
+documentTitle: book3
+documentAuthor: cn=Younghee Bae,dc=example,dc=com
+documentIdentifier: document 3
+
