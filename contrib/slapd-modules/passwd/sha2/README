@@ -92,9 +92,6 @@ $ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha384
  pw-sha2 module and openldap_slappasswd.sh uses 8 bytes
  random value as salt by default)
 
-(join those lines up to form the full hash)
-
-
 
 Alternatively we could modify an existing user's password with
 ldappasswd, and then test binding as that user:
