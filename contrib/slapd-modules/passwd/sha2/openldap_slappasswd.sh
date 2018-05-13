@@ -230,8 +230,13 @@ _openssl_slappasswd()
     fi
   done
 
-  scheme="` echo "$1" | sed 's#^\({[a-zA-Z0-9./_-][a-zA-Z0-9./_-]*}\).*#\1#' | tr A-Z a-z | tr -d '{}' `"
-  hash="`   echo "$1" | sed   's#^{[a-zA-Z0-9./_-][a-zA-Z0-9./_-]*}##' `"
+  hash=
+  case "$scheme" in
+    '{'[a-zA-Z0-9./_-][a-zA-Z0-9./_-]*'}'* )
+      scheme="` echo "$1" | sed 's#^\({[a-zA-Z0-9./_-][a-zA-Z0-9./_-]*}\).*#\1#' | tr A-Z a-z | tr -d '{}' `"
+      hash="`   echo "$1" | sed  's#^{[a-zA-Z0-9./_-][a-zA-Z0-9./_-]*}##' `"
+    ;;
+  esac
   secret="$2"
   salt="$3"
   file="$4"
