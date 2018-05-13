@@ -86,7 +86,7 @@ $ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha384
  ./openldap_slappasswd.sh --secret 'secret' --scheme ssha512
 {SSHA512}vSsar3708Jvp9Szi2NWZZ02Bqp1qRCFpbcTZPdBhnWgs5WtNZKnvCXdhztmeD2cmW192CF5bDufKRpayrW/isg==
 
-(SSHA256, SSHA385, SSHA512 uses salt.
+(SSHA256, SSHA384, SSHA512 uses salt.
  Salt value can be changed, so hash result can be changed.
  Base64 string can be longer with longer salt value.
  pw-sha2 module and openldap_slappasswd.sh uses 8 bytes
