@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 #  openssl_slappasswd -- OpenLDAP slappasswd(with pw-sha2)-compatible
-#                        hash generator only with openssl
+#                        hash generator only with openssl, sed, tail, sh
 #  ==========================================================
    Copyright='(C) 2018 henoheno@users.osdn.me'
    Homepage='https://ja.osdn.net/users/henoheno/'
