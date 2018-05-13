@@ -230,6 +230,10 @@ _openssl_slappasswd()
     fi
   done
 
+  scheme="$1"
+  secret="$2"
+  salt="$3"
+  file="$4"
   hash=
   case "$scheme" in
     '{'[a-zA-Z0-9./_-][a-zA-Z0-9./_-]*'}'* )
@@ -237,9 +241,6 @@ _openssl_slappasswd()
       hash="`   echo "$1" | sed  's#^{[a-zA-Z0-9./_-][a-zA-Z0-9./_-]*}##' `"
     ;;
   esac
-  secret="$2"
-  salt="$3"
-  file="$4"
   if [ 'x' != "x$__debug" ] ; then
     warn "scheme=$scheme"
     warn "hash=$hash"

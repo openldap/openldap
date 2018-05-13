@@ -80,11 +80,11 @@ $ ./openldap_slappasswd.sh --secret 'secret' --scheme sha512
 {SHA512}vSsar3708Jvp9Szi2NWZZ02Bqp1qRCFpbcTZPdBhnWgs5WtNZKnvCXdhztmeD2cmW192CF5bDufKRpayrW/isg==
 
 $ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha256
-{SSHA256}K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=
+{SSHA256}XmaF3NCywnxxfu4gqblJAXEaa6GkJtI1E+BeGVolGS7dmj3F4KusWQ==
 $ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha384
-{SSHA384}WKd1ukESvjAFrkQHznV9iP2nHUBJe7gCbsrFTU4//HIyzo3jq1rLMK45dg/ufFPt
- ./openldap_slappasswd.sh --secret 'secret' --scheme ssha512
-{SSHA512}vSsar3708Jvp9Szi2NWZZ02Bqp1qRCFpbcTZPdBhnWgs5WtNZKnvCXdhztmeD2cmW192CF5bDufKRpayrW/isg==
+{SSHA384}dnFwjYSHYZPQD5WwEM6I636AWsuD5uJi/3+eWFelMxGRujrFQndE/CP4PbiJ4e/Dvu1ftk+Uhkg=
+$ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha512
+{SSHA512}9E5n6sWFaRuWDR24lopfYL3rNxi6SW228mn35K3mLzLtzaZeu5hy3VckPKsmjoXD64A2+57SnGdoK9R2Y97hWizpmCXwX1qT
 
 (SSHA256, SSHA384, SSHA512 uses salt.
  Salt value can be changed, so hash result can be changed.
