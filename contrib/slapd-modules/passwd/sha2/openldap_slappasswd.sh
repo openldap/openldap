@@ -11,7 +11,7 @@
 
 # Software versioning
 VERS_major='0'         # User Interface (file-name etc.) are holded
-VERS_minor='9.0'       # Release / build number
+VERS_minor='9.1'       # Release / build number
 VERSION="$VERS_major.$VERS_minor"
 
 # Name and Usage --------------------------------------------
