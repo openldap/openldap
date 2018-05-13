@@ -3,7 +3,7 @@
 #  openssl_slappasswd -- OpenLDAP slappasswd(with pw-sha2)-compatible
 #                        hash generator only with openssl
 #  ==========================================================
-   Copyright='(C) 2018 henoheno@users.osdn.me, All Rights Reserved'
+   Copyright='(C) 2018 henoheno@users.osdn.me'
    Homepage='https://ja.osdn.net/users/henoheno/'
    License='The OpenLDAP Public License, and revised BSD License'
 #
@@ -32,7 +32,7 @@ usage(){
   qwarn '           {MD5},  {SHA1},  {SHA256},  {SHA384},  {SHA512},'
   qwarn '           {SMD5}, {SSHA1}, {SSHA256}, {SSHA384}, {SSHA512}'
   qwarn "           (default: '{SSHA256}')"
-  qwarn "           You can put '{SCHEME}base64-coded-hash-and-salt' to verify"
+  qwarn "           You can put '{SCHEME}base64-encoded-hash-and-salt' to verify"
   qwarn
   qwarn '  -s secret, --secret secret'
   qwarn '        passphrase or secret'

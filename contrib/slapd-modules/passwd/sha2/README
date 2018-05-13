@@ -72,13 +72,25 @@ ldapsearch -b "dc=example,dc=com" -D "cn=admin,dc=example,dc=com" -x -w secret
 
 Test hashes can be generated with openssl:
 
-$ echo -n "secret" | openssl dgst -sha256 -binary | openssl enc -base64
-K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=
-$ echo -n "secret" | openssl dgst -sha384 -binary | openssl enc -base64
-WKd1ukESvjAFrkQHznV9iP2nHUBJe7gCbsrFTU4//HIyzo3jq1rLMK45dg/ufFPt
-$ echo -n "secret" | openssl dgst -sha512 -binary | openssl enc -base64
-vSsar3708Jvp9Szi2NWZZ02Bqp1qRCFpbcTZPdBhnWgs5WtNZKnvCXdhztmeD2cm
-W192CF5bDufKRpayrW/isg==
+$ ./openldap_slappasswd.sh --secret 'secret' --scheme sha256
+{SHA256}K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=
+$ ./openldap_slappasswd.sh --secret 'secret' --scheme sha384
+{SHA384}WKd1ukESvjAFrkQHznV9iP2nHUBJe7gCbsrFTU4//HIyzo3jq1rLMK45dg/ufFPt
+$ ./openldap_slappasswd.sh --secret 'secret' --scheme sha512
+{SHA512}vSsar3708Jvp9Szi2NWZZ02Bqp1qRCFpbcTZPdBhnWgs5WtNZKnvCXdhztmeD2cmW192CF5bDufKRpayrW/isg==
+
+$ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha256
+{SSHA256}K7gNU3sdo+OL0wNhqoVWhr3g6s1xYv72ol/pe/Unols=
+$ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha384
+{SSHA384}WKd1ukESvjAFrkQHznV9iP2nHUBJe7gCbsrFTU4//HIyzo3jq1rLMK45dg/ufFPt
+ ./openldap_slappasswd.sh --secret 'secret' --scheme ssha512
+{SSHA512}vSsar3708Jvp9Szi2NWZZ02Bqp1qRCFpbcTZPdBhnWgs5WtNZKnvCXdhztmeD2cmW192CF5bDufKRpayrW/isg==
+
+(SSHA256, SSHA385, SSHA512 uses salt.
+ Salt value can be changed, so hash result can be changed.
+ Base64 string can be longer with longer salt value.
+ pw-sha2 module and openldap_slappasswd.sh uses 8 bytes
+ random value as salt by default)
 
 (join those lines up to form the full hash)
 
