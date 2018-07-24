@@ -98,7 +98,6 @@ lload_global_init( void )
     ldap_pvt_thread_cond_init( &lload_wait_cond );
     ldap_pvt_thread_cond_init( &lload_pause_cond );
 
-    ldap_pvt_thread_mutex_init( &backend_mutex );
     ldap_pvt_thread_mutex_init( &clients_mutex );
     ldap_pvt_thread_mutex_init( &lload_pin_mutex );
 

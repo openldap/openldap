@@ -180,9 +180,23 @@ if test $RC != 0 ; then
     exit $RC
 fi
 
-echo "Adding first backend server..."
+echo "Adding first tier..."
 $LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
 dn: cn=first,olcBackend={0}lload,cn=config
+changetype: add
+objectClass: olcBkLloadTierConfig
+olcBkLloadTierType: roundrobin
+EOF
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapadd failed for backend ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Adding first backend server..."
+$LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
+dn: cn=backend,cn={0}first,olcBackend={0}lload,cn=config
 changetype: add
 objectClass: olcBkLloadBackendConfig
 olcBkLloadBackendUri: $URI2
@@ -191,6 +205,7 @@ olcBkLloadMaxPendingOps: 5
 olcBkLloadRetry: 1000
 olcBkLloadNumconns: 2
 olcBkLloadBindconns: 2
+olcBkLloadWeight: 1
 EOF
 RC=$?
 if test $RC != 0 ; then
@@ -232,7 +247,7 @@ fi
 
 echo "Adding another backend server..."
 $LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
-dn: cn=server 2,olcBackend={0}lload,cn=config
+dn: cn=server 2,cn={0}first,olcBackend={0}lload,cn=config
 changetype: add
 objectClass: olcBkLloadBackendConfig
 olcBkLloadBackendUri: $URI3
@@ -241,6 +256,7 @@ olcBkLloadMaxPendingOps: 5
 olcBkLloadRetry: 1000
 olcBkLloadNumconns: 4
 olcBkLloadBindconns: 5
+olcBkLloadWeight: 1
 EOF
 RC=$?
 if test $RC != 0 ; then
@@ -296,7 +312,7 @@ for i in 0 1 2 3 4 5; do
     if test $RC = 6 ; then
         break
     fi
-    echo "Waiting $SLEEP1 seconds until connections are established..."
+    echo "Waiting $SLEEP1 seconds until counters are updated..."
     sleep $SLEEP1
 done
 if test $RC != 6 ; then

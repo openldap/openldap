@@ -44,8 +44,8 @@ LDAP_SLAPD_F (int) upstream_select( LloadOperation *op, LloadConnection **c, int
 LDAP_SLAPD_F (int) backend_select( LloadBackend *b, LloadOperation *op, LloadConnection **c, int *res, char **message );
 LDAP_SLAPD_F (int) try_upstream( LloadBackend *b, lload_c_head *head, LloadOperation *op, LloadConnection *c, int *res, char **message );
 LDAP_SLAPD_F (void) backend_reset( LloadBackend *b, int gentle );
+LDAP_SLAPD_F (LloadBackend *) lload_backend_new( void );
 LDAP_SLAPD_F (void) lload_backend_destroy( LloadBackend *b );
-LDAP_SLAPD_F (void) lload_backends_destroy( void );
 
 /*
  * bind.c
@@ -164,7 +164,8 @@ LDAP_SLAPD_F (void) lload_libevent_destroy( void );
  * monitor.c
  */
 LDAP_SLAPD_F (int) lload_monitor_open( void );
-LDAP_SLAPD_F (int) lload_monitor_backend_init( BackendInfo *bi, LloadBackend *b );
+LDAP_SLAPD_F (int) lload_monitor_backend_init( BackendInfo *bi, monitor_subsys_t *ms, LloadBackend *b );
+LDAP_SLAPD_F (int) lload_monitor_tier_init( BackendInfo *bi, LloadTier *tier );
 #endif /* BALANCER_MODULE */
 
 /*
@@ -193,6 +194,18 @@ LDAP_SLAPD_F (void) operations_timeout( evutil_socket_t s, short what, void *arg
 LDAP_SLAPD_F (void) operation_update_conn_counters( LloadOperation *op, LloadConnection *upstream );
 LDAP_SLAPD_F (void) operation_update_backend_counters( LloadOperation *op, LloadBackend *b );
 LDAP_SLAPD_F (void) operation_update_global_rejected( LloadOperation *op );
+
+/*
+ * tier.c
+ */
+LDAP_SLAPD_F (int) tier_startup( LloadTier *tier );
+LDAP_SLAPD_F (int) tier_reset( LloadTier *tier, int shutdown );
+LDAP_SLAPD_F (int) tier_destroy( LloadTier *tier );
+LDAP_SLAPD_F (void) lload_tiers_shutdown( void );
+LDAP_SLAPD_F (void) lload_tiers_reset( int shutdown );
+LDAP_SLAPD_F (void) lload_tiers_destroy( void );
+LDAP_SLAPD_F (struct lload_tier_type *) lload_tier_find( char *type );
+
 /*
  * upstream.c
  */

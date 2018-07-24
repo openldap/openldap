@@ -26,7 +26,7 @@ olmRejectedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Backend Servers,cn=Load Balancer,cn=Backends,cn=Monitor
+dn: cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monitor
 objectClass: monitorContainer
 
 
@@ -58,10 +58,14 @@ olmRejectedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Backend Servers,cn=Load Balancer,cn=Backends,cn=Monitor
+dn: cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monitor
 objectClass: monitorContainer
 
-dn: cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,cn=Monitor
+dn: cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monitor
+objectClass: monitorContainer
+
+dn: cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monit
+ or
 objectClass: olmBalancerServer
 olmServerURI: ldap://localhost:9012/
 olmActiveConnections: 4
@@ -71,8 +75,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 1,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 1,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -80,8 +84,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 3,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 3,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -89,8 +93,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 2,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 2,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -98,8 +102,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 4,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 4,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -136,10 +140,14 @@ olmRejectedOps: 0
 olmCompletedOps: 2
 olmFailedOps: 0
 
-dn: cn=Backend Servers,cn=Load Balancer,cn=Backends,cn=Monitor
+dn: cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monitor
 objectClass: monitorContainer
 
-dn: cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,cn=Monitor
+dn: cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monitor
+objectClass: monitorContainer
+
+dn: cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monit
+ or
 objectClass: olmBalancerServer
 olmServerURI: ldap://localhost:9012/
 olmActiveConnections: 4
@@ -149,8 +157,8 @@ olmReceivedOps: 2
 olmCompletedOps: 2
 olmFailedOps: 0
 
-dn: cn=Connection 1,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 1,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -158,8 +166,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 3,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 3,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -167,8 +175,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 2,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 2,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -176,8 +184,8 @@ olmReceivedOps: 1
 olmCompletedOps: 1
 olmFailedOps: 0
 
-dn: cn=Connection 4,cn=first,cn=Backend Servers,cn=Load Balancer,cn=Backends,c
- n=Monitor
+dn: cn=Connection 4,cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=B
+ ackends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -185,7 +193,8 @@ olmReceivedOps: 1
 olmCompletedOps: 1
 olmFailedOps: 0
 
-dn: cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backends,cn=Monitor
+dn: cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Moni
+ tor
 objectClass: olmBalancerServer
 olmServerURI: ldap://localhost:9013/
 olmActiveConnections: 9
@@ -195,8 +204,8 @@ olmReceivedOps: 2
 olmCompletedOps: 2
 olmFailedOps: 0
 
-dn: cn=Connection 5,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backend
- s,cn=Monitor
+dn: cn=Connection 5,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=
+ Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -204,8 +213,8 @@ olmReceivedOps: 1
 olmCompletedOps: 1
 olmFailedOps: 0
 
-dn: cn=Connection 7,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backend
- s,cn=Monitor
+dn: cn=Connection 7,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=
+ Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -213,8 +222,8 @@ olmReceivedOps: 1
 olmCompletedOps: 1
 olmFailedOps: 0
 
-dn: cn=Connection 8,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backend
- s,cn=Monitor
+dn: cn=Connection 8,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=
+ Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -222,8 +231,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 9,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backend
- s,cn=Monitor
+dn: cn=Connection 9,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=
+ Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: regular
 olmPendingOps: 0
@@ -231,8 +240,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 6,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backend
- s,cn=Monitor
+dn: cn=Connection 6,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=
+ Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -240,8 +249,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 10,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backen
- ds,cn=Monitor
+dn: cn=Connection 10,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn
+ =Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -249,8 +258,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 11,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backen
- ds,cn=Monitor
+dn: cn=Connection 11,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn
+ =Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -258,8 +267,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 12,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backen
- ds,cn=Monitor
+dn: cn=Connection 12,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn
+ =Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0
@@ -267,8 +276,8 @@ olmReceivedOps: 0
 olmCompletedOps: 0
 olmFailedOps: 0
 
-dn: cn=Connection 13,cn=server 2,cn=Backend Servers,cn=Load Balancer,cn=Backen
- ds,cn=Monitor
+dn: cn=Connection 13,cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn
+ =Backends,cn=Monitor
 objectClass: olmBalancerConnection
 olmConnectionType: bind
 olmPendingOps: 0

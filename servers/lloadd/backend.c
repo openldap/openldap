@@ -392,44 +392,17 @@ upstream_select(
         int *res,
         char **message )
 {
-    LloadBackend *b, *first, *next;
-    int rc = 0;
+    LloadTier *tier;
+    int finished = 0;
 
-    checked_lock( &backend_mutex );
-    first = b = current_backend;
-    checked_unlock( &backend_mutex );
-
-    *res = LDAP_UNAVAILABLE;
-
-    if ( !first ) {
-        return NULL;
+    LDAP_STAILQ_FOREACH( tier, &tiers, t_next ) {
+        if ( (finished = tier->t_type.tier_select(
+                       tier, op, cp, res, message )) ) {
+            break;
+        }
     }
 
-    /* TODO: Two runs, one with trylock, then one actually locked if we don't
-     * find anything? */
-    do {
-        checked_lock( &b->b_mutex );
-        next = LDAP_CIRCLEQ_LOOP_NEXT( &backend, b, b_next );
-
-        rc = backend_select( b, op, cp, res, message );
-        checked_unlock( &b->b_mutex );
-
-        if ( rc && *cp ) {
-            /*
-             * Round-robin step:
-             * Rotate the queue to put this backend at the end. The race here
-             * is acceptable.
-             */
-            checked_lock( &backend_mutex );
-            current_backend = next;
-            checked_unlock( &backend_mutex );
-            return rc;
-        }
-
-        b = next;
-    } while ( b != first );
-
-    return rc;
+    return finished;
 }
 
 /*
@@ -726,25 +699,40 @@ backend_reset( LloadBackend *b, int gentle )
     assert_locked( &b->b_mutex );
 }
 
+LloadBackend *
+lload_backend_new( void )
+{
+    LloadBackend *b;
+
+    b = ch_calloc( 1, sizeof(LloadBackend) );
+
+    LDAP_CIRCLEQ_INIT( &b->b_conns );
+    LDAP_CIRCLEQ_INIT( &b->b_bindconns );
+    LDAP_CIRCLEQ_INIT( &b->b_preparing );
+    LDAP_CIRCLEQ_ENTRY_INIT( b, b_next );
+
+    b->b_numconns = 1;
+    b->b_numbindconns = 1;
+    b->b_weight = 1;
+
+    b->b_retry_timeout = 5000;
+
+    ldap_pvt_thread_mutex_init( &b->b_mutex );
+
+    return b;
+}
+
 void
 lload_backend_destroy( LloadBackend *b )
 {
-    LloadBackend *next = LDAP_CIRCLEQ_LOOP_NEXT( &backend, b, b_next );
-
     Debug( LDAP_DEBUG_CONNS, "lload_backend_destroy: "
             "destroying backend uri='%s', numconns=%d, numbindconns=%d\n",
             b->b_uri.bv_val, b->b_numconns, b->b_numbindconns );
 
     checked_lock( &b->b_mutex );
+    b->b_tier->t_type.tier_remove_backend( b->b_tier, b );
     b->b_numconns = b->b_numbindconns = 0;
     backend_reset( b, 0 );
-
-    LDAP_CIRCLEQ_REMOVE( &backend, b, b_next );
-    if ( b == next ) {
-        current_backend = NULL;
-    } else {
-        current_backend = next;
-    }
 
 #ifdef BALANCER_MODULE
     if ( b->b_monitor ) {
@@ -760,6 +748,7 @@ lload_backend_destroy( LloadBackend *b )
         assert( rc == LDAP_SUCCESS );
     }
 #endif /* BALANCER_MODULE */
+
     checked_unlock( &b->b_mutex );
     ldap_pvt_thread_mutex_destroy( &b->b_mutex );
 
@@ -773,14 +762,4 @@ lload_backend_destroy( LloadBackend *b )
     ch_free( b->b_uri.bv_val );
     ch_free( b->b_name.bv_val );
     ch_free( b );
-}
-
-void
-lload_backends_destroy( void )
-{
-    while ( !LDAP_CIRCLEQ_EMPTY( &backend ) ) {
-        LloadBackend *b = LDAP_CIRCLEQ_FIRST( &backend );
-
-        lload_backend_destroy( b );
-    }
 }

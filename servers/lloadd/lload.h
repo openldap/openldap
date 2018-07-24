@@ -98,6 +98,7 @@ LDAP_BEGIN_DECL
 #define assert_locked( mutex ) ( (void)0 )
 #endif
 
+typedef struct LloadTier LloadTier;
 typedef struct LloadBackend LloadBackend;
 typedef struct LloadPendingConnection LloadPendingConnection;
 typedef struct LloadConnection LloadConnection;
@@ -105,13 +106,12 @@ typedef struct LloadOperation LloadOperation;
 typedef struct LloadChange LloadChange;
 /* end of forward declarations */
 
+typedef LDAP_STAILQ_HEAD(TierSt, LloadTier) lload_t_head;
 typedef LDAP_CIRCLEQ_HEAD(BeSt, LloadBackend) lload_b_head;
 typedef LDAP_CIRCLEQ_HEAD(ConnSt, LloadConnection) lload_c_head;
 
-LDAP_SLAPD_V (lload_b_head) backend;
+LDAP_SLAPD_V (lload_t_head) tiers;
 LDAP_SLAPD_V (lload_c_head) clients;
-LDAP_SLAPD_V (ldap_pvt_thread_mutex_t) backend_mutex;
-LDAP_SLAPD_V (LloadBackend *) current_backend;
 LDAP_SLAPD_V (struct slap_bindconf) bindconf;
 LDAP_SLAPD_V (struct berval) lloadd_identity;
 
@@ -141,6 +141,7 @@ enum lc_object {
     /*
     LLOAD_BINDCONF,
     */
+    LLOAD_TIER,
     LLOAD_BACKEND,
 };
 
@@ -151,6 +152,10 @@ enum lcf_daemon {
     LLOAD_DAEMON_MOD_LISTENER_ADD = 1 << 3,
     LLOAD_DAEMON_MOD_LISTENER_REPLACE = 1 << 4,
     LLOAD_DAEMON_MOD_BINDCONF = 1 << 5,
+};
+
+enum lcf_tier {
+    LLOAD_TIER_MOD_TYPE = 1 << 0,
 };
 
 enum lcf_backend {
@@ -164,6 +169,7 @@ struct LloadChange {
     union {
         int generic;
         enum lcf_daemon daemon;
+        enum lcf_tier tier;
         enum lcf_backend backend;
     } flags;
     void *target;
@@ -224,6 +230,58 @@ typedef struct lload_global_stats_t {
     lload_counters_t counters[LLOAD_STATS_OPS_LAST];
 } lload_global_stats_t;
 
+typedef LloadTier *(LloadTierInit)( void );
+typedef int (LloadTierConfigCb)( LloadTier *tier, char *arg );
+typedef int (LloadTierBackendConfigCb)( LloadTier *tier, LloadBackend *b, char *arg );
+typedef int (LloadTierCb)( LloadTier *tier );
+typedef int (LloadTierResetCb)( LloadTier *tier, int shutdown );
+typedef int (LloadTierBackendCb)( LloadTier *tier, LloadBackend *b );
+typedef void (LloadTierChange)( LloadTier *tier, LloadChange *change );
+typedef int (LloadTierSelect)( LloadTier *tier,
+        LloadOperation *op,
+        LloadConnection **cp,
+        int *res,
+        char **message );
+
+struct lload_tier_type {
+    char *tier_name;
+
+    struct berval tier_oc, tier_backend_oc;
+
+    LloadTierInit *tier_init;
+    LloadTierConfigCb *tier_config;
+    LloadTierBackendConfigCb *tier_backend_config;
+    LloadTierCb *tier_startup;
+    LloadTierResetCb *tier_reset;
+    LloadTierCb *tier_destroy;
+
+    LloadTierBackendCb *tier_add_backend;
+    LloadTierBackendCb *tier_remove_backend;
+    LloadTierChange *tier_change;
+
+    LloadTierSelect *tier_select;
+};
+
+struct LloadTier {
+    struct lload_tier_type t_type;
+    ldap_pvt_thread_mutex_t t_mutex;
+
+    lload_b_head t_backends;
+    int t_nbackends;
+
+    enum {
+        LLOAD_TIER_EXCLUSIVE = 1 << 0, /* Reject if busy */
+    } t_flags;
+
+    struct berval t_name;
+#ifdef BALANCER_MODULE
+    monitor_subsys_t *t_monitor;
+#endif /* BALANCER_MODULE */
+
+    void *t_private;
+    LDAP_STAILQ_ENTRY(LloadTier) t_next;
+};
+
 /* Can hold mutex when locking a linked connection */
 struct LloadBackend {
     ldap_pvt_thread_mutex_t b_mutex;
@@ -247,6 +305,11 @@ struct LloadBackend {
     long b_n_ops_executing;
 
     lload_counters_t b_counters[LLOAD_STATS_OPS_LAST];
+
+    LloadTier *b_tier;
+
+    uintptr_t b_fitness;
+    int b_weight;
 
 #ifdef BALANCER_MODULE
     monitor_subsys_t *b_monitor;

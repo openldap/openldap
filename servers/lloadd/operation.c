@@ -641,7 +641,7 @@ void
 operations_timeout( evutil_socket_t s, short what, void *arg )
 {
     struct event *self = arg;
-    LloadBackend *b;
+    LloadTier *tier;
     time_t threshold;
 
     Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
@@ -650,31 +650,35 @@ operations_timeout( evutil_socket_t s, short what, void *arg )
 
     threshold = slap_get_time() - lload_timeout_api->tv_sec;
 
-    LDAP_CIRCLEQ_FOREACH ( b, &backend, b_next ) {
-        epoch_t epoch;
+    LDAP_STAILQ_FOREACH ( tier, &tiers, t_next ) {
+        LloadBackend *b;
 
-        checked_lock( &b->b_mutex );
-        if ( b->b_n_ops_executing == 0 ) {
+        LDAP_CIRCLEQ_FOREACH ( b, &tier->t_backends, b_next ) {
+            epoch_t epoch;
+
+            checked_lock( &b->b_mutex );
+            if ( b->b_n_ops_executing == 0 ) {
+                checked_unlock( &b->b_mutex );
+                continue;
+            }
+
+            epoch = epoch_join();
+
+            Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
+                    "timing out binds for backend uri=%s\n",
+                    b->b_uri.bv_val );
+            connections_walk_last( &b->b_mutex, &b->b_bindconns,
+                    b->b_last_bindconn, connection_timeout, &threshold );
+
+            Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
+                    "timing out other operations for backend uri=%s\n",
+                    b->b_uri.bv_val );
+            connections_walk_last( &b->b_mutex, &b->b_conns, b->b_last_conn,
+                    connection_timeout, &threshold );
+
+            epoch_leave( epoch );
             checked_unlock( &b->b_mutex );
-            continue;
         }
-
-        epoch = epoch_join();
-
-        Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
-                "timing out binds for backend uri=%s\n",
-                b->b_uri.bv_val );
-        connections_walk_last( &b->b_mutex, &b->b_bindconns, b->b_last_bindconn,
-                connection_timeout, &threshold );
-
-        Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
-                "timing out other operations for backend uri=%s\n",
-                b->b_uri.bv_val );
-        connections_walk_last( &b->b_mutex, &b->b_conns, b->b_last_conn,
-                connection_timeout, &threshold );
-
-        epoch_leave( epoch );
-        checked_unlock( &b->b_mutex );
     }
 done:
     Debug( LDAP_DEBUG_TRACE, "operations_timeout: "

@@ -28,8 +28,7 @@ if test $AC_lloadd = lloaddyes ; then
 fi
 
 # Monitor counts are unstable in the face of concurrency, since different
-# clients may get different upstreams assigned for their operations. This might
-# also change later when tiered load balancing is available.
+# clients may get different upstreams assigned for their operations.
 # Another constraint is that some global counts are updated by the statistics
 # collection task scheduled to run every second.
 #
@@ -203,9 +202,23 @@ if test $RC != 52 ; then
 	exit $RC
 fi
 
+echo "Adding first tier..."
+$LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
+dn: cn=first,olcBackend={0}lload,cn=config
+changetype: add
+objectClass: olcBkLloadTierConfig
+olcBkLloadTierType: roundrobin
+EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed for backend ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
 echo "Adding first backend server..."
 $LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
-dn: cn=backend,olcBackend={0}lload,cn=config
+dn: cn=backend,cn={0}first,olcBackend={0}lload,cn=config
 changetype: add
 objectClass: olcBkLloadBackendConfig
 olcBkLloadBackendUri: $URI2
@@ -257,7 +270,7 @@ fi
 
 echo "Adding another backend server..."
 $LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
-dn: cn=server 2,olcBackend={0}lload,cn=config
+dn: cn=server 2,cn={0}first,olcBackend={0}lload,cn=config
 changetype: add
 objectClass: olcBkLloadBackendConfig
 olcBkLloadBackendUri: $URI3

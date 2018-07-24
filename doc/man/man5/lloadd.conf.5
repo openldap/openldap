@@ -644,7 +644,13 @@ only valid when using GnuTLS and Mozilla NSS.
 .SH BACKEND CONFIGURATION
 Options in this section describe how the
 .B lloadd
-connects and authenticates to the backend servers.
+connects and authenticates to the backend servers. Backends are organised in groups
+.RB ( tiers ).
+Backends in the first tier are tried first, if none of them are reachable, the
+following tier is tried in the same way. If there is a backend in the tier that
+has suitable connections, but they are busy, no further tier is consulted. This
+is useful in high availability scenarios where a group of servers (e.g. the
+local environment) should be contacted if possible.
 
 It is assumed all backend servers serve the same data. On startup, the
 configured connections are set up and those not dedicated to handle bind
@@ -729,6 +735,33 @@ parameter, if non-zero, corresponds to the
 set on the upstream connections, overriding the operating system setting.
 Only some systems support the customization of this parameter, it is
 ignored otherwise and system-wide settings are used.
+
+.SH TIER OPTIONS
+
+.TP
+.B tier
+.B <tier type>
+
+Groups servers which should be considered in the same try. If a viable
+connection is found even if busy, the load balancer does not proceed to the
+next tier. The process of selection a connection within a tier depends on the
+tier's type.
+
+.RE
+Available types are:
+.TP
+.B roundrobin
+Servers are tried in order and if one is selected successfully, the following
+search will try from the one next on the list.
+.TP
+.B weighted
+Backend servers accept a new option
+.B weight=<int>
+which indicates how often it should be selected. If unspecified, weight
+defaults to 0 and such backends have a slight chance of being selected even
+when a non-zero weight backend is configured in the tier. The selection process
+is along the lines of
+.BR RFC2782 .
 
 .SH BACKEND OPTIONS
 
@@ -879,6 +912,7 @@ bindconf
     binddn=cn=test
     credentials=pass
 
+tier weighted
 backend-server
     uri=ldap://ldap1.example.com
     numconns=3
@@ -886,6 +920,7 @@ backend-server
     retry=5000
     max-pending-ops=5
     conn-max-pending=3
+    weight=5
 
 backend-server
     uri=ldap://ldap2.example.com
@@ -894,6 +929,7 @@ backend-server
     retry=5000
     max-pending-ops=5
     conn-max-pending=3
+    weight=10
 .fi
 .RE
 .LP
