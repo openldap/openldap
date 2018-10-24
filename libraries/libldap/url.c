@@ -133,7 +133,7 @@ ldap_is_ldap_url( LDAP_CONST char *url )
 		return 0;
 	}
 
-	return 1;
+	return strcmp(scheme, "ldap") == 0;
 }
 
 int
