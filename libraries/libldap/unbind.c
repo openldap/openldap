@@ -108,9 +108,8 @@ ldap_ld_free(
 
 	/* free LDAP structure and outstanding requests/responses */
 	LDAP_MUTEX_LOCK( &ld->ld_req_mutex );
-	while ( ld->ld_requests != NULL ) {
-		ldap_free_request( ld, ld->ld_requests );
-	}
+	ldap_tavl_free( ld->ld_requests, ldap_do_free_request );
+	ld->ld_requests = NULL;
 	LDAP_MUTEX_UNLOCK( &ld->ld_req_mutex );
 	LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
 
