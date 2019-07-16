@@ -1377,13 +1377,14 @@ get_url_perms(
 static int
 slap_get_listener_addresses(
 	const char *host,
+	int proto,
 	unsigned short port,
 	struct sockaddr ***sal )
 {
 	struct sockaddr **sap;
 
 #ifdef LDAP_PF_LOCAL
-	if ( port == 0 ) {
+	if ( proto == LDAP_PROTO_IPC ) {
 		sap = *sal = ch_malloc(2 * sizeof(void *));
 
 		*sap = ch_malloc(sizeof(struct sockaddr_un));
@@ -1508,7 +1509,7 @@ slap_open_listener(
 	int *listeners,
 	int *cur )
 {
-	int	num, tmp, rc;
+	int	num, proto, tmp, rc;
 	Listener l;
 	Listener *li;
 	LDAPURLDesc *lud;
@@ -1526,7 +1527,7 @@ slap_open_listener(
 	int	crit = 1;
 #endif /* LDAP_PF_LOCAL || SLAP_X_LISTENER_MOD */
 
-	rc = ldap_url_parse( url, &lud );
+	rc = ldap_url_parse_ext( url, &lud, LDAP_PVT_URL_PARSE_DEF_PORT );
 
 	if( rc != LDAP_URL_SUCCESS ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -1547,14 +1548,8 @@ slap_open_listener(
 		return -1;
 	}
 
-	if(! lud->lud_port ) lud->lud_port = LDAP_PORT;
-
 #else /* HAVE_TLS */
 	l.sl_is_tls = ldap_pvt_url_scheme2tls( lud->lud_scheme );
-
-	if(! lud->lud_port ) {
-		lud->lud_port = l.sl_is_tls ? LDAPS_PORT : LDAP_PORT;
-	}
 #endif /* HAVE_TLS */
 
 	l.sl_is_proxied = ldap_pvt_url_scheme2proxied( lud->lud_scheme );
@@ -1566,13 +1561,13 @@ slap_open_listener(
 
 	port = (unsigned short) lud->lud_port;
 
-	tmp = ldap_pvt_url_scheme2proto(lud->lud_scheme);
-	if ( tmp == LDAP_PROTO_IPC ) {
+	proto = ldap_pvt_url_scheme2proto(lud->lud_scheme);
+	if ( proto == LDAP_PROTO_IPC ) {
 #ifdef LDAP_PF_LOCAL
 		if ( lud->lud_host == NULL || lud->lud_host[0] == '\0' ) {
-			err = slap_get_listener_addresses(LDAPI_SOCK, 0, &sal);
+			err = slap_get_listener_addresses(LDAPI_SOCK, proto, 0, &sal);
 		} else {
-			err = slap_get_listener_addresses(lud->lud_host, 0, &sal);
+			err = slap_get_listener_addresses(lud->lud_host, proto, 0, &sal);
 		}
 #else /* ! LDAP_PF_LOCAL */
 
@@ -1585,14 +1580,14 @@ slap_open_listener(
 		if( lud->lud_host == NULL || lud->lud_host[0] == '\0'
 			|| strcmp(lud->lud_host, "*") == 0 )
 		{
-			err = slap_get_listener_addresses(NULL, port, &sal);
+			err = slap_get_listener_addresses(NULL, proto, port, &sal);
 		} else {
-			err = slap_get_listener_addresses(lud->lud_host, port, &sal);
+			err = slap_get_listener_addresses(lud->lud_host, proto, port, &sal);
 		}
 	}
 
 #ifdef LDAP_CONNECTIONLESS
-	l.sl_is_udp = ( tmp == LDAP_PROTO_UDP );
+	l.sl_is_udp = ( proto == LDAP_PROTO_UDP );
 #endif /* LDAP_CONNECTIONLESS */
 
 #if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
@@ -1774,34 +1769,44 @@ slap_open_listener(
 
 		case AF_INET: {
 			char addr[INET_ADDRSTRLEN];
-			const char *s;
+			const char *name;
+			unsigned short local_port = port;
+			if ( local_port == 0 ) {
+				socklen_t len = sizeof(struct sockaddr_in);
+				getsockname( s, *sal, &len );
+			}
 #if defined( HAVE_GETADDRINFO ) && defined( HAVE_INET_NTOP )
-			s = inet_ntop( AF_INET, &((struct sockaddr_in *)*sal)->sin_addr,
+			name = inet_ntop( AF_INET, &((struct sockaddr_in *)*sal)->sin_addr,
 				addr, sizeof(addr) );
 #else /* ! HAVE_GETADDRINFO || ! HAVE_INET_NTOP */
-			s = inet_ntoa( ((struct sockaddr_in *) *sal)->sin_addr );
+			name = inet_ntoa( ((struct sockaddr_in *) *sal)->sin_addr );
 #endif /* ! HAVE_GETADDRINFO || ! HAVE_INET_NTOP */
-			if (!s) s = SLAP_STRING_UNKNOWN;
-			port = ntohs( ((struct sockaddr_in *)*sal) ->sin_port );
+			if (!name) name = SLAP_STRING_UNKNOWN;
+			local_port = ntohs( ((struct sockaddr_in *)*sal) ->sin_port );
 			l.sl_name.bv_val =
 				ch_malloc( sizeof("IP=255.255.255.255:65535") );
 			snprintf( l.sl_name.bv_val, sizeof("IP=255.255.255.255:65535"),
-				"IP=%s:%d", s, port );
+				"IP=%s:%d", name, local_port );
 			l.sl_name.bv_len = strlen( l.sl_name.bv_val );
 		} break;
 
 #ifdef LDAP_PF_INET6
 		case AF_INET6: {
 			char addr[INET6_ADDRSTRLEN];
-			const char *s;
-			s = inet_ntop( AF_INET6, &((struct sockaddr_in6 *)*sal)->sin6_addr,
+			const char *name;
+			unsigned short local_port = port;
+			if ( local_port == 0 ) {
+				socklen_t len = sizeof(struct sockaddr_in);
+				getsockname( s, *sal, &len );
+			}
+			name = inet_ntop( AF_INET6, &((struct sockaddr_in6 *)*sal)->sin6_addr,
 				addr, sizeof addr);
-			if (!s) s = SLAP_STRING_UNKNOWN;
-			port = ntohs( ((struct sockaddr_in6 *)*sal)->sin6_port );
-			l.sl_name.bv_len = strlen(s) + sizeof("IP=[]:65535");
+			if (!name) name = SLAP_STRING_UNKNOWN;
+			local_port = ntohs( ((struct sockaddr_in6 *)*sal)->sin6_port );
+			l.sl_name.bv_len = strlen(name) + sizeof("IP=[]:65535");
 			l.sl_name.bv_val = ch_malloc( l.sl_name.bv_len );
 			snprintf( l.sl_name.bv_val, l.sl_name.bv_len, "IP=[%s]:%d", 
-				s, port );
+				name, local_port );
 			l.sl_name.bv_len = strlen( l.sl_name.bv_val );
 		} break;
 #endif /* LDAP_PF_INET6 */
