@@ -14,7 +14,7 @@
 ## <http://www.OpenLDAP.org/license.html>.
 
 RUN=./run
-SUBDIRS= progs
+SUBDIRS= modules progs
 
 BUILD_MDB=@BUILD_MDB@
 BUILD_SQL=@BUILD_SQL@

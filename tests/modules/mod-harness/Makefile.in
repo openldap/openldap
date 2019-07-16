@@ -1,0 +1,36 @@
+# Makefile.in for mod-harness
+# $OpenLDAP$
+## This work is part of OpenLDAP Software <http://www.openldap.org/>.
+##
+## Copyright 2007-2019 The OpenLDAP Foundation.
+## All rights reserved.
+##
+## Redistribution and use in source and binary forms, with or without
+## modification, are permitted only as authorized by the OpenLDAP
+## Public License.
+##
+## A copy of this license is available in the file LICENSE in the
+## top-level directory of the distribution or, alternatively, at
+## <http://www.OpenLDAP.org/license.html>.
+
+SRCS	= init.c config.c connection.c
+OBJS	= $(patsubst %.c,%.lo,$(SRCS)) $(UNIX_OBJS)
+
+LDAP_INCDIR= ../../../include
+LDAP_LIBDIR= ../../../libraries
+
+BUILD_OPT = "--enable-harness"
+BUILD_MOD = @BUILD_HARNESS@
+
+mod_DEFS = -DSLAPD_IMPORT
+MOD_DEFS = $(@BUILD_HARNESS@_DEFS)
+
+shared_LDAP_LIBS = $(LDAP_LIBLDAP_R_LA) $(LDAP_LIBLBER_LA)
+NT_LINK_LIBS = -L.. -lslapd $(@BUILD_LIBS_DYNAMIC@_LDAP_LIBS)
+UNIX_LINK_LIBS = $(@BUILD_LIBS_DYNAMIC@_LDAP_LIBS)
+
+LIBBASE = mod_harness
+
+XINCPATH = -I$(top_srcdir)/servers/slapd
+XDEFS = $(MODULES_CPPFLAGS)
+

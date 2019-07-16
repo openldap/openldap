@@ -437,6 +437,13 @@ OL_ARG_ENABLE(balancer, [AS_HELP_STRING([--enable-balancer], [enable load balanc
 	no, [no yes mod])
 
 dnl ----------------------------------------------------------------
+dnl TESTSUITE OPTIONS
+AC_ARG_ENABLE(testoptions,[
+Test suite Options:])
+OL_ARG_ENABLE(harness, [AS_HELP_STRING([--enable-harness], [enable mod_harness])],
+	no, [no yes])
+
+dnl ----------------------------------------------------------------
 AC_ARG_ENABLE(xxliboptions,[
 Library Generation & Linking Options])
 AC_ENABLE_STATIC
@@ -471,6 +478,11 @@ if test $ol_enable_slapd = no ; then
 		AC_MSG_WARN([slapd disabled, ignoring --enable-balancer=mod argument])
 		ol_enable_balancer=no
 	fi
+
+	if test $ol_enable_harness != no ; then
+		AC_MSG_WARN([slapd disabled, ignoring --enable-harness=$ol_enable_harness argument])
+		ol_enable_harness=no
+	fi
 else
 	dnl If slapd enabled and loadable module support disabled
 	dnl then require at least one built-in backend
@@ -484,7 +496,7 @@ else
 			fi
 		done
 
-		for i in $Pwmods; do
+		for i in harness $Pwmods; do
 			eval "ol_tmp=\$ol_enable_$i"
 			if test -n "$ol_tmp" && test "$ol_tmp" = yes ; then
 				AC_MSG_ERROR([--enable-$i=yes requires --enable-modules])
@@ -609,6 +621,8 @@ BUILD_UNIQUE=no
 BUILD_VALSORT=no
 
 BUILD_PW_ARGON2=no
+
+BUILD_HARNESS=no
 
 SLAPD_STATIC_OVERLAYS=
 SLAPD_DYNAMIC_OVERLAYS=
@@ -3073,6 +3087,14 @@ if test $ol_enable_versioning != no; then
 fi
 
 dnl ----------------------------------------------------------------
+dnl Test suite
+
+dnl We use 'yes' but mean 'mod' as far as our Makefile infra is concerned
+if test $ol_enable_harness != no; then
+    BUILD_HARNESS=mod
+fi
+
+dnl ----------------------------------------------------------------
 
 dnl
 dnl For Windows build, we don't want to include -dlopen flags.
@@ -3146,6 +3168,8 @@ dnl overlays
   AC_SUBST(BUILD_BALANCER)
 dnl pwmods
   AC_SUBST(BUILD_PW_ARGON2)
+dnl test suite
+  AC_SUBST(BUILD_HARNESS)
 
 AC_SUBST(LDAP_LIBS)
 AC_SUBST(CLIENT_LIBS)
@@ -3245,6 +3269,8 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk]
 [tests/Makefile:build/top.mk:tests/Makefile.in:build/dir.mk]
 [tests/run]
+[tests/modules/Makefile:build/top.mk:tests/modules/Makefile.in:build/dir.mk]
+[tests/modules/mod-harness/Makefile:build/top.mk:tests/modules/mod-harness/Makefile.in:build/mod.mk]
 [tests/progs/Makefile:build/top.mk:tests/progs/Makefile.in:build/rules.mk])
 
 AC_CONFIG_COMMANDS([default],[[
