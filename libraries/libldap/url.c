@@ -940,6 +940,7 @@ ldap_url_parse_ext( LDAP_CONST char *url_in, LDAPURLDesc **ludpp, unsigned flags
 			q = strchr( url, ':' );
 		}
 
+		i = !q; /* i is set iff we don't have a port specified */
 		if ( q != NULL ) {
 			char	*next;
 
@@ -968,7 +969,7 @@ ldap_url_parse_ext( LDAP_CONST char *url_in, LDAPURLDesc **ludpp, unsigned flags
 			}
 		}
 
-		if ( ( flags & LDAP_PVT_URL_PARSE_DEF_PORT ) && ludp->lud_port == 0 ) {
+		if ( ( flags & LDAP_PVT_URL_PARSE_DEF_PORT ) && i ) {
 			if ( strcmp( ludp->lud_scheme, "ldaps" ) == 0 ) {
 				ludp->lud_port = LDAPS_PORT;
 			} else {
