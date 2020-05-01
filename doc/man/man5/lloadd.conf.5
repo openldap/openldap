@@ -762,6 +762,23 @@ defaults to 0 and such backends have a slight chance of being selected even
 when a non-zero weight backend is configured in the tier. The selection process
 is along the lines of
 .BR RFC2782 .
+.TP
+.B bestof
+Like with
+.BI weighted ,
+backends accept the
+.B weight=<int>
+option. Average latency multiplied by
+.B weight
+is measured over time. The selection process chooses 2 backends at random,
+compares their weighted latencies and the backend with a better (lower) score
+is tried. If the backend is not available (or is busy), the other backend is
+tried, then backends are chosen in a round-robin order.
+
+Note that unlike
+.BI weighted ,
+the higher the weight, the higher the "effective" latency and lower the chance
+a backend is selected.
 
 .SH BACKEND OPTIONS
 

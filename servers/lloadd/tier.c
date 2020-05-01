@@ -117,8 +117,21 @@ lload_tiers_reset( int shutdown )
     }
 }
 
+void
+lload_tiers_update( evutil_socket_t s, short what, void *arg )
+{
+    LloadTier *tier;
+
+    LDAP_STAILQ_FOREACH ( tier, &tiers, t_next ) {
+        if ( tier->t_type.tier_update ) {
+            tier->t_type.tier_update( tier );
+        }
+    }
+}
+
 extern struct lload_tier_type roundrobin_tier;
 extern struct lload_tier_type weighted_tier;
+extern struct lload_tier_type bestof_tier;
 
 struct {
     char *name;
@@ -126,6 +139,7 @@ struct {
 } tier_types[] = {
         { "roundrobin", &roundrobin_tier },
         { "weighted", &weighted_tier },
+        { "bestof", &bestof_tier },
 
         { NULL }
 };

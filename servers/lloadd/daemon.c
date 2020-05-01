@@ -96,6 +96,7 @@ struct event_base *daemon_base = NULL;
 struct evdns_base *dnsbase;
 
 struct event *lload_timeout_event;
+struct event *lload_stats_event;
 
 /*
  * global lload statistics. Not mutex protected to preserve performance -
@@ -1234,6 +1235,7 @@ lloadd_daemon( struct event_base *daemon_base )
     LloadTier *tier;
     struct event_base *base;
     struct event *event;
+    struct timeval second = { 1, 0 };
 
     assert( daemon_base != NULL );
 
@@ -1281,6 +1283,16 @@ lloadd_daemon( struct event_base *daemon_base )
             return -1;
         }
     }
+
+    event = event_new( daemon_base, -1, EV_TIMEOUT|EV_PERSIST,
+            lload_tiers_update, NULL );
+    if ( !event ) {
+        Debug( LDAP_DEBUG_ANY, "lloadd: "
+                "failed to allocate stats update event\n" );
+        return -1;
+    }
+    lload_stats_event = event;
+    event_add( event, &second );
 
     event = evtimer_new( daemon_base, operations_timeout, event_self_cbarg() );
     if ( !event ) {

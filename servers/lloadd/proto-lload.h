@@ -203,6 +203,7 @@ LDAP_SLAPD_F (int) tier_reset( LloadTier *tier, int shutdown );
 LDAP_SLAPD_F (int) tier_destroy( LloadTier *tier );
 LDAP_SLAPD_F (void) lload_tiers_shutdown( void );
 LDAP_SLAPD_F (void) lload_tiers_reset( int shutdown );
+LDAP_SLAPD_F (void) lload_tiers_update( evutil_socket_t s, short what, void *arg );
 LDAP_SLAPD_F (void) lload_tiers_destroy( void );
 LDAP_SLAPD_F (struct lload_tier_type *) lload_tier_find( char *type );
 

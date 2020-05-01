@@ -252,6 +252,7 @@ struct lload_tier_type {
     LloadTierConfigCb *tier_config;
     LloadTierBackendConfigCb *tier_backend_config;
     LloadTierCb *tier_startup;
+    LloadTierCb *tier_update;
     LloadTierResetCb *tier_reset;
     LloadTierCb *tier_destroy;
 
@@ -308,6 +309,7 @@ struct LloadBackend {
 
     LloadTier *b_tier;
 
+    time_t b_last_update;
     uintptr_t b_fitness;
     int b_weight;
 
