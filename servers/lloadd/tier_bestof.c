@@ -1,0 +1,315 @@
+/* $OpenLDAP$ */
+/* This work is part of OpenLDAP Software <http://www.openldap.org/>.
+ *
+ * Copyright 1998-2019 The OpenLDAP Foundation.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted only as authorized by the OpenLDAP
+ * Public License.
+ *
+ * A copy of this license is available in the file LICENSE in the
+ * top-level directory of the distribution or, alternatively, at
+ * <http://www.OpenLDAP.org/license.html>.
+ */
+
+#include "portable.h"
+
+#include <ac/string.h>
+#include <math.h>
+
+#include "lload.h"
+#include "lutil.h"
+
+static LloadTierInit bestof_init;
+static LloadTierBackendConfigCb bestof_backend_options;
+static LloadTierBackendCb bestof_add_backend;
+static LloadTierBackendCb bestof_remove_backend;
+static LloadTierSelect bestof_select;
+
+struct lload_tier_type bestof_tier;
+
+/*
+ * Linear Congruential Generator - we don't need
+ * high quality randomness, and we don't want to
+ * interfere with anyone else's use of srand().
+ *
+ * The PRNG here cycles thru 941,955 numbers.
+ */
+static float bestof_seed;
+
+static void
+bestof_srand( int seed )
+{
+    bestof_seed = (float)seed / (float)RAND_MAX;
+}
+
+static float
+bestof_rand()
+{
+    float val = 9821.0 * bestof_seed + .211327;
+    bestof_seed = val - (int)val;
+    return bestof_seed;
+}
+
+static int
+bestof_cmp( const void *left, const void *right )
+{
+    const LloadBackend *l = left;
+    const LloadBackend *r = right;
+
+    return l->b_fitness - r->b_fitness;
+}
+
+LloadTier *
+bestof_init( void )
+{
+    LloadTier *tier;
+
+    tier = ch_calloc( 1, sizeof(LloadTier) );
+
+    tier->t_type = bestof_tier;
+    ldap_pvt_thread_mutex_init( &tier->t_mutex );
+    LDAP_CIRCLEQ_INIT( &tier->t_backends );
+
+    bestof_srand( rand() );
+
+    return tier;
+}
+
+int
+bestof_add_backend( LloadTier *tier, LloadBackend *b )
+{
+    assert( b->b_tier == tier );
+
+    LDAP_CIRCLEQ_INSERT_TAIL( &tier->t_backends, b, b_next );
+    if ( !tier->t_private ) {
+        tier->t_private = b;
+    }
+    tier->t_nbackends++;
+    return LDAP_SUCCESS;
+}
+
+static int
+bestof_remove_backend( LloadTier *tier, LloadBackend *b )
+{
+    LloadBackend *next = LDAP_CIRCLEQ_LOOP_NEXT( &tier->t_backends, b, b_next );
+
+    assert_locked( &tier->t_mutex );
+    assert_locked( &b->b_mutex );
+
+    assert( b->b_tier == tier );
+    assert( tier->t_private );
+
+    LDAP_CIRCLEQ_REMOVE( &tier->t_backends, b, b_next );
+    LDAP_CIRCLEQ_ENTRY_INIT( b, b_next );
+
+    if ( b == next ) {
+        tier->t_private = NULL;
+    } else {
+        tier->t_private = next;
+    }
+    tier->t_nbackends--;
+
+    return LDAP_SUCCESS;
+}
+
+static int
+bestof_backend_options( LloadTier *tier, LloadBackend *b, char *arg )
+{
+    struct berval weight = BER_BVC("weight=");
+    unsigned long l;
+
+    if ( !strncasecmp( arg, weight.bv_val, weight.bv_len ) ) {
+        if ( lutil_atoulx( &l, &arg[weight.bv_len], 0 ) != 0 ) {
+            Debug( LDAP_DEBUG_ANY, "bestof_backend_options: "
+                    "cannot parse %s as weight\n",
+                    arg );
+            return 1;
+        }
+        b->b_weight = l;
+        return 0;
+    }
+
+    return 1;
+}
+
+static int
+connection_collect_stats( LloadConnection *c, void *arg )
+{
+    uintptr_t count, diff, *stats = arg;
+
+    count = __atomic_exchange_n(
+            &( c )->c_operation_count, 0, __ATOMIC_RELAXED );
+    diff = __atomic_exchange_n( &( c )->c_operation_time, 0, __ATOMIC_RELAXED );
+
+    stats[0] += count;
+    stats[1] += diff;
+
+    return LDAP_SUCCESS;
+}
+
+static int
+bestof_update( LloadTier *tier )
+{
+    LloadBackend *b, *first, *next;
+    time_t now = slap_get_time();
+
+    checked_lock( &tier->t_mutex );
+    first = b = tier->t_private;
+    checked_unlock( &tier->t_mutex );
+
+    if ( !first ) return LDAP_SUCCESS;
+
+    do {
+        int steps;
+        checked_lock( &b->b_mutex );
+
+        steps = now - b->b_last_update;
+        if ( b->b_weight && steps > 0 ) {
+            uintptr_t stats[2] = { 0, 0 };
+            float factor = 1;
+
+            connections_walk(
+                    &b->b_mutex, &b->b_conns, connection_collect_stats, stats );
+
+            /* Smear values over time - rolling average */
+            if ( stats[0] ) {
+                float fitness = b->b_weight * stats[1];
+
+                /* Stretch factor accordingly favouring the latest value */
+                if ( steps > 10 ) {
+                    factor = 0; /* No recent data */
+                } else if ( steps > 1 ) {
+                    factor =
+                            1 / ( pow( ( 1 / (float)factor ) + 1, steps ) - 1 );
+                }
+
+                b->b_fitness = ( factor * b->b_fitness + fitness / stats[0] ) /
+                        ( factor + 1 );
+                b->b_last_update = now;
+            }
+        }
+
+        next = LDAP_CIRCLEQ_LOOP_NEXT( &tier->t_backends, b, b_next );
+        checked_unlock( &b->b_mutex );
+        b = next;
+    } while ( b != first );
+
+    return LDAP_SUCCESS;
+}
+
+int
+bestof_select(
+        LloadTier *tier,
+        LloadOperation *op,
+        LloadConnection **cp,
+        int *res,
+        char **message )
+{
+    LloadBackend *first, *next, *b, *b0, *b1;
+    int result = 0, rc = 0, n = tier->t_nbackends;
+    int i0, i1, i = 0;
+
+    checked_lock( &tier->t_mutex );
+    first = b0 = b = tier->t_private;
+    checked_unlock( &tier->t_mutex );
+
+    if ( !first ) return rc;
+
+    if ( tier->t_nbackends == 1 ) {
+        goto fallback;
+    }
+
+    /* Pick two backend indices at random */
+    i0 = bestof_rand() * n;
+    i1 = bestof_rand() * ( n - 1 );
+    if ( i1 >= i0 ) {
+        i1 += 1;
+    } else {
+        int tmp = i0;
+        i0 = i1;
+        i1 = tmp;
+    }
+    assert( i0 < i1 );
+
+    /*
+     * FIXME: use a static array in t_private so we don't have to do any of
+     * this
+     */
+    for ( i = 0; i < i1; i++ ) {
+        if ( i == i0 ) {
+            b0 = b;
+        }
+        checked_lock( &b->b_mutex );
+        next = LDAP_CIRCLEQ_LOOP_NEXT( &tier->t_backends, b, b_next );
+        checked_unlock( &b->b_mutex );
+        b = next;
+    }
+    b1 = b;
+    assert( b0 != b1 );
+
+    if ( bestof_cmp( b0, b1 ) < 0 ) {
+        checked_lock( &b0->b_mutex );
+        result = backend_select( b0, op, cp, res, message );
+        checked_unlock( &b0->b_mutex );
+    } else {
+        checked_lock( &b1->b_mutex );
+        result = backend_select( b1, op, cp, res, message );
+        checked_unlock( &b1->b_mutex );
+    }
+
+    rc |= result;
+    if ( result && *cp ) {
+        checked_lock( &tier->t_mutex );
+        tier->t_private = LDAP_CIRCLEQ_LOOP_NEXT(
+                &tier->t_backends, (*cp)->c_backend, b_next );
+        checked_unlock( &tier->t_mutex );
+        return rc;
+    }
+
+    /* Preferred backends deemed unusable, do a round robin from scratch */
+    b = first;
+fallback:
+    do {
+        checked_lock( &b->b_mutex );
+        next = LDAP_CIRCLEQ_LOOP_NEXT( &tier->t_backends, b, b_next );
+
+        rc = backend_select( b, op, cp, res, message );
+        checked_unlock( &b->b_mutex );
+
+        if ( rc && *cp ) {
+            /*
+             * Round-robin step:
+             * Rotate the queue to put this backend at the end. The race here
+             * is acceptable.
+             */
+            checked_lock( &tier->t_mutex );
+            tier->t_private = next;
+            checked_unlock( &tier->t_mutex );
+            return rc;
+        }
+
+        b = next;
+    } while ( b != first );
+
+    return rc;
+}
+
+struct lload_tier_type bestof_tier = {
+        .tier_name = "bestof",
+
+        .tier_init = bestof_init,
+        .tier_startup = tier_startup,
+        .tier_update = bestof_update,
+        .tier_reset = tier_reset,
+        .tier_destroy = tier_destroy,
+
+        .tier_oc = BER_BVC("olcBkLloadTierConfig"),
+        .tier_backend_oc = BER_BVC("olcBkLloadBackendConfig"),
+
+        .tier_add_backend = bestof_add_backend,
+        .tier_remove_backend = bestof_remove_backend,
+
+        .tier_select = bestof_select,
+};

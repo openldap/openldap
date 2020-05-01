@@ -69,6 +69,7 @@ roundrobin_remove_backend( LloadTier *tier, LloadBackend *b )
             tier->t_private = NULL;
         }
     }
+    tier->t_nbackends--;
     return LDAP_SUCCESS;
 }
 

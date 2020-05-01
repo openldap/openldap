@@ -2226,6 +2226,9 @@ if test $ol_enable_balancer != no ; then
 	else
 		AC_MSG_ERROR([You need libevent 2.1 or later with DNS support to build the load balancer])
 	fi
+
+	AC_CHECK_LIB(m, pow, [BALANCER_LIBS="$BALANCER_LIBS -lm"],
+		[AC_MSG_ERROR([could not locate pow -lm])])
 fi
 
 dnl ----------------------------------------------------------------
