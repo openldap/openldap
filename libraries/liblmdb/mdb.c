@@ -5528,6 +5528,31 @@ mdb_env_open2(MDB_env *env, int prev)
 		if (env->me_mapsize == DEFAULT_MAPSIZE)
 			env->me_mapsize = 0;
 	}
+
+	/* Verify that root pages are actually inside the file */
+	{
+		mdb_size_t fsize = 0;
+		if (mdb_fsize(env->me_fd, &fsize) == MDB_SUCCESS && fsize) {
+			MDB_dbi dbi;
+			pgno_t maxpgno = fsize / env->me_psize;
+			pgno_t sum = NUM_METAS;
+			for (dbi = FREE_DBI; dbi <= MAIN_DBI; dbi++) {
+				MDB_db *db = &meta.mm_dbs[dbi];
+				if (db->md_root != P_INVALID) {
+					if (db->md_root > maxpgno)
+						return MDB_PAGE_NOTFOUND;
+					sum += db->md_branch_pages;
+					sum += db->md_leaf_pages;
+					sum += db->md_overflow_pages;
+				}
+			}
+			/* Slack sanity check as sum ignores pages from 2nd meta. */
+			/* (2nd meta may be corrupted; thus do not rely on it.)  */
+			if (sum > maxpgno)
+				return MDB_CORRUPTED;
+		}
+	}
+
 	/* Was a mapsize configured? */
 	if (!env->me_mapsize) {
 		env->me_mapsize = meta.mm_mapsize;
