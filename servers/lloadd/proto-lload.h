@@ -172,6 +172,10 @@ LDAP_SLAPD_F (int) lload_monitor_backend_init( BackendInfo *bi, LloadBackend *b 
  */
 LDAP_SLAPD_V (ldap_pvt_thread_mutex_t) lload_pin_mutex;
 LDAP_SLAPD_V (unsigned long) lload_next_pin;
+LDAP_SLAPD_V (TAvlnode *) lload_control_actions;
+LDAP_SLAPD_V (TAvlnode *) lload_exop_actions;
+LDAP_SLAPD_V (enum op_restriction) lload_default_exop_action;
+LDAP_SLAPD_F (int) lload_restriction_cmp( const void *left, const void *right );
 LDAP_SLAPD_F (const char *) lload_msgtype2str( ber_tag_t tag );
 LDAP_SLAPD_F (int) operation_upstream_cmp( const void *l, const void *r );
 LDAP_SLAPD_F (int) operation_client_cmp( const void *l, const void *r );
@@ -192,6 +196,7 @@ LDAP_SLAPD_F (void) operation_update_global_rejected( LloadOperation *op );
 /*
  * upstream.c
  */
+LDAP_SLAPD_F (int) lload_upstream_entry_cmp( const void *l, const void *r );
 LDAP_SLAPD_F (int) forward_final_response( LloadConnection *client, LloadOperation *op, BerElement *ber );
 LDAP_SLAPD_F (int) forward_response( LloadConnection *client, LloadOperation *op, BerElement *ber );
 LDAP_SLAPD_F (void *) upstream_bind( void *ctx, void *arg );

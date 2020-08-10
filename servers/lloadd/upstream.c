@@ -41,6 +41,27 @@ static const sasl_callback_t client_callbacks[] = {
 static void upstream_unlink( LloadConnection *upstream );
 
 int
+lload_upstream_entry_cmp( const void *l, const void *r )
+{
+    return SLAP_PTRCMP( l, r );
+}
+
+static void
+linked_upstream_lost( LloadConnection *client )
+{
+    int gentle = 1;
+
+    CONNECTION_LOCK(client);
+    assert( client->c_restricted >= LLOAD_OP_RESTRICTED_UPSTREAM );
+    assert( client->c_linked_upstream );
+
+    client->c_restricted = LLOAD_OP_NOT_RESTRICTED;
+    client->c_linked_upstream = NULL;
+    CONNECTION_UNLOCK(client);
+    lload_connection_close( client, &gentle );
+}
+
+int
 forward_response( LloadConnection *client, LloadOperation *op, BerElement *ber )
 {
     BerElement *output;
@@ -996,7 +1017,7 @@ upstream_unlink( LloadConnection *c )
 {
     LloadBackend *b = c->c_backend;
     struct event *read_event, *write_event;
-    TAvlnode *root;
+    TAvlnode *root, *linked_root;
     long freed, executing;
 
     Debug( LDAP_DEBUG_CONNS, "upstream_unlink: "
@@ -1017,10 +1038,15 @@ upstream_unlink( LloadConnection *c )
     executing = c->c_n_ops_executing;
     c->c_n_ops_executing = 0;
 
+    linked_root = c->c_linked;
+    c->c_linked = NULL;
+
     CONNECTION_UNLOCK(c);
 
     freed = ldap_tavl_free( root, (AVL_FREE)operation_lost_upstream );
     assert( freed == executing );
+
+    ldap_tavl_free( linked_root, (AVL_FREE)linked_upstream_lost );
 
     /*
      * Avoid a deadlock:
