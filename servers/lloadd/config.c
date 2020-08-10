@@ -80,6 +80,7 @@ static struct timeval timeout_api_tv, timeout_net_tv,
         timeout_write_tv = { 10, 0 };
 
 lload_features_t lload_features;
+int lload_write_coherence = 0;
 
 ber_len_t sockbuf_max_incoming_client = LLOAD_SB_MAX_INCOMING_CLIENT;
 ber_len_t sockbuf_max_incoming_upstream = LLOAD_SB_MAX_INCOMING_UPSTREAM;
@@ -630,6 +631,17 @@ static ConfigTable config_back_cf_table[] = {
             "SINGLE-VALUE )",
         NULL,
         { .v_uint = 0 }
+    },
+    { "write_coherence", "seconds", 2, 2, 0,
+        ARG_INT,
+        &lload_write_coherence,
+        "( OLcfgBkAt:13.38 "
+            "NAME 'olcBkLloadWriteCoherence' "
+            "DESC 'Keep operations to the same backend after a write' "
+            "EQUALITY integerMatch "
+            "SYNTAX OMsInteger "
+            "SINGLE-VALUE )",
+        NULL, NULL
     },
 
     /* cn=config only options */
