@@ -115,6 +115,7 @@ static ConfigDriver config_fname;
 static ConfigDriver config_generic;
 static ConfigDriver config_backend;
 static ConfigDriver config_bindconf;
+static ConfigDriver config_restrict_oid;
 #ifdef LDAP_TCP_BUFFER
 static ConfigDriver config_tcp_buffer;
 #endif /* LDAP_TCP_BUFFER */
@@ -179,6 +180,8 @@ enum {
     CFG_MAX_PENDING_CONNS,
     CFG_STARTTLS,
     CFG_CLIENT_PENDING,
+    CFG_RESTRICT_EXOP,
+    CFG_RESTRICT_CONTROL,
 
     CFG_LAST
 };
@@ -635,12 +638,33 @@ static ConfigTable config_back_cf_table[] = {
     { "write_coherence", "seconds", 2, 2, 0,
         ARG_INT,
         &lload_write_coherence,
-        "( OLcfgBkAt:13.38 "
+        "( OLcfgBkAt:13.36 "
             "NAME 'olcBkLloadWriteCoherence' "
             "DESC 'Keep operations to the same backend after a write' "
             "EQUALITY integerMatch "
             "SYNTAX OMsInteger "
             "SINGLE-VALUE )",
+        NULL,
+        { .v_int = 0 }
+    },
+    { "restrict_exop", "OID> <action", 3, 3, 0,
+        ARG_MAGIC|CFG_RESTRICT_EXOP,
+        &config_restrict_oid,
+        "( OLcfgBkAt:13.37 "
+            "NAME 'olcBkLloadRestrictExop' "
+            "DESC 'Restrict upstream selection after forwarding an extended operation' "
+            "EQUALITY caseIgnoreMatch "
+            "SYNTAX OMsDirectoryString )",
+        NULL, NULL
+    },
+    { "restrict_control", "OID> <action", 3, 3, 0,
+        ARG_MAGIC|CFG_RESTRICT_CONTROL,
+        &config_restrict_oid,
+        "( OLcfgBkAt:13.38 "
+            "NAME 'olcBkLloadRestrictControl' "
+            "DESC 'Restrict upstream selection after forwarding a control' "
+            "EQUALITY caseIgnoreMatch "
+            "SYNTAX OMsDirectoryString )",
         NULL, NULL
     },
 
@@ -763,6 +787,9 @@ static ConfigOCs lloadocs[] = {
             "$ olcBkLloadTLSCRLFile "
             "$ olcBkLloadTLSShareSlapdCTX "
             "$ olcBkLloadClientMaxPending "
+            "$ olcBkLloadWriteCoherence "
+            "$ olcBkLloadRestrictExop "
+            "$ olcBkLloadRestrictControl "
         ") )",
         Cft_Backend, config_back_cf_table,
         NULL,
@@ -1280,6 +1307,160 @@ config_bindconf( ConfigArgs *c )
     }
 #endif /* HAVE_TLS */
     return 0;
+}
+
+#ifndef BALANCER_MODULE
+char *
+oidm_find( char *oid )
+{
+    if ( OID_LEADCHAR( *oid ) ) {
+        return oid;
+    }
+    Debug( LDAP_DEBUG_ANY, "oidm_find: "
+            "full OID parsing only available when compiled as a module\n" );
+    return NULL;
+}
+#endif /* !BALANCER_MODULE */
+
+static struct {
+    const char *name;
+    enum op_restriction action;
+} restrictopts[] = {
+    { "ignore", LLOAD_OP_NOT_RESTRICTED },
+    { "write", LLOAD_OP_RESTRICTED_WRITE },
+    { "backend", LLOAD_OP_RESTRICTED_BACKEND },
+    { "connection", LLOAD_OP_RESTRICTED_UPSTREAM },
+    { "isolate", LLOAD_OP_RESTRICTED_ISOLATE },
+    { "reject", LLOAD_OP_RESTRICTED_REJECT },
+    { NULL }
+};
+
+static void
+restriction_free( struct restriction_entry *restriction )
+{
+    ch_free( restriction->oid.bv_val );
+    ch_free( restriction );
+}
+
+static int
+config_restrict_oid( ConfigArgs *c )
+{
+    TAvlnode *node = NULL, **root = ( c->type == CFG_RESTRICT_EXOP ) ?
+            &lload_exop_actions :
+            &lload_control_actions;
+    struct restriction_entry *entry = NULL;
+    char *parsed_oid;
+    int i, rc = -1;
+
+    if ( c->op == SLAP_CONFIG_EMIT ) {
+        struct berval bv = { .bv_val = c->cr_msg };
+
+        if ( c->type == CFG_RESTRICT_EXOP && lload_default_exop_action ) {
+            bv.bv_len = snprintf( bv.bv_val, sizeof(c->cr_msg), "1.1 %s",
+                    restrictopts[lload_default_exop_action].name );
+            value_add_one( &c->rvalue_vals, &bv );
+        }
+        for ( node = ldap_tavl_end( *root, TAVL_DIR_LEFT );
+                node;
+                node = ldap_tavl_next( node, TAVL_DIR_RIGHT ) ) {
+            entry = node->avl_data;
+
+            bv.bv_len = snprintf( bv.bv_val, sizeof(c->cr_msg), "%s %s",
+                    entry->oid.bv_val, restrictopts[entry->action].name );
+            value_add_one( &c->rvalue_vals, &bv );
+        }
+
+        return LDAP_SUCCESS;
+
+    } else if ( c->op == LDAP_MOD_DELETE ) {
+        if ( !c->line ) {
+            ldap_tavl_free( *root, (AVL_FREE)restriction_free );
+            *root = NULL;
+            if ( c->type == CFG_RESTRICT_EXOP ) {
+                lload_default_exop_action = LLOAD_OP_NOT_RESTRICTED;
+            }
+            rc = LDAP_SUCCESS;
+        } else {
+            struct restriction_entry needle;
+
+            parsed_oid = strchr( c->line, ' ' );
+            if ( !parsed_oid ) {
+                return rc;
+            }
+
+            memcpy( c->cr_msg, c->line, parsed_oid - c->line );
+            c->cr_msg[parsed_oid - c->line] = '\0';
+
+            needle.oid.bv_val = oidm_find( c->cr_msg );
+            needle.oid.bv_len = strlen( needle.oid.bv_val );
+
+            if ( !needle.oid.bv_val ) {
+                return rc;
+            } else if ( c->type == CFG_RESTRICT_EXOP &&
+                    !strcmp( needle.oid.bv_val, "1.1" ) ) {
+                lload_default_exop_action = LLOAD_OP_NOT_RESTRICTED;
+            } else {
+                /* back-config should have checked we have this value */
+                entry = ldap_tavl_delete( root, &needle,
+                        lload_restriction_cmp );
+                assert( entry != NULL );
+            }
+            rc = LDAP_SUCCESS;
+        }
+        return rc;
+    }
+
+    parsed_oid = oidm_find( c->argv[1] );
+    if ( !parsed_oid ) {
+        snprintf( c->cr_msg, sizeof(c->cr_msg), "Could not parse oid %s",
+                c->argv[1] );
+        goto done;
+    }
+
+    for ( i = 0; restrictopts[i].name; i++ ) {
+        if ( !strcasecmp( c->argv[2], restrictopts[i].name ) ) {
+            break;
+        }
+    }
+
+    if ( !restrictopts[i].name ) {
+        snprintf( c->cr_msg, sizeof(c->cr_msg), "Could not parse action %s",
+                c->argv[2] );
+        goto done;
+    }
+
+    if ( !strcmp( parsed_oid, "1.1" ) ) {
+        if ( lload_default_exop_action ) {
+            snprintf( c->cr_msg, sizeof(c->cr_msg), "Default already set" );
+            goto done;
+        } else {
+            lload_default_exop_action = i;
+        }
+    }
+
+    entry = ch_malloc( sizeof(struct restriction_entry) );
+    /* Copy only if a reference to argv[1] was returned */
+    ber_str2bv( parsed_oid, 0, parsed_oid == c->argv[1], &entry->oid );
+    entry->action = i;
+
+    if ( ldap_tavl_insert( root, entry, lload_restriction_cmp,
+                ldap_avl_dup_error ) ) {
+        snprintf( c->cr_msg, sizeof(c->cr_msg),
+                "%s with OID %s already restricted",
+                c->type == CFG_RESTRICT_EXOP ? "Extended operation" : "Control",
+                c->argv[1] );
+        goto done;
+    }
+
+    rc = LDAP_SUCCESS;
+done:
+    if ( rc ) {
+        Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+        if ( parsed_oid ) ch_free( parsed_oid );
+        if ( entry ) ch_free( entry );
+    }
+
+    return rc;
 }
 
 static int

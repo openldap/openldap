@@ -125,6 +125,7 @@ int
 request_extended( LloadConnection *c, LloadOperation *op )
 {
     ExopHandler *handler, needle = {};
+    struct restriction_entry *restriction, rneedle = {};
     BerElement *copy;
     struct berval bv;
     ber_tag_t tag;
@@ -157,6 +158,15 @@ request_extended( LloadConnection *c, LloadOperation *op )
         return handler->func( c, op );
     }
     ber_free( copy, 0 );
+
+    rneedle.oid = bv;
+    restriction = ldap_tavl_find( lload_exop_actions, &rneedle,
+            lload_restriction_cmp );
+    if ( restriction ) {
+        op->o_restricted = restriction->action;
+    } else {
+        op->o_restricted = lload_default_exop_action;
+    }
 
     return request_process( c, op );
 }

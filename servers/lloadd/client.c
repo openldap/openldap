@@ -94,19 +94,97 @@ request_process( LloadConnection *client, LloadOperation *op )
     ber_int_t msgid;
     int res = LDAP_UNAVAILABLE, rc = LDAP_SUCCESS;
     char *message = "no connections available";
+    enum op_restriction client_restricted;
 
-    if ( lload_write_coherence ) {
-        CONNECTION_LOCK(client);
-        if ( client->c_restricted_inflight || client->c_restricted_at < 0 ||
-                client->c_restricted_at + lload_write_coherence >= op->o_start ) {
-            b = client->c_backend;
-        } else {
-            client->c_backend = NULL;
+    if ( lload_control_actions && !BER_BVISNULL( &op->o_ctrls ) ) {
+        BerElementBuffer copy_berbuf;
+        BerElement *copy = (BerElement *)&copy_berbuf;
+        struct berval control;
+
+        ber_init2( copy, &op->o_ctrls, 0 );
+
+        while ( ber_skip_element( copy, &control ) == LBER_SEQUENCE ) {
+            struct restriction_entry *entry, needle = {};
+            BerElementBuffer control_berbuf;
+            BerElement *control_ber = (BerElement *)&control_berbuf;
+
+            ber_init2( control_ber, &control, 0 );
+
+            if ( ber_skip_element( control_ber, &needle.oid ) == LBER_ERROR ) {
+                res = LDAP_PROTOCOL_ERROR;
+                message = "invalid control";
+
+                operation_send_reject( op, res, message, 1 );
+                goto fail;
+            }
+
+            entry = ldap_tavl_find(
+                    lload_control_actions, &needle, lload_restriction_cmp );
+            if ( entry && op->o_restricted < entry->action ) {
+                op->o_restricted = entry->action;
+            }
         }
-        CONNECTION_UNLOCK(client);
+    }
+    if ( op->o_restricted < LLOAD_OP_RESTRICTED_WRITE &&
+            lload_write_coherence &&
+            op->o_tag != LDAP_REQ_SEARCH &&
+            op->o_tag != LDAP_REQ_COMPARE ) {
+        op->o_restricted = LLOAD_OP_RESTRICTED_WRITE;
     }
 
-    if ( b ) {
+    if ( op->o_restricted == LLOAD_OP_RESTRICTED_REJECT ) {
+        res = LDAP_UNWILLING_TO_PERFORM;
+        message = "extended operation or control disallowed";
+
+        operation_send_reject( op, res, message, 1 );
+        goto fail;
+    }
+
+    CONNECTION_LOCK(client);
+    client_restricted = client->c_restricted;
+    if ( client_restricted ) {
+        if ( client_restricted == LLOAD_OP_RESTRICTED_WRITE &&
+                client->c_restricted_inflight == 0 &&
+                client->c_restricted_at >= 0 &&
+                client->c_restricted_at + lload_write_coherence <
+                    op->o_start ) {
+            Debug( LDAP_DEBUG_TRACE, "request_process: "
+                    "connid=%lu write coherence to backend '%s' expired\n",
+                    client->c_connid, client->c_backend->b_name.bv_val );
+            client->c_backend = NULL;
+            client_restricted = client->c_restricted = LLOAD_OP_NOT_RESTRICTED;
+        }
+        switch ( client_restricted ) {
+            case LLOAD_OP_NOT_RESTRICTED:
+                break;
+            case LLOAD_OP_RESTRICTED_WRITE:
+            case LLOAD_OP_RESTRICTED_BACKEND:
+                b = client->c_backend;
+                assert( b );
+                break;
+            case LLOAD_OP_RESTRICTED_UPSTREAM:
+            case LLOAD_OP_RESTRICTED_ISOLATE:
+                upstream = client->c_linked_upstream;
+                assert( upstream );
+                break;
+            default:
+                assert(0);
+                break;
+        }
+    }
+    if ( op->o_restricted < client_restricted ) {
+        op->o_restricted = client_restricted;
+    }
+    CONNECTION_UNLOCK(client);
+
+    if ( upstream ) {
+        b = upstream->c_backend;
+        checked_lock( &b->b_mutex );
+        if ( !try_upstream( b, NULL, op, upstream, &res, &message ) ) {
+            upstream = NULL;
+        }
+        checked_unlock( &b->b_mutex );
+    } else if ( b ) {
         backend_select( b, op, &upstream, &res, &message );
     } else {
         upstream_select( op, &upstream, &res, &message );
@@ -169,9 +247,18 @@ request_process( LloadConnection *client, LloadOperation *op )
     }
     upstream->c_pendingber = output;
 
+    if ( client_restricted < LLOAD_OP_RESTRICTED_UPSTREAM &&
+            op->o_restricted >= LLOAD_OP_RESTRICTED_UPSTREAM ) {
+        rc = ldap_tavl_insert(
+                &upstream->c_linked, client, lload_upstream_entry_cmp,
+                ldap_avl_dup_error );
+        assert( rc == LDAP_SUCCESS );
+    }
+
     op->o_upstream_msgid = msgid = upstream->c_next_msgid++;
     rc = ldap_tavl_insert(
             &upstream->c_ops, op, operation_upstream_cmp, ldap_avl_dup_error );
+
     CONNECTION_UNLOCK(upstream);
 
     Debug( LDAP_DEBUG_TRACE, "request_process: "
@@ -183,18 +270,27 @@ request_process( LloadConnection *client, LloadOperation *op )
 
     lload_stats.counters[LLOAD_STATS_OPS_OTHER].lc_ops_forwarded++;
 
-    if ( lload_write_coherence && !b &&
-            op->o_tag != LDAP_REQ_SEARCH &&
-            op->o_tag != LDAP_REQ_COMPARE ) {
-        /*
-         * TODO: There can't be more than one thread receiving a new request,
-         * so we could drop the lock. We'd still need some atomics for the
-         * counters.
-         */
+    if ( op->o_restricted > client_restricted ||
+            client_restricted == LLOAD_OP_RESTRICTED_WRITE ) {
         CONNECTION_LOCK(client);
-        client->c_backend = upstream->c_backend;
-        client->c_restricted_inflight++;
-        op->o_restricted = 1;
+        if ( op->o_restricted > client_restricted ) {
+            client->c_restricted = op->o_restricted;
+        }
+        if ( op->o_restricted == LLOAD_OP_RESTRICTED_WRITE ) {
+            client->c_restricted_inflight++;
+        }
+        if ( op->o_restricted >= LLOAD_OP_RESTRICTED_UPSTREAM ) {
+            if ( client_restricted < LLOAD_OP_RESTRICTED_UPSTREAM ) {
+                client->c_linked_upstream = upstream;
+            }
+            assert( client->c_linked_upstream == upstream );
+            client->c_backend = NULL;
+        } else if ( op->o_restricted >= LLOAD_OP_RESTRICTED_WRITE ) {
+            if ( client_restricted < LLOAD_OP_RESTRICTED_WRITE ) {
+                client->c_backend = upstream->c_backend;
+            }
+            assert( client->c_backend == upstream->c_backend );
+        }
         CONNECTION_UNLOCK(client);
     }
 
@@ -540,6 +636,8 @@ client_reset( LloadConnection *c )
 {
     TAvlnode *root;
     long freed = 0, executing;
+    LloadConnection *linked_upstream = NULL;
+    enum op_restriction restricted = c->c_restricted;
 
     CONNECTION_ASSERT_LOCKED(c);
     root = c->c_ops;
@@ -555,6 +653,20 @@ client_reset( LloadConnection *c )
         ch_free( c->c_sasl_bind_mech.bv_val );
         BER_BVZERO( &c->c_sasl_bind_mech );
     }
+
+    if ( restricted && restricted < LLOAD_OP_RESTRICTED_ISOLATE ) {
+        if ( c->c_backend ) {
+            assert( c->c_restricted <= LLOAD_OP_RESTRICTED_BACKEND );
+            assert( c->c_restricted_inflight == 0 );
+            c->c_backend = NULL;
+            c->c_restricted_at = 0;
+        } else {
+            assert( c->c_restricted == LLOAD_OP_RESTRICTED_UPSTREAM );
+            assert( c->c_linked_upstream != NULL );
+            linked_upstream = c->c_linked_upstream;
+            c->c_linked_upstream = NULL;
+        }
+    }
     CONNECTION_UNLOCK(c);
 
     if ( root ) {
@@ -564,6 +676,12 @@ client_reset( LloadConnection *c )
                 freed );
     }
     assert( freed == executing );
+
+    if ( linked_upstream && restricted == LLOAD_OP_RESTRICTED_UPSTREAM ) {
+        LloadConnection *removed = ldap_tavl_delete(
+                &linked_upstream->c_linked, c, lload_upstream_entry_cmp );
+        assert( removed == c );
+    }
 
     CONNECTION_LOCK(c);
     CONNECTION_ASSERT_LOCKED(c);
@@ -585,6 +703,11 @@ client_unlink( LloadConnection *c )
 
     state = c->c_state;
     c->c_state = LLOAD_C_DYING;
+
+    if ( c->c_restricted == LLOAD_OP_RESTRICTED_ISOLATE ) {
+        /* Allow upstream connection to be severed in client_reset() */
+        c->c_restricted = LLOAD_OP_RESTRICTED_UPSTREAM;
+    }
 
     read_event = c->c_read_event;
     write_event = c->c_write_event;
