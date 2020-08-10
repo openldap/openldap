@@ -328,7 +328,7 @@ operation_unlink_upstream( LloadOperation *op, LloadConnection *upstream )
             }
         }
         operation_update_conn_counters( op, upstream );
-        b = (LloadBackend *)upstream->c_private;
+        b = upstream->c_backend;
     }
     if ( upstream->c_state == LLOAD_C_CLOSING && !upstream->c_ops ) {
         CONNECTION_DESTROY(upstream);
@@ -520,7 +520,7 @@ connection_timeout( LloadConnection *upstream, void *arg )
 {
     LloadOperation *op;
     TAvlnode *ops = NULL, *node, *next;
-    LloadBackend *b = upstream->c_private;
+    LloadBackend *b = upstream->c_backend;
     time_t threshold = *(time_t *)arg;
     int rc, nops = 0;
 

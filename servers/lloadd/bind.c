@@ -390,7 +390,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
     if ( ber == NULL && (ber = ber_alloc()) == NULL ) {
         checked_unlock( &upstream->c_io_mutex );
         if ( !pin ) {
-            LloadBackend *b = upstream->c_private;
+            LloadBackend *b = upstream->c_backend;
 
             upstream->c_n_ops_executing--;
             CONNECTION_UNLOCK(upstream);
@@ -440,7 +440,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
     /* Was it unlinked in the meantime? No need to send a response since the
      * client is dead */
     if ( !IS_ALIVE( op, o_refcnt ) ) {
-        LloadBackend *b = upstream->c_private;
+        LloadBackend *b = upstream->c_backend;
 
         upstream->c_n_ops_executing--;
         checked_unlock( &upstream->c_io_mutex );
@@ -786,7 +786,7 @@ handle_whoami_response(
         LloadBackend *b;
 
         CONNECTION_LOCK(upstream);
-        b = (LloadBackend *)upstream->c_private;
+        b = upstream->c_backend;
         Debug( LDAP_DEBUG_ANY, "handle_whoami_response: "
                 "Who Am I? extended operation not supported on backend %s, "
                 "proxyauthz with clients that do SASL binds will not work "
@@ -883,7 +883,7 @@ handle_vc_bind_response(
             LloadBackend *b;
 
             CONNECTION_LOCK(upstream);
-            b = (LloadBackend *)upstream->c_private;
+            b = upstream->c_backend;
             Debug( LDAP_DEBUG_ANY, "handle_vc_bind_response: "
                     "VC extended operation not supported on backend %s\n",
                     b->b_uri.bv_val );

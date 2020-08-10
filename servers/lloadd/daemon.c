@@ -1403,7 +1403,7 @@ backend_conn_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
     LloadConnection *c = startarg;
     LloadBackend *b = arg;
 
-    if ( b == NULL || c->c_private == b ) {
+    if ( b == NULL || c->c_backend == b ) {
         CONNECTION_LOCK_DESTROY(c);
         return 1;
     }

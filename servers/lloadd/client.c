@@ -111,7 +111,7 @@ request_process( LloadConnection *client, LloadOperation *op )
     /* Was it unlinked in the meantime? No need to send a response since the
      * client is dead */
     if ( !IS_ALIVE( op, o_refcnt ) ) {
-        LloadBackend *b = upstream->c_private;
+        LloadBackend *b = upstream->c_backend;
 
         upstream->c_n_ops_executing--;
         checked_unlock( &upstream->c_io_mutex );
@@ -132,7 +132,7 @@ request_process( LloadConnection *client, LloadOperation *op )
 
     output = upstream->c_pendingber;
     if ( output == NULL && (output = ber_alloc()) == NULL ) {
-        LloadBackend *b = upstream->c_private;
+        LloadBackend *b = upstream->c_backend;
 
         upstream->c_n_ops_executing--;
         CONNECTION_UNLOCK(upstream);
