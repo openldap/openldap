@@ -402,6 +402,8 @@ struct LloadConnection {
     long c_n_ops_completed;      /* num of ops completed */
     lload_counters_t c_counters; /* per connection operation counters */
 
+    LloadBackend *c_backend;
+
     /*
      * Protected by the CIRCLEQ mutex:
      * - Client: clients_mutex

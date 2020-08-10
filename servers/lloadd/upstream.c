@@ -273,7 +273,7 @@ fail:
 static int
 sasl_bind_step( LloadConnection *c, BerValue *scred, BerValue *ccred )
 {
-    LloadBackend *b = c->c_private;
+    LloadBackend *b = c->c_backend;
     sasl_conn_t *ctx = c->c_sasl_authctx;
     sasl_interact_t *prompts = NULL;
     unsigned credlen;
@@ -405,7 +405,7 @@ int
 upstream_bind_cb( LloadConnection *c )
 {
     BerElement *ber = c->c_currentber;
-    LloadBackend *b = c->c_private;
+    LloadBackend *b = c->c_backend;
     BerValue matcheddn, message;
     ber_tag_t tag;
     ber_int_t msgid, result;
@@ -611,7 +611,7 @@ fail:
 static int
 upstream_finish( LloadConnection *c )
 {
-    LloadBackend *b = c->c_private;
+    LloadBackend *b = c->c_backend;
     int is_bindconn = 0;
 
     assert_locked( &b->b_mutex );
@@ -706,7 +706,7 @@ upstream_tls_handshake_cb( evutil_socket_t s, short what, void *arg )
                 c->c_connid );
         goto fail;
     }
-    b = c->c_private;
+    b = c->c_backend;
 
     rc = ldap_pvt_tls_connect( lload_tls_backend_ld, c->c_sb, b->b_host );
     if ( rc < 0 ) {
@@ -815,7 +815,7 @@ upstream_starttls( LloadConnection *c )
     }
 
     if ( result != LDAP_SUCCESS ) {
-        LloadBackend *b = c->c_private;
+        LloadBackend *b = c->c_backend;
         int rc;
 
         Debug( LDAP_DEBUG_STATS, "upstream_starttls: "
@@ -896,7 +896,7 @@ upstream_init( ber_socket_t s, LloadBackend *b )
     }
 
     CONNECTION_LOCK(c);
-    c->c_private = b;
+    c->c_backend = b;
 #ifdef HAVE_TLS
     c->c_is_tls = b->b_tls;
 #endif
@@ -993,7 +993,7 @@ fail:
 static void
 upstream_unlink( LloadConnection *c )
 {
-    LloadBackend *b = c->c_private;
+    LloadBackend *b = c->c_backend;
     struct event *read_event, *write_event;
     TAvlnode *root;
     long freed, executing;
