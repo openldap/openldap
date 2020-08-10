@@ -90,11 +90,28 @@ request_process( LloadConnection *client, LloadOperation *op )
 {
     BerElement *output;
     LloadConnection *upstream = NULL;
+    LloadBackend *b = NULL;
     ber_int_t msgid;
     int res = LDAP_UNAVAILABLE, rc = LDAP_SUCCESS;
     char *message = "no connections available";
 
-    upstream_select( op, &upstream, &res, &message );
+    if ( lload_write_coherence ) {
+        CONNECTION_LOCK(client);
+        if ( client->c_restricted_inflight || client->c_restricted_at < 0 ||
+                client->c_restricted_at + lload_write_coherence >= op->o_start ) {
+            b = client->c_backend;
+        } else {
+            client->c_backend = NULL;
+        }
+        CONNECTION_UNLOCK(client);
+    }
+
+    if ( b ) {
+        backend_select( b, op, &upstream, &res, &message );
+    } else {
+        upstream_select( op, &upstream, &res, &message );
+    }
+
     if ( !upstream ) {
         Debug( LDAP_DEBUG_STATS, "request_process: "
                 "connid=%lu, msgid=%d no available connection found\n",
@@ -166,6 +183,21 @@ request_process( LloadConnection *client, LloadOperation *op )
 
     lload_stats.counters[LLOAD_STATS_OPS_OTHER].lc_ops_forwarded++;
 
+    if ( lload_write_coherence && !b &&
+            op->o_tag != LDAP_REQ_SEARCH &&
+            op->o_tag != LDAP_REQ_COMPARE ) {
+        /*
+         * TODO: There can't be more than one thread receiving a new request,
+         * so we could drop the lock. We'd still need some atomics for the
+         * counters.
+         */
+        CONNECTION_LOCK(client);
+        client->c_backend = upstream->c_backend;
+        client->c_restricted_inflight++;
+        op->o_restricted = 1;
+        CONNECTION_UNLOCK(client);
+    }
+
     if ( (lload_features & LLOAD_FEATURE_PROXYAUTHZ) &&
             client->c_type != LLOAD_C_PRIVILEGED ) {
         CONNECTION_LOCK(client);
@@ -199,6 +231,8 @@ fail:
     if ( upstream ) {
         CONNECTION_LOCK_DESTROY(upstream);
 
+        /* We have not committed any restrictions in the end */
+        op->o_restricted = LLOAD_OP_NOT_RESTRICTED;
         operation_send_reject( op, LDAP_OTHER, "internal error", 0 );
     }
 

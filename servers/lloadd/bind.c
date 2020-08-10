@@ -335,6 +335,12 @@ request_bind( LloadConnection *client, LloadOperation *op )
     rc = ldap_tavl_insert( &client->c_ops, op, operation_client_cmp, ldap_avl_dup_error );
     assert( rc == LDAP_SUCCESS );
     client->c_n_ops_executing++;
+
+    if ( client->c_backend ) {
+        assert( client->c_restricted_inflight == 0 );
+        client->c_backend = NULL;
+        client->c_restricted_at = 0;
+    }
     CONNECTION_UNLOCK(client);
 
     if ( pin ) {

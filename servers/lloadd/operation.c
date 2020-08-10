@@ -276,6 +276,20 @@ operation_unlink_client( LloadOperation *op, LloadConnection *client )
         assert( op == removed );
         client->c_n_ops_executing--;
 
+        if ( op->o_restricted ) {
+            if ( !--client->c_restricted_inflight && client->c_restricted_at >= 0 ) {
+                if ( lload_write_coherence < 0 ) {
+                    client->c_restricted_at = -1;
+                } else if ( op->o_last_response ) {
+                    client->c_restricted_at = op->o_last_response;
+                } else {
+                    /* We have to default to o_start just in case we abandoned an
+                     * operation that the backend actually processed */
+                    client->c_restricted_at = op->o_start;
+                }
+            }
+        }
+
         if ( op->o_tag == LDAP_REQ_BIND &&
                 client->c_state == LLOAD_C_BINDING ) {
             client->c_state = LLOAD_C_READY;

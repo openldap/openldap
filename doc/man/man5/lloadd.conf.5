@@ -341,6 +341,16 @@ Specify the number of milliseconds to wait before forcibly closing
 a connection with an outstanding write. This allows faster recovery from
 various network hang conditions.  An iotimeout of 0 disables this feature.
 The default is 10000.
+.TP
+.B write_coherence <integer>
+Specify the number of seconds after a write operation is finished that
+.B lloadd
+will direct operations exclusively to the last selected backend. A write
+operation is anything not handled internally (certain exops, abandon),
+excepting search, compare and bind operations. Bind operations also reset this
+restriction. The default is 0, write operations do not restrict selection. When
+negative, the restriction is not time limited and will persist until the next
+bind.
 
 .SH TLS OPTIONS
 If

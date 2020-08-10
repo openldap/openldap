@@ -202,6 +202,8 @@ LDAP_SLAPD_V (ber_len_t) sockbuf_max_incoming_client;
 LDAP_SLAPD_V (ber_len_t) sockbuf_max_incoming_upstream;
 LDAP_SLAPD_V (int) lload_conn_max_pdus_per_cycle;
 
+LDAP_SLAPD_V (int) lload_write_coherence;
+
 LDAP_SLAPD_V (lload_features_t) lload_features;
 
 LDAP_SLAPD_V (slap_mask_t) global_allows;

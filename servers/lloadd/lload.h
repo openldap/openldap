@@ -295,6 +295,14 @@ enum sc_io_state {
                                      * sent */
 };
 
+/* Tracking whether an operation might cause a client to restrict which
+ * upstreams are eligible */
+enum op_restriction {
+    LLOAD_OP_NOT_RESTRICTED, /* operation didn't trigger any restriction */
+    LLOAD_OP_RESTRICTED_BACKEND, /* operation restricts a client to a certain backend */
+    LLOAD_OP_RESTRICTED_UPSTREAM, /* operation restricts a client to a certain upstream */
+};
+
 /*
  * represents a connection from an ldap client/to ldap server
  */
@@ -403,6 +411,8 @@ struct LloadConnection {
     lload_counters_t c_counters; /* per connection operation counters */
 
     LloadBackend *c_backend;
+    uintptr_t c_restricted_inflight;
+    time_t c_restricted_at;
 
     /*
      * Protected by the CIRCLEQ mutex:
@@ -441,6 +451,7 @@ struct LloadOperation {
     unsigned long o_client_connid;
     ber_int_t o_client_msgid;
     ber_int_t o_saved_msgid;
+    enum op_restriction o_restricted;
 
     LloadConnection *o_upstream;
     unsigned long o_upstream_connid;
