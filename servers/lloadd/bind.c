@@ -195,7 +195,8 @@ request_bind( LloadConnection *client, LloadOperation *op )
     ber_int_t version;
     ber_tag_t tag;
     unsigned long pin;
-    int res, rc = LDAP_SUCCESS;
+    int res = LDAP_UNAVAILABLE, rc = LDAP_SUCCESS;
+    char *message = "no connections available";
 
     CONNECTION_LOCK(client);
     pin = client->c_pin_id;
@@ -357,7 +358,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
     if ( upstream ) {
         /* No need to do anything */
     } else if ( !pin ) {
-        upstream = backend_select( op, &res );
+        upstream_select( op, &upstream, &res, &message );
     } else {
         Debug( LDAP_DEBUG_STATS, "request_bind: "
                 "connid=%lu, msgid=%d pinned upstream lost\n",
@@ -372,7 +373,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
         Debug( LDAP_DEBUG_STATS, "request_bind: "
                 "connid=%lu, msgid=%d no available connection found\n",
                 op->o_client_connid, op->o_client_msgid );
-        operation_send_reject( op, res, "no connections available", 1 );
+        operation_send_reject( op, res, message, 1 );
         assert( client->c_pin_id == 0 );
         goto done;
     }

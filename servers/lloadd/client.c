@@ -89,17 +89,18 @@ int
 request_process( LloadConnection *client, LloadOperation *op )
 {
     BerElement *output;
-    LloadConnection *upstream;
+    LloadConnection *upstream = NULL;
     ber_int_t msgid;
-    int res, rc = LDAP_SUCCESS;
+    int res = LDAP_UNAVAILABLE, rc = LDAP_SUCCESS;
+    char *message = "no connections available";
 
-    upstream = backend_select( op, &res );
+    upstream_select( op, &upstream, &res, &message );
     if ( !upstream ) {
         Debug( LDAP_DEBUG_STATS, "request_process: "
                 "connid=%lu, msgid=%d no available connection found\n",
                 op->o_client_connid, op->o_client_msgid );
 
-        operation_send_reject( op, res, "no connections available", 1 );
+        operation_send_reject( op, res, message, 1 );
         goto fail;
     }
     CONNECTION_ASSERT_LOCKED(upstream);
