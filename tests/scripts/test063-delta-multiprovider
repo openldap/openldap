@@ -317,6 +317,7 @@ if test $RC != 0 ; then
 fi
 
 THEDN="cn=James A Jones 2,ou=Alumni Association,ou=People,dc=example,dc=com"
+THEDN2="cn=Jane Doe,ou=Alumni Association,ou=People,dc=example,dc=com"
 sleep 1
 for i in 1 2 3; do
 	$LDAPSEARCH -S "" -b "$THEDN" -H $URI1 \
@@ -423,6 +424,42 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
+$LDAPDELETE -D "$MANAGERDN" -H $URI2 -w $PASSWD "$THEDN2" >> $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed for server 2 database ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPADD -D "$MANAGERDN" -H $URI2 -w $PASSWD \
+	>> $TESTOUT 2>&1 << EOF
+dn: $THEDN2
+objectclass: OpenLDAPperson
+cn: Jane Doe
+cn: Jane Alverson
+sn: Doe
+uid: jdoe
+title: Programmer Analyst, UM Alumni Association
+postaladdress: Alumni Association $ 111 Maple St $ Anytown, MI 48109
+seealso: cn=All Staff,ou=Groups,dc=example,dc=com
+homepostaladdress: 123 Anystreet $ Anytown, MI 48104
+drink: diet coke
+description: Subtle
+mail: jdoe@woof.net
+homephone: +1 313 555 5445
+pager: +1 313 555 1220
+facsimiletelephonenumber: +1 313 555 2311
+telephonenumber: +1 313 555 4774
+
+EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed for server 2 database ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
 $LDAPMODIFY -D "$MANAGERDN" -H $URI1 -w $PASSWD \
 	>> $TESTOUT 2>&1 << EOF
 dn: $THEDN
@@ -432,6 +469,21 @@ description: Outstanding
 -
 add: description
 description: Mindboggling
+
+EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed for server 1 database ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPMODIFY -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+	>> $TESTOUT 2>&1 << EOF
+dn: $THEDN2
+changetype: modify
+add: description
+description: Boisterous
 
 EOF
 RC=$?
