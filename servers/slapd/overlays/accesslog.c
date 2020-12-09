@@ -2239,6 +2239,7 @@ accesslog_db_destroy(
 		li->li_oldattrs = la->next;
 		ch_free( la );
 	}
+	slap_sync_cookie_free( &li->li_mincsn, 0 );
 	ldap_pvt_thread_mutex_destroy( &li->li_log_mutex );
 	ldap_pvt_thread_mutex_destroy( &li->li_op_rmutex );
 	free( li );
