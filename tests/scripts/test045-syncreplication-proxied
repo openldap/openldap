@@ -35,6 +35,8 @@ fi
 
 mkdir -p $TESTDIR $DBDIR1 $DBDIR2
 
+OPATTRS="entryUUID contextCSN creatorsName createTimestamp"
+
 #
 # Test replication:
 # - start provider
@@ -200,7 +202,7 @@ done
 
 #echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	'(objectClass=*)' > "${PROVIDEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${PROVIDEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -211,7 +213,7 @@ fi
 
 #echo "Using ldapsearch to read all the entries from the consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-	'(objectClass=*)' > "${CONSUMEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${CONSUMEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -390,7 +392,7 @@ done
 
 #echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	'(objectClass=*)' > "${PROVIDEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${PROVIDEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -401,7 +403,7 @@ fi
 
 #echo "Using ldapsearch to read all the entries from the consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-	'(objectClass=*)' > "${CONSUMEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${CONSUMEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -497,7 +499,7 @@ done
 
 #echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	'(objectClass=*)' > "${PROVIDEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${PROVIDEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -508,7 +510,7 @@ fi
 
 #echo "Using ldapsearch to read all the entries from the consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-	'(objectClass=*)' > "${CONSUMEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${CONSUMEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -586,7 +588,7 @@ done
 
 #echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	'(objectClass=*)' > "${PROVIDEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${PROVIDEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -597,7 +599,7 @@ fi
 
 #echo "Using ldapsearch to read all the entries from the consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-'(objectClass=*)' > "${CONSUMEROUT}.$CHECK" 2>&1
+'(objectClass=*)' '*' $OPATTRS > "${CONSUMEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -683,7 +685,7 @@ done
 
 #echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	'(objectClass=*)' > "${PROVIDEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${PROVIDEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -694,7 +696,7 @@ fi
 
 #echo "Using ldapsearch to read all the entries from the consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-	'(objectClass=*)' > "${CONSUMEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${CONSUMEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -739,7 +741,7 @@ if test $? != 0 ; then
 
 	#echo "Using ldapsearch to read all the entries from the consumer..."
 	$LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-		'(objectClass=*)' > "${CONSUMEROUT}.5.1" 2>&1
+		'(objectClass=*)' '*' $OPATTRS > "${CONSUMEROUT}.5.1" 2>&1
 	RC=$?
 
 	if test $RC != 0 ; then
@@ -823,7 +825,7 @@ done
 
 #echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	'(objectClass=*)' > "${PROVIDEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${PROVIDEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -834,7 +836,7 @@ fi
 
 #echo "Using ldapsearch to read all the entries from the consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-	'(objectClass=*)' > "${CONSUMEROUT}.$CHECK" 2>&1
+	'(objectClass=*)' '*' $OPATTRS > "${CONSUMEROUT}.$CHECK" 2>&1
 RC=$?
 
 if test $RC != 0 ; then

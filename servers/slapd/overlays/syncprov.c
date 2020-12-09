@@ -468,7 +468,7 @@ findbase_cb( Operation *op, SlapReply *rs )
 		if ( fc->fss->s_eid == NOID ) {
 			fc->fbase = 2;
 			fc->fss->s_eid = rs->sr_entry->e_id;
-			ber_dupbv( &fc->fss->s_base, &rs->sr_entry->e_nname );
+			ber_bvreplace( &fc->fss->s_base, &rs->sr_entry->e_nname );
 
 		} else if ( rs->sr_entry->e_id == fc->fss->s_eid &&
 			dn_match( &rs->sr_entry->e_nname, &fc->fss->s_base )) {

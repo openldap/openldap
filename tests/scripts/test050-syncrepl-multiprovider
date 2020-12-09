@@ -50,6 +50,8 @@ case "$SYNCMODE" in
 		;;
 esac
 
+OPATTRS="entryUUID entryCSN contextCSN creatorsName createTimestamp modifiersName modifyTimestamp"
+
 #
 # Test replication of dynamic config:
 # - start servers
@@ -755,7 +757,7 @@ URI="ldap://${LOCALHOST}:$PORT/"
 
 echo "Using ldapsearch to read all the entries from server $n..."
 $LDAPSEARCH -S "" -b "$BASEDN" -D "$MANAGERDN" -H $URI -w $PASSWD  \
-	'objectclass=*' > $TESTDIR/server$n.out 2>&1
+	'objectclass=*' '*' $OPATTRS > $TESTDIR/server$n.out 2>&1
 RC=$?
 
 if test $RC != 0 ; then

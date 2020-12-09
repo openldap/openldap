@@ -23,6 +23,9 @@ fi
 
 mkdir -p $TESTDIR $DBDIR1 $DBDIR2 $DBDIR3 $DBDIR4 $DBDIR5 $DBDIR6
 
+# not creatorsName or modifiersName as push replication doesn't preserve them right now
+OPATTRS="entryUUID entryCSN contextCSN" # createTimestamp modifyTimestamp"
+
 #
 # Test replication:
 # - start provider
@@ -361,7 +364,7 @@ sleep $SLEEP2
 
 echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	'(objectClass=*)' '*' entryCSN > $PROVIDEROUT 2>&1
+	'(objectClass=*)' '*' $OPATTRS > $PROVIDEROUT 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -372,7 +375,7 @@ fi
 
 echo "Using ldapsearch to read all the entries from the R1 consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI2 \
-	'(objectClass=*)' '*' entryCSN > $SERVER2OUT 2>&1
+	'(objectClass=*)' '*' $OPATTRS > $SERVER2OUT 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -383,7 +386,7 @@ fi
 
 echo "Using ldapsearch to read all the entries from the R2 consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI3 \
-	'(objectClass=*)' '*' entryCSN > $SERVER3OUT 2>&1
+	'(objectClass=*)' '*' $OPATTRS > $SERVER3OUT 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -394,7 +397,7 @@ fi
 
 echo "Using ldapsearch to read all the entries from the P1 consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI4 \
-	'(objectClass=*)' '*' entryCSN > $SERVER4OUT 2>&1
+	'(objectClass=*)' '*' $OPATTRS > $SERVER4OUT 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -405,7 +408,7 @@ fi
 
 echo "Using ldapsearch to read all the entries from the P2 consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI5 \
-	'(objectClass=*)' '*' entryCSN > $SERVER5OUT 2>&1
+	'(objectClass=*)' '*' $OPATTRS > $SERVER5OUT 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -416,7 +419,7 @@ fi
 
 echo "Using ldapsearch to read all the entries from the P3 consumer..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI6 \
-	'(objectClass=*)' '*' entryCSN > $SERVER6OUT 2>&1
+	'(objectClass=*)' '*' $OPATTRS > $SERVER6OUT 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -428,17 +431,17 @@ fi
 test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo "Filtering provider ldapsearch results..."
-$LDIFFILTER < $PROVIDEROUT > $PROVIDERFLT
+$LDIFFILTER -s a < $PROVIDEROUT > $PROVIDERFLT
 echo "Filtering R1 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER2OUT > $SERVER2FLT
+$LDIFFILTER -s a < $SERVER2OUT > $SERVER2FLT
 echo "Filtering R2 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER3OUT > $SERVER3FLT
+$LDIFFILTER -s a < $SERVER3OUT > $SERVER3FLT
 echo "Filtering P1 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER4OUT > $SERVER4FLT
+$LDIFFILTER -s a < $SERVER4OUT > $SERVER4FLT
 echo "Filtering P2 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER5OUT > $SERVER5FLT
+$LDIFFILTER -s a < $SERVER5OUT > $SERVER5FLT
 echo "Filtering P3 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER6OUT > $SERVER6FLT
+$LDIFFILTER -s a < $SERVER6OUT > $SERVER6FLT
 
 echo "Comparing retrieved entries from provider and R1 consumer..."
 $CMP $PROVIDERFLT $SERVER2FLT > $CMPOUT

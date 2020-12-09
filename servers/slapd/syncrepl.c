@@ -206,8 +206,9 @@ static int syncrepl_dirsync_cookie(
 
 static int syncrepl_dsee_update( syncinfo_t *si, Operation *op ) ;
 
-/* delta-mpr overlay handler */
+/* delta-mpr overlay handlers */
 static int syncrepl_op_modify( Operation *op, SlapReply *rs );
+static int syncrepl_op_delete( Operation *op, SlapReply *rs );
 
 /* callback functions */
 static int dn_callback( Operation *, SlapReply * );
@@ -251,7 +252,8 @@ static logschema accesslog_sc = {
 	BER_BVC("reqNewRDN"),
 	BER_BVC("reqDeleteOldRDN"),
 	BER_BVC("reqNewSuperior"),
-	BER_BVC("reqControls")
+	BER_BVC("reqControls"),
+	BER_BVC("reqEntryUUID"),
 };
 
 static const char *
@@ -291,6 +293,7 @@ init_syncrepl(syncinfo_t *si)
 	if ( !syncrepl_ov.on_bi.bi_type ) {
 		syncrepl_ov.on_bi.bi_type = "syncrepl";
 		syncrepl_ov.on_bi.bi_op_modify = syncrepl_op_modify;
+		syncrepl_ov.on_bi.bi_op_delete = syncrepl_op_delete;
 		overlay_register( &syncrepl_ov );
 	}
 
@@ -501,7 +504,7 @@ ldap_sync_search(
 	int rc;
 	int rhint;
 	char *base;
-	char **attrs, *lattrs[9];
+	char **attrs, *lattrs[10];
 	char *filter;
 	int attrsonly;
 	int scope;
@@ -577,14 +580,14 @@ ldap_sync_search(
 		lattrs[3] = ls->ls_newRdn.bv_val;
 		lattrs[4] = ls->ls_delRdn.bv_val;
 		lattrs[5] = ls->ls_newSup.bv_val;
+		lattrs[6] = ls->ls_uuid.bv_val;
 		if ( si->si_syncdata == SYNCDATA_ACCESSLOG ) {
-			lattrs[6] = ls->ls_controls.bv_val;
-			lattrs[7] = slap_schema.si_ad_entryCSN->ad_cname.bv_val;
-			lattrs[8] = NULL;
+			lattrs[7] = ls->ls_controls.bv_val;
+			lattrs[8] = slap_schema.si_ad_entryCSN->ad_cname.bv_val;
+			lattrs[9] = NULL;
 			filter = si->si_logfilterstr.bv_val;
 			scope = LDAP_SCOPE_SUBTREE;
 		} else {
-			lattrs[6] = ls->ls_uuid.bv_val;
 			lattrs[7] = ls->ls_changenum.bv_val;
 			lattrs[8] = NULL;
 			sprintf( filterbuf, "(changeNumber>=%lu)", si->si_lastchange+1 );
@@ -836,7 +839,7 @@ check_syncprov(
 	Attribute a = {0};
 	Entry e = {0};
 	SlapReply rs = {REP_SEARCH};
-	int i, j, changed = 0;
+	int i, changed = 0;
 
 	/* Look for contextCSN from syncprov overlay. If
 	 * there's no overlay, this will be a no-op. That means
@@ -1250,7 +1253,7 @@ do_syncrep2(
 	while ( ( rc = ldap_result( si->si_ld, si->si_msgid, LDAP_MSG_ONE,
 		&tout, &msg ) ) > 0 )
 	{
-		int				match, punlock, syncstate;
+		int				match, punlock = -1, syncstate;
 		struct berval	*retdata, syncUUID[2], cookie = BER_BVNULL;
 		char			*retoid;
 		LDAPControl		**rctrls = NULL, *rctrlp = NULL;
@@ -1370,7 +1373,6 @@ do_syncrep2(
 				rc = -1;
 				goto done;
 			}
-			punlock = -1;
 			if ( ber_peek_tag( ber, &len ) == LDAP_TAG_SYNC_COOKIE ) {
 				if ( ber_scanf( ber, /*"{"*/ "m}", &cookie ) != LBER_ERROR ) {
 
@@ -1647,7 +1649,7 @@ logerr:
 			}
 			if ( syncCookie.ctxcsn && match < 0 && err == LDAP_SUCCESS )
 			{
-				rc = syncrepl_updateCookie( si, op, &syncCookie, 1 );
+				rc = syncrepl_updateCookie( si, op, &syncCookie, 0 );
 			}
 			if ( err == LDAP_SUCCESS
 				&& si->si_logstate == SYNCLOG_FALLBACK ) {
@@ -2424,6 +2426,7 @@ syncrepl_changelog_mods(
 typedef struct OpExtraSync {
 	OpExtra oe;
 	syncinfo_t *oe_si;
+	struct berval oe_uuid;
 } OpExtraSync;
 
 /* Copy the original modlist, split Replace ops into Delete/Add,
@@ -2475,7 +2478,7 @@ static Modifications *mods_dup( Operation *op, Modifications *modlist, int match
 		mod->sml_numvals = modlist->sml_numvals;
 		mod->sml_flags = 0;
 		if ( modlist->sml_numvals ) {
-			int i;
+			unsigned i;
 			mod->sml_values = (BerVarray)(mod+1);
 			for (i=0; i<mod->sml_numvals; i++)
 				mod->sml_values[i] = modlist->sml_values[i];
@@ -2504,12 +2507,13 @@ static Modifications *mods_dup( Operation *op, Modifications *modlist, int match
 typedef struct resolve_ctxt {
 	syncinfo_t *rx_si;
 	Modifications *rx_mods;
+	int rx_result;
 } resolve_ctxt;
 
 static void
 compare_vals( Modifications *m1, Modifications *m2 )
 {
-	int i, j;
+	unsigned i, j;
 	struct berval *bv1, *bv2;
 
 	if ( m2->sml_nvalues ) {
@@ -2522,7 +2526,7 @@ compare_vals( Modifications *m1, Modifications *m2 )
 	for ( j=0; j<m2->sml_numvals; j++ ) {
 		for ( i=0; i<m1->sml_numvals; i++ ) {
 			if ( !ber_bvcmp( &bv1[i], &bv2[j] )) {
-				int k;
+				unsigned k;
 				for ( k=i; k<m1->sml_numvals-1; k++ ) {
 					m1->sml_values[k] = m1->sml_values[k+1];
 					if ( m1->sml_nvalues )
@@ -2544,8 +2548,25 @@ syncrepl_resolve_cb( Operation *op, SlapReply *rs )
 {
 	if ( rs->sr_type == REP_SEARCH ) {
 		resolve_ctxt *rx = op->o_callback->sc_private;
-		Attribute *a = attr_find( rs->sr_entry->e_attrs, ad_reqMod );
-		if ( a ) {
+		Attribute *a;
+
+		/* A newer Delete/Add invalidates the whole op */
+		if ( !is_entry_objectclass_or_sub( rs->sr_entry, oc_find("auditModify") ) ) {
+			Modifications *m = rx->rx_mods;
+			while ( m ) {
+				Modifications *next = m->sml_next;
+				op->o_tmpfree( m, op->o_tmpmemctx );
+				m = next;
+			}
+			rx->rx_mods = NULL;
+			rx->rx_result = CV_CSN_OLD;
+			Debug( LDAP_DEBUG_SYNC, "syncrepl_resolve_cb: %s "
+					"a delete dn=%s replaced this modify\n",
+					rx->rx_si->si_ridtxt, rs->sr_entry->e_name.bv_val );
+			return LDAP_SUCCESS;
+		}
+
+		if ( (a = attr_find( rs->sr_entry->e_attrs, ad_reqMod )) ) {
 			Modifications *oldmods, *newmods, *m1, *m2, **prev;
 			oldmods = rx->rx_mods;
 			syncrepl_accesslog_mods( rx->rx_si, a->a_vals, &newmods );
@@ -2637,8 +2658,9 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 	OpExtra *oex;
 	syncinfo_t *si;
 	Entry *e;
-	int rc, match = 0;
+	int rc, match = 0, uuid_match = 0;
 	Modifications *mod, *newlist;
+	struct berval *uuid;
 
 	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
 		if ( oex->oe_key == (void *)syncrepl_message_to_op )
@@ -2648,6 +2670,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 		return SLAP_CB_CONTINUE;
 
 	si = ((OpExtraSync *)oex)->oe_si;
+	uuid = &((OpExtraSync *)oex)->oe_uuid;
 
 	/* Check if entryCSN in modlist is newer than entryCSN in entry.
 	 * We do it here because the op has been serialized by accesslog
@@ -2669,6 +2692,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 			sid, (cookie_vals *)&si->si_cookieState->cs_vals, NULL );
 		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_mutex );
 		if ( rc == CV_CSN_OLD ) {
+ignore:
 			slap_graduate_commit_csn( op );
 			/* tell accesslog this was a failure */
 			rs->sr_err = LDAP_TYPE_OR_VALUE_EXISTS;
@@ -2690,25 +2714,67 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 			/* no entryCSN? shouldn't happen. assume mod is newer. */
 			match = 1;
 		}
+		/* If entryUUID is missing, which shouldn't happen, assume it
+		 * matches. */
+		a = attr_find( e->e_attrs, slap_schema.si_ad_entryUUID );
+		if ( a ) {
+			struct berval nuuid;
+			if ( slap_schema.si_ad_entryUUID->ad_type->sat_equality->smr_normalize(
+						SLAP_MR_VALUE_OF_ATTRIBUTE_SYNTAX, NULL, NULL,
+						uuid, &nuuid, op->o_tmpmemctx ) ) {
+				Debug( LDAP_DEBUG_ANY, "syncrepl_message_to_op: %s "
+						"invalid entryUUID received %s: %s\n",
+						si->si_ridtxt, uuid->bv_val, text );
+				return LDAP_INVALID_SYNTAX;
+			}
+			value_match( &uuid_match, slap_schema.si_ad_entryUUID,
+				slap_schema.si_ad_entryUUID->ad_type->sat_equality,
+				SLAP_MR_VALUE_OF_ATTRIBUTE_SYNTAX,
+				&nuuid, &a->a_nvals[0], &text );
+			if ( uuid_match != 0 ) {
+				Debug( LDAP_DEBUG_SYNC, "syncrepl_op_modify: %s "
+						"entryUUID doesn't match, modify is %s\n",
+						si->si_ridtxt,
+						match < 0 ? "older, will ignore it"
+								  : "newer, we'll need to refresh" );
+			}
+			op->o_tmpfree( nuuid.bv_val, op->o_tmpmemctx );
+		}
 		overlay_entry_release_ov( op, e, 0, on );
-	} else {
+	} else if ( rc != LDAP_NO_SUCH_OBJECT ) {
+		/* If entry is missing, we still need to check the delete is older
+		 * before we admit an error */
 		return SLAP_CB_CONTINUE;
 	}
 
 	/* equal? Should never happen */
-	if ( match == 0 ) {
-		slap_graduate_commit_csn( op );
-		/* tell accesslog this was a failure */
-		rs->sr_err = LDAP_TYPE_OR_VALUE_EXISTS;
-		return LDAP_SUCCESS;
+	if ( rc == LDAP_SUCCESS && match == 0 ) {
+		goto ignore;
+	}
+
+	/* if entryUUID doesn't match, ignore or fail, depending on relative age */
+	if ( uuid_match != 0 ) {
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_op_modify: %s "
+				"entryUUID doesn't match, modify is %s\n",
+				si->si_ridtxt, match < 0 ? "older, ignoring it"
+										 : "newer, we need to refresh" );
+		if ( match < 0 ) {
+			/* Older? in our copy, the entry has been replaced since */
+			goto ignore;
+		}
+		/* Provider's copy takes precedence and we can't recreate it anymore,
+		 * fallback to refresh. */
+		return LDAP_NO_SUCH_OBJECT;
 	}
 
 	/* mod is older: resolve conflicts...
 	 * 1. Save/copy original modlist. Split Replace to Del/Add.
-	 * 2. Find all mods to this reqDN newer than the mod stamp.
+	 * 2. Find all mods/deletes to this reqDN newer than the mod
+	 *    stamp.
 	 * 3. Resolve any mods in this request that affect attributes
 	 *    touched by newer mods.
 	 *    old         new
+	 *    anything    LDAP Delete drop
 	 *    delete all  delete all  drop
 	 *    delete all  delete X    SOFTDEL
 	 *    delete X    delete all  drop
@@ -2735,7 +2801,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 	newlist = mods_dup( op, op->orm_modlist, match );
 
 	/* mod is older */
-	if ( match < 0 ) {
+	if ( match <= 0 ) {
 		Operation op2 = *op;
 		AttributeName an[2];
 		struct berval bv;
@@ -2748,6 +2814,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 
 		rx.rx_si = si;
 		rx.rx_mods = newlist;
+		rx.rx_result = CV_CSN_OK;
 		cb.sc_private = &rx;
 
 		op2.o_tag = LDAP_REQ_SEARCH;
@@ -2792,6 +2859,12 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 		op2.o_bd = select_backend( &op2.o_req_ndn, 1 );
 		op2.o_bd->be_search( &op2, &rs1 );
 		newlist = rx.rx_mods;
+		if ( rx.rx_result == CV_CSN_OLD ) {
+			/* The entry being modified has been replaced */
+			Debug( LDAP_DEBUG_SYNC, "syncrepl_op_modify: %s "
+					"entry replaced by a delete\n", si->si_ridtxt );
+			return LDAP_NO_SUCH_OBJECT;
+		}
 	}
 
 	{
@@ -2823,6 +2896,216 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 		op->orm_modlist = newlist;
 		op->o_csn = mod->sml_nvalues[0];
 	}
+	return SLAP_CB_CONTINUE;
+}
+
+static int
+syncrepl_delete_resolve_cb( Operation *op, SlapReply *rs )
+{
+	resolve_ctxt *rx = op->o_callback->sc_private;
+	int rc = LDAP_SUCCESS;
+
+	if ( rs->sr_type == REP_SEARCH ) {
+		Attribute *a;
+		int is_delete = is_entry_objectclass_or_sub( rs->sr_entry, oc_find("auditDelete") );
+
+		if ( (a = attr_find( rs->sr_entry->e_attrs, ad_reqMod )) ) {
+			Modifications *newmods, *m;
+
+			syncrepl_accesslog_mods( rx->rx_si, a->a_vals, &newmods );
+			for ( m = newmods; m; m=m->sml_next ) {
+				if ( m->sml_desc == slap_schema.si_ad_entryCSN &&
+						( m->sml_op == LDAP_MOD_ADD ||
+						  m->sml_op == LDAP_MOD_REPLACE ) ) {
+					int match = 0;
+					const char *text;
+
+					value_match( &match, slap_schema.si_ad_entryCSN,
+							slap_schema.si_ad_entryCSN->ad_type->sat_ordering,
+							SLAP_MR_VALUE_OF_ATTRIBUTE_SYNTAX,
+							&m->sml_nvalues[0], &op->o_csn, &text );
+
+					Debug( LDAP_DEBUG_SYNC, "syncrepl_delete_resolve_cb: %s "
+							"change delete=%d match=%d\n",
+							rx->rx_si->si_ridtxt, is_delete, match );
+					if ( match >= 0 ) {
+						/* Our delete is now superceded, remember this and
+						 * short curcuit out of the search */
+						rx->rx_result = CV_CSN_OLD;
+						rc = LDAP_SIZELIMIT_EXCEEDED;
+						break;
+					}
+				}
+			}
+			slap_mods_free( newmods, 1 );
+		}
+	}
+	return rc;
+}
+
+static int
+syncrepl_op_delete( Operation *op, SlapReply *rs )
+{
+	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
+	OpExtra *oex;
+	syncinfo_t *si;
+	Entry *e;
+	int rc, match = 0;
+
+	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
+		if ( oex->oe_key == (void *)syncrepl_message_to_op )
+			break;
+	}
+	if ( !oex )
+		return SLAP_CB_CONTINUE;
+
+	si = ((OpExtraSync *)oex)->oe_si;
+
+	/* Check if op CSN compared to the entry:
+	 * - if newer, just do the delete
+	 * - if older, skip it, entry has already been modified/replaced
+	 * - if the entry is missing, find the last CSN of when that happened:
+	 *   - if our CSN is still older, there is nothing to be done
+	 *   - if our CSN is newer, we need to mark the delete as applied so
+	 *     other request's resolution can be applied correctly
+	 */
+
+	Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+			"processing deletion of %s csn=%s\n",
+			si->si_ridtxt, op->o_req_dn.bv_val, op->o_csn.bv_val );
+
+	{
+		int sid = slap_parse_csn_sid( &op->o_csn );
+		ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_mutex );
+		rc = check_csn_age( si, &op->o_req_dn, &op->o_csn,
+			sid, (cookie_vals *)&si->si_cookieState->cs_vals, NULL );
+		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_mutex );
+		if ( rc == CV_CSN_OLD ) {
+			slap_graduate_commit_csn( op );
+			/* tell accesslog this was a failure */
+			rs->sr_err = LDAP_TYPE_OR_VALUE_EXISTS;
+			return LDAP_SUCCESS;
+		}
+	}
+
+	rc = overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on );
+	if ( rc == 0 ) {
+		Attribute *a;
+		const char *text;
+		a = attr_find( e->e_attrs, slap_schema.si_ad_entryCSN );
+		if ( a ) {
+			value_match( &match, slap_schema.si_ad_entryCSN,
+				slap_schema.si_ad_entryCSN->ad_type->sat_ordering,
+				SLAP_MR_VALUE_OF_ATTRIBUTE_SYNTAX,
+				&op->o_csn, &a->a_nvals[0], &text );
+		} else {
+			/* no entryCSN? shouldn't happen. assume mod is newer. */
+			match = 1;
+		}
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+				"match=%d\n", si->si_ridtxt, match );
+		overlay_entry_release_ov( op, e, 0, on );
+	} else if ( rc != LDAP_NO_SUCH_OBJECT ) {
+		/* If entry is missing, there is more work to do */
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+				"issue finding entry rc=%d\n", si->si_ridtxt, rc );
+		return SLAP_CB_CONTINUE;
+	}
+
+	if ( match == 0 ) {
+		if ( rc == LDAP_SUCCESS ) {
+			/* actually equal? Should never happen */
+			slap_graduate_commit_csn( op );
+			/* tell accesslog this was a failure */
+			rs->sr_err = LDAP_TYPE_OR_VALUE_EXISTS;
+			Debug( LDAP_DEBUG_ANY, "syncrepl_op_delete: %s"
+					"entryCSN same as a delete of the same entry: %s\n",
+					si->si_ridtxt, op->o_req_dn.bv_val );
+			return LDAP_SUCCESS;
+		}
+	} else if ( match < 0 ) {
+		/* delete is older, skip */
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+				"delete too old\n", si->si_ridtxt );
+		return LDAP_SUCCESS;
+	} else {
+		/* delete passed the test */
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+				"delete passed\n", si->si_ridtxt );
+		return SLAP_CB_CONTINUE;
+	}
+
+	/* Entry doesn't exist, see what's in the accesslog */
+	{
+		Operation op2 = *op;
+		AttributeName an[2];
+		int size;
+		SlapReply rs1 = {0};
+		resolve_ctxt rx;
+		slap_callback cb = { NULL, syncrepl_delete_resolve_cb, NULL, NULL };
+		Filter lf[3] = {0};
+		AttributeAssertion aa[2] = {0};
+
+		rx.rx_si = si;
+		rx.rx_result = CV_CSN_OK;
+		cb.sc_private = &rx;
+
+		op2.o_tag = LDAP_REQ_SEARCH;
+		op2.ors_scope = LDAP_SCOPE_SUBTREE;
+		op2.ors_deref = LDAP_DEREF_NEVER;
+		op2.o_req_dn = si->si_logbase;
+		op2.o_req_ndn = si->si_logbase;
+		op2.ors_tlimit = SLAP_NO_LIMIT;
+		op2.ors_slimit = SLAP_NO_LIMIT;
+		op2.ors_limit = NULL;
+		memset( an, 0, sizeof(an) );
+		an[0].an_desc = ad_reqMod;
+		an[0].an_name = ad_reqMod->ad_cname;
+		op2.ors_attrs = an;
+		op2.ors_attrsonly = 0;
+
+		size = sizeof("(&(entryCSN>=)(reqDN=))");
+		size += op->o_csn.bv_len + op->o_req_ndn.bv_len + si->si_logfilterstr.bv_len;
+		op2.ors_filterstr.bv_val = op->o_tmpalloc( size, op->o_tmpmemctx );
+		op2.ors_filterstr.bv_len = sprintf(op2.ors_filterstr.bv_val,
+			"(&(entryCSN>=%s)(reqDN=%s)%s)",
+			op->o_csn.bv_val, op->o_req_ndn.bv_val, si->si_logfilterstr.bv_val );
+
+		lf[0].f_choice = LDAP_FILTER_AND;
+		lf[0].f_and = lf+1;
+		lf[1].f_choice = LDAP_FILTER_GE;
+		lf[1].f_ava = aa;
+		lf[1].f_av_desc = slap_schema.si_ad_entryCSN;
+		lf[1].f_av_value = op->o_csn;
+		lf[1].f_next = lf+2;
+		lf[2].f_choice = LDAP_FILTER_EQUALITY;
+		lf[2].f_ava = aa+1;
+		lf[2].f_av_desc = ad_reqDN;
+		lf[2].f_av_value = op->o_req_ndn;
+		lf[2].f_next = si->si_logfilter;
+
+		op2.ors_filter = lf;
+
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+				"entry missing, looking into accesslog when that happened\n",
+				si->si_ridtxt );
+		op2.o_callback = &cb;
+		op2.o_bd = select_backend( &op2.o_req_ndn, 1 );
+		op2.o_bd->be_search( &op2, &rs1 );
+		rc = rx.rx_result;
+	}
+
+	if ( rc == CV_CSN_OLD ) {
+		/* A newer delete replaced this op, skip altogether */
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+				"delete superceded\n", si->si_ridtxt );
+		return LDAP_SUCCESS;
+	}
+
+	Debug( LDAP_DEBUG_SYNC, "syncrepl_op_delete: %s "
+			"newer than an older delete\n", si->si_ridtxt );
+	/* TODO: This is effectively a noop except we need to make sure it gets
+	 * logged as a successful delete somehow */
 	return SLAP_CB_CONTINUE;
 }
 
@@ -2876,8 +3159,9 @@ syncrepl_message_to_op(
 	struct berval	bv, bv2, *bvals = NULL;
 	struct berval	rdn = BER_BVNULL, sup = BER_BVNULL,
 		prdn = BER_BVNULL, nrdn = BER_BVNULL,
-		psup = BER_BVNULL, nsup = BER_BVNULL;
-	struct berval	dsee_uuid = BER_BVNULL, dsee_mods = BER_BVNULL;
+		psup = BER_BVNULL, nsup = BER_BVNULL,
+		uuid = BER_BVNULL;
+	struct berval	dsee_mods = BER_BVNULL;
 	int		rc, deleteOldRdn = 0, freeReqDn = 0;
 	int		do_graduate = 0, do_unlock = 0;
 	unsigned long changenum = 0;
@@ -2979,7 +3263,7 @@ syncrepl_message_to_op(
 					op->o_relax = SLAP_CONTROL_CRITICAL;
 			}
 		} else if ( !ber_bvstrcasecmp( &bv, &ls->ls_uuid ) ) {
-			dsee_uuid = bvals[0];
+			uuid = bvals[0];
 		} else if ( !ber_bvstrcasecmp( &bv, &ls->ls_changenum ) ) {
 			changenum = strtoul( bvals->bv_val, NULL, 0 );
 		} else if ( !ber_bvstrcasecmp( &bv,
@@ -2994,7 +3278,7 @@ syncrepl_message_to_op(
 	/* don't parse mods until we've gotten the uuid */
 	if ( si->si_syncdata == SYNCDATA_CHANGELOG && !BER_BVISNULL( &dsee_mods )) {
 		rc = syncrepl_changelog_mods( si, op->o_tag,
-			&dsee_mods, &modlist, &dsee_uuid, op->o_tmpmemctx );
+			&dsee_mods, &modlist, &uuid, op->o_tmpmemctx );
 		if ( rc )
 			goto done;
 	}
@@ -3038,7 +3322,7 @@ syncrepl_message_to_op(
 			op->ora_e->e_name = op->o_req_dn;
 			op->ora_e->e_nname = op->o_req_ndn;
 			freeReqDn = 0;
-			rc = slap_mods2entry( modlist, &op->ora_e, 1, 0, &text, txtbuf, textlen);
+			rc = slap_mods2entry( modlist, &op->ora_e, 1, 1, &text, txtbuf, textlen);
 			if( rc != LDAP_SUCCESS ) {
 				Debug( LDAP_DEBUG_ANY, "syncrepl_message_to_op: %s "
 				"mods2entry (%s)\n",
@@ -3057,7 +3341,44 @@ syncrepl_message_to_op(
 						if ( ber_bvcmp( &vals[0], &a->a_vals[0] ) >= 0 )
 							rc = LDAP_SUCCESS;
 						ber_bvarray_free_x( vals, op->o_tmpmemctx );
- 					}
+					}
+					if ( rc != LDAP_SUCCESS ) {
+						struct berval csn, syncUUID[2];
+
+						vals = NULL;
+						a = attr_find( e->e_attrs, slap_schema.si_ad_entryUUID );
+						if ( a && backend_attribute( op, NULL, &op->o_req_ndn,
+									slap_schema.si_ad_entryUUID, &vals, ACL_READ ) == LDAP_SUCCESS ) {
+						}
+						ber_dupbv_x( &syncUUID[1], &uuid, op->o_tmpmemctx );
+						if ( slap_schema.si_ad_entryUUID->ad_type->sat_equality->smr_normalize(
+									SLAP_MR_VALUE_OF_ATTRIBUTE_SYNTAX, NULL, NULL,
+									&syncUUID[1], &syncUUID[0], op->o_tmpmemctx ) ) {
+							Debug( LDAP_DEBUG_ANY, "syncrepl_message_to_op: %s "
+									"invalid entryUUID received %s: %s\n",
+									si->si_ridtxt, uuid.bv_val, text );
+							rc = LDAP_INVALID_SYNTAX;
+						} else {
+							Modifications *m;
+
+							csn = op->o_csn;
+							BER_BVZERO( &op->o_csn );
+							si->si_refreshDone = 1;
+
+							/* attr_cmp assumes we send these as replaces */
+							for ( m = modlist; m; m = m->sml_next )
+								m->sml_op = LDAP_MOD_REPLACE;
+
+							rc = syncrepl_entry( si, op, e, &modlist, LDAP_SYNC_ADD, syncUUID, &csn );
+							op->o_csn = csn;
+							op->o_tmpfree( syncUUID[0].bv_val, op->o_tmpmemctx );
+						}
+						if ( vals )
+							ber_bvarray_free_x( vals, op->o_tmpmemctx );
+					}
+					modlist = NULL;
+					/* TODO: call syncrepl_entry to process this as plain ADD,
+					 * replacing the entry */
 				}
 			}
 			if ( e == op->ora_e )
@@ -3070,6 +3391,7 @@ syncrepl_message_to_op(
 			if ( SLAP_MULTIPROVIDER( op->o_bd )) {
 				oes.oe.oe_key = (void *)syncrepl_message_to_op;
 				oes.oe_si = si;
+				oes.oe_uuid = uuid;
 				LDAP_SLIST_INSERT_HEAD( &op->o_extra, &oes.oe, oe_next );
 			}
 			rc = op->o_bd->be_modify( op, &rs );
@@ -3128,8 +3450,18 @@ syncrepl_message_to_op(
 			si->si_ridtxt, op->o_req_dn.bv_val, rc );
 		do_graduate = 0;
 		break;
-	case LDAP_REQ_DELETE:
+	case LDAP_REQ_DELETE: {
+		OpExtraSync oes;
+		/* delta-mpr needs additional checks in syncrepl_op_delete */
+		if ( SLAP_MULTIPROVIDER( op->o_bd ) ) {
+			oes.oe.oe_key = (void *)syncrepl_message_to_op;
+			oes.oe_si = si;
+			LDAP_SLIST_INSERT_HEAD( &op->o_extra, &oes.oe, oe_next );
+		}
 		rc = op->o_bd->be_delete( op, &rs );
+		if ( SLAP_MULTIPROVIDER( op->o_bd ) ) {
+			LDAP_SLIST_REMOVE( &op->o_extra, &oes.oe, OpExtra, oe_next );
+		}
 		Debug( rc ? LDAP_DEBUG_ANY : LDAP_DEBUG_SYNC,
 			"syncrepl_message_to_op: %s be_delete %s (%d)\n", 
 			si->si_ridtxt, op->o_req_dn.bv_val, rc );
@@ -3137,7 +3469,7 @@ syncrepl_message_to_op(
 		if ( rc == LDAP_NO_SUCH_OBJECT )
 			rc = LDAP_SUCCESS;
 		do_graduate = 0;
-		break;
+		break; }
 	}
 	if ( si->si_syncdata == SYNCDATA_CHANGELOG && !rc )
 		si->si_lastchange = changenum;
@@ -4160,8 +4492,9 @@ retry_add:;
 		if ( dni.renamed ) {
 			struct berval noldp, newp;
 			Modifications *mod, **modtail, **ml, *m2 = NULL;
-			int i, got_replace = 0, just_rename = 0;
+			int got_replace = 0, just_rename = 0;
 			SlapReply rs_modify = {REP_RESULT};
+			unsigned i;
 
 			op->o_tag = LDAP_REQ_MODRDN;
 			dnRdn( &entry->e_name, &op->orr_newrdn );
@@ -4895,7 +5228,6 @@ syncrepl_dsee_update(
 {
 	Backend *be = op->o_bd;
 	Modifications mod;
-	struct berval first = BER_BVNULL;
 	slap_callback cb = { NULL };
 	SlapReply	rs_modify = {REP_RESULT};
 	char valbuf[sizeof("18446744073709551615")];
@@ -6842,7 +7174,7 @@ syncrepl_monitor_add(
 {
 	BackendInfo *mi;
 	monitor_extra_t *mbe;
-	struct berval pndn, pdn, rdn, bv;
+	struct berval pndn, pdn, rdn;
 	char rdnbuf[sizeof("cn=Consumer 999")];
 	Entry *e, *p;
 	int rc;

@@ -16,7 +16,7 @@
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh
 
-OPATTRS="entryUUID creatorsName createTimestamp modifiersName modifyTimestamp"
+OPATTRS="entryUUID entryCSN contextCSN creatorsName createTimestamp modifiersName modifyTimestamp"
 
 if test $SYNCPROV = syncprovno; then 
 	echo "Syncrepl provider overlay not available, test skipped"

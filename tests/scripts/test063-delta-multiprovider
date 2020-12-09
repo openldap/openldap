@@ -50,6 +50,8 @@ case "$SYNCMODE" in
 		;;
 esac
 
+OPATTRS="entryUUID entryCSN contextCSN creatorsName createTimestamp modifiersName modifyTimestamp"
+
 #
 # Test delta-sync mpr
 # - start servers
@@ -281,7 +283,7 @@ URI="ldap://${LOCALHOST}:$PORT/"
 
 echo "Using ldapsearch to read all the entries from server $n..."
 $LDAPSEARCH -S "" -b "$BASEDN" -D "$MANAGERDN" -H $URI -w $PASSWD  \
-	'objectclass=*' > $TESTDIR/server$n.out 2>&1
+	'objectclass=*' '*' $OPATTRS > $TESTDIR/server$n.out 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -318,6 +320,7 @@ fi
 
 THEDN="cn=James A Jones 2,ou=Alumni Association,ou=People,dc=example,dc=com"
 THEDN2="cn=Jane Doe,ou=Alumni Association,ou=People,dc=example,dc=com"
+THEPARENT="ou=Groups,$BASEDN"
 sleep 1
 for i in 1 2 3; do
 	$LDAPSEARCH -S "" -b "$THEDN" -H $URI1 \
@@ -345,7 +348,7 @@ URI="ldap://${LOCALHOST}:$PORT/"
 
 echo "Using ldapsearch to read all the entries from server $n..."
 $LDAPSEARCH -S "" -b "$BASEDN" -D "$MANAGERDN" -H $URI -w $PASSWD  \
-	'objectclass=*' > $TESTDIR/server$n.out 2>&1
+	'objectclass=*' '*' $OPATTRS > $TESTDIR/server$n.out 2>&1
 RC=$?
 
 if test $RC != 0 ; then
@@ -416,25 +419,11 @@ replace: employeetype
 add: description
 description: Stupendous
 
-EOF
-RC=$?
-if test $RC != 0 ; then
-	echo "ldapmodify failed for server 2 database ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
-fi
-
-$LDAPDELETE -D "$MANAGERDN" -H $URI2 -w $PASSWD "$THEDN2" >> $TESTOUT 2>&1
-RC=$?
-if test $RC != 0 ; then
-	echo "ldapmodify failed for server 2 database ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
-fi
-
-$LDAPADD -D "$MANAGERDN" -H $URI2 -w $PASSWD \
-	>> $TESTOUT 2>&1 << EOF
 dn: $THEDN2
+changetype: delete
+
+dn: $THEDN2
+changetype: add
 objectclass: OpenLDAPperson
 cn: Jane Doe
 cn: Jane Alverson
@@ -452,10 +441,15 @@ pager: +1 313 555 1220
 facsimiletelephonenumber: +1 313 555 2311
 telephonenumber: +1 313 555 4774
 
+dn: cn=concurrentAdd,$THEPARENT
+changetype: add
+objectclass: device
+description: added by server 2
+
 EOF
 RC=$?
 if test $RC != 0 ; then
-	echo "ldapadd failed for server 2 database ($RC)!"
+	echo "ldapmodify failed for server 2 database ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
 fi
@@ -469,6 +463,16 @@ description: Outstanding
 -
 add: description
 description: Mindboggling
+
+dn: cn=concurrentAdd,$THEPARENT
+changetype: add
+objectclass: device
+description: added by server 1
+
+dn: cn=concurrentAdd2,$THEPARENT
+changetype: add
+objectclass: device
+description: added by server 1
 
 EOF
 RC=$?
@@ -502,6 +506,11 @@ description: OutStanding
 -
 add: description
 description: Bizarre
+
+dn: cn=concurrentAdd2,$THEPARENT
+changetype: add
+objectclass: device
+description: added by server 2
 
 EOF
 RC=$?
@@ -611,7 +620,7 @@ URI="ldap://${LOCALHOST}:$PORT/"
 
 echo "Using ldapsearch to read all the entries from server $n..."
 $LDAPSEARCH -S "" -b "$BASEDN" -D "$MANAGERDN" -H $URI -w $PASSWD  \
-	'objectclass=*' > $TESTDIR/server$n.out 2>&1
+	'objectclass=*' '*' $OPATTRS > $TESTDIR/server$n.out 2>&1
 RC=$?
 
 if test $RC != 0 ; then

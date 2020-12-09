@@ -310,7 +310,7 @@ if test $RC != 10 ; then
 	exit 1
 fi
 
-OPATTRS="entryUUID creatorsName createTimestamp modifiersName modifyTimestamp"
+OPATTRS="entryUUID entryCSN contextCSN creatorsName createTimestamp modifiersName modifyTimestamp"
 
 echo "Using ldapsearch to read all the entries from the provider..."
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
