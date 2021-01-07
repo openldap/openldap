@@ -303,7 +303,7 @@ createExtendedOp()
  * Function Name:      slapi_int_unregister_extop
  *
  * Description:        This routine removes the ExtendedOp structures 
- *					   asscoiated with a particular extended operation 
+ *					   associated with a particular extended operation 
  *					   plugin.
  *
  * Input:              pBE - pointer to a backend structure
