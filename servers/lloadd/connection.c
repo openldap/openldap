@@ -86,6 +86,10 @@ handle_pdus( void *ctx, void *arg )
             goto done;
         }
 
+        if ( !IS_ALIVE( c, c_live ) ) {
+            break;
+        }
+
         if ( ++pdus_handled >= lload_conn_max_pdus_per_cycle ) {
             /* Do not read now, re-enable read event instead */
             break;
