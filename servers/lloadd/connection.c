@@ -322,7 +322,10 @@ connection_write_cb( evutil_socket_t s, short what, void *arg )
         return;
     }
 
-    epoch = epoch_join();
+    /* If what == 0, we have a caller as opposed to being a callback */
+    if ( what ) {
+        epoch = epoch_join();
+    }
 
     checked_lock( &c->c_io_mutex );
     Debug( LDAP_DEBUG_CONNS, "connection_write_cb: "
@@ -369,7 +372,9 @@ connection_write_cb( evutil_socket_t s, short what, void *arg )
 
 done:
     RELEASE_REF( c, c_refcnt, c->c_destroy );
-    epoch_leave( epoch );
+    if ( what ) {
+        epoch_leave( epoch );
+    }
 }
 
 void
