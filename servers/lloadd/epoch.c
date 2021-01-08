@@ -112,6 +112,7 @@ epoch_join( void )
     epoch_t epoch;
     struct pending_ref *old, *ref = NULL;
 
+retry:
     /* TODO: make this completely lock-free */
     ldap_pvt_thread_rdwr_rlock( &epoch_mutex );
     epoch = current_epoch;
@@ -134,6 +135,19 @@ epoch_join( void )
     current_epoch = EPOCH_NEXT(epoch);
     ldap_pvt_thread_rdwr_wunlock( &epoch_mutex );
 
+    if ( !ref ) {
+        return epoch;
+    }
+
+    /*
+     * The below is now safe to free outside epochs and we don't want to make
+     * the current epoch last any longer than necessary.
+     *
+     * Looks like there might be fairness issues in massively parallel
+     * environments but they haven't been observed on 32-core machines.
+     */
+    epoch_leave( epoch );
+
     for ( old = ref; old; old = ref ) {
         ref = old->next;
 
@@ -141,7 +155,7 @@ epoch_join( void )
         ch_free( old );
     }
 
-    return epoch;
+    goto retry;
 }
 
 void
