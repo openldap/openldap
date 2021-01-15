@@ -288,6 +288,7 @@ handle_one_request( LloadConnection *c )
     return handler( c, op );
 }
 
+#ifdef HAVE_TLS
 /*
  * The connection has a token assigned to it when the callback is set up.
  */
@@ -385,6 +386,7 @@ fail:
     CONNECTION_LOCK_DESTROY(c);
     epoch_leave( epoch );
 }
+#endif /* HAVE_TLS */
 
 LloadConnection *
 client_init(
@@ -413,6 +415,7 @@ client_init(
     c->c_state = LLOAD_C_READY;
 
     if ( flags & CONN_IS_TLS ) {
+#ifdef HAVE_TLS
         int rc;
 
         c->c_is_tls = LLOAD_LDAPS;
@@ -430,6 +433,9 @@ client_init(
             c->c_read_timeout = lload_timeout_net;
             read_cb = write_cb = client_tls_handshake_cb;
         }
+#else /* ! HAVE_TLS */
+        assert(0);
+#endif /* ! HAVE_TLS */
     }
 
     event = event_new( base, s, EV_READ|EV_PERSIST, read_cb, c );

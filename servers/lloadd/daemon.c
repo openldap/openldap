@@ -1410,6 +1410,7 @@ backend_conn_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
     return 0;
 }
 
+#ifdef HAVE_TLS
 int
 client_tls_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
 {
@@ -1422,6 +1423,7 @@ client_tls_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
     }
     return 0;
 }
+#endif /* HAVE_TLS */
 
 void
 lload_handle_backend_invalidation( LloadChange *change )
@@ -1648,6 +1650,7 @@ lload_handle_global_invalidation( LloadChange *change )
         assert( !feature_diff );
     }
 
+#ifdef HAVE_TLS
     if ( change->flags.daemon & LLOAD_DAEMON_MOD_TLS ) {
         /* terminate all clients with TLS set up */
         ldap_pvt_thread_pool_walk(
@@ -1670,6 +1673,7 @@ lload_handle_global_invalidation( LloadChange *change )
             }
         }
     }
+#endif /* HAVE_TLS */
 
     if ( change->flags.daemon & LLOAD_DAEMON_MOD_BINDCONF ) {
         LloadBackend *b;

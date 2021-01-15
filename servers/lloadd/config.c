@@ -3671,6 +3671,19 @@ backend_cf_gen( ConfigArgs *c )
                         "invalid starttls configuration" );
                 goto fail;
             }
+#ifndef HAVE_TLS
+            if ( tlskey[i].mask == LLOAD_STARTTLS_OPTIONAL ) {
+                Debug( LDAP_DEBUG_ANY, "%s: "
+                        "lloadd compiled without TLS but starttls specified, "
+                        "it will be ignored\n",
+                        c->log );
+            } else if ( tlskey[i].mask != LLOAD_CLEARTEXT ) {
+                snprintf( c->cr_msg, sizeof(c->cr_msg),
+                        "invalid starttls configuration when compiled without "
+                        "TLS support" );
+                goto fail;
+            }
+#endif /* ! HAVE_TLS */
             b->b_tls_conf = tlskey[i].mask;
         } break;
         default:
