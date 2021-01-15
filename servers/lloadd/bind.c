@@ -56,6 +56,7 @@ bind_mech_external(
         goto done;
     }
 
+#ifdef HAVE_TLS
     ssl = ldap_pvt_tls_sb_ctx( client->c_sb );
     if ( !ssl || ldap_pvt_tls_get_peer_dn( ssl, &binddn, NULL, 0 ) ) {
         result = LDAP_INVALID_CREDENTIALS;
@@ -74,6 +75,10 @@ bind_mech_external(
     if ( !ber_bvstrcasecmp( &client->c_auth, &lloadd_identity ) ) {
         client->c_type = LLOAD_C_PRIVILEGED;
     }
+#else /* ! HAVE_TLS */
+    result = LDAP_AUTH_METHOD_NOT_SUPPORTED;
+    message = "requested SASL mechanism not supported";
+#endif /* ! HAVE_TLS */
 
 done:
     CONNECTION_UNLOCK(client);
