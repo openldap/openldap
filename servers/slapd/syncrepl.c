@@ -496,6 +496,7 @@ static struct berval generic_filterstr = BER_BVC("(objectclass=*)");
 static int
 ldap_sync_search(
 	syncinfo_t *si,
+	Operation *op,
 	void *ctx )
 {
 	BerElementBuffer berbuf;
@@ -685,6 +686,8 @@ ldap_sync_search(
 
 	rc = ldap_search_ext( si->si_ld, base, scope, filter, attrs, attrsonly,
 		ctrls, NULL, NULL, si->si_slimit, &si->si_msgid );
+	snprintf( op->o_log_prefix, sizeof( op->o_log_prefix ),
+			"conn=%lu op=%d %s", op->o_connid, si->si_msgid, si->si_ridtxt );
 	ber_free_buf( ber );
 	return rc;
 }
@@ -1093,12 +1096,12 @@ do_syncrep1(
 	ber_bvreplace( &si->si_lastCookieSent, &si->si_syncCookie.octet_str );
 	ldap_pvt_thread_mutex_unlock( &si->si_monitor_mutex );
 
-	rc = ldap_sync_search( si, op->o_tmpmemctx );
+	rc = ldap_sync_search( si, op, op->o_tmpmemctx );
 
 	if( rc != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_ANY, "do_syncrep1: %s "
 			"ldap_search_ext: %s (%d)\n",
-			si->si_ridtxt, ldap_err2string( rc ), rc );
+			op->o_log_prefix, ldap_err2string( rc ), rc );
 	}
 
 done:
@@ -1991,6 +1994,8 @@ do_syncrepl(
 	op = &opbuf.ob_op;
 	/* o_connids must be unique for slap_graduate_commit_csn */
 	op->o_connid = SLAPD_SYNC_RID2SYNCCONN(si->si_rid);
+	snprintf( op->o_log_prefix, sizeof( op->o_log_prefix ),
+			"conn=%lu op=%lu", op->o_connid, op->o_opid );
 
 	op->o_managedsait = SLAP_CONTROL_NONCRITICAL;
 	be = si->si_be;
