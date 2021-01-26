@@ -119,9 +119,14 @@ The length of the time-step period for TOTP calculation.
 .B oathTOTPLastTimeStep: <number>
 The order of the last TOTP token successfully redeemed by the user.
 .TP
-.B oathTOTPGrace: <number>
+.B oathTOTPTimeStepWindow: <number>
 The number of time periods around the current time to try when checking the
 password provided by the user.
+.TP
+.B oathTOTPTimeStepDrift: <number>
+If the client didn't provide the correct token but it still fit with
+oathTOTPTimeStepWindow above, this attribute records the current offset to
+provide for slow clock drift of the client device.
 .RE
 
 .SH "SEE ALSO"

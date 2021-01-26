@@ -130,6 +130,7 @@ AttributeDescription *ad_oathTOTPParams;
 AttributeDescription *ad_oathTOTPToken;
 AttributeDescription *ad_oathTOTPLastTimeStep;
 AttributeDescription *ad_oathTOTPTimeStepWindow;
+AttributeDescription *ad_oathTOTPTimeStepDrift;
 
 static struct otp_at {
 	char					*schema;
@@ -327,7 +328,8 @@ static struct otp_at {
         "DESC 'OATH-LDAP: Last observed time step shift seen for TOTP' "
         "X-ORIGIN 'OATH-LDAP' "
         "SINGLE-VALUE "
-        "SUP oathCounter )" },
+        "SUP oathCounter )",
+		&ad_oathTOTPTimeStepDrift },
 
 	{ "( oath-ldap-at:11 "
         "NAME 'oathSecretLength' "
@@ -452,7 +454,7 @@ static struct otp_oc {
 		"AUXILIARY "
 		"SUP oathParams "
 		"MUST ( oathTOTPTimeStepPeriod ) "
-		"MAY ( oathTOTPTimeStepWindow $ oathTOTPTimeStepDrift ) )",
+		"MAY ( oathTOTPTimeStepWindow ) )",
 		&oc_oathTOTPParams },
 	{ "( oath-ldap-oc:3 "
 		"NAME 'oathToken' "
@@ -476,7 +478,7 @@ static struct otp_oc {
 		"X-ORIGIN 'OATH-LDAP' "
 		"AUXILIARY "
 		"SUP oathToken "
-		"MAY ( oathTOTPParams $ oathTOTPLastTimeStep ) )",
+		"MAY ( oathTOTPParams $ oathTOTPLastTimeStep $ oathTOTPTimeStepDrift ) )",
 		&oc_oathTOTPToken },
 	{ NULL }
 };
@@ -672,13 +674,14 @@ done:
 }
 
 static long
-otp_totp( Operation *op, Entry *token )
+otp_totp( Operation *op, Entry *token, long *drift )
 {
+	char outbuf[MAX_DIGITS + 1];
 	Entry *params = NULL;
 	Attribute *a;
 	BerValue *secret, client_otp;
 	const void *mech;
-	long t, last_step = -1, found = -1, window = 0;
+	long t, last_step = -1, found = -1, window = 0, old_drift;
 	int i, otp_len, time_step;
 
 	a = attr_find( token->e_attrs, ad_oathSecret );
@@ -706,7 +709,6 @@ otp_totp( Operation *op, Entry *token )
 				a->a_vals[0].bv_val );
 		goto done;
 	}
-	t = op->o_time / time_step;
 
 	a = attr_find( params->e_attrs, ad_oathTOTPTimeStepWindow );
 	if ( a && lutil_atol( &window, a->a_vals[0].bv_val ) != 0 ) {
@@ -715,6 +717,16 @@ otp_totp( Operation *op, Entry *token )
 				a->a_vals[0].bv_val );
 		goto done;
 	}
+
+	a = attr_find( params->e_attrs, ad_oathTOTPTimeStepDrift );
+	if ( a && lutil_atol( drift, a->a_vals[0].bv_val ) != 0 ) {
+		Debug( LDAP_DEBUG_ANY, "otp_totp: "
+				"could not parse oathTOTPTimeStepDrift value %s\n",
+				a->a_vals[0].bv_val );
+		goto done;
+	}
+	old_drift = *drift;
+	t = op->o_time / time_step + *drift;
 
 	a = attr_find( params->e_attrs, ad_oathOTPLength );
 	if ( lutil_atoi( &otp_len, a->a_vals[0].bv_val ) != 0 ) {
@@ -740,38 +752,32 @@ otp_totp( Operation *op, Entry *token )
 	client_otp.bv_val = op->orb_cred.bv_val + op->orb_cred.bv_len - otp_len;
 
 	/* If check succeeds, advance the step counter accordingly */
-	for ( i = -window; i <= window; i++ ) {
-		char outbuf[MAX_DIGITS + 1];
+	/* Negation of A001057 series that enumerates all integers:
+	 * (0, -1, 1, -2, 2, ...) */
+	for ( i = 0; i >= -window; i = ( i < 0 ) ? -i : ~i ) {
 		BerValue out = { .bv_val = outbuf, .bv_len = sizeof(outbuf) };
 
-		if ( t + i < 0 ) continue;
+		if ( t + i <= last_step ) continue;
 
 		generate( secret, t + i, otp_len, &out, mech );
 		if ( !ber_bvcmp( &out, &client_otp ) ) {
 			found = t + i;
+			*drift = old_drift + i;
+			/* Would we leak information if we stopped right now? */
 		}
 	}
 
+	/* OTP check passed, trim the password */
 	if ( found >= 0 ) {
-		int offset = found - t;
+		assert( found > last_step );
 
-		if ( found <= last_step ) {
-			/* Token re-used, refuse */
-			found = -1;
-			Debug( LDAP_DEBUG_TRACE, "%s client tried to reuse old TOTP token %s, offset %d\n",
-					op->o_log_prefix, token->e_name.bv_val, offset );
-		} else {
-			/* OTP check passed, trim the password */
-			op->orb_cred.bv_len -= otp_len;
-			Debug( LDAP_DEBUG_TRACE, "%s TOTP token %s redeemed with offset %d\n",
-					op->o_log_prefix, token->e_name.bv_val, offset );
-		}
-	} else {
-		Debug( LDAP_DEBUG_TRACE, "%s TOTP token was not valid\n",
-				op->o_log_prefix );
+		op->orb_cred.bv_len -= otp_len;
+		Debug( LDAP_DEBUG_TRACE, "%s TOTP token %s redeemed with new drift of %ld\n",
+				op->o_log_prefix, token->e_name.bv_val, *drift );
 	}
 
 done:
+	memset( outbuf, 0, sizeof(outbuf) );
 	if ( params ) {
 		be_entry_release_r( op, params );
 	}
@@ -784,9 +790,9 @@ otp_op_bind( Operation *op, SlapReply *rs )
 	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
 	BerValue totpdn = BER_BVNULL, hotpdn = BER_BVNULL, ndn;
 	Entry *user = NULL, *token = NULL;
-	AttributeDescription *ad = NULL;
+	AttributeDescription *ad = NULL, *drift_ad = NULL;
 	Attribute *a;
-	long t = -1;
+	long t = -1, drift = 0;
 	int rc = SLAP_CB_CONTINUE;
 
 	if ( op->oq_bind.rb_method != LDAP_AUTH_SIMPLE ) {
@@ -818,7 +824,8 @@ otp_op_bind( Operation *op, SlapReply *rs )
 					&token ) == LDAP_SUCCESS ) {
 		ndn = totpdn;
 		ad = ad_oathTOTPLastTimeStep;
-		t = otp_totp( op, token );
+		drift_ad = ad_oathTOTPTimeStepDrift;
+		t = otp_totp( op, token, &drift );
 		be_entry_release_r( op, token );
 		token = NULL;
 	}
@@ -832,27 +839,44 @@ otp_op_bind( Operation *op, SlapReply *rs )
 		token = NULL;
 	}
 
-	/* If check succeeds, advance the step counter accordingly */
+	/* If check succeeds, advance the step counter and drift accordingly */
 	if ( t >= 0 ) {
-		char outbuf[32];
+		char outbuf[32], drift_buf[32];
 		Operation op2;
 		Opheader oh;
-		Modifications mod;
+		Modifications mod[2], *m = mod;
 		SlapReply rs2 = { REP_RESULT };
 		slap_callback cb = { .sc_response = &slap_null_cb };
-		BerValue bv[2];
+		BerValue bv[2], bv_drift[2];
 
 		bv[0].bv_val = outbuf;
 		bv[0].bv_len = snprintf( bv[0].bv_val, sizeof(outbuf), "%ld", t );
 		BER_BVZERO( &bv[1] );
 
-		mod.sml_numvals = 1;
-		mod.sml_values = bv;
-		mod.sml_nvalues = NULL;
-		mod.sml_desc = ad;
-		mod.sml_op = LDAP_MOD_REPLACE;
-		mod.sml_flags = SLAP_MOD_INTERNAL;
-		mod.sml_next = NULL;
+		m->sml_numvals = 1;
+		m->sml_values = bv;
+		m->sml_nvalues = NULL;
+		m->sml_desc = ad;
+		m->sml_op = LDAP_MOD_REPLACE;
+		m->sml_flags = SLAP_MOD_INTERNAL;
+
+		if ( drift_ad ) {
+			m->sml_next = &mod[1];
+
+			bv_drift[0].bv_val = drift_buf;
+			bv_drift[0].bv_len = snprintf(
+					bv_drift[0].bv_val, sizeof(drift_buf), "%ld", drift );
+			BER_BVZERO( &bv_drift[1] );
+
+			m++;
+			m->sml_numvals = 1;
+			m->sml_values = bv_drift;
+			m->sml_nvalues = NULL;
+			m->sml_desc = drift_ad;
+			m->sml_op = LDAP_MOD_REPLACE;
+			m->sml_flags = SLAP_MOD_INTERNAL;
+		}
+		m->sml_next = NULL;
 
 		op2 = *op;
 		oh = *op->o_hdr;
@@ -861,7 +885,7 @@ otp_op_bind( Operation *op, SlapReply *rs )
 		op2.o_callback = &cb;
 
 		op2.o_tag = LDAP_REQ_MODIFY;
-		op2.orm_modlist = &mod;
+		op2.orm_modlist = mod;
 		op2.o_dn = op->o_bd->be_rootdn;
 		op2.o_ndn = op->o_bd->be_rootndn;
 		op2.o_req_dn = ndn;
