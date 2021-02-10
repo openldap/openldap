@@ -38,6 +38,7 @@ AC_asyncmeta=asyncmeta@BUILD_ASYNCMETA@
 AC_perl=perl@BUILD_PERL@
 AC_relay=relay@BUILD_RELAY@
 AC_sql=sql@BUILD_SQL@
+AC_wt=@BUILD_WT@
 
 # overlays
 AC_accesslog=accesslog@BUILD_ACCESSLOG@
@@ -188,6 +189,7 @@ INDEXDB=noindexdb MAINDB=nomaindb
 case $BACKEND in
 	mdb) INDEXDB=indexdb MAINDB=maindb ;;
 	ndb) INDEXDB=indexdb ;;
+	wt) INDEXDB=indexdb ;;
 esac
 
 export	BACKEND BACKENDTYPE INDEXDB MAINDB \
