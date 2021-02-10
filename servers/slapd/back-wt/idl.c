@@ -31,8 +31,7 @@
 #define IDL_MIN(x,y)	( (x) < (y) ? (x) : (y) )
 #define IDL_CMP(x,y)	( (x) < (y) ? -1 : (x) > (y) )
 
-#if IDL_DEBUG > 0
-static void idl_check( ID *ids )
+void wt_idl_check( ID *ids )
 {
 	if( WT_IDL_IS_RANGE( ids ) ) {
 		assert( WT_IDL_RANGE_FIRST(ids) <= WT_IDL_RANGE_LAST(ids) );
@@ -44,8 +43,7 @@ static void idl_check( ID *ids )
 	}
 }
 
-#if IDL_DEBUG > 1
-static void idl_dump( ID *ids )
+void wt_idl_dump( ID *ids )
 {
 	if( WT_IDL_IS_RANGE( ids ) ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -67,10 +65,8 @@ static void idl_dump( ID *ids )
 		Debug( LDAP_DEBUG_ANY, "\n" );
 	}
 
-	idl_check( ids );
+	wt_idl_check( ids );
 }
-#endif /* IDL_DEBUG > 1 */
-#endif /* IDL_DEBUG > 0 */
 
 unsigned wt_idl_search( ID *ids, ID id )
 {
@@ -138,7 +134,7 @@ int wt_idl_insert( ID *ids, ID id )
 	Debug( LDAP_DEBUG_ANY, "insert: %04lx at %d\n", (long) id, x );
 	idl_dump( ids );
 #elif IDL_DEBUG > 0
-	idl_check( ids );
+	wt_idl_check( ids );
 #endif
 
 	if (WT_IDL_IS_RANGE( ids )) {
@@ -178,14 +174,14 @@ int wt_idl_insert( ID *ids, ID id )
 
 	} else {
 		/* insert id */
-		AC_MEMCPY( &ids[x+1], &ids[x], (ids[0]-x) * sizeof(ID) );
+		memcpy( &ids[x+1], &ids[x], (ids[0]-x) * sizeof(ID) );
 		ids[x] = id;
 	}
 
 #if IDL_DEBUG > 1
-	idl_dump( ids );
+	wt_idl_dump( ids );
 #elif IDL_DEBUG > 0
-	idl_check( ids );
+	wt_idl_check( ids );
 #endif
 
 	return 0;
@@ -199,7 +195,7 @@ static int wt_idl_delete( ID *ids, ID id )
 	Debug( LDAP_DEBUG_ANY, "delete: %04lx at %d\n", (long) id, x );
 	idl_dump( ids );
 #elif IDL_DEBUG > 0
-	idl_check( ids );
+	wt_idl_check( ids );
 #endif
 
 	if (WT_IDL_IS_RANGE( ids )) {
@@ -236,13 +232,13 @@ static int wt_idl_delete( ID *ids, ID id )
 		}
 
 	} else {
-		AC_MEMCPY( &ids[x], &ids[x+1], (1+ids[0]-x) * sizeof(ID) );
+		memmove( &ids[x], &ids[x+1], (1+ids[0]-x) * sizeof(ID) );
 	}
 
 #if IDL_DEBUG > 1
-	idl_dump( ids );
+	wt_idl_dump( ids );
 #elif IDL_DEBUG > 0
-	idl_check( ids );
+	wt_idl_check( ids );
 #endif
 
 	return 0;
@@ -605,7 +601,7 @@ int wt_idl_append( ID *a, ID *b )
 
 	if ( b[0] > 1 ) {
 		int i = b[0] - 1;
-		AC_MEMCPY(a+a[0]+1, b+2, i * sizeof(ID));
+		memcpy(a+a[0]+1, b+2, i * sizeof(ID));
 		a[0] += i;
 	}
 	if ( swap ) {

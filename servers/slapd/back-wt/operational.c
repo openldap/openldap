@@ -42,12 +42,12 @@ wt_hasSubordinates(
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_compare)
+			   LDAP_XSTRING(wt_hasSubordinates)
 			   ": wt_ctx_get failed\n" );
 		return LDAP_OTHER;
 	}
 
-	rc = wt_dn2id_has_children(op, wc->session, e->e_id);
+	rc = wt_dn2id_has_children(op, wc, e->e_id);
 	switch(rc){
 	case 0:
 		*hasSubordinates = LDAP_COMPARE_TRUE;

@@ -22,6 +22,7 @@
 #include "portable.h"
 
 #include <stdio.h>
+#include <ac/string.h>
 #include "back-wt.h"
 #include "slap-config.h"
 
@@ -80,7 +81,6 @@ int wt_index_param(
 	struct berval *prefixp )
 {
 	AttrInfo *ai;
-	int rc;
 	slap_mask_t mask, type = 0;
 
 	ai = wt_index_mask( be, desc, prefixp );
@@ -148,13 +148,12 @@ static int indexer(
 	int opid,
 	slap_mask_t mask )
 {
-	int rc, i;
+	int rc = LDAP_SUCCESS, i;
 	struct berval *keys;
 	WT_CURSOR *cursor = NULL;
-	WT_SESSION *session = wc->session;
 	assert( mask != 0 );
 
-	cursor = wt_ctx_index_cursor(wc, atname, 1);
+	cursor = wt_index_open(wc, atname, 1);
 	if( !cursor ) {
 		Debug( LDAP_DEBUG_ANY,
 			   LDAP_XSTRING(indexer)
@@ -236,9 +235,7 @@ static int indexer(
 	}
 
 done:
-	if(cursor){
-		cursor->close(cursor);
-	}
+	cursor->close(cursor);
 	return rc;
 }
 
@@ -252,7 +249,7 @@ static int index_at_values(
 	ID id,
 	int opid )
 {
-	int rc;
+	int rc = LDAP_SUCCESS;
 	slap_mask_t mask = 0;
 	int ixop = opid;
 	AttrInfo *ai = NULL;
@@ -380,6 +377,42 @@ wt_index_entry( Operation *op, wt_ctx *wc, int opid, Entry *e )
 		   opid == SLAP_INDEX_DELETE_OP ? "del" : "add",
 		   (long) e->e_id, e->e_dn ? e->e_dn : "" );
 	return 0;
+}
+
+WT_CURSOR *
+wt_index_open(wt_ctx *wc, struct berval *name, int create)
+{
+	WT_CURSOR *cursor = NULL;
+	WT_SESSION *session = wc->session;
+	char uri[1024];
+	int rc;
+
+	snprintf(uri, sizeof(uri), "table:%s", name->bv_val);
+
+	rc = session->open_cursor(session, uri, NULL, "overwrite=false", &cursor);
+	if (rc == ENOENT && create) {
+		rc = session->create(session, uri,
+							 "key_format=uQ,"
+							 "value_format=x,"
+							 "columns=(key, id, none)");
+		if( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   "wt_index_open: table \"%s\": "
+				   "cannot create index table: %s (%d)\n",
+				   uri, wiredtiger_strerror(rc), rc);
+			return NULL;
+		}
+		rc = session->open_cursor(session, uri, NULL,
+								  "overwrite=false", &cursor);
+	}
+	if ( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   "wt_index_open: table \"%s\": "
+			   ": open cursor failed: %s (%d)\n",
+			   uri, wiredtiger_strerror(rc), rc);
+		return NULL;
+	}
+	return cursor;
 }
 
 /*

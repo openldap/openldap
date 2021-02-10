@@ -61,7 +61,7 @@
 #define WT_IDL_IS_ALL( range, ids ) ( (ids)[0] == NOID \
 	&& (ids)[1] <= (range)[1] && (range)[2] <= (ids)[2] )
 
-#define WT_IDL_CPY( dst, src ) (AC_MEMCPY( dst, src, WT_IDL_SIZEOF( src ) ))
+#define WT_IDL_CPY( dst, src ) (memcpy( dst, src, WT_IDL_SIZEOF( src ) ))
 
 #define WT_IDL_ID( wi, ids, id ) WT_IDL_RANGE( ids, id, ((wi)->wi_lastid) )
 #define WT_IDL_ALL( wi, ids ) WT_IDL_RANGE( ids, 1, ((wi)->wi_lastid) )

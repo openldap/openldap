@@ -38,16 +38,29 @@ wt_ctx_init(struct wt_info *wi)
 
 	memset(wc, 0, sizeof(wt_ctx));
 
-	if(!wc->session){
-		rc = wi->wi_conn->open_session(wi->wi_conn, NULL, NULL, &wc->session);
-		if( rc ) {
-			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_ctx_session)
-				   ": open_session error %s(%d)\n",
-				   wiredtiger_strerror(rc), rc );
-			return NULL;
-		}
+	rc = wi->wi_conn->open_session(wi->wi_conn, NULL, NULL, &wc->session);
+	if( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   LDAP_XSTRING(wt_ctx_init)
+			   ": open_session error %s(%d)\n",
+			   wiredtiger_strerror(rc), rc );
+		return NULL;
 	}
+
+	/* readonly mode */
+	if (!wi->wi_cache) {
+		return wc;
+	}
+
+	rc = wi->wi_cache->open_session(wi->wi_cache, NULL, NULL, &wc->idlcache_session);
+	if( rc ) {
+		Debug( LDAP_DEBUG_ANY,
+			   LDAP_XSTRING(wt_ctx_init)
+			   ": cannnot open idlcache session %s(%d)\n",
+			   wiredtiger_strerror(rc), rc );
+		return NULL;
+	}
+
 	return wc;
 }
 
@@ -57,9 +70,19 @@ wt_ctx_free( void *key, void *data )
 	wt_ctx *wc = data;
 
 	if(wc->session){
-		wc->session->close(wc->session, NULL);
+		/*
+		 * The session will close automatically when db closing.
+		 * We can close session here, but it's require to check db
+		 * status, otherwise it will cause SEGV.
+		 */
+		/*
+		if(IS_DB_OPEN) {
+		    wc->session->close(wc->session, NULL);
+		}
+		*/
 		wc->session = NULL;
 	}
+
 	ch_free(wc);
 }
 
@@ -70,7 +93,7 @@ wt_ctx_get(Operation *op, struct wt_info *wi){
 	wt_ctx *wc = NULL;
 
 	rc = ldap_pvt_thread_pool_getkey(op->o_threadctx,
-									 wt_ctx_get, &data, NULL );
+									 wi, &data, NULL );
 	if( rc ){
 		wc = wt_ctx_init(wi);
 		if( !wc ) {
@@ -80,7 +103,7 @@ wt_ctx_get(Operation *op, struct wt_info *wi){
 			return NULL;
 		}
 		rc = ldap_pvt_thread_pool_setkey( op->o_threadctx,
-										  wt_ctx_get, wc, wt_ctx_free,
+										  wi, wc, wt_ctx_free,
 										  NULL, NULL );
 		if( rc ) {
 			Debug( LDAP_DEBUG_ANY, "wt_ctx: setkey error(%d)\n",
@@ -90,45 +113,6 @@ wt_ctx_get(Operation *op, struct wt_info *wi){
 		return wc;
 	}
 	return (wt_ctx *)data;
-}
-
-WT_CURSOR *
-wt_ctx_index_cursor(wt_ctx *wc, struct berval *name, int create)
-{
-	WT_CURSOR *cursor = NULL;
-	WT_SESSION *session = wc->session;
-	char tablename[1024];
-	int rc;
-
-	snprintf(tablename, sizeof(tablename), "table:%s", name->bv_val);
-
-	rc = session->open_cursor(session, tablename, NULL,
-							  "overwrite=false", &cursor);
-	if (rc == ENOENT && create) {
-		rc = session->create(session,
-							 tablename,
-							 "key_format=uQ,"
-							 "value_format=x,"
-							 "columns=(key, id, none)");
-		if( rc ) {
-			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(indexer) ": table \"%s\": "
-				   "cannot create idnex table: %s (%d)\n",
-				   tablename, wiredtiger_strerror(rc), rc);
-			return NULL;
-		}
-		rc = session->open_cursor(session, tablename, NULL,
-								  "overwrite=false", &cursor);
-	}
-	if ( rc ) {
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_id2entry_put)
-			   ": open cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc );
-		return NULL;
-	}
-
-	return cursor;
 }
 
 /*

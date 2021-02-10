@@ -29,7 +29,6 @@ int
 wt_bind( Operation *op, SlapReply *rs )
 {
     struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
-	WT_SESSION *session;
 	wt_ctx *wc;
 	int rc;
 	Entry *e = NULL;

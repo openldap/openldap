@@ -10,7 +10,7 @@
  * Public License.
  *
  * A copy of this license is available in the file LICENSE in the
- * top-level directory of the distribution or, alternatively, at
+B * top-level directory of the distribution or, alternatively, at
  * <http://www.OpenLDAP.org/license.html>.
  */
 /* ACKNOWLEDGEMENTS:
@@ -21,6 +21,7 @@
 #include "portable.h"
 
 #include <stdio.h>
+#include <ac/string.h>
 #include "back-wt.h"
 #include "slap-config.h"
 
@@ -150,7 +151,7 @@ int wt_modify_internal(
 				break;
 			}
 
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: delete %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
 			err = modify_delete_values( e, mod, get_permissiveModify(op),
@@ -164,7 +165,7 @@ int wt_modify_internal(
 			break;
 
 		case LDAP_MOD_REPLACE:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: replace %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
 			err = modify_replace_values( e, mod, get_permissiveModify(op),
@@ -178,13 +179,13 @@ int wt_modify_internal(
 			break;
 
 		case LDAP_MOD_INCREMENT:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: increment %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
 			err = modify_increment_values( e, mod, get_permissiveModify(op),
 										   text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
-				Debug(LDAP_DEBUG_ARGS,
+				Debug( LDAP_DEBUG_ARGS,
 					  "wt_modify_internal: %d %s\n",
 					  err, *text );
 			} else {
@@ -193,7 +194,7 @@ int wt_modify_internal(
 			break;
 
 		case SLAP_MOD_SOFTADD:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: softadd %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
 			/* Avoid problems in index_add_mods()
@@ -217,7 +218,7 @@ int wt_modify_internal(
 			break;
 
 		case SLAP_MOD_SOFTDEL:
-			Debug(LDAP_DEBUG_ARGS,
+			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: softdel %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
 			/* Avoid problems in index_delete_mods()
@@ -447,7 +448,7 @@ wt_modify( Operation *op, SlapReply *rs )
 {
 	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	wt_ctx *wc = NULL;
-	Entry		*e = NULL;
+	Entry *e = NULL;
 	int		manageDSAit = get_manageDSAit( op );
 	char textbuf[SLAP_TEXT_BUFLEN];
 	size_t textlen = sizeof textbuf;
@@ -463,15 +464,17 @@ wt_modify( Operation *op, SlapReply *rs )
 	Debug( LDAP_DEBUG_ARGS, LDAP_XSTRING(wt_modify) ": %s\n",
 		   op->o_req_dn.bv_val );
 
+#ifdef LDAP_X_TXN
 	if( op->o_txnSpec && txn_preop( op, rs ))
 		return rs->sr_err;
+#endif
 
 	ctrls[num_ctrls] = NULL;
 
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
         Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_add)
+			   LDAP_XSTRING(wt_modify)
 			   ": wt_ctx_get failed\n" );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
@@ -487,27 +490,72 @@ wt_modify( Operation *op, SlapReply *rs )
 		slap_mods_opattrs( op, &op->orm_modlist, 1 );
 	}
 
+retry:
+	/* begin transaction */
+	wc->is_begin_transaction = 0;
+	rc = wc->session->begin_transaction(wc->session, "isolation=snapshot");
+	if( rc ) {
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modify: begin_transaction failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc, 0 );
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "begin_transaction failed";
+		goto return_results;
+	}
+	wc->is_begin_transaction = 1;
+	Debug( LDAP_DEBUG_TRACE, "wt_modify: session id: %p\n",
+		   wc->session, 0, 0 );
+	
 	/* get entry */
 	rc = wt_dn2entry(op->o_bd, wc, &op->o_req_ndn, &e);
 	switch( rc ) {
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug( LDAP_DEBUG_ARGS,
-			   "<== " LDAP_XSTRING(wt_delete)
-			   ": no such object %s\n",
-			   op->o_req_dn.bv_val );
-		/* TODO: lookup referrals */
-		rs->sr_err = LDAP_NO_SUCH_OBJECT;
-		goto return_results;
+		break;
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_modify)
-			   ": wt_dn2entry failed (%d)\n",
+			   "<== " LDAP_XSTRING(wt_modify)
+				": wt_dn2entry failed (%d)\n",
 			   rc );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
+	}
+
+	if ( rc == WT_NOTFOUND ||
+		 ( !manageDSAit && e && is_entry_glue( e ))) {
+		if ( !e ) {
+			rc = wt_dn2aentry(op->o_bd, wc, &op->o_req_ndn, &e);
+			switch( rc ) {
+			case 0:
+				break;
+			case WT_NOTFOUND:
+				rs->sr_err = LDAP_NO_SUCH_OBJECT;
+				goto return_results;
+			default:
+				Debug( LDAP_DEBUG_ANY, "wt_modify: wt_dna2entry failed (%d)\n",
+					   rc, 0, 0 );
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "internal error";
+				goto return_results;
+			}
+		}
+
+		rs->sr_matched = ch_strdup( e->e_dn );
+
+		if ( is_entry_referral( e ) ) {
+			BerVarray ref = get_entry_referrals( op, e );
+			rs->sr_ref = referral_rewrite( ref, &e->e_name,
+										   &op->o_req_dn, LDAP_SCOPE_DEFAULT );
+			ber_bvarray_free( ref );
+		} else {
+			rs->sr_ref = NULL;
+		}
+		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
+		rs->sr_err = LDAP_REFERRAL;
+		send_ldap_result( op, rs );
+		goto done;
 	}
 
 	if ( !manageDSAit && is_entry_referral( e ) ) {
@@ -551,71 +599,46 @@ wt_modify( Operation *op, SlapReply *rs )
 		}
 	}
 
-	/* begin transaction */
-	rc = wc->session->begin_transaction(wc->session, NULL);
-	if( rc ) {
-		Debug( LDAP_DEBUG_TRACE,
-			   LDAP_XSTRING(wt_add) ": begin_transaction failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc );
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "begin_transaction failed";
-		goto return_results;
-	}
-	Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(wt_modify) ": session id: %p\n",
-		   wc->session );
-
 	/* Modify the entry */
 	dummy = *e;
 	rs->sr_err = wt_modify_internal( op, wc, op->orm_modlist,
 									 &dummy, &rs->sr_text, textbuf, textlen );
-	if( rs->sr_err != LDAP_SUCCESS ) {
-		Debug( LDAP_DEBUG_TRACE,
-			   LDAP_XSTRING(wt_modify) ": modify failed (%d)\n",
-			   rs->sr_err );
+	switch ( rs->sr_err ) {
+	case LDAP_SUCCESS:
+		break;
+	case WT_ROLLBACK:
+		Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_modify_internal failed.\n");
+		wc->session->rollback_transaction(wc->session, NULL);
+		goto retry;
+	default:
+		Debug( LDAP_DEBUG_ANY, "wt_modify: modify failed (%d)\n",
+			   rs->sr_err);
 		/* Only free attrs if they were dup'd.  */
 		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
 		goto return_results;
 	}
 
 	/* change the entry itself */
-	rs->sr_err = wt_id2entry_update( op, wc->session, &dummy );
-	if ( rs->sr_err != 0 ) {
-		Debug( LDAP_DEBUG_TRACE,
-			   LDAP_XSTRING(wt_modify) ": id2entry update failed " "(%d)\n",
-			   rs->sr_err );
-		if ( rs->sr_err == LDAP_ADMINLIMIT_EXCEEDED ) {
-			rs->sr_text = "entry too big";
-		} else {
-			rs->sr_err = LDAP_OTHER;
-			rs->sr_text = "entry update failed";
-		}
-		goto return_results;
-	}
-
-	if( op->o_noop ) {
+	rs->sr_err = wt_id2entry_update( op, wc, &dummy );
+	switch ( rs->sr_err ) {
+	case 0:
+		break;
+	case WT_ROLLBACK:
+		Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_id2entry_update failed.\n");
 		wc->session->rollback_transaction(wc->session, NULL);
-		rs->sr_err = LDAP_X_NO_OPERATION;
+		goto retry;
+	case LDAP_ADMINLIMIT_EXCEEDED:
+		Debug( LDAP_DEBUG_ANY, "wt_modify: id2entry update failed (%d)\n",
+			   rs->sr_err);
+		rs->sr_text = "entry too big";
 		goto return_results;
-	}
-
-	/* Only free attrs if they were dup'd.  */
-	if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
-
-	rc = wc->session->commit_transaction(wc->session, NULL);
-	if( rc ) {
-		Debug( LDAP_DEBUG_TRACE,
-			   "<== " LDAP_XSTRING(wt_modify)
-			   ": commit failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc );
+	default:
+		Debug( LDAP_DEBUG_ANY, "wt_modify: id2entry update failed (%d)\n",
+			   rs->sr_err);
 		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "commit failed";
+		rs->sr_text = "entry update failed";
 		goto return_results;
 	}
-
-	Debug( LDAP_DEBUG_TRACE,
-		   LDAP_XSTRING(wt_modify) ": updated%s id=%08lx dn=\"%s\"\n",
-		   op->o_noop ? " (no-op)" : "",
-		   dummy.e_id, op->o_req_dn.bv_val );
 
 	if( op->o_postread ) {
 		if( postread_ctrl == NULL ) {
@@ -626,8 +649,7 @@ wt_modify( Operation *op, SlapReply *rs )
 								&slap_post_read_bv, postread_ctrl ) )
 		{
 			Debug( LDAP_DEBUG_TRACE,
-				   "<=- " LDAP_XSTRING(wt_modify)
-				   ": post-read failed!\n" );
+				   "<== wt_modify: post-read failed!\n");
 			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
@@ -635,10 +657,35 @@ wt_modify( Operation *op, SlapReply *rs )
 			}
 		}
 	}
-	if( num_ctrls ) rs->sr_ctrls = ctrls;
+
+	if( op->o_noop ) {
+		rs->sr_err = LDAP_X_NO_OPERATION;
+		goto return_results;
+	}
+
+	/* Only free attrs if they were dup'd.  */
+	if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
+
+	rc = wc->session->commit_transaction(wc->session, NULL);
+	wc->is_begin_transaction = 0;
+	if( rc ) {
+		Debug( LDAP_DEBUG_TRACE, "<== "
+			   LDAP_XSTRING(wt_modify)
+			   ": commit failed: %s (%d)\n",
+			   wiredtiger_strerror(rc), rc );
+		rs->sr_err = LDAP_OTHER;
+		rs->sr_text = "commit failed";
+		goto return_results;
+	}
+
+	Debug( LDAP_DEBUG_TRACE,
+		   "wt_modify: updated%s id=%08lx dn=\"%s\"\n",
+		   op->o_noop ? " (no-op)" : "",
+		   dummy.e_id, op->o_req_dn.bv_val );
 
 	rs->sr_err = LDAP_SUCCESS;
 	rs->sr_text = NULL;
+	if( num_ctrls ) rs->sr_ctrls = ctrls;
 
 return_results:
 	if( dummy.e_attrs ) {
@@ -648,6 +695,14 @@ return_results:
 
 done:
 	slap_graduate_commit_csn( op );
+
+	if( wc && wc->is_begin_transaction ){
+		Debug( LDAP_DEBUG_TRACE,
+			   "wt_modify: rollback transaction\n",
+			   0, 0, 0 );
+		wc->session->rollback_transaction(wc->session, NULL);
+		wc->is_begin_transaction = 0;
+	}
 
 	if( e != NULL ) {
 		wt_entry_return( e );
@@ -661,8 +716,6 @@ done:
 		slap_sl_free( (*postread_ctrl)->ldctl_value.bv_val, op->o_tmpmemctx );
 		slap_sl_free( *postread_ctrl, op->o_tmpmemctx );
 	}
-
-	rs->sr_text = NULL;
 
 	return rs->sr_err;
 }

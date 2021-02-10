@@ -34,16 +34,14 @@ wt_add( Operation *op, SlapReply *rs )
 	size_t textlen = sizeof textbuf;
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
-	ID eid;
-	int num_retries = 0;
-	int success;
+	ID eid = NOID;
 	LDAPControl **postread_ctrl = NULL;
 	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
 	int num_ctrls = 0;
 	wt_ctx *wc;
 	Entry *e = NULL;
 	Entry *p = NULL;
-	ID pid;
+	ID pid = NOID;
 	int rc;
 
     Debug( LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(wt_add) ": %s\n",
@@ -279,7 +277,7 @@ wt_add( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	rc = wc->session->begin_transaction(wc->session, NULL);
+	rc = wc->session->begin_transaction(wc->session, "isolation=read-uncommitted");
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   LDAP_XSTRING(wt_add) ": begin_transaction failed: %s (%d)\n",
@@ -294,7 +292,7 @@ wt_add( Operation *op, SlapReply *rs )
 	wt_next_id( op->o_bd, &eid );
 	op->ora_e->e_id = eid;
 
-	rc = wt_dn2id_add( op, wc->session, pid, op->ora_e );
+	rc = wt_dn2id_add( op, wc, pid, op->ora_e );
 	if( rc ){
 		Debug( LDAP_DEBUG_TRACE,
 			   LDAP_XSTRING(wt_add)
@@ -311,7 +309,7 @@ wt_add( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	rc = wt_id2entry_add( op, wc->session, op->ora_e );
+	rc = wt_id2entry_add( op, wc, op->ora_e );
 	if ( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   LDAP_XSTRING(wt_add)
@@ -380,7 +378,6 @@ wt_add( Operation *op, SlapReply *rs )
 		  op->ora_e->e_id, op->ora_e->e_dn );
 
 return_results:
-	success = rs->sr_err;
 	send_ldap_result( op, rs );
 
 	slap_graduate_commit_csn( op );
