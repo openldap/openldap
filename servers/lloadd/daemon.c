@@ -1332,10 +1332,14 @@ lloadd_daemon( struct event_base *daemon_base )
 
     /* Mark upstream connections closing and prevent from opening new ones */
     LDAP_CIRCLEQ_FOREACH ( b, &backend, b_next ) {
+        epoch_t epoch = epoch_join();
+
         checked_lock( &b->b_mutex );
         b->b_numconns = b->b_numbindconns = 0;
         backend_reset( b, 1 );
         checked_unlock( &b->b_mutex );
+
+        epoch_leave( epoch );
     }
 
     /* Do the same for clients */
