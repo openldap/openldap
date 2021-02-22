@@ -180,7 +180,7 @@ typedef struct ldapconn_t {
 
 typedef struct ldap_avl_info_t {
 	ldap_pvt_thread_mutex_t		lai_mutex;
-	Avlnode				*lai_tree;
+	TAvlnode			*lai_tree;
 } ldap_avl_info_t;
 
 typedef struct slap_retry_info_t {

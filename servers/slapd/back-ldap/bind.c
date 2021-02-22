@@ -60,7 +60,7 @@ static const struct {
 };
 
 static void
-ldap_back_conn_print( ldapconn_t *lc, const char *avlstr )
+ldap_back_conn_print( ldapconn_t *lc )
 {
 	char buf[ SLAP_TEXT_BUFLEN ];
 	char fbuf[ sizeof("BAPTIENSC") ];
@@ -77,31 +77,10 @@ ldap_back_conn_print( ldapconn_t *lc, const char *avlstr )
 	}
 	fbuf[i] = '\0';
 	
-	fprintf( stderr, "lc=%p %s %s flags=0x%08x (%s)\n",
-		(void *)lc, buf, avlstr, lc->lc_lcflags, fbuf );
+	fprintf( stderr, "lc=%p %s flags=0x%08x (%s)\n",
+		(void *)lc, buf, lc->lc_lcflags, fbuf );
 }
 
-static void
-ldap_back_ravl_print( Avlnode *root, int depth )
-{
-	int		i;
-	ldapconn_t	*lc;
-	
-	if ( root == 0 ) {
-		return;
-	}
-	
-	ldap_back_ravl_print( root->avl_right, depth+1 );
-	
-	for ( i = 0; i < depth; i++ ) {
-		fprintf( stderr, "-" );
-	}
-
-	lc = root->avl_data;
-	ldap_back_conn_print( lc, avl_bf2str( root->avl_bf ) );
-
-	ldap_back_ravl_print( root->avl_left, depth + 1 );
-}
 
 static char* priv2str[] = {
 	"privileged",
@@ -129,7 +108,7 @@ ldap_back_print_conntree( ldapinfo_t *li, char *msg )
 		LDAP_TAILQ_FOREACH( lc, &li->li_conn_priv[ c ].lic_priv, lc_q )
 		{
 			fprintf( stderr, "    [%d] ", i );
-			ldap_back_conn_print( lc, "" );
+			ldap_back_conn_print( lc );
 			i++;
 		}
 	}
@@ -138,7 +117,11 @@ ldap_back_print_conntree( ldapinfo_t *li, char *msg )
 		fprintf( stderr, "\t(empty)\n" );
 
 	} else {
-		ldap_back_ravl_print( li->li_conninfo.lai_tree, 0 );
+		TAvlnode *edge = tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
+		while ( edge ) {
+			ldap_back_conn_print( (ldapconn_t *)edge->avl_data );
+			edge = tavl_next( edge, TAVL_DIR_RIGHT );
+		}
 	}
 	
 	fprintf( stderr, "<======== %s\n", msg );
@@ -189,7 +172,7 @@ ldap_back_conn_delete( ldapinfo_t *li, ldapconn_t *lc )
 
 		if ( LDAP_BACK_CONN_CACHED( lc ) ) {
 			assert( !LDAP_BACK_CONN_TAINTED( lc ) );
-			tmplc = avl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc,
+			tmplc = tavl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc,
 				ldap_back_conndnlc_cmp );
 			assert( tmplc == lc );
 			LDAP_BACK_CONN_CACHED_CLEAR( lc );
@@ -343,7 +326,7 @@ retry_lock:;
 
 		/* delete all cached connections with the current connection */
 		if ( LDAP_BACK_SINGLECONN( li ) ) {
-			while ( ( tmplc = avl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc, ldap_back_conn_cmp ) ) != NULL )
+			while ( ( tmplc = tavl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc, ldap_back_conn_cmp ) ) != NULL )
 			{
 				assert( !LDAP_BACK_PCONN_ISPRIV( lc ) );
 				Debug( LDAP_DEBUG_TRACE,
@@ -371,7 +354,7 @@ retry_lock:;
 			if ( be_isroot_dn( op->o_bd, &op->o_req_ndn ) ) {
 				LDAP_BACK_PCONN_ROOTDN_SET( lc, op );
 			}
-			lerr = avl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
+			lerr = tavl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
 				ldap_back_conndn_cmp, ldap_back_conndn_dup );
 		}
 
@@ -934,7 +917,7 @@ retry_lock:
 		} else {
 
 			/* Searches for a ldapconn in the avl tree */
-			lc = (ldapconn_t *)avl_find( li->li_conninfo.lai_tree, 
+			lc = (ldapconn_t *)tavl_find( li->li_conninfo.lai_tree, 
 					(caddr_t)&lc_curr, ldap_back_conndn_cmp );
 		}
 
@@ -1080,7 +1063,7 @@ retry_lock:
 			rs->sr_err = 0;
 
 		} else {
-			rs->sr_err = avl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
+			rs->sr_err = tavl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
 				ldap_back_conndn_cmp, ldap_back_conndn_dup );
 			LDAP_BACK_CONN_CACHED_SET( lc );
 		}
