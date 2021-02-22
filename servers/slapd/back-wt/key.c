@@ -69,8 +69,7 @@ wt_key_read(
 		rc = cursor->get_key(cursor, &key2, &id);
 		if( rc ){
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_key_read)
-				   ": get_key failed: %s (%d)\n",
+				   "wt_key_read: get_key failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc );
 			break;
 		}
@@ -143,8 +142,7 @@ wt_key_change(
 	if( rc ) {
 		if ( rc != WT_ROLLBACK ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_key_change)
-				   ": error: %s (%d)\n",
+				   "wt_key_change: error: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc);
 		}
 		return rc;

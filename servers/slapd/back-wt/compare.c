@@ -36,14 +36,12 @@ wt_compare( Operation *op, SlapReply *rs )
 	int rc;
 	wt_ctx *wc = NULL;
 
-	Debug( LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(wt_compare) ": %s\n",
+	Debug( LDAP_DEBUG_ARGS, "==> wt_compare: %s\n",
 		   op->o_req_dn.bv_val );
 
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_compare)
-			   ": wt_ctx_get failed\n" );
+		Debug( LDAP_DEBUG_ANY, "wt_compare: wt_ctx_get failed\n" );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
         send_ldap_result( op, rs );
@@ -74,7 +72,7 @@ wt_compare( Operation *op, SlapReply *rs )
 				goto return_results;
 			default:
 				Debug( LDAP_DEBUG_ANY, "wt_compare: wt_dn2aentry failed (%d)\n",
-					   rc, 0, 0 );
+					   rc );
 				rs->sr_err = LDAP_OTHER;
 				rs->sr_text = "internal error";
 				goto return_results;

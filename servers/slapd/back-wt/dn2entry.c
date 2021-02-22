@@ -57,8 +57,7 @@ int wt_dn2entry( BackendDB *be,
 								  NULL, NULL, &cursor);
 		if ( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   LDAP_XSTRING(wt_dn2entry)
-				   ": open_cursor failed: %s (%d)\n",
+				   "wt_dn2entry: open_cursor failed: %s (%d)\n",
 				   wiredtiger_strerror(rc), rc );
 			goto done;
 		}
@@ -74,8 +73,7 @@ int wt_dn2entry( BackendDB *be,
 		goto done;
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2entry)
-			   ": search failed: %s (%d)\n",
+			   "wt_dn2entry: search failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
@@ -92,9 +90,7 @@ int wt_dn2entry( BackendDB *be,
 	rc = entry_decode( &eh, &e );
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2entry)
-			   ": entry decode error: %d\n",
-			   rc );
+			   "wt_dn2entry: entry decode error: %d\n", rc );
 		goto done;
 	}
 
@@ -166,7 +162,7 @@ int wt_dn2aentry( BackendDB *be,
 	default:
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_dn2aentry: failed %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 	}
 	return rc;
 }

@@ -42,8 +42,7 @@ wt_hasSubordinates(
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_hasSubordinates)
-			   ": wt_ctx_get failed\n" );
+			   "wt_hasSubordinates: wt_ctx_get failed\n" );
 		return LDAP_OTHER;
 	}
 
@@ -58,8 +57,7 @@ wt_hasSubordinates(
 		break;
 	default:
 		Debug(LDAP_DEBUG_ANY,
-			  "<=- " LDAP_XSTRING(wt_hasSubordinates)
-			  ": has_children failed: %s (%d)\n",
+			  "<=- wt_hasSubordinates: has_children failed: %s (%d)\n",
 			  wiredtiger_strerror(rc), rc );
 		rc = LDAP_OTHER;
 	}

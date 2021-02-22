@@ -35,8 +35,7 @@ wt_bind( Operation *op, SlapReply *rs )
 	Attribute *a;
 	AttributeDescription *password = slap_schema.si_ad_userPassword;
 
-    Debug( LDAP_DEBUG_ARGS,
-		   "==> " LDAP_XSTRING(wt_bind) ": dn: %s\n",
+    Debug( LDAP_DEBUG_ARGS, "==> wt_bind: dn: %s\n",
 		   op->o_req_dn.bv_val );
 
 	/* allow noauth binds */
@@ -58,8 +57,7 @@ wt_bind( Operation *op, SlapReply *rs )
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_bind)
-			   ": wt_ctx_get failed\n" );
+			   "wt_bind: wt_ctx_get failed\n" );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
         send_ldap_result( op, rs );

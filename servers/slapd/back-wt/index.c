@@ -156,8 +156,7 @@ static int indexer(
 	cursor = wt_index_open(wc, atname, 1);
 	if( !cursor ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(indexer)
-			   ": open index cursor failed: %s\n",
+			   "indexer: open index cursor failed: %s\n",
 			   atname->bv_val );
 		goto done;
 	}

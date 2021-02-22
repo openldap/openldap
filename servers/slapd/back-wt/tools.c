@@ -52,8 +52,7 @@ wt_tool_entry_open( BackendDB *be, int mode )
 	wc = wt_ctx_init(wi);
     if( !wc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_open)
-			   ": wt_ctx_get failed\n" );
+			   "wt_tool_entry_open: wt_ctx_get failed\n" );
 		return -1;
     }
 
@@ -61,8 +60,7 @@ wt_tool_entry_open( BackendDB *be, int mode )
 								  ,NULL, NULL, &reader);
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_open)
-			   ": cursor open failed: %s (%d)\n",
+			   "wt_tool_entry_open: cursor open failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		return -1;
 	}
@@ -120,8 +118,7 @@ wt_tool_entry_next( BackendDB *be )
 		return NOID;
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_next)
-			   ": next failed: %s (%d)\n",
+			   "wt_tool_entry_next: next failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		return NOID;
 	}
@@ -129,8 +126,7 @@ wt_tool_entry_next( BackendDB *be )
 	rc = reader->get_key(reader, &id);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_next)
-			   ": get_key failed: %s (%d)\n",
+			   "wt_tool_entry_next: get_key failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 	}
 	return id;
@@ -182,14 +178,14 @@ wt_tool_entry_get( BackendDB *be, ID id )
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_tool_entry_get: search failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
 	rc = reader->get_value(reader, &item);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_tool_entry_get: get_value failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
 
@@ -310,14 +306,12 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 	assert( text->bv_val[0] == '\0' ); /* overconservative? */
 
     Debug( LDAP_DEBUG_TRACE,
-		   "=> " LDAP_XSTRING(wt_tool_entry_put)
-		   ": ( \"%s\" )\n", e->e_dn );
+		   "=> wt_tool_entry_put: ( \"%s\" )\n", e->e_dn );
 
     rc = wc->session->begin_transaction(wc->session, NULL);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_dn2id_add)
-			   ": begin_transaction failed: %s (%d)\n",
+			   "wt_dn2id_add: begin_transaction failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		return NOID;
 	}
@@ -333,8 +327,7 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 				  "wt_tool_next_id failed: %s (%d)",
 				  wiredtiger_strerror(rc), rc );
         Debug( LDAP_DEBUG_ANY,
-			   "=> " LDAP_XSTRING(wt_tool_entry_put) ": %s\n",
-			   text->bv_val );
+			   "=> wt_tool_entry_put: %s\n", text->bv_val );
 		goto done;
 	}
 
@@ -344,7 +337,7 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 				  "id2entry_add failed: %s (%d)",
 				  wiredtiger_strerror(rc), rc );
         Debug( LDAP_DEBUG_ANY,
-			   "=> " LDAP_XSTRING(wt_tool_entry_put) ": %s\n",
+			   "=> wt_tool_entry_put: %s\n",
 			   text->bv_val );
         goto done;
     }
@@ -356,8 +349,7 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 				  rc == LDAP_OTHER ? "Internal error" :
 				  wiredtiger_strerror(rc), rc );
         Debug( LDAP_DEBUG_ANY,
-			   "=> " LDAP_XSTRING(wt_tool_entry_put) ": %s\n",
-			   text->bv_val );
+			   "=> wt_tool_entry_put: %s\n", text->bv_val );
         goto done;
     }
 
@@ -369,8 +361,7 @@ done:
 					  "txn_commit failed: %s (%d)",
 					  wiredtiger_strerror(rc), rc );
 			Debug( LDAP_DEBUG_ANY,
-				   "=> " LDAP_XSTRING(wt_tool_entry_put) ": %s\n",
-				   text->bv_val );
+				   "=> wt_tool_entry_put: %s\n", text->bv_val );
             e->e_id = NOID;
 		}
 	}else{
@@ -380,8 +371,7 @@ done:
 				  rc == LDAP_OTHER ? "Internal error" :
 				  wiredtiger_strerror(rc), rc );
         Debug( LDAP_DEBUG_ANY,
-			   "=> " LDAP_XSTRING(wt_tool_entry_put) ": %s\n",
-			   text->bv_val );
+			   "=> wt_tool_entry_put: %s\n", text->bv_val );
         e->e_id = NOID;
 	}
 
@@ -400,8 +390,7 @@ int wt_tool_entry_reindex(
 	Opheader ohdr = {0};
 
 	Debug( LDAP_DEBUG_ARGS,
-		   "=> " LDAP_XSTRING(wt_tool_entry_reindex) "( %ld )\n",
-		   (long) id );
+		   "=> wt_tool_entry_reindex( %ld )\n", (long) id );
 	assert( tool_base == NULL );
 	assert( tool_filter == NULL );
 
@@ -443,8 +432,7 @@ int wt_tool_entry_reindex(
 				}
 				if ( j == wi->wi_nattrs ) {
 					Debug( LDAP_DEBUG_ANY,
-						   LDAP_XSTRING(wt_tool_entry_reindex)
-						   ": no index configured for %s\n",
+						   "wt_tool_entry_reindex: no index configured for %s\n",
 						   adv[i]->ad_cname.bv_val );
 					return -1;
 				}
@@ -470,13 +458,12 @@ int wt_tool_entry_reindex(
 	rc = wc->session->begin_transaction(wc->session, NULL);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_tool_entry_reindex)
-			   ": begin_transaction failed %s (%d)\n",
+			   "wt_tool_entry_reindex: begin_transaction failed %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
 	Debug( LDAP_DEBUG_TRACE,
-		   "=> " LDAP_XSTRING(wt_tool_entry_reindex) "( %ld, \"%s\" )\n",
+		   "=> wt_tool_entry_reindex( %ld, \"%s\" )\n",
 		   (long) id, e->e_dn );
 
 	rc = wt_tool_index_add( &op, wc, e );
@@ -486,15 +473,13 @@ done:
 		rc = wc->session->commit_transaction(wc->session, NULL);
 		if( rc ) {
 			Debug( LDAP_DEBUG_ANY,
-				   "=> " LDAP_XSTRING(wt_tool_entry_reindex)
-				   "commit_transaction failed: %s (%d)\n",
+				   "=> wt_tool_entry_reindex: commit_transaction failed %s (%d)\n",
 				   wiredtiger_strerror(rc), rc );
 		}
 	}else{
 		rc = wc->session->rollback_transaction(wc->session, NULL);
 		Debug( LDAP_DEBUG_ANY,
-			   "=> " LDAP_XSTRING(wt_tool_entry_reindex)
-			   ": rollback transaction %s (%d)\n",
+			   "=> wt_tool_entry_reindex: rollback transaction %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 	}
 
@@ -530,7 +515,7 @@ ID wt_tool_dn2id_get(
 	default:
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_tool_entry_get: entry get failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		return NOID;
 	}
 	return id;
@@ -556,13 +541,13 @@ ID wt_tool_entry_modify(
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "=> wt_tool_entry_modify( %ld, \"%s\" )\n",
-		   (long) e->e_id, e->e_dn, 0 );
+		   (long) e->e_id, e->e_dn );
 
     rc = wc->session->begin_transaction(wc->session, NULL);
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY, "=> wt_tool_entry_modify"
 			   ": begin_transaction failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		return NOID;
 	}
 
@@ -577,7 +562,7 @@ ID wt_tool_entry_modify(
 				  "id2entry_update failed: %s (%d)",
 				  wiredtiger_strerror(rc), rc );
         Debug( LDAP_DEBUG_ANY, "=> wt_tool_entry_modify: %s\n",
-			   text->bv_val, 0, 0 );
+			   text->bv_val );
         goto done;
     }
 
@@ -589,7 +574,7 @@ done:
 					  "txn_commit failed: %s (%d)",
 					  wiredtiger_strerror(rc), rc );
 			Debug( LDAP_DEBUG_ANY, "=> wt_tool_entry_modify: %s\n",
-				   text->bv_val, 0, 0 );
+				   text->bv_val );
             e->e_id = NOID;
 		}
 	}else{
@@ -599,7 +584,7 @@ done:
 				  rc == LDAP_OTHER ? "Internal error" :
 				  wiredtiger_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY, "=> wt_tool_entry_modify: %s\n",
-			   text->bv_val, 0, 0 );
+			   text->bv_val );
 		e->e_id = NOID;
 	}
 
@@ -629,7 +614,7 @@ int wt_tool_entry_delete(
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "=> wt_tool_entry_delete( %s )\n",
-		   ndn->bv_val, 0, 0 );
+		   ndn->bv_val );
 
 	op.o_hdr = &ohdr;
 	op.o_bd = be;
@@ -644,12 +629,12 @@ int wt_tool_entry_delete(
 	case WT_NOTFOUND:
 		Debug( LDAP_DEBUG_ARGS,
 			   "<== wt_tool_entry_delete: no such object %s\n",
-			   ndn->bv_val, 0, 0);
+			   ndn->bv_val);
 		goto done;
 	default:
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_tool_entry_delete: error at wt_dn2entry() rc=%d\n",
-			   rc, 0, 0 );
+			   rc );
 		goto done;
 	}
 
@@ -664,16 +649,16 @@ int wt_tool_entry_delete(
 	if( rc ){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_tool_entry_delete: begin_transaction failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
 
 	/* delete from dn2id */
 	rc = wt_dn2id_delete( &op, wc, &e->e_nname);
 	if ( rc ) {
-		Debug(LDAP_DEBUG_TRACE,
+		Debug( LDAP_DEBUG_TRACE,
 			  "<== wt_tool_entry_delete: dn2id failed: %s (%d)\n",
-			  wiredtiger_strerror(rc), rc, 0 );
+			  wiredtiger_strerror(rc), rc );
 		wc->session->rollback_transaction(wc->session, NULL);
 		goto done;
 	}
@@ -681,9 +666,9 @@ int wt_tool_entry_delete(
 	/* delete indices for old attributes */
 	rc = wt_index_entry_del( &op, wc, e );
 	if ( rc ) {
-		Debug(LDAP_DEBUG_TRACE,
+		Debug( LDAP_DEBUG_TRACE,
 			  "<== wt_tool_entry_delete: index delete failed: %s (%d)\n",
-			  wiredtiger_strerror(rc), rc, 0 );
+			  wiredtiger_strerror(rc), rc );
 		wc->session->rollback_transaction(wc->session, NULL);
 		goto done;
 	}
@@ -693,7 +678,7 @@ int wt_tool_entry_delete(
 	if ( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   "<== wt_tool_entry_delete: id2entry failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		wc->session->rollback_transaction(wc->session, NULL);
 		goto done;
 	}
@@ -705,7 +690,7 @@ int wt_tool_entry_delete(
 				  wiredtiger_strerror(rc), rc );
 		Debug( LDAP_DEBUG_ANY,
 			   "=> wt_tool_entry_delete: %s\n",
-			   text->bv_val, 0, 0 );
+			   text->bv_val );
 		goto done;
 	}
 

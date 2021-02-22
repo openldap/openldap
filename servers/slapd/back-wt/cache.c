@@ -36,14 +36,14 @@ int wt_idlcache_get(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "=> wt_idlcache_get(\"%s\", %d)\n",
-		   ndn->bv_val, scope, 0 );
+		   ndn->bv_val, scope );
 
 	rc = session->open_cursor(session, WT_TABLE_IDLCACHE, NULL,
 							  NULL, &cursor);
 	if(rc){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_get: open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		return rc;
 	}
 	cursor->set_key(cursor, ndn->bv_val, (int8_t)scope);
@@ -52,11 +52,11 @@ int wt_idlcache_get(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 	case 0:
 		break;
 	case WT_NOTFOUND:
-		Debug(LDAP_DEBUG_TRACE, "<= wt_idlcache_get: miss\n", 0, 0, 0);
+		Debug(LDAP_DEBUG_TRACE, "<= wt_idlcache_get: miss\n" );
 		goto done;
 	default:
 		Debug( LDAP_DEBUG_ANY, "<= wt_idlcache_get: search failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		rc = 0;
 		goto done;
 	}
@@ -64,11 +64,11 @@ int wt_idlcache_get(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 	if (rc) {
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_get: get_value failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
 	if (item.size == 0) {
-		Debug(LDAP_DEBUG_TRACE, "<= wt_idlcache_get: updating\n", 0, 0, 0);
+		Debug(LDAP_DEBUG_TRACE, "<= wt_idlcache_get: updating\n");
 		rc = WT_NOTFOUND;
 		goto done;
 	}
@@ -95,7 +95,7 @@ int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "=> wt_idlcache_set(\"%s\", %d)\n",
-		   ndn->bv_val, scope, 0 );
+		   ndn->bv_val, scope );
 
 	item.size = WT_IDL_SIZEOF(ids);
 	item.data = ids;
@@ -105,7 +105,7 @@ int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 	if(rc){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_set: open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		return rc;
 	}
 	cursor->set_key(cursor, ndn->bv_val, (int8_t)scope);
@@ -120,13 +120,13 @@ int wt_idlcache_set(wt_ctx *wc, struct berval *ndn, int scope, ID *ids)
 	default:
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_set: update failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
 
 	Debug(LDAP_DEBUG_TRACE,
 		  "<= wt_idlcache_set: set idl size=%ld\n",
-		  (long)ids[0], 0, 0);
+		  (long)ids[0]);
 done:
 	if(cursor) {
 		cursor->close(cursor);
@@ -143,7 +143,7 @@ int wt_idlcache_begin(wt_ctx *wc, struct berval *ndn, int scope)
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "=> wt_idlcache_begin(\"%s\", %d)\n",
-		   ndn->bv_val, scope, 0 );
+		   ndn->bv_val, scope );
 
 	item.size = 0;
 	item.data = "";
@@ -153,7 +153,7 @@ int wt_idlcache_begin(wt_ctx *wc, struct berval *ndn, int scope)
 	if(rc){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_begin: open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		return rc;
 	}
 	cursor->set_key(cursor, ndn->bv_val, (int8_t)scope);
@@ -162,12 +162,12 @@ int wt_idlcache_begin(wt_ctx *wc, struct berval *ndn, int scope)
 	if(rc){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_begin: update failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
 
 	Debug(LDAP_DEBUG_TRACE,
-		  "<= wt_idlcache_begin: set updating\n", 0, 0, 0);
+		  "<= wt_idlcache_begin: set updating\n" );
 
 done:
 	if(cursor) {
@@ -187,7 +187,7 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "=> wt_idlcache_clear(\"%s\")\n",
-		   ndn->bv_val, 0, 0 );
+		   ndn->bv_val );
 
 	if (be_issuffix( be, ndn )) {
 		return 0;
@@ -198,7 +198,7 @@ int wt_idlcache_clear(Operation *op, wt_ctx *wc, struct berval *ndn)
 	if(rc){
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_idlcache_clear: open_cursor failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		return rc;
 	}
 

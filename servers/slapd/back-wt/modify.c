@@ -186,8 +186,7 @@ int wt_modify_internal(
 										   text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
 				Debug( LDAP_DEBUG_ARGS,
-					  "wt_modify_internal: %d %s\n",
-					  err, *text );
+					  "wt_modify_internal: %d %s\n", err, *text );
 			} else {
 				got_delete = 1;
 			}
@@ -315,8 +314,7 @@ int wt_modify_internal(
 
 		if ( rc != LDAP_SUCCESS ) {
 			Debug( LDAP_DEBUG_ANY,
-				"entry failed schema check: %s\n",
-				*text );
+				"entry failed schema check: %s\n", *text );
 		}
 
 		/* if NOOP then silently revert to saved attrs */
@@ -461,8 +459,7 @@ wt_modify( Operation *op, SlapReply *rs )
 
 	int rc;
 
-	Debug( LDAP_DEBUG_ARGS, LDAP_XSTRING(wt_modify) ": %s\n",
-		   op->o_req_dn.bv_val );
+	Debug( LDAP_DEBUG_ARGS, "wt_modify: %s\n", op->o_req_dn.bv_val );
 
 #ifdef LDAP_X_TXN
 	if( op->o_txnSpec && txn_preop( op, rs ))
@@ -473,9 +470,7 @@ wt_modify( Operation *op, SlapReply *rs )
 
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
-        Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_modify)
-			   ": wt_ctx_get failed\n" );
+        Debug( LDAP_DEBUG_ANY, "wt_modify: wt_ctx_get failed\n" );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
         send_ldap_result( op, rs );
@@ -497,15 +492,14 @@ retry:
 	if( rc ) {
 		Debug( LDAP_DEBUG_TRACE,
 			   "wt_modify: begin_transaction failed: %s (%d)\n",
-			   wiredtiger_strerror(rc), rc, 0 );
+			   wiredtiger_strerror(rc), rc );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "begin_transaction failed";
 		goto return_results;
 	}
 	wc->is_begin_transaction = 1;
-	Debug( LDAP_DEBUG_TRACE, "wt_modify: session id: %p\n",
-		   wc->session, 0, 0 );
-	
+	Debug( LDAP_DEBUG_TRACE, "wt_modify: session id: %p\n", wc->session );
+
 	/* get entry */
 	rc = wt_dn2entry(op->o_bd, wc, &op->o_req_ndn, &e);
 	switch( rc ) {
@@ -515,9 +509,7 @@ retry:
 		break;
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			   "<== " LDAP_XSTRING(wt_modify)
-				": wt_dn2entry failed (%d)\n",
-			   rc );
+			   "<== wt_modify: wt_dn2entry failed (%d)\n", rc );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
@@ -534,8 +526,7 @@ retry:
 				rs->sr_err = LDAP_NO_SUCH_OBJECT;
 				goto return_results;
 			default:
-				Debug( LDAP_DEBUG_ANY, "wt_modify: wt_dna2entry failed (%d)\n",
-					   rc, 0, 0 );
+				Debug( LDAP_DEBUG_ANY, "wt_modify: wt_dna2entry failed (%d)\n", rc );
 				rs->sr_err = LDAP_OTHER;
 				rs->sr_text = "internal error";
 				goto return_results;
@@ -562,8 +553,7 @@ retry:
 		/* entry is a referral, don't allow modify */
 		rs->sr_ref = get_entry_referrals( op, e );
 
-		Debug( LDAP_DEBUG_TRACE,
-			   LDAP_XSTRING(wt_modify) ": entry is referral\n" );
+		Debug( LDAP_DEBUG_TRACE, "wt_modify: entry is referral\n" );
 
 		rs->sr_err = LDAP_REFERRAL;
 		rs->sr_matched = e->e_name.bv_val;
@@ -589,8 +579,7 @@ retry:
 			&slap_pre_read_bv, preread_ctrl ) )
 		{
 			Debug( LDAP_DEBUG_TRACE,
-				"<=- " LDAP_XSTRING(wt_modify) ": pre-read "
-				"failed!\n" );
+				"<=- wt_modify: pre-read failed!\n" );
 			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
@@ -607,12 +596,11 @@ retry:
 	case LDAP_SUCCESS:
 		break;
 	case WT_ROLLBACK:
-		Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_modify_internal failed.\n");
+		Debug (LDAP_DEBUG_TRACE, "wt_modify: rollback wt_modify_internal failed.\n" );
 		wc->session->rollback_transaction(wc->session, NULL);
 		goto retry;
 	default:
-		Debug( LDAP_DEBUG_ANY, "wt_modify: modify failed (%d)\n",
-			   rs->sr_err);
+		Debug( LDAP_DEBUG_ANY, "wt_modify: modify failed (%d)\n", rs->sr_err );
 		/* Only free attrs if they were dup'd.  */
 		if ( dummy.e_attrs == e->e_attrs ) dummy.e_attrs = NULL;
 		goto return_results;
@@ -669,9 +657,8 @@ retry:
 	rc = wc->session->commit_transaction(wc->session, NULL);
 	wc->is_begin_transaction = 0;
 	if( rc ) {
-		Debug( LDAP_DEBUG_TRACE, "<== "
-			   LDAP_XSTRING(wt_modify)
-			   ": commit failed: %s (%d)\n",
+		Debug( LDAP_DEBUG_TRACE,
+			   "<== wt_modify: commit failed: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "commit failed";
@@ -697,9 +684,7 @@ done:
 	slap_graduate_commit_csn( op );
 
 	if( wc && wc->is_begin_transaction ){
-		Debug( LDAP_DEBUG_TRACE,
-			   "wt_modify: rollback transaction\n",
-			   0, 0, 0 );
+		Debug( LDAP_DEBUG_TRACE, "wt_modify: rollback transaction\n" );
 		wc->session->rollback_transaction(wc->session, NULL);
 		wc->is_begin_transaction = 0;
 	}

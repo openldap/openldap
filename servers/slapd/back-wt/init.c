@@ -31,8 +31,7 @@ wt_db_init( BackendDB *be, ConfigReply *cr )
 {
 	struct wt_info *wi;
 
-	Debug( LDAP_DEBUG_TRACE,
-		   LDAP_XSTRING(wt_db_init) ": Initializing wt backend\n" );
+	Debug( LDAP_DEBUG_TRACE, "wt_db_init: Initializing wt backend\n" );
 
 	/* allocate backend-database-specific stuff */
 	wi = ch_calloc( 1, sizeof(struct wt_info) );
@@ -64,8 +63,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	WT_SESSION *cache_session = NULL;
 
 	if ( be->be_suffix == NULL ) {
-		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_db_open) ": need suffix.\n" );
+		Debug( LDAP_DEBUG_ANY, "wt_db_open: need suffix.\n" );
 		return -1;
 	}
 
@@ -115,7 +113,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
 			   "incompatible wiredtiger table, please restore from LDIF.\n",
-			   be->be_suffix[0].bv_val, 0, 0);
+			   be->be_suffix[0].bv_val );
 		return -1;
 	}
 
@@ -181,7 +179,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
 			   "cannot open database for cache (%d).\n",
-			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc), 0 );
+			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc) );
 		return -1;
 	}
 
@@ -190,7 +188,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
 			   "cannot open session for cache: \"%s\"\n",
-			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc), 0);
+			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc) );
 		return -1;
 	}
 
@@ -203,7 +201,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
 			   "cannot create idlcache table: \"%s\"\n",
-			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc), 0);
+			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc) );
 		return -1;
 	}
 
@@ -213,9 +211,7 @@ readonly:
 		snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
 				  "last_id() failed: %s(%d).",
 				  be->be_suffix[0].bv_val, wiredtiger_strerror(rc), rc );
-        Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_db_open) ": %s\n",
-			   cr->msg );
+        Debug( LDAP_DEBUG_ANY, "wt_db_open: %s\n", cr->msg );
 		return rc;
 	}
 
@@ -244,9 +240,7 @@ wt_db_close( BackendDB *be, ConfigReply *cr )
 	if( rc ) {
 		int saved_errno = errno;
 		Debug( LDAP_DEBUG_ANY,
-			   LDAP_XSTRING(wt_db_close)
-			   ": cannot close database (%d).\n",
-			   saved_errno );
+			   "wt_db_close: cannot close database (%d).\n", saved_errno );
 		return -1;
 	}
 
@@ -297,8 +291,7 @@ wt_back_initialize( BackendInfo *bi )
 
 	/* initialize the database system */
 	Debug( LDAP_DEBUG_TRACE,
-		   LDAP_XSTRING(wt_back_initialize)
-		   ": initialize WiredTiger backend\n" );
+		   "wt_back_initialize: initialize WiredTiger backend\n" );
 
 	bi->bi_flags |=
 		SLAP_BFLAG_INCREMENT |
@@ -310,7 +303,7 @@ wt_back_initialize( BackendInfo *bi )
 
 	/* version check */
 	Debug( LDAP_DEBUG_TRACE,
-		   LDAP_XSTRING(wt_back_initialize) ": %s\n",
+		   "wt_back_initialize: %s\n",
 		   wiredtiger_version(NULL, NULL, NULL) );
 
 	bi->bi_open = 0;

@@ -196,8 +196,7 @@ equality_candidates(
 			break;
 		} else if( rc != LDAP_SUCCESS ) {
 			Debug( LDAP_DEBUG_TRACE,
-				   "<= wt_equality_candidates: (%s) "
-				   "key read failed (%d)\n",
+				   "<= wt_equality_candidates: (%s) key read failed (%d)\n",
 				   ava->aa_desc->ad_cname.bv_val, rc );
 			break;
 		}
@@ -387,8 +386,7 @@ substring_candidates(
 
 	if( rc != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_ANY,
-			   "<= wt_substring_candidates: (%s) "
-			   "index_param failed (%d)\n",
+			   "<= wt_substring_candidates: (%s) index_param failed (%d)\n",
 			   sub->sa_desc->ad_cname.bv_val, rc );
 		return 0;
 	}
@@ -494,9 +492,9 @@ comp_candidates (
 
 	if ( !f ) return LDAP_PROTOCOL_ERROR;
 
-	Debug( LDAP_DEBUG_FILTER, "comp_candidates\n", 0, 0, 0 );
+	Debug( LDAP_DEBUG_FILTER, "comp_candidates\n" );
 	/* TODO: */
-	Debug( LDAP_DEBUG_FILTER, "=> not implement yet\n", 0, 0, 0 );
+	Debug( LDAP_DEBUG_FILTER, "=> not implement yet\n" );
 	return( rc );
 }
 
@@ -524,7 +522,7 @@ ext_candidates(
 #endif
 	if ( mra->ma_desc == slap_schema.si_ad_entryDN ) {
 		/* TODO: */
-		Debug( LDAP_DEBUG_FILTER, "=> not implement yet.\n", 0, 0, 0 );
+		Debug( LDAP_DEBUG_FILTER, "=> not implement yet.\n" );
 	}
 	WT_IDL_ALL( wi, ids );
 	return 0;
