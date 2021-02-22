@@ -31,6 +31,7 @@
 #include "slap.h"
 #include "slap-config.h"
 #include "back-ldap.h"
+#include "ldap_rq.h"
 
 static const ldap_extra_t ldap_extra = {
 	ldap_back_proxy_authz_ctrl,
@@ -185,6 +186,8 @@ ldap_back_db_init( Backend *be, ConfigReply *cr )
 		ldap_pvt_mp_init( li->li_ops_completed[ i ] );
 	}
 
+	li->li_conn_expire_task = NULL;
+
 	be->be_private = li;
 	SLAP_DBFLAGS( be ) |= SLAP_DBFLAG_NOLASTMOD;
 
@@ -303,6 +306,16 @@ ldap_back_db_destroy( Backend *be, ConfigReply *cr )
 
 		(void)ldap_back_monitor_db_destroy( be );
 
+		/* Stop and remove the task that prunes expired connections */
+		if ( li->li_conn_expire_task != NULL ) {
+			ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
+			if ( ldap_pvt_runqueue_isrunning( &slapd_rq, li->li_conn_expire_task ) ) {
+					ldap_pvt_runqueue_stoptask( &slapd_rq, li->li_conn_expire_task );
+			}
+			ldap_pvt_runqueue_remove( &slapd_rq, li->li_conn_expire_task );
+			ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+		}
+
 		ldap_pvt_thread_mutex_lock( &li->li_conninfo.lai_mutex );
 
 		if ( li->li_uri != NULL ) {
@@ -359,4 +372,3 @@ ldap_back_db_destroy( Backend *be, ConfigReply *cr )
 SLAP_BACKEND_INIT_MODULE( ldap )
 
 #endif /* SLAPD_LDAP == SLAPD_MOD_DYNAMIC */
-

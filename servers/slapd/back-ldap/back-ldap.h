@@ -417,6 +417,7 @@ typedef struct ldapinfo_t {
 
 	ldap_pvt_thread_mutex_t li_counter_mutex;
 	ldap_pvt_mp_t		li_ops_completed[SLAP_OP_LAST];
+	struct re_s*		li_conn_expire_task;
 } ldapinfo_t;
 
 #define	LDAP_ERR_OK(err) ((err) == LDAP_SUCCESS || (err) == LDAP_COMPARE_FALSE || (err) == LDAP_COMPARE_TRUE)
