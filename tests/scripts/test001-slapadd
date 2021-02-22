@@ -76,7 +76,7 @@ if test $BACKEND = ldif ; then
 else
 
 kill -HUP $KILLPIDS
-
+wait
 rm -f $DBDIR1/*
 
 BASE2="ou=test,dc=example,dc=com"
