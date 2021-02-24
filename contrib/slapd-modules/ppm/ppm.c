@@ -190,7 +190,7 @@ typeParam(char* param)
         if (reti) {
             ppm_log(LOG_ERR, "ppm: Cannot compile regex: %s",
                    allowedParameters[i].param);
-            exit(EXIT_FAILURE);
+            return n;
         }
         
         // Execute regular expression
@@ -403,7 +403,7 @@ containsRDN(char* passwd, char* DN)
         reti = regcomp(&regex, token, REG_ICASE);
         if (reti) {
           ppm_log(LOG_ERR, "ppm: Cannot compile regex: %s", token);
-          exit(EXIT_FAILURE);
+          return 0;
         }
  
         // Execute regular expression

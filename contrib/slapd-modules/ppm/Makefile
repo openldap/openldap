@@ -2,66 +2,68 @@
 # Copyright 2014 David Coutadeur, Paris. All Rights Reserved.
 #
 
-CC=gcc
-
-# Path of OpenLDAP sources
-OLDAP_SOURCES=../../..
-# Where the ppm configuration file should be installed
-CONFIG=/etc/openldap/ppm.conf
-# Path of OpenLDAP installed libs, where the ppm library should be installed
-LIBDIR=/usr/lib/openldap
-
-OPT=-g -O2 -Wall -fpic 						\
-	-DCONFIG_FILE="\"$(CONFIG)\""				\
-	-DDEBUG
-
-# Where to find the OpenLDAP headers.
-
-LDAP_INC=-I$(OLDAP_SOURCES)/include \
-	 -I$(OLDAP_SOURCES)/servers/slapd
-
-# Where to find the OpenLDAP libraries.
-
-LDAP_LIBS=-L$(OLDAP_SOURCES)/libraries/liblber/.libs \
-	  -L$(OLDAP_SOURCES)/libraries/libldap/.libs
-
-CRACK_INC=-DCRACKLIB
-
-INCS=$(LDAP_INC) $(CRACK_INC)
-
+LDAP_SRC=../../..
+LDAP_BUILD=$(LDAP_SRC)
+LDAP_INC=-I$(LDAP_SRC)/include \
+	 -I$(LDAP_SRC)/servers/slapd
+LDAP_LIBS=-L$(LDAP_BUILD)/libraries/liblber/.libs \
+	  -L$(LDAP_BUILD)/libraries/libldap/.libs
 LDAP_LIB=-lldap -llber
-
 CRACK_LIB=-lcrack
 
-LIBS=$(LDAP_LIB) $(CRACK_LIB)
+prefix=/usr/local
+exec_prefix=$(prefix)
+ldap_subdir=/openldap
 
+libdir=$(exec_prefix)/lib
+libexecdir=$(exec_prefix)/libexec
+moduledir = $(libexecdir)$(ldap_subdir)
+mandir = $(exec_prefix)/share/man
+man5dir = $(mandir)/man5
+etcdir = $(exec_prefix)/etc$(ldap_subdir)
+
+CC=gcc
+INSTALL = /usr/bin/install
+PROGRAMS=ppm.so
+TEST=ppm_test
+EXAMPLE=ppm.example
 TESTS=./unit_tests.sh
+OPT=-g -O2 -Wall -fpic 						\
+	-DCONFIG_FILE="\"$(etcdir)/$(EXAMPLE)\""		\
+	-DCRACKLIB						\
+	-DDEBUG
+
+# don't link against cracklib if option -DCRACKLIB is not defined in OPT
+ifeq (,$(findstring CRACKLIB,$(OPT)))
+	CRACK_LIB=
+endif
 
 
 
-all: 	ppm ppm_test
 
-ppm_test: 
-	$(CC) -g $(LDAP_INC) $(LDAP_LIBS) -Wl,-rpath=. -o ppm_test ppm_test.c ppm.so $(LIBS)
+all: 	ppm $(TEST)
+
+$(TEST): 
+	$(CC) -g $(LDAP_INC) $(LDAP_LIBS) -Wl,-rpath=. -o $(TEST) ppm_test.c $(PROGRAMS) $(LDAP_LIB) $(CRACK_LIB)
 
 ppm.o:
-	$(CC) $(OPT) -c $(INCS) ppm.c
+	$(CC) $(OPT) -c $(LDAP_INC) ppm.c
 
 ppm: ppm.o
-	$(CC) $(LDAP_INC) -shared -o ppm.so ppm.o $(CRACK_LIB)
+	$(CC) $(LDAP_INC) -shared -o $(PROGRAMS) ppm.o $(CRACK_LIB)
 
 install: ppm
-	cp -f ppm.so $(LIBDIR)
-	cp -f ppm_test $(LIBDIR)
-	cp -f ppm.conf $(CONFIG)
+	$(INSTALL) -m 644 $(PROGRAMS) $(libdir)
+	$(INSTALL) -m 755 $(TEST) $(libdir)
+	$(INSTALL) -m 644 $(EXAMPLE) $(etcdir)/
 
 .PHONY: clean
 
 clean:
-	$(RM) -f ppm.o ppm.so ppm.lo ppm_test
+	$(RM) -f ppm.o $(PROGRAMS) ppm.lo $(TEST)
 	$(RM) -rf .libs
 
-test: ppm ppm_test
-	$(TESTS)
+test: ppm $(TEST)
+	LDAP_SRC=$(LDAP_SRC) $(TESTS)
 
 

@@ -25,7 +25,7 @@
 
 /* config file parameters (DEPRECATED) */
 #ifndef CONFIG_FILE
-#define CONFIG_FILE                       "/etc/openldap/ppm.conf"
+#define CONFIG_FILE                       "/etc/openldap/ppm.example"
 #endif
 #define FILENAME_MAX_LEN                  512
 

@@ -1,3 +1,29 @@
+# Example of ppm configuration
+
+# Such configuration must be stored into pwdCheckModuleArg attribute
+# of a password policy entry
+# See slapo-ppolicy for more details
+# Here is an example of such password policy:
+#   dn: cn=default,ou=policies,dc=my-domain,dc=com
+#   objectClass: pwdPolicy
+#   objectClass: top
+#   objectClass: pwdPolicyChecker
+#   objectClass: person
+#   pwdCheckQuality: 2
+#   pwdAttribute: userPassword
+#   sn: default
+#   cn: default
+#   pwdMinLength: 6
+#   pwdCheckModule: /usr/local/lib/ppm.so
+#   pwdCheckModuleArg:: bWluUXVhbGl0eSAzCmNoZWNrUkROIDAKZm9yYmlkZGVuQ2hhcnMKbWF4Q29uc2VjdXRpdmVQZXJDbGFzcyAwCnVzZUNyYWNrbGliIDAKY3JhY2tsaWJEaWN0IC92YXIvY2FjaGUvY3JhY2tsaWIvY3JhY2tsaWJfZGljdApjbGFzcy11cHBlckNhc2UgQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVogMCAxCmNsYXNzLWxvd2VyQ2FzZSBhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eiAwIDEKY2xhc3MtZGlnaXQgMDEyMzQ1Njc4OSAwIDEKY2xhc3Mtc3BlY2lhbCA8Piw/Oy46LyHCp8O5JSrCtV7CqCTCo8KyJsOpfiIjJ3soWy18w6hgX1zDp17DoEApXcKwPX0rIDAgMQ==
+#
+# Different parameters are separated by a linefeed (\n)
+# Parameters starting with a # are ignored
+# Use a base64 tool to code / decode the content of pwdCheckModuleArg
+
+
+
+# Parameters
 
 # minQuality parameter
 # Format:
@@ -6,13 +32,6 @@
 # One point is granted for each class for which MIN_FOR_POINT criteria is fulfilled.
 # defines the minimum point numbers for the password to be accepted.
 minQuality 3
-
-# maxLength parameter
-# Format:
-# maxLength [NUMBER]
-# Description:
-# The password must not be more than [NUMBER] long. 0 means no limit is set.
-maxLength 0
 
 # checkRDN parameter
 # Format:
