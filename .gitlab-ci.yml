@@ -33,6 +33,7 @@ build-openssl-heimdal-lloadd:
     - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
     - SLAPD_COMMON_WRAPPER=gdb make test
+    - make -C tests wt
   artifacts:
     name: testdir
     when: on_failure
@@ -55,6 +56,7 @@ build-gnutls-mit-standalone-lloadd:
     - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
     - SLAPD_COMMON_WRAPPER=gdb make test
+    - make -C tests wt
   artifacts:
     name: testdir
     when: on_failure
