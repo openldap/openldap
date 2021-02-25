@@ -751,7 +751,7 @@ esac
 
 if test $MAINDB != maindb ; then
 		# only mdb currently supports pagedResults control
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS && wait
 
 		echo ">>>>> Test succeeded"
 		exit 0
