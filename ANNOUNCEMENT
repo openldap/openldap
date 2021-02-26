@@ -20,6 +20,7 @@ A N N O U N C E M E N T -- OpenLDAP 2.5
             - MS AD replication support
             - DSEE replication support
             - Sun/Netscape draft persistent search support
+            - HAProxy proxy protocol v2 support
         * New backends
             - back-wt: Wiredtiger backend to slapd
             - back-asyncmeta: Async version of back-meta
