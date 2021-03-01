@@ -41,6 +41,7 @@ AC_sql=sql@BUILD_SQL@
 
 # overlays
 AC_accesslog=accesslog@BUILD_ACCESSLOG@
+AC_argon2=argon2@BUILD_PW_ARGON2@
 AC_autoca=autoca@BUILD_AUTOCA@
 AC_constraint=constraint@BUILD_CONSTRAINT@
 AC_dds=dds@BUILD_DDS@
@@ -76,7 +77,7 @@ if test "${AC_asyncmeta}" = "asyncmetamod" && test "${AC_LIBS_DYNAMIC}" = "stati
 	AC_meta="asyncmetano"
 fi
 export AC_ldap AC_mdb AC_meta AC_asyncmeta AC_monitor AC_null AC_perl AC_relay AC_sql \
-	AC_accesslog AC_autoca AC_constraint AC_dds AC_dynlist AC_memberof \
+	AC_accesslog AC_argon2 AC_autoca AC_constraint AC_dds AC_dynlist AC_memberof \
 	AC_pcache AC_ppolicy AC_refint AC_remoteauth \
 	AC_retcode AC_rwm AC_unique AC_syncprov AC_translucent \
 	AC_valsort \

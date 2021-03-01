@@ -280,6 +280,9 @@ dummy $(SLAPD_DYNAMIC_BACKENDS): slapd
 dynamic_overlays: slapd
 	cd overlays && $(MAKE) $(MFLAGS) dynamic
 
+dynamic_pwmods: slapd
+	cd pwmods && $(MAKE) $(MFLAGS) dynamic
+
 #
 # In Windows, dynamic backends have to be built after slapd. For this
 # reason, we only build static backends now and dynamic backends later.
@@ -382,7 +385,7 @@ install-slapd: FORCE
 	    fi; \
 	done
 
-all-cffiles: slapd $(SLAPD_DYNAMIC_BACKENDS) dynamic_overlays
+all-cffiles: slapd $(SLAPD_DYNAMIC_BACKENDS) dynamic_overlays dynamic_pwmods
 	@if test $(PLAT) = NT; then \
 	    sysconfdir=`cygpath -w $(sysconfdir) | \
 		$(SED) -e 's/\\\\/\\\\\\\\\\\\\\\\/g'`; \
