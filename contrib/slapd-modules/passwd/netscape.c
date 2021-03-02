@@ -13,6 +13,8 @@
  * <http://www.OpenLDAP.org/license.html>.
  */
 
+#include "portable.h"
+
 #include <unistd.h>
 
 #include <lber.h>
