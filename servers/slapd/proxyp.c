@@ -172,7 +172,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from ) {
 			from->sa_in6_addr.sin6_port = ppa.ip6.src_port;
 #else
 			Debug( LDAP_DEBUG_ANY, "proxyp(%ld): "
-					"IPv6 proxied addresses disabled, \n",
+					"IPv6 proxied addresses disabled\n",
 					(long)sfd );
 			return 0;
 #endif
