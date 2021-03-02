@@ -133,7 +133,7 @@ metaphone being the default.
 
 H3: Substring indexing
 
-Substring indexes work on spliting the value into short chunks and then
+Substring indexes work on splitting the value into short chunks and then
 indexing those in a similar way to how equality index does. The storage
 space needed to store all of this data is analogous to the amount of data
 being indexed, which makes the indexes extremely heavy-handed in most
