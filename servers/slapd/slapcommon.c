@@ -91,6 +91,11 @@ usage( int tool, const char *progname )
 		options = " [-c]\n\t[-g] [-n databasenumber | -b suffix] [attr ...] [-q] [-t]\n";
 		break;
 
+	case SLAPMODIFY:
+		options = " [-c]\n\t[-g] [-n databasenumber | -b suffix]\n"
+			"\t[-l ldiffile] [-j linenumber] [-q] [-u] [-s] [-w]\n";
+		break;
+
 	case SLAPTEST:
 		options = " [-n databasenumber] [-u] [-Q]\n";
 		break;
