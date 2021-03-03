@@ -33,7 +33,7 @@ LDAP_BEGIN_DECL
 /* This is NOT a bogus extern declaration (unlike ldap_debug) */
 LDAP_LDIF_V (int) ldif_debug;
 
-#define LDIF_LINE_WIDTH      76      /* default maximum length of LDIF lines */
+#define LDIF_LINE_WIDTH      78      /* default maximum length of LDIF lines */
 #define LDIF_LINE_WIDTH_MAX  ((ber_len_t)-1) /* maximum length of LDIF lines */
 #define LDIF_LINE_WIDTH_WRAP(wrap) ((wrap) == 0 ? LDIF_LINE_WIDTH : (wrap))
 
@@ -50,9 +50,7 @@ LDAP_LDIF_V (int) ldif_debug;
  * first newline + base64 value + continued lines.  Each continued line
  * needs room for a newline and a leading space character.
  */
-#define LDIF_SIZE_NEEDED(nlen,vlen) \
-    ((nlen) + 4 + LDIF_BASE64_LEN(vlen) \
-    + ((LDIF_BASE64_LEN(vlen) + (nlen) + 3) / (LDIF_LINE_WIDTH-1) * 2 ))
+#define LDIF_SIZE_NEEDED(nlen,vlen) LDIF_SIZE_NEEDED_WRAP(nlen, vlen, 0)
 
 #define LDIF_SIZE_NEEDED_WRAP(nlen,vlen,wrap) \
     ((nlen) + 4 + LDIF_BASE64_LEN(vlen) \
