@@ -964,8 +964,53 @@ for an object, and the password policy module was configured with the DN of a
 default policy object and if that object exists, then the policy defined in
 that object is applied.
 
-Please see {{slapo-ppolicy(5)}} for complete explanations of features and discussion of
- "Password Management Issues" at {{URL:http://www.symas.com/blog/?page_id=66}}
+Please see {{slapo-ppolicy(5)}} for a complete explanation of its features.
+
+A guiding philosophy for OpenLDAP and directory servers in general has been
+that they always hand back exactly what they were given, without
+modification. For example, if the cn attribute of an object was set to fOObaR,
+the server will return that exact string during a search. Values of attributes
+of a sensitive nature, such as userPassword, are often hashed to conceal their
+values. Since the userPassword values are used internally by the directory
+server to authenticate users, any hash algorithm that is applied to the value
+must be compatible with the directory server. Historically this problem has
+been solved by making the LDAP client application be able to hash the
+userPassword attribute value in a way that is compatible with the directory
+server, but this solution has the obvious drawback of requiring tight coupling
+between the LDAP client and server, and limits the choices of usable hashing
+algorithms to those that are accommodated by both. This is clearly a
+sub-optimal solution.
+
+In 2001 RFC 3062 became a standard that specified an LDAP extended operation
+for cases like this. Extended operations are not bound by the
+return-what-you-are-given philosophy and so are free to do things to attribute
+values that the add and modify operations cannot. The change password extended
+operation accepts a plaintext password and hashes it based on a specification
+that is contained in the server. This allows the server to be in control of
+the hashing algorithm which, in turn, ensures that any hashes applied to
+userPassword attribute values will not prevent users from being authenticated.
+
+The password policy module's ppolicy_hash_cleartext flag addresses this
+problem by intercepting LDAP modify operations that include the userPassword
+attribute and converting them to change password extended operations so they
+can be hashed according to the specification contained in slapd's
+configuration. When this flag is set, LDAP applications that modify the
+userPassword attribute can send the password in cleartext form to the server
+using a standard LDAP modify command and the server will hash the value
+according to the password-hash directive before storing it. It goes without
+saying that steps need to be taken to protect the cleartext password in
+transit, such as using SSL, TLS, or some other link encryption method.
+
+The following example shows the ppolicy module configured to hash cleartext
+passwords:
+
+>       database mdb
+>       suffix "dc=example,dc=com"
+>       [...additional database configuration directives go here...]
+>
+>       overlay ppolicy
+>       ppolicy_default "cn=default,ou=policies,dc=example,dc=com"
+>       ppolicy_hash_cleartext
 
 
 H3: Further Information
