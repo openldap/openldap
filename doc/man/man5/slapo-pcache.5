@@ -257,6 +257,10 @@ for the duration of the
 .BR TTL .
 These inconsistencies can be minimized by careful use of the TTR.
 
+The proxy cache overlay requires a full result set of data to properly
+function. Therefore it will strip out the paged results control if it is
+requested by the client.
+
 The remote server should expose the
 .B objectClass 
 attribute because the underlying database that actually caches the entries 
