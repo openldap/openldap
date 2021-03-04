@@ -360,7 +360,6 @@ retry:
 	mc->mc_conns[candidate].msc_active--;
 	asyncmeta_start_one_listener(mc, candidates, bc, candidate);
 	bc->bc_active--;
-	asyncmeta_memctx_toggle(thrctx);
 	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex);
 	rs->sr_err = SLAPD_ASYNCOP;
 finish:

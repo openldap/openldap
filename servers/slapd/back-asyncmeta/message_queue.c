@@ -51,20 +51,10 @@ typedef struct listhead {
 #define LH_MAX	16
 #endif
 
-static void *asyncmeta_memctx_get(void *threadctx)
-{
-	return slap_sl_mem_create(SLAP_SLAB_SIZE, SLAP_SLAB_STACK, threadctx, 1);
-}
-
 static void asyncmeta_memctx_put(void *threadctx, void *memctx)
 {
 	slap_sl_mem_setctx(threadctx, NULL);
 	slap_sl_mem_destroy((void *)1, memctx);
-}
-
-void asyncmeta_memctx_toggle(void *thrctx)
-{
-	asyncmeta_memctx_get(thrctx);
 }
 
 int asyncmeta_new_bm_context(Operation *op,

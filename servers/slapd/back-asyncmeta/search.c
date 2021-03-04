@@ -923,7 +923,6 @@ retry:
 
 	asyncmeta_start_listeners(mc, candidates, bc);
 	bc->bc_active--;
-	asyncmeta_memctx_toggle(thrctx);
 	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex);
 	rs->sr_err = SLAPD_ASYNCOP;
 
