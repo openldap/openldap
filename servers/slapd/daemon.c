@@ -1379,6 +1379,8 @@ slap_open_listener(
 	}
 #endif /* HAVE_TLS */
 
+	l.sl_is_proxied = ldap_pvt_url_scheme2proxied( lud->lud_scheme );
+
 #ifdef LDAP_TCP_BUFFER
 	l.sl_tcp_rmem = 0;
 	l.sl_tcp_wmem = 0;
@@ -2044,6 +2046,13 @@ slap_listener(
 
 #  ifdef LDAP_PF_INET6
 	case AF_INET6:
+	if ( sl->sl_is_proxied ) {
+		if ( !proxyp( sfd, &from ) ) {
+			Debug( LDAP_DEBUG_ANY, "slapd(%ld): proxyp failed\n", (long)sfd, 0, 0 );
+			slapd_close( sfd );
+			return 0;
+		}
+	}
 	if ( IN6_IS_ADDR_V4MAPPED(&from.sa_in6_addr.sin6_addr) ) {
 #if defined( HAVE_GETADDRINFO ) && defined( HAVE_INET_NTOP )
 		peeraddr = inet_ntop( AF_INET,
@@ -2068,6 +2077,13 @@ slap_listener(
 #  endif /* LDAP_PF_INET6 */
 
 	case AF_INET: {
+		if ( sl->sl_is_proxied ) {
+			if ( !proxyp( sfd, &from ) ) {
+				Debug( LDAP_DEBUG_ANY, "slapd(%ld): proxyp failed\n", (long)sfd, 0, 0 );
+				slapd_close( sfd );
+				return 0;
+			}
+		}
 #if defined( HAVE_GETADDRINFO ) && defined( HAVE_INET_NTOP )
 		peeraddr = inet_ntop( AF_INET, &from.sa_in_addr.sin_addr,
 			   addr, sizeof(addr) );
