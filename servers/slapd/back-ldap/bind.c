@@ -1482,9 +1482,25 @@ retry_lock:;
 retry:;
 	if ( BER_BVISNULL( &lc->lc_cred ) ) {
 		tmp_dn = "";
+		/*
+		 * Bind is requested with DN but without credentials.
+		 * This can happen when connection to remote server has been
+		 * lost either due to remote server disconnecting it or due to
+		 * proxy disconnecting it by itself (idle-timeout, conn-ttl).
+		 */
 		if ( !BER_BVISNULL( &lc->lc_bound_ndn ) && !BER_BVISEMPTY( &lc->lc_bound_ndn ) ) {
-			Debug( LDAP_DEBUG_ANY, "%s ldap_back_dobind_int: DN=\"%s\" without creds, binding anonymously",
-				op->o_log_prefix, lc->lc_bound_ndn.bv_val );
+			Debug( LDAP_DEBUG_ANY,
+			       "%s ldap_back_dobind_int: DN=\"%s\" connection "
+			       "was re-established but cannot rebind without creds\n",
+			       op->o_log_prefix, lc->lc_bound_ndn.bv_val );
+			rs->sr_text = "Proxy lost connection to remote server";
+			rs->sr_err = LDAP_UNAVAILABLE;
+			if ( sendok & LDAP_BACK_SENDERR ) {
+				send_ldap_result( op, rs );
+			}
+			rs->sr_err = SLAPD_DISCONNECT;
+			rc = 0;
+			goto done;
 		}
 
 	} else {
