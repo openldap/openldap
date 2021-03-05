@@ -488,7 +488,7 @@ comp_candidates (
 	ID *tmp,
 	ID *stack)
 {
-	int	rc;
+	int	rc = 0;
 
 	if ( !f ) return LDAP_PROTOCOL_ERROR;
 

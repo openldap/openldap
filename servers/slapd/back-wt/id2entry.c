@@ -202,7 +202,7 @@ int wt_id2entry( BackendDB *be,
 	rc = entry_decode( &eh, &e );
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   "wt_id2entry: entry decode error: %d (%d)\n",
+			   "wt_id2entry: entry decode error: %s (%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		goto done;
 	}
@@ -306,7 +306,7 @@ int wt_entry_get(
 		return LDAP_NO_SUCH_OBJECT;
 	default:
 		Debug( LDAP_DEBUG_ANY,
-			   "wt_entry_get: wt_dn2entry failed rc=%d\n",
+			   "wt_entry_get: wt_dn2entry failed %s rc=%d\n",
 			   wiredtiger_strerror(rc), rc );
 		rc = LDAP_OTHER;
 	}

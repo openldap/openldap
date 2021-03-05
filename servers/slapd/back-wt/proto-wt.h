@@ -252,9 +252,7 @@ extern BI_tool_entry_put     wt_tool_entry_put;
 extern BI_tool_entry_reindex wt_tool_entry_reindex;
 extern BI_tool_dn2id_get     wt_tool_dn2id_get;
 extern BI_tool_entry_modify  wt_tool_entry_modify;
-#if LDAP_VENDOR_VERSION_MINOR == X || LDAP_VENDOR_VERSION_MINOR >= 5
 extern BI_tool_entry_delete  wt_tool_entry_delete;
-#endif
 
 LDAP_END_DECL
 

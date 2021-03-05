@@ -167,7 +167,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
-			   "cannot create revdn index: \"%s\"\n",
+			   "cannot create ndn index: \"%s\"\n",
 			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc) );
 		return -1;
 	}
@@ -178,7 +178,7 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			   "wt_db_open: database \"%s\": "
-			   "cannot open database for cache (%d).\n",
+			   "cannot open database for cache (%s).\n",
 			   be->be_suffix[0].bv_val, wiredtiger_strerror(rc) );
 		return -1;
 	}

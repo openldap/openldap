@@ -174,7 +174,7 @@ int wt_idl_insert( ID *ids, ID id )
 
 	} else {
 		/* insert id */
-		memcpy( &ids[x+1], &ids[x], (ids[0]-x) * sizeof(ID) );
+		AC_MEMCPY( &ids[x+1], &ids[x], (ids[0]-x) * sizeof(ID) );
 		ids[x] = id;
 	}
 
@@ -232,7 +232,7 @@ static int wt_idl_delete( ID *ids, ID id )
 		}
 
 	} else {
-		memmove( &ids[x], &ids[x+1], (1+ids[0]-x) * sizeof(ID) );
+		AC_MEMCPY( &ids[x], &ids[x+1], (1+ids[0]-x) * sizeof(ID) );
 	}
 
 #if IDL_DEBUG > 1
@@ -601,7 +601,7 @@ int wt_idl_append( ID *a, ID *b )
 
 	if ( b[0] > 1 ) {
 		int i = b[0] - 1;
-		memcpy(a+a[0]+1, b+2, i * sizeof(ID));
+		AC_MEMCPY(a+a[0]+1, b+2, i * sizeof(ID));
 		a[0] += i;
 	}
 	if ( swap ) {

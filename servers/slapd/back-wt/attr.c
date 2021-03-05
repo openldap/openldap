@@ -68,7 +68,7 @@ ainfo_insert( struct wt_info *wi, AttrInfo *a )
 	wi->wi_attrs = ch_realloc( wi->wi_attrs, ( wi->wi_nattrs+1 ) *
 							   sizeof( AttrInfo * ));
 	if ( x < wi->wi_nattrs )
-		memmove( &wi->wi_attrs[x+1], &wi->wi_attrs[x],
+		AC_MEMCPY( &wi->wi_attrs[x+1], &wi->wi_attrs[x],
 				   ( wi->wi_nattrs - x ) * sizeof( AttrInfo *));
 	wi->wi_attrs[x] = a;
 	wi->wi_nattrs++;
