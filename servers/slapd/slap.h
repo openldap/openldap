@@ -372,9 +372,7 @@ typedef struct Operation Operation;
 typedef struct SlapReply SlapReply;
 /* end of forward declarations */
 
-#ifdef LDAP_PF_INET6
 extern int slap_inet4or6;
-#endif
 
 struct OidMacro {
 	struct berval som_oid;
