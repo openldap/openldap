@@ -377,6 +377,19 @@ usage( char *name )
     );
 }
 
+typedef void (BER_logger)(const char *buf);
+static BER_logger *ber_logger;
+static void debug_print( const char *data )
+{
+	char buf[4136];	/* 4096 + 40 */
+	struct timeval tv;
+
+	gettimeofday( &tv, NULL );
+	buf[sizeof(buf)-1] = '\0';
+	snprintf( buf, sizeof(buf)-1, "%lx.%05x %p %s",
+		(long)tv.tv_sec, tv.tv_usec, (void *)ldap_pvt_thread_self(), data );
+	ber_logger( buf );
+}
 
 #ifdef HAVE_NT_SERVICE_MANAGER
 void WINAPI ServiceMain( DWORD argc, LPTSTR *argv )
@@ -720,6 +733,8 @@ unhandled_option:;
 	if ( optind != argc )
 		goto unhandled_option;
 
+	ber_get_option(NULL, LBER_OPT_LOG_PRINT_FN, &ber_logger);
+	ber_set_option(NULL, LBER_OPT_LOG_PRINT_FN, debug_print);
 	ber_set_option(NULL, LBER_OPT_DEBUG_LEVEL, &slap_debug);
 	ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL, &slap_debug);
 	ldif_debug = slap_debug;
@@ -843,6 +858,8 @@ unhandled_option:;
 		debug_unknowns = NULL;
 		if ( rc )
 			goto destroy;
+		ber_set_option( NULL, LBER_OPT_DEBUG_LEVEL, &slap_debug );
+		ldap_set_option( NULL, LDAP_OPT_DEBUG_LEVEL, &slap_debug );
 	}
 	if ( syslog_unknowns ) {
 		rc = parse_debug_unknowns( syslog_unknowns, &ldap_syslog );
