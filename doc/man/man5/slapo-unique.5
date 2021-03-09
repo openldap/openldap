@@ -39,14 +39,14 @@ They should appear after the
 .B overlay
 directive.
 .TP
-.B unique_uri <[strict ][ignore ][serialize ]URI[URI...]...>
+.B unique_uri <[strict ][ignore ][serialize ]URI[[ URI...]...]>
 Configure the base, attributes, scope, and filter for uniqueness
 checking.  Multiple URIs may be specified within a domain,
 allowing complex selections of objects.  Multiple
 .B unique_uri
 statements or
 .B olcUniqueURI
-attributes will create independent domains, each with their own
+attribute values will create independent domains, each with their own
 independent lists of URIs and ignore/strict settings.
 
 Keywords
