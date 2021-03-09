@@ -214,6 +214,7 @@ slapi_int_get_plugins(
 	int		rc = LDAP_SUCCESS;
 
 	assert( ppFuncPtrs != NULL );
+	*ppFuncPtrs = NULL;
 
 	if ( be == NULL ) {
 		goto done;
@@ -233,7 +234,6 @@ slapi_int_get_plugins(
 	}
 
 	if ( numPB == 0 ) {
-		*ppFuncPtrs = NULL;
 		rc = LDAP_SUCCESS;
 		goto done;
 	}
