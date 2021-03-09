@@ -31,9 +31,7 @@ uid: ando
 
 dn: cn=Test Group,ou=groups,o=deref
 # member: <uid=hyc>;cn=Howard Chu,ou=users,o=deref
-
 # member: <uid=ando>;cn=Pierangelo Masarati,ou=users,o=deref
-
 objectClass: groupOfNames
 cn: Test Group
 member: cn=Howard Chu,ou=users,o=deref
