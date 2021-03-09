@@ -70,6 +70,7 @@ case "$SRCDIR" in
 .*)	ABS_SRCDIR="$TESTWD/$SRCDIR" ;;
 *)  ABS_SRCDIR="$SRCDIR" ;;
 esac
+export TESTDIR
 
 DBDIR1A=$TESTDIR/db.1.a
 DBDIR1B=$TESTDIR/db.1.b
