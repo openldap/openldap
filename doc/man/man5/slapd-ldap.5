@@ -192,6 +192,10 @@ underlying libldap, with rebinding eventually performed if the
 \fBrebind\-as\-user\fP directive is used.  The default is to chase referrals.
 
 .TP
+.B conn\-pool\-max <int>
+This directive defines the maximum size of the privileged connections pool.
+
+.TP
 .B conn\-ttl <time>
 This directive causes a cached connection to be dropped and recreated
 after a given ttl, regardless of being idle or not.

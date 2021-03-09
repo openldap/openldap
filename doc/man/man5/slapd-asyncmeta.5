@@ -36,10 +36,11 @@ maintains the functionality of
 and has a largely similar codebase,
 some changes in operation and some new configuration directives have been
 added. Some configuration options, such as
-.B conn-ttl,
-.B single-conn
+.B conn\-pool\-max ,
+.B conn\-ttl ,
+.B single\-conn ,
 and
-.B use-temporary-conn
+.B use\-temporary\-conn
 have been removed, as they are no longer relevant.
 .LP
 .B New connection handling:
@@ -126,14 +127,14 @@ Specify the number of consecutive timed out requests,
 after which the connection will be considered faulty and dropped.
 
 .TP
-.B max-pending-ops <number>
+.B max\-pending\-ops <number>
 The maximum number of pending requests stored in a connection's queue.
 The default is 128. When this number is exceeded,
 .B LDAP_BUSY
 will be returned to the client.
 
 .TP
-.B max-target-conns <number>
+.B max\-target\-conns <number>
 The maximum number of connections per target. Unlike
 .B slapd\-meta(5),
 no new connections will be created
@@ -242,8 +243,7 @@ check permissions.
 .TP
 .B acl\-passwd <password>
 Password used with the
-.B
-acl\-authcDN
+.B acl\-authcDN
 above.
 
 .TP
@@ -511,8 +511,8 @@ ETCDIR/slapd.conf
 default slapd configuration file
 .SH SEE ALSO
 .BR slapd.conf (5),
-.BR slapd\-meta (5),
 .BR slapd\-ldap (5),
+.BR slapd\-meta (5),
 .BR slapo\-pcache (5),
 .BR slapd (8),
 .BR regex (7),
