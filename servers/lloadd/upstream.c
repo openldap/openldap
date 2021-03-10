@@ -254,11 +254,13 @@ handle_one_response( LloadConnection *c )
 
         gettimeofday( &tv, NULL );
         if ( !timerisset( &op->o_last_response ) ) {
+            LloadBackend *b = c->c_backend;
+
             timersub( &tv, &op->o_start, &tvdiff );
             diff = 1000000 * tvdiff.tv_sec + tvdiff.tv_usec;
 
-            __atomic_add_fetch( &c->c_operation_count, 1, __ATOMIC_RELAXED );
-            __atomic_add_fetch( &c->c_operation_time, diff, __ATOMIC_RELAXED );
+            __atomic_add_fetch( &b->b_operation_count, 1, __ATOMIC_RELAXED );
+            __atomic_add_fetch( &b->b_operation_time, diff, __ATOMIC_RELAXED );
         }
         op->o_last_response = tv;
 

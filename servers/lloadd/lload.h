@@ -313,6 +313,9 @@ struct LloadBackend {
     uintptr_t b_fitness;
     int b_weight;
 
+    uintptr_t b_operation_count;
+    uintptr_t b_operation_time;
+
 #ifdef BALANCER_MODULE
     monitor_subsys_t *b_monitor;
 #endif /* BALANCER_MODULE */
@@ -475,9 +478,6 @@ struct LloadConnection {
     BerElement *c_pendingber; /* ber we're attempting to write */
 
     TAvlnode *c_ops; /* Operations pending on the connection */
-
-    uintptr_t c_operation_count;
-    uintptr_t c_operation_time;
 
 #ifdef HAVE_TLS
     enum lload_tls_type c_is_tls; /* true if this LDAP over raw TLS */
