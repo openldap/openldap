@@ -590,6 +590,7 @@ extern LDAP_URLLIST_PROC	asyncmeta_back_default_urllist;
 #define	META_MSGID_NEED_BIND	(-2)
 #define	META_MSGID_CONNECTING	(-3)
 #define META_MSGID_UNDEFINED    (-4)
+#define META_MSGID_GOT_BIND     (-5)
 
 typedef enum meta_search_candidate_t {
 	META_SEARCH_UNDEFINED = -2,
