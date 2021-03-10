@@ -1,4 +1,4 @@
-/* pw-argon2.c - Password module for argon2 */
+/* argon2.c - Password module for argon2 */
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
@@ -15,6 +15,7 @@
  */
 
 #include "portable.h"
+#ifdef SLAPD_PWMOD_PW_ARGON2
 #include "ac/string.h"
 #include "lber_pvt.h"
 #include "lutil.h"
@@ -22,7 +23,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#ifdef SLAPD_ARGON2_USE_ARGON2
+#ifdef HAVE_LIBARGON2
 #include <argon2.h>
 
 /*
@@ -35,7 +36,7 @@
 #define SLAPD_ARGON2_SALT_LENGTH 16
 #define SLAPD_ARGON2_HASH_LENGTH 32
 
-#else /* !SLAPD_ARGON2_USE_ARGON2 */
+#else /* !HAVE_LIBARGON2 */
 #include <sodium.h>
 
 /*
@@ -71,7 +72,7 @@ slapd_argon2_hash(
 	char *p;
 	int rc = LUTIL_PASSWD_ERR;
 
-#ifdef SLAPD_ARGON2_USE_ARGON2
+#ifdef HAVE_LIBARGON2
 	struct berval salt;
 	size_t encoded_length;
 
@@ -114,7 +115,7 @@ slapd_argon2_hash(
 	hash->bv_len = scheme->bv_len + encoded_length;
 	ber_memfree( salt.bv_val );
 
-#else /* !SLAPD_ARGON2_USE_ARGON2 */
+#else /* !HAVE_LIBARGON2 */
 	/* Not exposed by libsodium
 	salt_length = SLAPD_ARGON2_SALT_LENGTH;
 	hash_length = SLAPD_ARGON2_HASH_LENGTH;
@@ -153,7 +154,7 @@ slapd_argon2_verify(
 {
 	int rc = LUTIL_PASSWD_ERR;
 
-#ifdef SLAPD_ARGON2_USE_ARGON2
+#ifdef HAVE_LIBARGON2
 	if ( strncmp( passwd->bv_val, "$argon2i$", STRLENOF("$argon2i$") ) == 0 ) {
 		rc = argon2i_verify( passwd->bv_val, cred->bv_val, cred->bv_len );
 	} else if ( strncmp( passwd->bv_val, "$argon2d$", STRLENOF("$argon2d$") ) == 0 ) {
@@ -161,7 +162,7 @@ slapd_argon2_verify(
 	} else if ( strncmp( passwd->bv_val, "$argon2id$", STRLENOF("$argon2id$") ) == 0 ) {
 		rc = argon2id_verify( passwd->bv_val, cred->bv_val, cred->bv_len );
 	}
-#else /* !SLAPD_ARGON2_USE_ARGON2 */
+#else /* !HAVE_LIBARGON2 */
 	rc = crypto_pwhash_str_verify( passwd->bv_val, cred->bv_val, cred->bv_len );
 #endif
 
@@ -175,7 +176,7 @@ int init_module( int argc, char *argv[] )
 {
 	int i;
 
-#ifndef SLAPD_ARGON2_USE_ARGON2
+#ifdef HAVE_LIBSODIUM
 	if ( sodium_init() == -1 ) {
 		return -1;
 	}
@@ -218,3 +219,4 @@ int init_module( int argc, char *argv[] )
 	return lutil_passwd_add( (struct berval *)&slapd_argon2_scheme,
 			slapd_argon2_verify, slapd_argon2_hash );
 }
+#endif /* SLAPD_OVER_PW_ARGON2 */
