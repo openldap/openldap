@@ -57,8 +57,27 @@ bestof_cmp( const void *left, const void *right )
 {
     const LloadBackend *l = left;
     const LloadBackend *r = right;
+    struct timeval now;
+    uintptr_t count, diff;
+    float a = l->b_fitness, b = r->b_fitness, factor = 1;
 
-    return l->b_fitness - r->b_fitness;
+    gettimeofday( &now, NULL );
+    /* We assume this is less than a second after the last update */
+    factor = 1 / ( pow( ( 1 / factor ) + 1, now.tv_usec / 1000000.0 ) - 1 );
+
+    count = __atomic_load_n( &l->b_operation_count, __ATOMIC_RELAXED );
+    diff = __atomic_load_n( &l->b_operation_time, __ATOMIC_RELAXED );
+    if ( count ) {
+        a = ( a * factor + (float)diff * l->b_weight / count ) / ( factor + 1 );
+    }
+
+    count = __atomic_load_n( &r->b_operation_count, __ATOMIC_RELAXED );
+    diff = __atomic_load_n( &r->b_operation_time, __ATOMIC_RELAXED );
+    if ( count ) {
+        b = ( b * factor + (float)diff * r->b_weight / count ) / ( factor + 1 );
+    }
+
+    return (a - b < 0) ? -1 : (a - b == 0) ? 0 : 1;
 }
 
 LloadTier *
