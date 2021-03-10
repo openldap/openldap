@@ -1403,8 +1403,8 @@ asyncmeta_dobind_init(Operation *op, SlapReply *rs, bm_context_t *bc, a_metaconn
 
 	meta_search_candidate_t	retcode;
 
-	Debug( LDAP_DEBUG_TRACE, "%s >>> asyncmeta_dobind_init[%d]\n",
-		op->o_log_prefix, candidate );
+	Debug( LDAP_DEBUG_TRACE, "%s >>> asyncmeta_dobind_init[%d] msc %p\n",
+		op->o_log_prefix, candidate, msc );
 
 	if ( mc->mc_authz_target == META_BOUND_ALL ) {
 		return META_SEARCH_CANDIDATE;
@@ -1573,6 +1573,19 @@ retry_bind:
 		Debug( asyncmeta_debug, "[%s] asyncmeta_dobind_init rc=%d msc: %p\n",
 		      time_buf, rc, msc );
 	}
+	if ( LogTest( LDAP_DEBUG_TRACE )) {
+		ber_socket_t s;
+		char sockname[LUTIL_ADDRLEN];
+		struct berval sockbv = BER_BVC( sockname );
+		Sockaddr addr;
+		socklen_t len = sizeof( addr );
+
+		ldap_get_option( msc->msc_ld, LDAP_OPT_DESC, &s );
+		getsockname( s, &addr.sa_addr, &len );
+		lutil_sockaddrstr( &addr, &sockbv );
+		Debug( LDAP_DEBUG_TRACE, "%s asyncmeta_dobind_init msc %p ld %p ldr %p fd %d addr %s\n",
+			op->o_log_prefix, msc, msc->msc_ld, msc->msc_ldr, s, sockname );
+	}
 
 	if (rc == LDAP_SERVER_DOWN ) {
 		goto down;
@@ -1670,6 +1683,9 @@ asyncmeta_dobind_init_with_retry(Operation *op, SlapReply *rs, bm_context_t *bc,
 	}
 
 	if ( LDAP_BACK_CONN_ISBOUND( msc ) || LDAP_BACK_CONN_ISANON( msc ) ) {
+		if ( mc->pending_ops > 1 ) {
+			asyncmeta_send_all_pending_ops( mc, candidate, op->o_threadctx, 1 );
+		}
 		return META_SEARCH_CANDIDATE;
 	}
 
