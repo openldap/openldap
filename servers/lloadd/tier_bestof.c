@@ -135,21 +135,6 @@ bestof_backend_options( LloadTier *tier, LloadBackend *b, char *arg )
 }
 
 static int
-connection_collect_stats( LloadConnection *c, void *arg )
-{
-    uintptr_t count, diff, *stats = arg;
-
-    count = __atomic_exchange_n(
-            &( c )->c_operation_count, 0, __ATOMIC_RELAXED );
-    diff = __atomic_exchange_n( &( c )->c_operation_time, 0, __ATOMIC_RELAXED );
-
-    stats[0] += count;
-    stats[1] += diff;
-
-    return LDAP_SUCCESS;
-}
-
-static int
 bestof_update( LloadTier *tier )
 {
     LloadBackend *b, *first, *next;
@@ -167,25 +152,26 @@ bestof_update( LloadTier *tier )
 
         steps = now - b->b_last_update;
         if ( b->b_weight && steps > 0 ) {
-            uintptr_t stats[2] = { 0, 0 };
+            uintptr_t count, diff;
             float factor = 1;
 
-            connections_walk(
-                    &b->b_mutex, &b->b_conns, connection_collect_stats, stats );
+            count = __atomic_exchange_n(
+                    &b->b_operation_count, 0, __ATOMIC_RELAXED );
+            diff = __atomic_exchange_n(
+                    &b->b_operation_time, 0, __ATOMIC_RELAXED );
 
             /* Smear values over time - rolling average */
-            if ( stats[0] ) {
-                float fitness = b->b_weight * stats[1];
+            if ( count ) {
+                float fitness = b->b_weight * diff;
 
                 /* Stretch factor accordingly favouring the latest value */
                 if ( steps > 10 ) {
                     factor = 0; /* No recent data */
                 } else if ( steps > 1 ) {
-                    factor =
-                            1 / ( pow( ( 1 / (float)factor ) + 1, steps ) - 1 );
+                    factor = 1 / ( pow( ( 1 / factor ) + 1, steps ) - 1 );
                 }
 
-                b->b_fitness = ( factor * b->b_fitness + fitness / stats[0] ) /
+                b->b_fitness = ( factor * b->b_fitness + fitness / count ) /
                         ( factor + 1 );
                 b->b_last_update = now;
             }
