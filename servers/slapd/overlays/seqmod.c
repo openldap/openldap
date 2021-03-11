@@ -15,6 +15,8 @@
 /* ACKNOWLEDGEMENTS:
  * This work was initially developed by Howard Chu for inclusion in
  * OpenLDAP Software.
+ * This overlay is for demonstration purposes only and should not be
+ * used.
  */
 
 #include "portable.h"
