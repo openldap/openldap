@@ -919,11 +919,11 @@ Connection* connection_next( Connection *c, ber_socket_t *index )
 				ldap_pvt_thread_mutex_unlock( &connections_mutex );
 				ldap_pvt_thread_mutex_lock( &c->c_mutex );
 				ldap_pvt_thread_mutex_lock( &connections_mutex );
-				if ( c->c_struct_state != SLAP_C_USED ) {
-					ldap_pvt_thread_mutex_unlock( &c->c_mutex );
-					c = NULL;
-					continue;
-				}
+			}
+			if ( c->c_struct_state != SLAP_C_USED ) {
+				ldap_pvt_thread_mutex_unlock( &c->c_mutex );
+				c = NULL;
+				continue;
 			}
 			assert( c->c_conn_state != SLAP_C_INVALID );
 			break;
