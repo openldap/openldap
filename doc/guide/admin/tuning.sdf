@@ -86,7 +86,7 @@ Each attribute index can be tuned further by selecting the set of index types to
 
 General rule: don't go overboard with indexes. Unused indexes must be maintained and hence can only slow things down. 
 
-See {{slapd.conf}}(8) and {{slapdindex}}(8) for more information
+See {{slapd.conf}}(5) and {{slapdindex}}(8) for more information
 
 
 H3: Presence indexing
@@ -148,7 +148,8 @@ The default of {{loglevel stats}} (256) is really the best bet. There's a coroll
 this when problems *do* arise, don't try to trace them using syslog. 
 Use the debug flag instead, and capture slapd's stderr output. syslog is too 
 slow for debug tracing, and it's inherently lossy - it will throw away messages when it
-can't keep up.
+can't keep up. See {{slapd.conf}}(5) or {{slapd-config}}(5) for more information on
+how to configure the loglevel.
 
 Contrary to popular belief, {{loglevel 0}} is not ideal for production as you 
 won't be able to track when problems first arise.

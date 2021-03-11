@@ -130,18 +130,17 @@ loop detection is done.
 
 H4: loglevel <level>
 
-This directive specifies the level at which debugging statements
-and operation statistics should be syslogged (currently logged to
+This directive specifies the level at which log statements
+and operation statistics should be sent to syslog (currently logged to
 the {{syslogd}}(8) {{EX:LOG_LOCAL4}} facility). You must have
 configured OpenLDAP {{EX:--enable-debug}} (the default) for this
-to work (except for the two statistics levels, which are always
-enabled). Log levels may be specified as integers or by keyword.
-Multiple log levels may be used and the levels are additive. To display what
-numbers correspond to what kind of debugging, invoke slapd with {{EX:-d?}}
-or consult the table below. The possible values for <integer> are:
+to work, except for the two statistics levels, which are always
+enabled. Log levels may be specified as integers or by keyword.
+Multiple log levels may be used and the levels are additive.
+The possible values for <integer> are:
 
 !block table; colaligns="RL"; align=Center; \
-	title="Table 6.1: Debugging Levels"
+	title="Table 6.1: Logging Levels"
 Level	Keyword		Description
 -1	any		enable all debugging
 0			no debugging
@@ -158,7 +157,7 @@ Level	Keyword		Description
 1024	(0x400 shell)	print communication with shell backends
 2048	(0x800 parse)	print entry parsing debugging
 16384	(0x4000 sync)	syncrepl consumer processing
-32768	(0x8000 none)	only messages that get logged whatever log level is set
+32768	(0x8000 none)	only messages that get logged regardless of configured log level
 !endblock
 
 The desired log level can be input as a single integer that
@@ -177,8 +176,7 @@ are equivalent.
 
 E: loglevel -1
 
-This will cause lots and lots of debugging information to be
-logged.
+This will enable all log levels.
 
 E: loglevel conns filter
 
@@ -194,8 +192,7 @@ differs from setting the log level to 0, when no logging occurs. At least the
 
 E: loglevel stats
 
-Basic stats logging is configured by default. However, if no loglevel is
-defined, no logging occurs (equivalent to a 0 level).
+Basic stats logging is configured by default.
 
 H4: objectclass <{{REF:RFC4512}} Object Class Description>
 
