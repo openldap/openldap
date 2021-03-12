@@ -16,10 +16,10 @@
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh
 
-if test $PPOLICY = ppolicyno; then 
+if test $PPOLICY = ppolicyno; then
 	echo "Password policy overlay not available, test skipped"
 	exit 0
-fi 
+fi
 
 mkdir -p $TESTDIR $DBDIR1
 
@@ -116,6 +116,30 @@ $LDAPSEARCH -e ppolicy -H $URI1 -D "$USER" -w $PASS \
 RC=$?
 if test $RC != 0 ; then
 	echo "ldapsearch failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Changing password to reset pwdChangedTime"
+$LDAPPASSWD -H $URI1 \
+	-w secret -s $PASS \
+	-D "$MANAGERDN" "$USER" >> $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldappasswd failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+$LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
+	$TESTOUT 2>&1 << EOMODS
+dn: $USER
+changetype: modify
+delete: pwdReset
+
+EOMODS
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
 fi
