@@ -1384,6 +1384,7 @@ ldif_back_search( Operation *op, SlapReply *rs )
 	ldap_pvt_thread_rdwr_rlock(&li->li_rdwr);
 	rs->sr_err = search_tree( op, rs );
 	ldap_pvt_thread_rdwr_runlock(&li->li_rdwr);
+	rs->sr_ctrls = NULL;
 	send_ldap_result(op, rs);
 
 	return rs->sr_err;
