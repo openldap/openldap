@@ -928,7 +928,7 @@ void *mdb_env_get_userctx(MDB_env *env);
 typedef void MDB_assert_func(MDB_env *env, const char *msg);
 
 	/** Set or reset the assert() callback of the environment.
-	 * Disabled if liblmdb is buillt with NDEBUG.
+	 * Disabled if liblmdb is built with NDEBUG.
 	 * @note This hack should become obsolete as lmdb's error handling matures.
 	 * @param[in] env An environment handle returned by #mdb_env_create().
 	 * @param[in] func An #MDB_assert_func function, or 0.
