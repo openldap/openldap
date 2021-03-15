@@ -162,7 +162,7 @@ ldap_is_ldaps_url( LDAP_CONST char *url )
 		return 0;
 	}
 
-	return strcmp(scheme, "ldaps") == 0 || strcmp(scheme, "pldaps");
+	return strcmp(scheme, "ldaps") == 0 || strcmp(scheme, "pldaps") == 0;
 }
 
 int
