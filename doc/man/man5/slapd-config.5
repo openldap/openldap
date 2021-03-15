@@ -1866,6 +1866,7 @@ FALSE, meaning the contextCSN is stored in the context entry.
 .B [schemachecking=on|off]
 .B [network\-timeout=<seconds>]
 .B [timeout=<seconds>]
+.B [tcp\-user\-timeout=<milliseconds>]
 .B [bindmethod=simple|sasl]
 .B [binddn=<dn>]
 .B [saslmech=<mech>]
@@ -2003,6 +2004,13 @@ parameter determines how long the consumer will wait for the initial
 Bind request to complete. The defaults for these parameters come
 from 
 .BR ldap.conf (5).
+The
+.B tcp\-user\-timeout
+parameter, if non-zero, corresponds to the
+.B TCP_USER_TIMEOUT
+set on the target connections, overriding the operating system setting.
+Only some systems support the customization of this parameter, it is
+ignored otherwise and system-wide settings are used.
 
 A
 .B bindmethod
