@@ -451,6 +451,11 @@ Instructs
 .BR ldap_result (3)
 to keep the connection open on read error or if Notice of Disconnection is received. In these cases, the connection should be closed by the caller.
 This option is OpenLDAP specific.
+.TP
+.B LDAP_OPT_TCP_USER_TIMEOUT
+Allows to configure TCP_USER_TIMEOUT in milliseconds on the connection, overriding the operating system setting.
+This option is OpenLDAP specific and supported only on Linux 2.6.37 or higher.
+
 .SH SASL OPTIONS
 The SASL options are OpenLDAP specific.
 .TP

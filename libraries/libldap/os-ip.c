@@ -118,7 +118,7 @@ ldap_int_prepare_socket(LDAP *ld, int s, int proto )
 {
 	Debug1(LDAP_DEBUG_TRACE, "ldap_prepare_socket: %d\n", s );
 
-#if defined( SO_KEEPALIVE ) || defined( TCP_NODELAY )
+#if defined( SO_KEEPALIVE ) || defined( TCP_NODELAY ) || defined( TCP_USER_TIMEOUT )
 	if ( proto == LDAP_PROTO_TCP ) {
 		int dummy = 1;
 #ifdef SO_KEEPALIVE
@@ -190,8 +190,25 @@ ldap_int_prepare_socket(LDAP *ld, int s, int proto )
 				s );
 		}
 #endif /* TCP_NODELAY */
+		if ( ld->ld_options.ldo_tcp_user_timeout > 0 )
+		{
+#ifdef TCP_USER_TIMEOUT
+			if ( setsockopt( s, IPPROTO_TCP, TCP_USER_TIMEOUT,
+					(void*) &ld->ld_options.ldo_tcp_user_timeout,
+					sizeof(ld->ld_options.ldo_tcp_user_timeout) ) == AC_SOCKET_ERROR )
+			{
+				Debug1(LDAP_DEBUG_TRACE,
+					"ldap_prepare_socket: "
+					"setsockopt(%d, TCP_USER_TIMEOUT) failed (ignored).\n",
+					s );
+			}
+#else
+			Debug0(LDAP_DEBUG_TRACE, "ldap_prepare_socket: "
+			       "sockopt TCP_USER_TIMEOUT not supported on this system.\n" );
+#endif /* TCP_USER_TIMEOUT */
+		}
 	}
-#endif /* SO_KEEPALIVE || TCP_NODELAY */
+#endif /* SO_KEEPALIVE || TCP_NODELAY || TCP_USER_TIMEOUT */
 
 	return 0;
 }
