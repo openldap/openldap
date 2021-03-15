@@ -402,8 +402,8 @@ OL_ARG_ENABLE(retcode, [AS_HELP_STRING([--enable-retcode], [Return Code testing 
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(rwm, [AS_HELP_STRING([--enable-rwm], [Rewrite/Remap overlay])],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(seqmod, [AS_HELP_STRING([--enable-seqmod], [Sequential Modify overlay])],
-	no, [no yes mod], ol_enable_overlays)
+OL_ARG_ENABLE(seqmod, [AS_HELP_STRING([--enable-seqmod], [Sequential Modify overlay. Should not be used.])],
+	no, [no yes mod])
 OL_ARG_ENABLE(sssvlv, [AS_HELP_STRING([--enable-sssvlv], [ServerSideSort/VLV overlay])],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(syncprov, [AS_HELP_STRING([--enable-syncprov], [Syncrepl Provider overlay])],
