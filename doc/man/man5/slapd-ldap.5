@@ -443,6 +443,14 @@ the
 parameter is ignored otherwise, and system-wide settings are used.
 
 .TP
+.B tcp\-user\-timeout  <milliseconds>
+If non-zero, corresponds to the
+.B TCP_USER_TIMEOUT
+set on the target connections, overriding the operating system setting.
+Only some systems support the customization of this parameter, it is
+ignored otherwise and system-wide settings are used.
+
+.TP
 .B network\-timeout <time>
 Sets the network timeout value after which
 .BR poll (2)/ select (2) 

@@ -418,6 +418,13 @@ retry_lock:;
 
 	slap_client_keepalive(msc->msc_ld, &mt->mt_tls.sb_keepalive);
 
+	if ( mt->mt_tls.sb_tcp_user_timeout > 0 ) {
+		ldap_set_option( msc->msc_ld, LDAP_OPT_TCP_USER_TIMEOUT,
+				&mt->mt_tls.sb_tcp_user_timeout );
+	}
+
+
+
 #ifdef HAVE_TLS
 	{
 		slap_bindconf *sb = NULL;

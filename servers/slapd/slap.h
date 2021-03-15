@@ -1649,6 +1649,7 @@ typedef struct slap_bindconf {
 	struct berval sb_authcId;
 	struct berval sb_authzId;
 	slap_keepalive sb_keepalive;
+	unsigned int sb_tcp_user_timeout;
 #ifdef HAVE_TLS
 	void *sb_tls_ctx;
 	char *sb_tls_cert;
