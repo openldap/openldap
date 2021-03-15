@@ -2022,7 +2022,6 @@ ldap_back_retry( ldapconn_t **lcp, Operation *op, SlapReply *rs, ldap_back_send_
 			if ( rc == 0 && *lcp != NULL ) {
 				/* freeit, because lc_refcnt == 1 */
 				(*lcp)->lc_refcnt = 0;
-				LDAP_BACK_CONN_TAINTED_SET( *lcp );
 				(void)ldap_back_freeconn( li, *lcp, 0 );
 				*lcp = NULL;
 			}

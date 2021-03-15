@@ -590,6 +590,7 @@ extern LDAP_URLLIST_PROC	asyncmeta_back_default_urllist;
 #define	META_MSGID_NEED_BIND	(-2)
 #define	META_MSGID_CONNECTING	(-3)
 #define META_MSGID_UNDEFINED    (-4)
+#define META_MSGID_GOT_BIND     (-5)
 
 typedef enum meta_search_candidate_t {
 	META_SEARCH_UNDEFINED = -2,
@@ -610,8 +611,6 @@ void asyncmeta_drop_bc_from_fconn(bm_context_t *bc);
 
 bm_context_t *
 asyncmeta_find_message(ber_int_t msgid, a_metaconn_t *mc, int candidate);
-
-void asyncmeta_memctx_toggle(void *thrctx);
 
 void* asyncmeta_op_handle_result(void *ctx, void *arg);
 int asyncmeta_back_cleanup( Operation *op, SlapReply *rs, bm_context_t *bm );

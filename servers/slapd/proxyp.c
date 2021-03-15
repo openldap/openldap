@@ -162,6 +162,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from ) {
 			break;
 
 		case 0x21: /* TCPv6 */
+#ifdef LDAP_PF_INET6
 			lutil_sockaddrstr( from, &peerbv );
 			Debug( LDAP_DEBUG_STATS, "proxyp(%ld): via %s\n",
 					(long)sfd, peername );
@@ -169,6 +170,12 @@ proxyp( ber_socket_t sfd, Sockaddr *from ) {
 			memcpy( &from->sa_in6_addr.sin6_addr, ppa.ip6.src_addr,
 					sizeof(ppa.ip6.src_addr) );
 			from->sa_in6_addr.sin6_port = ppa.ip6.src_port;
+#else
+			Debug( LDAP_DEBUG_ANY, "proxyp(%ld): "
+					"IPv6 proxied addresses disabled\n",
+					(long)sfd );
+			return 0;
+#endif
 			break;
 		}
 

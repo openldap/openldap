@@ -335,6 +335,7 @@ asyncmeta_back_search_start(
 	LDAPControl		**ctrls = NULL;
 	BerElement *ber = NULL;
 	ber_int_t	msgid;
+	ber_socket_t s = -1;
 #ifdef SLAPD_META_CLIENT_PR
 	LDAPControl		**save_ctrls = NULL;
 #endif /* SLAPD_META_CLIENT_PR */
@@ -572,7 +573,6 @@ done_pr:;
 
 	if (ber) {
 		struct timeval tv = {0, mt->mt_network_timeout*1000};
-		ber_socket_t s;
 
 		if (!( LDAP_BACK_CONN_ISBOUND( msc )
 		       || LDAP_BACK_CONN_ISANON( msc )) || msc->msc_ld == NULL ) {
@@ -664,7 +664,7 @@ done:;
 	}
 
 doreturn:;
-	Debug( LDAP_DEBUG_TRACE, "%s <<< asyncmeta_back_search_start[%p]=%d\n", op->o_log_prefix, msc, candidates[candidate].sr_msgid );
+	Debug( LDAP_DEBUG_TRACE, "%s <<< asyncmeta_back_search_start[%p] (fd %d)=%d\n", op->o_log_prefix, msc, s, candidates[candidate].sr_msgid );
 	return retcode;
 }
 
@@ -682,6 +682,7 @@ asyncmeta_back_search( Operation *op, SlapReply *rs )
 	a_metaconn_t *mc;
 	int msc_decr = 0;
 	int max_pending_ops = (mi->mi_max_pending_ops == 0) ? META_BACK_CFG_MAX_PENDING_OPS : mi->mi_max_pending_ops;
+	int check_bind = 0;
 
 	rs_assert_ready( rs );
 	rs->sr_flags &= ~REP_ENTRY_MASK; /* paranoia, we can set rs = non-entry */
@@ -836,7 +837,8 @@ retry:
 		case META_SEARCH_NEED_BIND:
 		case META_SEARCH_BINDING:
 			Debug( LDAP_DEBUG_TRACE, "%s asyncmeta_back_search: BINDING "
-			       "cnd=\"%ld\" %p\n", op->o_log_prefix, i , &mc->mc_conns[i]);
+			       "cnd=\"%ld\" mc %p msc %p\n", op->o_log_prefix, i , mc, &mc->mc_conns[i]);
+			check_bind++;
 			ncandidates++;
 			/* Todo add the context to the message queue but do not send the request
 			 the receiver must send this when we are done binding */
@@ -915,6 +917,27 @@ retry:
 		send_ldap_result(op, rs);
 		goto finish;
 	}
+
+	/* If we were processing many targets the result from a pending Bind
+	 * on an earlier target may have arrived while we were sending to a
+	 * later target. See if we can now send our pending request.
+	 */
+	if ( check_bind ) {
+		for ( i = 0; i < mi->mi_ntargets; i++ ) {
+			if ( candidates[ i ].sr_msgid == META_MSGID_GOT_BIND ) {
+				rc = asyncmeta_back_search_start( op, rs, mc, bc, i, NULL, 0, 1 );
+				if ( rc == META_SEARCH_ERR ) {
+					META_CANDIDATE_CLEAR( &candidates[i] );
+					candidates[ i ].sr_msgid = META_MSGID_IGNORE;
+					if ( META_BACK_ONERR_STOP( mi ) ) {
+						asyncmeta_handle_onerr_stop(op,rs,mc,bc,i);
+						goto finish;
+					}
+				}
+			}
+		}
+	}
+
 	ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex);
 	for ( i = 0; i < mi->mi_ntargets; i++ ) {
 		mc->mc_conns[i].msc_active--;
@@ -923,7 +946,6 @@ retry:
 
 	asyncmeta_start_listeners(mc, candidates, bc);
 	bc->bc_active--;
-	asyncmeta_memctx_toggle(thrctx);
 	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex);
 	rs->sr_err = SLAPD_ASYNCOP;
 

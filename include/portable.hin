@@ -84,6 +84,9 @@
 /* define if you have AIX security lib */
 #undef HAVE_AIX_SECURITY
 
+/* Define to 1 if you have the <argon2.h> header file. */
+#undef HAVE_ARGON2_H
+
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -274,6 +277,9 @@
 /* define if your system supports kqueue */
 #undef HAVE_KQUEUE
 
+/* define if you have libargon2 */
+#undef HAVE_LIBARGON2
+
 /* define if you have -levent */
 #undef HAVE_LIBEVENT
 
@@ -300,6 +306,9 @@
 
 /* Define to 1 if you have the `socket' library (-lsocket). */
 #undef HAVE_LIBSOCKET
+
+/* define if you have libsodium */
+#undef HAVE_LIBSODIUM
 
 /* Define to 1 if you have the <libutil.h> header file. */
 #undef HAVE_LIBUTIL_H
@@ -516,6 +525,9 @@
 
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
+
+/* Define to 1 if you have the <sodium.h> header file. */
+#undef HAVE_SODIUM_H
 
 /* if you have spawnlp() */
 #undef HAVE_SPAWNLP
@@ -1013,6 +1025,9 @@
 
 /* define to support PERL backend */
 #undef SLAPD_PERL
+
+/* define for Argon2 Password hashing module */
+#undef SLAPD_PWMOD_PW_ARGON2
 
 /* define to support relay backend */
 #undef SLAPD_RELAY

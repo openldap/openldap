@@ -29,9 +29,11 @@ BACKSQL=${AC_sql-sqlno}
 
 # overlays
 ACCESSLOG=${AC_accesslog-accesslogno}
+ARGON2=${AC_argon2-argon2no}
 AUTOCA=${AC_autoca-autocano}
 CONSTRAINT=${AC_constraint-constraintno}
 DDS=${AC_dds-ddsno}
+DEREF=${AC_deref-derefno}
 DYNLIST=${AC_dynlist-dynlistno}
 MEMBEROF=${AC_memberof-memberofno}
 PROXYCACHE=${AC_pcache-pcacheno}
@@ -70,6 +72,7 @@ case "$SRCDIR" in
 .*)	ABS_SRCDIR="$TESTWD/$SRCDIR" ;;
 *)  ABS_SRCDIR="$SRCDIR" ;;
 esac
+export TESTDIR
 
 DBDIR1A=$TESTDIR/db.1.a
 DBDIR1B=$TESTDIR/db.1.b
@@ -145,6 +148,7 @@ ASYNCMETACONF=$DATADIR/slapd-asyncmeta.conf
 GLUELDAPCONF=$DATADIR/slapd-glue-ldap.conf
 ACICONF=$DATADIR/slapd-aci.conf
 VALSORTCONF=$DATADIR/slapd-valsort.conf
+DEREFCONF=$DATADIR/slapd-deref.conf
 DYNLISTCONF=$DATADIR/slapd-dynlist.conf
 RCONSUMERCONF=$DATADIR/slapd-repl-consumer-remote.conf
 PLSRCONSUMERCONF=$DATADIR/slapd-syncrepl-consumer-persist-ldap.conf
@@ -316,6 +320,7 @@ LDIFTRANSLUCENTCONFIG=$DATADIR/test-translucent-config.ldif
 LDIFTRANSLUCENTADD=$DATADIR/test-translucent-add.ldif
 LDIFTRANSLUCENTMERGED=$DATADIR/test-translucent-merged.ldif
 LDIFMETA=$DATADIR/test-meta.ldif
+LDIFDEREF=$DATADIR/test-deref.ldif
 LDIFVALSORT=$DATADIR/test-valsort.ldif
 SQLADD=$DATADIR/sql-add.ldif
 LDIFUNORDERED=$DATADIR/test-unordered.ldif
@@ -347,6 +352,8 @@ TRANSLUCENTDN="uid=binder,o=translucent"
 TRANSLUCENTPASSWD="bindtest"
 METABASEDN="ou=Meta,$BASEDN"
 METAMANAGERDN="cn=Manager,$METABASEDN"
+DEREFDN="cn=Manager,o=deref"
+DEREFBASEDN="o=deref"
 VALSORTDN="cn=Manager,o=valsort"
 VALSORTBASEDN="o=valsort"
 MONITORDN="cn=Monitor"
@@ -432,6 +439,7 @@ SUBTREERENAMEOUT=$DATADIR/subtree-rename.out
 ACIOUT=$DATADIR/aci.out
 DYNLISTOUT=$DATADIR/dynlist.out
 DDSOUT=$DATADIR/dds.out
+DEREFOUT=$DATADIR/deref.out
 MEMBEROFOUT=$DATADIR/memberof.out
 MEMBEROFREFINTOUT=$DATADIR/memberof-refint.out
 SHTOOL="$SRCDIR/../build/shtool"

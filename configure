@@ -644,6 +644,7 @@ SLAPD_SQL_LIBS
 SLAPD_SQL_LDFLAGS
 SLAPD_GMP_LIBS
 SLAPD_SLP_LIBS
+ARGON2_LIBS
 AUTH_LIBS
 LIBSLAPI
 SLAPI_LIBS
@@ -651,11 +652,10 @@ MODULES_LIBS
 WITH_TLS_TYPE
 TLS_LIBS
 SASL_LIBS
-KRB5_LIBS
-KRB4_LIBS
 MOD_PERL_LDFLAGS
 SLAPD_PERL_LDFLAGS
 PERL_CPPFLAGS
+SLAPD_DYNAMIC_PWMODS
 SLAPD_DYNAMIC_OVERLAYS
 SLAPD_STATIC_OVERLAYS
 SLAPD_DYNAMIC_BACKENDS
@@ -673,6 +673,7 @@ BALANCER_LIBS
 SLAPD_LIBS
 CLIENT_LIBS
 LDAP_LIBS
+BUILD_PW_ARGON2
 BUILD_BALANCER
 BUILD_VALSORT
 BUILD_UNIQUE
@@ -890,6 +891,9 @@ enable_syncprov
 enable_translucent
 enable_unique
 enable_valsort
+enable_pwmodoptions
+enable_argon2
+with_argon2
 enable_balanceroptions
 enable_balancer
 enable_xxliboptions
@@ -1596,6 +1600,9 @@ SLAPD Overlay Options:
   --enable-unique         Attribute Uniqueness overlay no|yes|mod [no]
   --enable-valsort        Value Sorting overlay no|yes|mod [no]
 
+SLAPD Password Module Options:
+  --enable-argon2         Argon2 password hashing module no|yes [no]
+
 LLOADD (Load Balancer Daemon) Options:
   --enable-balancer       enable load balancer no|yes|mod [no]
 
@@ -1619,6 +1626,7 @@ Optional Packages:
                           auto|longlong|long|bignum|gmp [auto]
   --with-odbc             with specific ODBC support
                           iodbc|unixodbc|odbc32|auto [auto]
+  --with-argon2           with argon2 support library auto|libsodum|libargon2 [auto]
   --with-pic[=PKGS]       try to use only PIC/non-PIC objects [default=use
                           both]
   --with-aix-soname=aix|svr4|both
@@ -3807,6 +3815,8 @@ Overlays="accesslog \
 	unique \
 	valsort"
 
+Pwmods="argon2"
+
 # Check whether --enable-xxslapoverlays was given.
 if test "${enable_xxslapoverlays+set}" = set; then :
   enableval=$enable_xxslapoverlays;
@@ -4317,6 +4327,55 @@ fi
 # end --enable-valsort
 
 
+# Check whether --enable-pwmodoptions was given.
+if test "${enable_pwmodoptions+set}" = set; then :
+  enableval=$enable_pwmodoptions;
+fi
+
+# OpenLDAP --enable-argon2
+
+	# Check whether --enable-argon2 was given.
+if test "${enable_argon2+set}" = set; then :
+  enableval=$enable_argon2;
+	ol_arg=invalid
+	for ol_val in no yes ; do
+		if test "$enableval" = "$ol_val" ; then
+			ol_arg="$ol_val"
+		fi
+	done
+	if test "$ol_arg" = "invalid" ; then
+		as_fn_error $? "bad value $enableval for --enable-argon2" "$LINENO" 5
+	fi
+	ol_enable_argon2="$ol_arg"
+
+else
+  	ol_enable_argon2=${ol_enable_pwmodules:-no}
+fi
+
+# end --enable-argon2
+
+# OpenLDAP --with-argon2
+
+# Check whether --with-argon2 was given.
+if test "${with_argon2+set}" = set; then :
+  withval=$with_argon2;
+	ol_arg=invalid
+	for ol_val in auto libsodium libargon2 yes no  ; do
+		if test "$withval" = "$ol_val" ; then
+			ol_arg="$ol_val"
+		fi
+	done
+	if test "$ol_arg" = "invalid" ; then
+		as_fn_error $? "bad value $withval for --with-argon2" "$LINENO" 5
+	fi
+	ol_with_argon2="$ol_arg"
+
+else
+  	ol_with_argon2="auto"
+fi
+# end --with-argon2
+
+
 # Check whether --enable-balanceroptions was given.
 if test "${enable_balanceroptions+set}" = set; then :
   enableval=$enable_balanceroptions;
@@ -4425,7 +4484,7 @@ $as_echo "$as_me: WARNING: slapd disabled, ignoring --enable-$i argument" >&2;}
 		fi
 	done
 
-	for i in $Backends $Overlays; do
+	for i in $Backends $Overlays $Pwmods; do
 		eval "ol_tmp=\$ol_enable_$i"
 		if test $ol_tmp != no ; then
 			{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: slapd disabled, ignoring --enable-$i argument" >&5
@@ -4447,6 +4506,13 @@ else
 			eval "ol_tmp=\$ol_enable_$i"
 			if test -n "$ol_tmp" && test "$ol_tmp" = mod ; then
 				as_fn_error $? "--enable-$i=mod requires --enable-modules" "$LINENO" 5
+			fi
+		done
+
+		for i in $Pwmods; do
+			eval "ol_tmp=\$ol_enable_$i"
+			if test -n "$ol_tmp" && test "$ol_tmp" = yes ; then
+				as_fn_error $? "--enable-$i=yes requires --enable-modules" "$LINENO" 5
 			fi
 		done
 
@@ -4563,8 +4629,12 @@ BUILD_TRANSLUCENT=no
 BUILD_UNIQUE=no
 BUILD_VALSORT=no
 
+BUILD_PW_ARGON2=no
+
 SLAPD_STATIC_OVERLAYS=
 SLAPD_DYNAMIC_OVERLAYS=
+
+SLAPD_DYNAMIC_PWMODS=
 
 SLAPD_MODULES_LDFLAGS=
 SLAPD_MODULES_CPPFLAGS=
@@ -4580,11 +4650,9 @@ SLAPD_SQL_LDFLAGS=
 SLAPD_SQL_LIBS=
 SLAPD_SQL_INCLUDES=
 
-KRB4_LIBS=
-KRB5_LIBS=
 SASL_LIBS=
 TLS_LIBS=
-WITH_TLS_TYPE=
+WITH_TLS_TYPE=no
 MODULES_LIBS=
 SLAPI_LIBS=
 LIBSLAPI=
@@ -25186,6 +25254,156 @@ _ACEOF
 
 fi
 
+ol_link_argon2=no
+if test "$ol_enable_argon2" = "yes" ; then
+	if test $ol_with_argon2 = libargon2 || test $ol_with_argon2 = auto; then
+		for ac_header in argon2.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "argon2.h" "ac_cv_header_argon2_h" "$ac_includes_default"
+if test "x$ac_cv_header_argon2_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_ARGON2_H 1
+_ACEOF
+
+fi
+
+done
+
+		if test $ac_cv_header_argon2_h = yes ; then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for argon2i_hash_encoded in -largon2" >&5
+$as_echo_n "checking for argon2i_hash_encoded in -largon2... " >&6; }
+if ${ac_cv_lib_argon2_argon2i_hash_encoded+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-largon2 -largon2 $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char argon2i_hash_encoded ();
+int
+main ()
+{
+return argon2i_hash_encoded ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_argon2_argon2i_hash_encoded=yes
+else
+  ac_cv_lib_argon2_argon2i_hash_encoded=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_argon2_argon2i_hash_encoded" >&5
+$as_echo "$ac_cv_lib_argon2_argon2i_hash_encoded" >&6; }
+if test "x$ac_cv_lib_argon2_argon2i_hash_encoded" = xyes; then :
+  have_argon2=yes
+else
+  have_argon2=no
+fi
+
+		fi
+		if test "$have_argon2" = "yes" ; then
+			ol_with_argon2=libargon2
+			ol_link_argon2=yes
+
+$as_echo "#define HAVE_LIBARGON2 1" >>confdefs.h
+
+			ARGON2_LIBS="-largon2"
+		fi
+	fi
+	if test $ol_with_argon2 = libsodium || test $ol_with_argon2 = auto; then
+		for ac_header in sodium.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "sodium.h" "ac_cv_header_sodium_h" "$ac_includes_default"
+if test "x$ac_cv_header_sodium_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SODIUM_H 1
+_ACEOF
+
+fi
+
+done
+
+		if test $ac_cv_header_sodium_h = yes ; then
+			{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for crypto_pwhash_str_alg in -lsodium" >&5
+$as_echo_n "checking for crypto_pwhash_str_alg in -lsodium... " >&6; }
+if ${ac_cv_lib_sodium_crypto_pwhash_str_alg+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lsodium -lsodium $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char crypto_pwhash_str_alg ();
+int
+main ()
+{
+return crypto_pwhash_str_alg ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_sodium_crypto_pwhash_str_alg=yes
+else
+  ac_cv_lib_sodium_crypto_pwhash_str_alg=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_sodium_crypto_pwhash_str_alg" >&5
+$as_echo "$ac_cv_lib_sodium_crypto_pwhash_str_alg" >&6; }
+if test "x$ac_cv_lib_sodium_crypto_pwhash_str_alg" = xyes; then :
+  have_argon2=yes
+else
+  have_argon2=no
+fi
+
+		fi
+		if test "$have_argon2" = "yes" ; then
+			ol_with_argon2=libsodium
+			ol_link_argon2=yes
+
+$as_echo "#define HAVE_LIBSODIUM 1" >>confdefs.h
+
+			ARGON2_LIBS="-lsodium"
+		fi
+	fi
+
+	if test "$ol_link_argon2" = no ; then
+		as_fn_error $? "--enable_argon2=$ol_enable_argon2 requires --with-argon2" "$LINENO" 5
+	fi
+
+	BUILD_PW_ARGON2=$ol_enable_argon2
+	if test "$ol_enable_argon2" = "yes" ; then
+		SLAPD_DYNAMIC_PWMODS="$SLAPD_DYNAMIC_PWDMODS argon2.la"
+	fi
+
+cat >>confdefs.h <<_ACEOF
+#define SLAPD_PWMOD_PW_ARGON2 $SLAPD_MOD_DYNAMIC
+_ACEOF
+
+fi
+
 if test "$ol_enable_balancer" != no \
 		-a "$ol_with_threads" != no \
 		-a "$have_libevent" = yes ; then
@@ -25314,6 +25532,7 @@ fi
 
 
 
+
 # Check whether --with-xxinstall was given.
 if test "${with_xxinstall+set}" = set; then :
   withval=$with_xxinstall;
@@ -25321,7 +25540,7 @@ fi
 
 
 
-ac_config_files="$ac_config_files Makefile:build/top.mk:Makefile.in:build/dir.mk doc/Makefile:build/top.mk:doc/Makefile.in:build/dir.mk doc/man/Makefile:build/top.mk:doc/man/Makefile.in:build/dir.mk doc/man/man1/Makefile:build/top.mk:doc/man/man1/Makefile.in:build/man.mk doc/man/man3/Makefile:build/top.mk:doc/man/man3/Makefile.in:build/man.mk doc/man/man5/Makefile:build/top.mk:doc/man/man5/Makefile.in:build/man.mk doc/man/man8/Makefile:build/top.mk:doc/man/man8/Makefile.in:build/man.mk clients/Makefile:build/top.mk:clients/Makefile.in:build/dir.mk clients/tools/Makefile:build/top.mk:clients/tools/Makefile.in:build/rules.mk include/Makefile:build/top.mk:include/Makefile.in libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk servers/Makefile:build/top.mk:servers/Makefile.in:build/dir.mk servers/slapd/Makefile:build/top.mk:servers/slapd/Makefile.in:build/srv.mk servers/slapd/back-dnssrv/Makefile:build/top.mk:servers/slapd/back-dnssrv/Makefile.in:build/mod.mk servers/slapd/back-ldap/Makefile:build/top.mk:servers/slapd/back-ldap/Makefile.in:build/mod.mk servers/slapd/back-ldif/Makefile:build/top.mk:servers/slapd/back-ldif/Makefile.in:build/mod.mk servers/slapd/back-mdb/Makefile:build/top.mk:servers/slapd/back-mdb/Makefile.in:build/mod.mk servers/slapd/back-meta/Makefile:build/top.mk:servers/slapd/back-meta/Makefile.in:build/mod.mk servers/slapd/back-asyncmeta/Makefile:build/top.mk:servers/slapd/back-asyncmeta/Makefile.in:build/mod.mk servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk servers/slapd/back-ndb/Makefile:build/top.mk:servers/slapd/back-ndb/Makefile.in:build/mod.mk servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/back-null/Makefile.in:build/mod.mk servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk servers/lloadd/Makefile:build/top.mk:servers/lloadd/Makefile.in servers/lloadd/Makefile.server:servers/lloadd/Makefile_server.in:build/srv.mk servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk tests/Makefile:build/top.mk:tests/Makefile.in:build/dir.mk tests/run tests/progs/Makefile:build/top.mk:tests/progs/Makefile.in:build/rules.mk"
+ac_config_files="$ac_config_files Makefile:build/top.mk:Makefile.in:build/dir.mk doc/Makefile:build/top.mk:doc/Makefile.in:build/dir.mk doc/man/Makefile:build/top.mk:doc/man/Makefile.in:build/dir.mk doc/man/man1/Makefile:build/top.mk:doc/man/man1/Makefile.in:build/man.mk doc/man/man3/Makefile:build/top.mk:doc/man/man3/Makefile.in:build/man.mk doc/man/man5/Makefile:build/top.mk:doc/man/man5/Makefile.in:build/man.mk doc/man/man8/Makefile:build/top.mk:doc/man/man8/Makefile.in:build/man.mk clients/Makefile:build/top.mk:clients/Makefile.in:build/dir.mk clients/tools/Makefile:build/top.mk:clients/tools/Makefile.in:build/rules.mk include/Makefile:build/top.mk:include/Makefile.in libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/liblber/lber.pc libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/libldap/ldap.pc libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk servers/Makefile:build/top.mk:servers/Makefile.in:build/dir.mk servers/slapd/Makefile:build/top.mk:servers/slapd/Makefile.in:build/srv.mk servers/slapd/back-dnssrv/Makefile:build/top.mk:servers/slapd/back-dnssrv/Makefile.in:build/mod.mk servers/slapd/back-ldap/Makefile:build/top.mk:servers/slapd/back-ldap/Makefile.in:build/mod.mk servers/slapd/back-ldif/Makefile:build/top.mk:servers/slapd/back-ldif/Makefile.in:build/mod.mk servers/slapd/back-mdb/Makefile:build/top.mk:servers/slapd/back-mdb/Makefile.in:build/mod.mk servers/slapd/back-meta/Makefile:build/top.mk:servers/slapd/back-meta/Makefile.in:build/mod.mk servers/slapd/back-asyncmeta/Makefile:build/top.mk:servers/slapd/back-asyncmeta/Makefile.in:build/mod.mk servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk servers/slapd/back-ndb/Makefile:build/top.mk:servers/slapd/back-ndb/Makefile.in:build/mod.mk servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/back-null/Makefile.in:build/mod.mk servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk servers/slapd/pwmods/Makefile:build/top.mk:servers/slapd/pwmods/Makefile.in:build/lib.mk servers/lloadd/Makefile:build/top.mk:servers/lloadd/Makefile.in servers/lloadd/Makefile.server:servers/lloadd/Makefile_server.in:build/srv.mk servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk tests/Makefile:build/top.mk:tests/Makefile.in:build/dir.mk tests/run tests/progs/Makefile:build/top.mk:tests/progs/Makefile.in:build/rules.mk"
 
 
 ac_config_commands="$ac_config_commands default"
@@ -26246,7 +26465,9 @@ do
     "include/Makefile") CONFIG_FILES="$CONFIG_FILES include/Makefile:build/top.mk:include/Makefile.in" ;;
     "libraries/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk" ;;
     "libraries/liblber/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk" ;;
+    "libraries/liblber/lber.pc") CONFIG_FILES="$CONFIG_FILES libraries/liblber/lber.pc" ;;
     "libraries/libldap/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk" ;;
+    "libraries/libldap/ldap.pc") CONFIG_FILES="$CONFIG_FILES libraries/libldap/ldap.pc" ;;
     "libraries/liblunicode/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk" ;;
     "libraries/liblutil/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk" ;;
     "libraries/librewrite/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk" ;;
@@ -26269,6 +26490,7 @@ do
     "servers/slapd/back-wt/Makefile") CONFIG_FILES="$CONFIG_FILES servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk" ;;
     "servers/slapd/slapi/Makefile") CONFIG_FILES="$CONFIG_FILES servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk" ;;
     "servers/slapd/overlays/Makefile") CONFIG_FILES="$CONFIG_FILES servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk" ;;
+    "servers/slapd/pwmods/Makefile") CONFIG_FILES="$CONFIG_FILES servers/slapd/pwmods/Makefile:build/top.mk:servers/slapd/pwmods/Makefile.in:build/lib.mk" ;;
     "servers/lloadd/Makefile") CONFIG_FILES="$CONFIG_FILES servers/lloadd/Makefile:build/top.mk:servers/lloadd/Makefile.in" ;;
     "servers/lloadd/Makefile.server") CONFIG_FILES="$CONFIG_FILES servers/lloadd/Makefile.server:servers/lloadd/Makefile_server.in:build/srv.mk" ;;
     "servers/lloadd/Makefile.module") CONFIG_FILES="$CONFIG_FILES servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk" ;;

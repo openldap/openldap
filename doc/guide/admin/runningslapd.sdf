@@ -132,9 +132,8 @@ Level	Keyword		Description
 
 You may enable multiple levels by specifying the debug option once for each desired level.  Or, since debugging levels are additive, you can do the math yourself. That is, if you want to trace function calls and watch the config file being processed, you could set level to the sum of those two levels (in this case, {{EX: -d 65}}).  Or, you can let slapd do the math, (e.g. {{EX: -d 1 -d 64}}).  Consult {{F: <ldap_log.h>}} for more details.
 
-Note: slapd must have been compiled with {{EX:--enable-debug}}
-defined for any debugging information beyond the two stats levels
-to be available (the default).
+Note: slapd must have been compiled with {{EX:--enable-debug}}, which is the default,
+for any debugging information other than the stats and stats2 levels to be available as options.
 
 
 H2: Starting slapd

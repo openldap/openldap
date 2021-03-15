@@ -18,6 +18,7 @@ daemon.  This configuration information is also used by the SLAPD tools
 .BR slapcat (8),
 .BR slapdn (8),
 .BR slapindex (8),
+.BR slapmodify (8),
 and
 .BR slaptest (8).
 .LP
@@ -251,7 +252,7 @@ or a set of identities; it can take five forms:
 .B dn[.<dnstyle>]:<pattern>
 .RE
 .RS
-.B u[<mech>[<realm>]]:<pattern>
+.B u[.<mech>[<realm>]]:<pattern>
 .RE
 .RS
 .B group[/objectClass[/attributeType]]:<pattern>
@@ -276,6 +277,8 @@ portions must be absent, so that the search occurs locally on either
 .I authzFrom
 or 
 .IR authzTo .
+
+.LP
 The second form is a 
 .BR DN ,
 with the optional style modifiers
@@ -298,6 +301,8 @@ and/or
 A pattern of
 .I *
 means any non-anonymous DN.
+
+.LP
 The third form is a SASL
 .BR id ,
 with the optional fields
@@ -311,25 +316,42 @@ and eventually a SASL
 for those mechanisms that support one.
 The need to allow the specification of a mechanism is still debated, 
 and users are strongly discouraged to rely on this possibility.
-The fourth form is a group specification, consisting of the keyword
+
+.LP
+The fourth form is a group specification.
+It consists of the keyword
 .BR group ,
 optionally followed by the specification of the group
 .B objectClass
-and member
+and
 .BR attributeType .
+The
+.B objectClass
+defaults to
+.IR groupOfNames .
+The
+.B attributeType
+defaults to
+.IR member .
 The group with DN
 .B <pattern>
-is searched with base scope, and in case of match, the values of the
-member
+is searched with base scope, filtered on the specified
+.BR objectClass .
+The values of the resulting
 .B attributeType
 are searched for the asserted DN.
-For backwards compatibility, if no identity type is provided, i.e. only
+
+.LP
+The fifth form is provided for backwards compatibility.  If no identity
+type is provided, i.e. only
 .B <pattern>
 is present, an
 .I exact DN
 is assumed; as a consequence, 
 .B <pattern>
 is subjected to DN normalization.
+
+.LP
 Since the interpretation of
 .I authzFrom
 and
@@ -339,7 +361,8 @@ to explicitly set the type of identity specification that is being used.
 A subset of these rules can be used as third arg in the 
 .B olcAuthzRegexp
 statement (see below); significantly, the 
-.I URI
+.IR URI ,
+provided it results in exactly one entry,
 and the
 .I dn.exact:<dn> 
 forms.
@@ -347,8 +370,10 @@ forms.
 .TP
 .B olcAuthzRegexp: <match> <replace>
 Used by the authentication framework to convert simple user names,
-such as provided by SASL subsystem, to an LDAP DN used for
-authorization purposes.  Note that the resultant DN need not refer
+such as provided by SASL subsystem, or extracted from certificates
+in case of cert-based SASL EXTERNAL, or provided within the RFC 4370
+"proxied authorization" control, to an LDAP DN used for
+authorization purposes.  Note that the resulting DN need not refer
 to an existing entry to be considered valid.  When an authorization
 request is received from the SASL subsystem, the SASL 
 .BR USERNAME ,
@@ -594,11 +619,11 @@ access control list processing
 .TP
 .B 256
 .B (0x100 stats)
-stats log connections/operations/results
+connections, LDAP operations, results (recommended)
 .TP
 .B 512
 .B (0x200 stats2)
-stats log entries sent
+stats2 log entries sent
 .TP
 .B 1024
 .B (0x400 shell)
@@ -789,7 +814,7 @@ property specifies the maximum security layer receive buffer
 size allowed.  0 disables security layers.  The default is 65536.
 .TP
 .B olcServerID: <integer> [<URL>]
-Specify an integer ID from 0 to 4095 for this server.  The ID may also be
+Specify an integer ID from 0 to 4095 for this server. The ID may also be
 specified as a hexadecimal ID by prefixing the value with "0x".
 Non-zero IDs are required when using multi-provider replication and each
 provider must have a unique non-zero ID. Note that this requirement also
@@ -852,8 +877,8 @@ you can specify.
 .TP
 .B olcTLSCipherSuite: <cipher-suite-spec>
 Permits configuring what ciphers will be accepted and the preference order.
-<cipher-suite-spec> should be a cipher specification for
-the TLS library in use (OpenSSL or GnuTLS).
+<cipher-suite-spec> should be a cipher specification for the TLS library
+in use (OpenSSL or GnuTLS).
 Example:
 .RS
 .RS
@@ -889,7 +914,12 @@ In older versions of GnuTLS, where gnutls\-cli does not support the option
 Specifies the file that contains certificates for all of the Certificate
 Authorities that
 .B slapd
-will recognize.
+will recognize.  The certificate for
+the CA that signed the server certificate must be included among
+these certificates. If the signing CA was not a top-level (root) CA,
+certificates for the entire sequence of CA's from the signing CA to
+the top-level CA should be present. Multiple certificates are simply
+appended to the file; the order is not significant.
 .TP
 .B olcTLSCACertificatePath: <path>
 Specifies the path of a directory that contains Certificate Authority
@@ -1011,8 +1041,8 @@ Check the CRL for a whole certificate chain
 .TP
 .B olcTLSCRLFile: <filename>
 Specifies a file containing a Certificate Revocation List to be used
-for verifying that certificates have not been revoked. This parameter
-is only valid when using GnuTLS.
+for verifying that certificates have not been revoked. This parameter is
+only valid when using GnuTLS.
 .SH DYNAMIC MODULE OPTIONS
 If
 .B slapd
@@ -1093,6 +1123,37 @@ description.)
 
 .HP
 .hy 0
+.B olcLdapSyntaxes "(\ <oid>\
+ [DESC\ <description>]\
+ [X\-SUBST <substitute-syntax>]\ )"
+.RS
+Specify an LDAP syntax using the LDAPv3 syntax defined in RFC 4512.
+The slapd parser extends the RFC 4512 definition by allowing string
+forms as well as numeric OIDs to be used for the syntax OID.
+(See the
+.B objectidentifier
+description.)
+The slapd parser also honors the
+.B X\-SUBST
+extension (an OpenLDAP-specific extension), which allows one to use the
+.B olcLdapSyntaxes
+attribute to define a non-implemented syntax along with another syntax,
+the extension value
+.IR substitute-syntax ,
+as its temporary replacement.
+The
+.I substitute-syntax
+must be defined.
+This allows one to define attribute types that make use of non-implemented syntaxes
+using the correct syntax OID.
+Unless
+.B X\-SUBST
+is used, this configuration statement would result in an error,
+since no handlers would be associated to the resulting syntax structure.
+.RE
+
+.HP
+.hy 0
 .B olcObjectClasses: "(\ <oid>\
  [NAME\ <name>]\
  [DESC\ <description>]\
@@ -1119,12 +1180,13 @@ value "oid.xx" will be used.
 .SH GENERAL BACKEND OPTIONS
 Options in these entries only apply to the configuration of a single
 type of backend. All backends may support this class of options, but
-currently none do.
+currently only back-mdb does.
 The entry must be named
 .B olcBackend=<databasetype>,cn=config
 and must have the olcBackendConfig objectClass.
 <databasetype>
 should be one of
+.BR asyncmeta ,
 .BR config ,
 .BR dnssrv ,
 .BR ldap ,
@@ -1137,11 +1199,12 @@ should be one of
 .BR passwd ,
 .BR perl ,
 .BR relay ,
-.BR shell ,
+.BR sock ,
+.BR sql ,
 or
-.BR sql .
-At present, no backend implements any options of this type, so this
-entry should not be used.
+.BR wt .
+At present, only back-mdb implements any options of this type, so this
+entry should not be used for any other backends.
 
 .SH DATABASE OPTIONS
 Database options are set in entries named
@@ -1348,7 +1411,7 @@ to specify no limits.
 The second format allows a fine grain setting of the size limits.
 If no special qualifiers are specified, both soft and hard limits are set.
 Extra args can be added in the same value.
-Additional qualifiers are available. See
+Additional qualifiers are available; see
 .BR olcLimits
 for an explanation of all of the different flags.
 .TP
@@ -1573,7 +1636,7 @@ If it is set to the keyword
 .IR unlimited , 
 no limit is applied (the default).
 If it is set to
-.IR disable ,
+.IR disabled ,
 the search is not even performed; this can be used to disallow searches
 for a specific set of users.
 If no limit specifier is set, the value is assigned to the
@@ -1657,11 +1720,17 @@ resolve an entry, used to avoid infinite alias loops. The default is 15.
 .B olcMultiProvider: TRUE | FALSE
 This option puts a consumer database into Multi-Provider mode.  Update
 operations will be accepted from any user, not just the updatedn.  The
-database must already be configured as syncrepl consumer
-before this keyword may be set.  This mode also requires a
+database must already be configured as a syncrepl consumer
+before this keyword may be set. This mode also requires a
 .B olcServerID
 (see above) to be configured.
 By default, this setting is FALSE.
+.B olcMonitoring: TRUE | FALSE
+This option enables database-specific monitoring in the entry related
+to the current database in the "cn=Databases,cn=Monitor" subtree
+of the monitor database, if the monitor database is enabled.
+Currently, only the MDB database provides database-specific monitoring.
+The default depends on the backend type.
 .TP
 .B olcPlugin: <plugin_type> <lib_path> <init_function> [<arguments>]
 Configure a SLAPI plugin. See the
@@ -1678,7 +1747,8 @@ when initially populating a database).  If the rootdn is within
 a namingContext (suffix) of the database, a simple bind password
 may also be provided using the
 .B olcRootPW
-directive. Note that the rootdn is always needed when using syncrepl.
+directive. Many optional features, including syncrepl, require the
+rootdn to be defined for the database.
 The
 .B olcRootDN
 of the
@@ -1720,6 +1790,7 @@ database context, so that only the superior context is visible.
 If the slap tools
 .BR slapcat (8),
 .BR slapadd (8),
+.BR slapmodify (8),
 or
 .BR slapindex (8)
 are used on the superior database, any glued subordinates that support
@@ -1832,7 +1903,8 @@ replication engine.
 identifies the current
 .B syncrepl
 directive within the replication consumer site.
-It is a non-negative integer having no more than three decimal digits.
+It is a non-negative integer not greater than 999 (limited
+to three decimal digits).
 
 .B provider
 specifies the replication provider site containing the provider content
@@ -1847,7 +1919,7 @@ specification as its result set. The consumer
 will send search requests to the provider
 .B slapd
 according to the search specification. The search specification includes
-.B searchbase, scope, filter, attrs, attrsonly, sizelimit,
+.BR searchbase ", " scope ", " filter ", " attrs ", " attrsonly ", " sizelimit ", "
 and
 .B timelimit
 parameters as in the normal search specification. The
@@ -1860,6 +1932,11 @@ The \fBscope\fP defaults to \fBsub\fP, the \fBfilter\fP defaults to
 attributes, and \fBattrsonly\fP and \fBexattrs\fP are unset by default.
 The \fBsizelimit\fP and \fBtimelimit\fP only
 accept "unlimited" and positive integers, and both default to "unlimited".
+The \fBsizelimit\fP and \fBtimelimit\fP parameters define
+a consumer requested limitation on the number of entries that can be returned
+by the LDAP Content Synchronization operation; as such, it is intended
+to implement partial replication based on the size of the replicated database
+and on the time required by the synchronization.
 Note, however, that any provider-side limits for the replication identity
 will be enforced by the provider regardless of the limits requested
 by the LDAP Content Synchronization operation, much like for any other
@@ -1893,11 +1970,20 @@ For example, retry="60 10 300 3" lets the consumer retry every 60 seconds
 for the first 10 times and then retry every 300 seconds for the next 3
 times before stop retrying. The `+' in <# of retries> means indefinite
 number of retries until success.
+If no
+.B retry
+is specified, by default syncrepl retries every hour forever.
 
 The schema checking can be enforced at the LDAP Sync
 consumer site by turning on the
 .B schemachecking
-parameter. The default is off.
+parameter. The default is \fBoff\fP.
+Schema checking \fBon\fP means that replicated entries must have
+a structural objectClass, must obey to objectClass requirements
+in terms of required/allowed attributes, and that naming attributes
+and distinguished values must be present.
+As a consequence, schema checking should be \fBoff\fP when partial
+replication is used.
 
 The
 .B network\-timeout
@@ -1920,6 +2006,7 @@ and
 .B credentials
 and should only be used when adequate security services
 (e.g. TLS or IPSEC) are in place.
+.B REMEMBER: simple bind credentials must be in cleartext!
 A
 .B bindmethod
 of
@@ -1941,10 +2028,16 @@ keyword above) for a SASL bind can be set with the
 option. A non default SASL realm can be set with the
 .B realm 
 option.
-The provider, other than allow authentication of the syncrepl identity,
-should grant that identity appropriate access privileges to the data 
-that is being replicated (\fBaccess\fP directive), and appropriate time 
-and size limits (\fBlimits\fP directive).
+The identity used for synchronization by the consumer should be allowed
+to receive an unlimited number of entries in response to a search request.
+The provider, other than allowing authentication of the syncrepl identity,
+should grant that identity appropriate access privileges to the data
+that is being replicated (\fBaccess\fP directive), and appropriate time
+and size limits.
+This can be accomplished by either allowing unlimited \fBsizelimit\fP
+and \fBtimelimit\fP, or by setting an appropriate \fBlimits\fP statement
+in the consumer's configuration (see \fBsizelimit\fP and \fBlimits\fP
+for details).
 
 The
 .B keepalive
@@ -1973,8 +2066,8 @@ fails. Otherwise the syncrepl session continues without TLS. The
 .B tls_reqcert
 setting defaults to "demand", the
 .B tls_reqsan
-setting defaults to "allow", and the other TLS settings default to the same
-as the main slapd TLS settings.
+setting defaults to "allow", and the other TLS settings
+default to the same as the main slapd TLS settings.
 
 The
 .B suffixmassage
@@ -2155,6 +2248,7 @@ default slapd configuration directory
 .BR slapcat (8),
 .BR slapdn (8),
 .BR slapindex (8),
+.BR slapmodify (8),
 .BR slappasswd (8),
 .BR slaptest (8).
 .LP

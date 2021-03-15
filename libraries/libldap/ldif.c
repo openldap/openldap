@@ -432,9 +432,6 @@ ldif_must_b64_encode( LDAP_CONST char *s )
 	return 0;
 }
 
-/* compatibility with U-Mich off by two bug */
-#define LDIF_KLUDGE 2
-
 /* NOTE: only preserved for binary compatibility */
 void
 ldif_sput(
@@ -444,7 +441,7 @@ ldif_sput(
 	LDAP_CONST char *val,
 	ber_len_t vlen )
 {
-	ldif_sput_wrap( out, type, name, val, vlen, LDIF_LINE_WIDTH+LDIF_KLUDGE );
+	ldif_sput_wrap( out, type, name, val, vlen, 0 );
 }
 
 void
@@ -468,7 +465,7 @@ ldif_sput_wrap(
 	ber_len_t i;
 
 	if ( !wrap )
-		wrap = LDIF_LINE_WIDTH+LDIF_KLUDGE;
+		wrap = LDIF_LINE_WIDTH;
 
 	/* prefix */
 	switch( type ) {
@@ -664,7 +661,7 @@ ldif_put(
 	LDAP_CONST char *val,
 	ber_len_t vlen )
 {
-	return ldif_put_wrap( type, name, val, vlen, LDIF_LINE_WIDTH );
+	return ldif_put_wrap( type, name, val, vlen, 0 );
 }
 
 char *

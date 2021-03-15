@@ -642,7 +642,9 @@ asyncmeta_send_all_pending_ops(a_metaconn_t *mc, int candidate, void *ctx, int d
 	for (bc = LDAP_STAILQ_FIRST(&mc->mc_om_list); bc; bc = onext) {
 		meta_search_candidate_t ret;
 		onext = LDAP_STAILQ_NEXT(bc, bc_next);
-		if (bc->candidates[candidate].sr_msgid != META_MSGID_NEED_BIND || bc->bc_active > 0 || bc->op->o_abandon > 0) {
+		if (bc->candidates[candidate].sr_msgid == META_MSGID_NEED_BIND)
+			bc->candidates[candidate].sr_msgid = META_MSGID_GOT_BIND;
+		if (bc->candidates[candidate].sr_msgid != META_MSGID_GOT_BIND || bc->bc_active > 0 || bc->op->o_abandon > 0) {
 			continue;
 		}
 		bc->op->o_threadctx = ctx;
@@ -1380,6 +1382,7 @@ asyncmeta_op_read_error(a_metaconn_t *mc, int candidate, int error, void* ctx)
 	Operation *op;
 	SlapReply *rs;
 	SlapReply *candidates;
+
 	/* no outstanding ops, nothing to do but log */
 	Debug( LDAP_DEBUG_TRACE,
 	       "asyncmeta_op_read_error: ldr=%p, err=%d\n",
@@ -1412,6 +1415,7 @@ asyncmeta_op_read_error(a_metaconn_t *mc, int candidate, int error, void* ctx)
 		}
 
 		if (bc->bc_active > 0) {
+			bc->bc_invalid = 1;
 			continue;
 		}
 
@@ -1619,22 +1623,21 @@ retry_bc:
 
 	ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
 	rc = --mc->mc_active;
-	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
 	if (rc) {
 		i++;
+		ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
 		goto again;
 	}
 	slap_sl_mem_setctx(ctx, oldctx);
 	if (mc->mc_conns) {
-		ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
 		for (i=0; i<ntargets; i++) {
 			if (!slapd_shutdown && !META_BACK_CONN_INVALID(msc)
 			    && mc->mc_conns[i].msc_ldr && mc->mc_conns[i].conn) {
 				connection_client_enable(mc->mc_conns[i].conn);
 			}
 		}
-		ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
 	}
+	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
 	return NULL;
 }
 

@@ -20,3 +20,11 @@ SUBDIRS= \
 	libldap \
 	librewrite
 
+PKGCONFIG_DIR=$(DESTDIR)$(libdir)/pkgconfig
+PKGCONFIG_SRCDIRS=liblber libldap
+
+install-local:
+	@$(MKDIR) $(PKGCONFIG_DIR)
+	@for i in $(PKGCONFIG_SRCDIRS); do \
+	    $(INSTALL_DATA) $$i/*.pc $(PKGCONFIG_DIR); \
+	done

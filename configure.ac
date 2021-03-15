@@ -360,6 +360,8 @@ Overlays="accesslog \
 	unique \
 	valsort"
 
+Pwmods="argon2"
+
 AC_ARG_ENABLE(xxslapoverlays,[
 SLAPD Overlay Options:])
 
@@ -411,6 +413,16 @@ OL_ARG_ENABLE(valsort, [AS_HELP_STRING([--enable-valsort], [Value Sorting overla
 	no, [no yes mod], ol_enable_overlays)
 
 dnl ----------------------------------------------------------------
+dnl PASSWORD MODULE OPTIONS
+AC_ARG_ENABLE(pwmodoptions,[
+SLAPD Password Module Options:])
+OL_ARG_ENABLE(argon2, [AS_HELP_STRING([--enable-argon2], [Argon2 password hashing module])],
+	no, [no yes], ol_enable_pwmodules)
+OL_ARG_WITH(argon2,
+	[AS_HELP_STRING([--with-argon2], [with argon2 support library auto|libsodum|libargon2])],
+	auto, [auto libsodium libargon2 yes no] )
+
+dnl ----------------------------------------------------------------
 dnl BALANCER OPTIONS
 AC_ARG_ENABLE(balanceroptions,[
 LLOADD (Load Balancer Daemon) Options:])
@@ -439,7 +451,7 @@ if test $ol_enable_slapd = no ; then
 		fi
 	done
 
-	for i in $Backends $Overlays; do
+	for i in $Backends $Overlays $Pwmods; do
 		eval "ol_tmp=\$ol_enable_$i"
 		if test $ol_tmp != no ; then
 			AC_MSG_WARN([slapd disabled, ignoring --enable-$i argument])
@@ -461,6 +473,13 @@ else
 			eval "ol_tmp=\$ol_enable_$i"
 			if test -n "$ol_tmp" && test "$ol_tmp" = mod ; then
 				AC_MSG_ERROR([--enable-$i=mod requires --enable-modules])
+			fi
+		done
+
+		for i in $Pwmods; do
+			eval "ol_tmp=\$ol_enable_$i"
+			if test -n "$ol_tmp" && test "$ol_tmp" = yes ; then
+				AC_MSG_ERROR([--enable-$i=yes requires --enable-modules])
 			fi
 		done
 
@@ -579,8 +598,12 @@ BUILD_TRANSLUCENT=no
 BUILD_UNIQUE=no
 BUILD_VALSORT=no
 
+BUILD_PW_ARGON2=no
+
 SLAPD_STATIC_OVERLAYS=
 SLAPD_DYNAMIC_OVERLAYS=
+
+SLAPD_DYNAMIC_PWMODS=
 
 SLAPD_MODULES_LDFLAGS=
 SLAPD_MODULES_CPPFLAGS=
@@ -596,11 +619,9 @@ SLAPD_SQL_LDFLAGS=
 SLAPD_SQL_LIBS=
 SLAPD_SQL_INCLUDES=
 
-KRB4_LIBS=
-KRB5_LIBS=
 SASL_LIBS=
 TLS_LIBS=
-WITH_TLS_TYPE=
+WITH_TLS_TYPE=no
 MODULES_LIBS=
 SLAPI_LIBS=
 LIBSLAPI=
@@ -2954,6 +2975,50 @@ if test "$ol_enable_valsort" != no ; then
 	AC_DEFINE_UNQUOTED(SLAPD_OVER_VALSORT,$MFLAG,[define for Value Sorting overlay])
 fi
 
+ol_link_argon2=no
+if test "$ol_enable_argon2" = "yes" ; then
+	if test $ol_with_argon2 = libargon2 || test $ol_with_argon2 = auto; then
+		AC_CHECK_HEADERS(argon2.h)
+		if test $ac_cv_header_argon2_h = yes ; then
+			AC_CHECK_LIB(argon2, argon2i_hash_encoded,
+				[have_argon2=yes], [have_argon2=no],
+				[-largon2])
+		fi
+		if test "$have_argon2" = "yes" ; then
+			ol_with_argon2=libargon2
+			ol_link_argon2=yes
+			AC_DEFINE(HAVE_LIBARGON2, 1,
+				[define if you have libargon2])
+			ARGON2_LIBS="-largon2"
+		fi
+	fi
+	if test $ol_with_argon2 = libsodium || test $ol_with_argon2 = auto; then
+		AC_CHECK_HEADERS(sodium.h)
+		if test $ac_cv_header_sodium_h = yes ; then
+			AC_CHECK_LIB(sodium, crypto_pwhash_str_alg,
+				[have_argon2=yes], [have_argon2=no],
+				[-lsodium])
+		fi
+		if test "$have_argon2" = "yes" ; then
+			ol_with_argon2=libsodium
+			ol_link_argon2=yes
+			AC_DEFINE(HAVE_LIBSODIUM, 1,
+				[define if you have libsodium])
+			ARGON2_LIBS="-lsodium"
+		fi
+	fi
+
+	if test "$ol_link_argon2" = no ; then
+		AC_MSG_ERROR([--enable_argon2=$ol_enable_argon2 requires --with-argon2])
+	fi
+
+	BUILD_PW_ARGON2=$ol_enable_argon2
+	if test "$ol_enable_argon2" = "yes" ; then
+		SLAPD_DYNAMIC_PWMODS="$SLAPD_DYNAMIC_PWDMODS argon2.la"
+	fi
+	AC_DEFINE_UNQUOTED(SLAPD_PWMOD_PW_ARGON2,$SLAPD_MOD_DYNAMIC,[define for Argon2 Password hashing module])
+fi
+
 if test "$ol_enable_balancer" != no \
 		-a "$ol_with_threads" != no \
 		-a "$have_libevent" = yes ; then
@@ -3040,6 +3105,8 @@ dnl overlays
   AC_SUBST(BUILD_UNIQUE)
   AC_SUBST(BUILD_VALSORT)
   AC_SUBST(BUILD_BALANCER)
+dnl pwmods
+  AC_SUBST(BUILD_PW_ARGON2)
 
 AC_SUBST(LDAP_LIBS)
 AC_SUBST(CLIENT_LIBS)
@@ -3060,13 +3127,12 @@ AC_SUBST(SLAPD_STATIC_BACKENDS)
 AC_SUBST(SLAPD_DYNAMIC_BACKENDS)
 AC_SUBST(SLAPD_STATIC_OVERLAYS)
 AC_SUBST(SLAPD_DYNAMIC_OVERLAYS)
+AC_SUBST(SLAPD_DYNAMIC_PWMODS)
 
 AC_SUBST(PERL_CPPFLAGS)
 AC_SUBST(SLAPD_PERL_LDFLAGS)
 AC_SUBST(MOD_PERL_LDFLAGS)
 
-AC_SUBST(KRB4_LIBS)
-AC_SUBST(KRB5_LIBS)
 AC_SUBST(SASL_LIBS)
 AC_SUBST(TLS_LIBS)
 AC_SUBST(WITH_TLS_TYPE)
@@ -3074,6 +3140,7 @@ AC_SUBST(MODULES_LIBS)
 AC_SUBST(SLAPI_LIBS)
 AC_SUBST(LIBSLAPI)
 AC_SUBST(AUTH_LIBS)
+AC_SUBST(ARGON2_LIBS)
 
 AC_SUBST(SLAPD_SLP_LIBS)
 AC_SUBST(SLAPD_GMP_LIBS)
@@ -3108,7 +3175,9 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [include/Makefile:build/top.mk:include/Makefile.in]
 [libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk]
 [libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk]
+[libraries/liblber/lber.pc]
 [libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk]
+[libraries/libldap/ldap.pc]
 [libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk]
@@ -3131,6 +3200,7 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk]
 [servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk]
+[servers/slapd/pwmods/Makefile:build/top.mk:servers/slapd/pwmods/Makefile.in:build/lib.mk]
 [servers/lloadd/Makefile:build/top.mk:servers/lloadd/Makefile.in]
 [servers/lloadd/Makefile.server:servers/lloadd/Makefile_server.in:build/srv.mk]
 [servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk]

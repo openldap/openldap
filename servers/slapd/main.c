@@ -310,7 +310,9 @@ usage( char *name )
 		"usage: %s options\n", name );
 	fprintf( stderr,
 		"\t-4\t\tIPv4 only\n"
+#ifdef LDAP_PF_INET6
 		"\t-6\t\tIPv6 only\n"
+#endif
 		"\t-T {acl|add|auth|cat|dn|index|modify|passwd|test}\n"
 		"\t\t\tRun in Tool mode\n"
 		"\t-c cookie\tSync cookie of consumer\n"
@@ -483,10 +485,10 @@ int main( int argc, char **argv )
 #endif
 			     )) != EOF ) {
 		switch ( i ) {
-#ifdef LDAP_PF_INET6
 		case '4':
 			slap_inet4or6 = AF_INET;
 			break;
+#ifdef LDAP_PF_INET6
 		case '6':
 			slap_inet4or6 = AF_INET6;
 			break;

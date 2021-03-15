@@ -93,3 +93,9 @@ olcRootPW: secret
 olcDbDirectory:	%LOCALSTATEDIR%/openldap-data
 # Indices to maintain
 olcDbIndex: objectClass eq
+
+dn: olcDatabase=monitor,cn=config
+objectClass: olcDatabaseConfig
+olcDatabase: monitor
+olcRootDN: cn=config
+olcMonitoring: FALSE
