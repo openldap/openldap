@@ -139,7 +139,7 @@ KILLPIDS="$KILLPIDS $LDAPSEARCHPID"
 # Open fifo as file descriptor
 exec 3>$TESTDIR/ldapsearch.fifo
 
-# Trigger LDAP connections towards the proxy by executing a search￼
+# Trigger LDAP connections towards the proxy by executing a search
 echo 'objectclass=*' >&3
 # Wait for ldapsearch process on the background to catch up reading the fifo
 sleep 2
