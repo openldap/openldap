@@ -143,7 +143,9 @@ static struct schema_info {
 		"EQUALITY generalizedTimeMatch "
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
-		"SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation )",
+		"SINGLE-VALUE "
+		"NO-USER-MODIFICATION "
+		"USAGE directoryOperation )",
 		&ad_pwdChangedTime },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.17 "
 		"NAME ( 'pwdAccountLockedTime' ) "
@@ -152,10 +154,7 @@ static struct schema_info {
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
 		"SINGLE-VALUE "
-#if 0
-		/* Not until Relax control is released */
 		"NO-USER-MODIFICATION "
-#endif
 		"USAGE directoryOperation )",
 		&ad_pwdAccountLockedTime },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.19 "
@@ -164,28 +163,32 @@ static struct schema_info {
 		"EQUALITY generalizedTimeMatch "
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
-		"NO-USER-MODIFICATION USAGE directoryOperation )",
+		"NO-USER-MODIFICATION "
+		"USAGE directoryOperation )",
 		&ad_pwdFailureTime },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.20 "
 		"NAME ( 'pwdHistory' ) "
 		"DESC 'The history of users passwords' "
 		"EQUALITY octetStringMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.40 "
-		"NO-USER-MODIFICATION USAGE directoryOperation )",
+		"NO-USER-MODIFICATION "
+		"USAGE directoryOperation )",
 		&ad_pwdHistory },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.21 "
 		"NAME ( 'pwdGraceUseTime' ) "
 		"DESC 'The timestamps of the grace login once the password has expired' "
 		"EQUALITY generalizedTimeMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
-		"NO-USER-MODIFICATION USAGE directoryOperation )",
+		"NO-USER-MODIFICATION "
+		"USAGE directoryOperation )",
 		&ad_pwdGraceUseTime }, 
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.22 "
 		"NAME ( 'pwdReset' ) "
 		"DESC 'The indication that the password has been reset' "
 		"EQUALITY booleanMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 "
-		"SINGLE-VALUE USAGE directoryOperation )",
+		"SINGLE-VALUE "
+		"USAGE directoryOperation )",
 		&ad_pwdReset },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.23 "
 		"NAME ( 'pwdPolicySubentry' ) "
@@ -193,10 +196,7 @@ static struct schema_info {
 		"EQUALITY distinguishedNameMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 "
 		"SINGLE-VALUE "
-#if 0
-		/* Not until Relax control is released */
 		"NO-USER-MODIFICATION "
-#endif
 		"USAGE directoryOperation )",
 		&ad_pwdPolicySubentry },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.27 "
@@ -205,7 +205,9 @@ static struct schema_info {
 		"EQUALITY generalizedTimeMatch "
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
-		"SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation )",
+		"SINGLE-VALUE "
+		"NO-USER-MODIFICATION "
+		"USAGE directoryOperation )",
 		&ad_pwdStartTime },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.28 "
 		"NAME ( 'pwdEndTime' ) "
@@ -213,7 +215,9 @@ static struct schema_info {
 		"EQUALITY generalizedTimeMatch "
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
-		"SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation )",
+		"SINGLE-VALUE "
+		"NO-USER-MODIFICATION "
+		"USAGE directoryOperation )",
 		&ad_pwdEndTime },
 	/* Defined in schema_prep.c now
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.29 "
@@ -222,7 +226,9 @@ static struct schema_info {
 		"EQUALITY generalizedTimeMatch "
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
-		"SINGLE-VALUE NO-USER-MODIFICATION USAGE directoryOperation )",
+		"SINGLE-VALUE "
+		"NO-USER-MODIFICATION "
+		"USAGE directoryOperation )",
 		&ad_pwdLastSuccess },
 	*/
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.33 "
@@ -232,10 +238,7 @@ static struct schema_info {
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
 		"SINGLE-VALUE "
-#if 0
-		/* Not until Relax control is released */
 		"NO-USER-MODIFICATION "
-#endif
 		"USAGE directoryOperation )",
 		&ad_pwdAccountTmpLockoutEnd },
 
