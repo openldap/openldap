@@ -192,6 +192,22 @@ upstream_name_cb( int result, struct evutil_addrinfo *res, void *arg )
 #endif /* TCP_KEEPINTVL */
         }
 #endif /* SO_KEEPALIVE */
+        if ( bindconf.sb_tcp_user_timeout > 0 ) {
+#ifdef TCP_USER_TIMEOUT
+            if ( setsockopt( s, IPPROTO_TCP, TCP_USER_TIMEOUT,
+                         (void *)&bindconf.sb_tcp_user_timeout,
+                         sizeof(bindconf.sb_tcp_user_timeout) ) ==
+                    AC_SOCKET_ERROR ) {
+                Debug( LDAP_DEBUG_TRACE, "upstream_name_cb: "
+                        "setsockopt(%d, TCP_USER_TIMEOUT) failed (ignored).\n",
+                        s );
+            }
+#else
+            Debug( LDAP_DEBUG_TRACE, "upstream_name_cb: "
+                    "sockopt TCP_USER_TIMEOUT not supported on this "
+                    "system.\n" );
+#endif /* TCP_USER_TIMEOUT */
+        }
 #ifdef TCP_NODELAY
         if ( setsockopt( s, IPPROTO_TCP, TCP_NODELAY, (char *)&dummy,
                      sizeof(dummy) ) == AC_SOCKET_ERROR ) {
