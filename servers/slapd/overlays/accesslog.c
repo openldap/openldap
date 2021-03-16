@@ -1492,7 +1492,9 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 	Operation op2 = {0};
 	SlapReply rs2 = {REP_RESULT};
 
-	{
+	/* ITS#9051 Make sure we only remove the callback on a final response */
+	if ( rs->sr_type == REP_RESULT || rs->sr_type == REP_EXTENDED ||
+			rs->sr_type == REP_SASL ) {
 		slap_callback *sc = op->o_callback;
 		op->o_callback = sc->sc_next;
 		op->o_tmpfree(sc, op->o_tmpmemctx );
