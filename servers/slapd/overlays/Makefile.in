@@ -22,6 +22,7 @@ SRCS = overlays.c \
 	deref.c \
 	dyngroup.c \
 	dynlist.c \
+	homedir.c \
 	memberof.c \
 	pcache.c \
 	collect.c \
@@ -87,6 +88,9 @@ dyngroup.la : dyngroup.lo
 
 dynlist.la : dynlist.lo
 	$(LTLINK_MOD) -module -o $@ dynlist.lo version.lo $(LINK_LIBS)
+
+homedir.la : homedir.lo
+	$(LTLINK_MOD) -module -o $@ homedir.lo version.lo $(LINK_LIBS)
 
 memberof.la : memberof.lo
 	$(LTLINK_MOD) -module -o $@ memberof.lo version.lo $(LINK_LIBS)

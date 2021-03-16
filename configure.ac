@@ -349,6 +349,7 @@ Overlays="accesslog \
 	deref \
 	dyngroup \
 	dynlist \
+	homedir \
 	memberof \
 	ppolicy \
 	proxycache \
@@ -387,6 +388,8 @@ OL_ARG_ENABLE(deref, [AS_HELP_STRING([--enable-deref], [Dereference overlay])],
 OL_ARG_ENABLE(dyngroup, [AS_HELP_STRING([--enable-dyngroup], [Dynamic Group overlay])],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(dynlist, [AS_HELP_STRING([--enable-dynlist], [Dynamic List overlay])],
+	no, [no yes mod], ol_enable_overlays)
+OL_ARG_ENABLE(homedir, [AS_HELP_STRING([--enable-homedir], [Home Directory Management overlay])],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(memberof, [AS_HELP_STRING([--enable-memberof], [Reverse Group Membership overlay])],
 	no, [no yes mod], ol_enable_overlays)
@@ -587,6 +590,7 @@ BUILD_DEREF=no
 BUILD_DYNGROUP=no
 BUILD_DYNLIST=no
 BUILD_LASTMOD=no
+BUILD_HOMEDIR=no
 BUILD_MEMBEROF=no
 BUILD_PPOLICY=no
 BUILD_PROXYCACHE=no
@@ -2838,6 +2842,18 @@ if test "$ol_enable_dynlist" != no ; then
 	AC_DEFINE_UNQUOTED(SLAPD_OVER_DYNLIST,$MFLAG,[define for Dynamic List overlay])
 fi
 
+if test "$ol_enable_homedir" != no ; then
+	BUILD_HOMEDIR=$ol_enable_homedir
+	if test "$ol_enable_homedir" = mod ; then
+		MFLAG=SLAPD_MOD_DYNAMIC
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS homedir.la"
+	else
+		MFLAG=SLAPD_MOD_STATIC
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS homedir.o"
+	fi
+	AC_DEFINE_UNQUOTED(SLAPD_OVER_HOMEDIR,$MFLAG,[define for Home Directory Management overlay])
+fi
+
 if test "$ol_enable_memberof" != no ; then
 	BUILD_MEMBEROF=$ol_enable_memberof
 	if test "$ol_enable_memberof" = mod ; then
@@ -3110,6 +3126,7 @@ dnl overlays
   AC_SUBST(BUILD_DYNGROUP)
   AC_SUBST(BUILD_DYNLIST)
   AC_SUBST(BUILD_LASTMOD)
+  AC_SUBST(BUILD_HOMEDIR)
   AC_SUBST(BUILD_MEMBEROF)
   AC_SUBST(BUILD_PPOLICY)
   AC_SUBST(BUILD_PROXYCACHE)
