@@ -1549,7 +1549,13 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 		return SLAP_CB_CONTINUE;
 	}
 
-	if ( li->li_success && rs->sr_err != LDAP_SUCCESS )
+	/*
+	 * ITS#9051 Technically LDAP_REFERRAL and LDAP_SASL_BIND_IN_PROGRESS
+	 * are not errors, but they aren't really success either
+	 */
+	if ( li->li_success && rs->sr_err != LDAP_SUCCESS &&
+			rs->sr_err != LDAP_COMPARE_TRUE &&
+			rs->sr_err != LDAP_COMPARE_FALSE )
 		goto done;
 
 	e = accesslog_entry( op, rs, li, logop, &op2 );
