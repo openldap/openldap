@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <ac/string.h>
 #include <ac/ctype.h>
+#include <ac/dirent.h>
 #include <ac/errno.h>
 #include <sys/stat.h>
 #include <ac/unistd.h>
@@ -4520,6 +4521,21 @@ config_setup_ldif( BackendDB *be, const char *dir, int readit ) {
 			rc = op->o_bd->be_add( op, &rs );
 		}
 		ldap_pvt_thread_pool_context_reset( thrctx );
+	} else {
+		/* ITS#9016 Check directory is empty (except perhaps hidden files) */
+		DIR *dir_of_path;
+		struct dirent *entry;
+
+		dir_of_path = opendir( dir );
+		while ( (entry = readdir( dir_of_path )) != NULL ) {
+			if ( entry->d_name[0] != '.' ) {
+				Debug( LDAP_DEBUG_ANY, "config_setup_ldif: "
+						"expected directory %s to be empty!\n",
+						dir );
+				rc = LDAP_ALREADY_EXISTS;
+				break;
+			}
+		}
 	}
 
 	/* ITS#4194 - only use if it's present, or we're converting. */
