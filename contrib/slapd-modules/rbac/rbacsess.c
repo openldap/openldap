@@ -710,7 +710,7 @@ rbac_session_byid_fake( Operation *op, rbac_req_t *reqp )
 	filter_free_x( &op2, op2.ors_filter, 1 );
 
 done:
-	// TODO: find equivilant way of check nentries (broke with fake connection fix)
+	// TODO: find equivalent way of check nentries (broke with fake connection fix)
 	//if ( rc != LDAP_SUCCESS || rs2.sr_nentries <= 0 ) {
 	if ( rc != LDAP_SUCCESS ) {
 		rbac_free_session( sessp );

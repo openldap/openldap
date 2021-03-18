@@ -472,7 +472,7 @@ rbac_check_time_constraint( rbac_constraint_t *cp )
 		int timeofday = ( resultp->tm_hour * 60 + resultp->tm_min ) * 60 +
 				resultp->tm_sec;
 		if ( timeofday < cp->begin_time || timeofday > cp->end_time ) {
-			/* not withing allowed time period in a day */
+			/* not within allowed time period in a day */
 			goto done;
 		}
 	}
