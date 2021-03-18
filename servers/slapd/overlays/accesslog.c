@@ -1492,7 +1492,9 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 	Operation op2 = {0};
 	SlapReply rs2 = {REP_RESULT};
 
-	{
+	/* ITS#9051 Make sure we only remove the callback on a final response */
+	if ( rs->sr_type == REP_RESULT || rs->sr_type == REP_EXTENDED ||
+			rs->sr_type == REP_SASL ) {
 		slap_callback *sc = op->o_callback;
 		op->o_callback = sc->sc_next;
 		op->o_tmpfree(sc, op->o_tmpmemctx );
@@ -1547,7 +1549,13 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 		return SLAP_CB_CONTINUE;
 	}
 
-	if ( li->li_success && rs->sr_err != LDAP_SUCCESS )
+	/*
+	 * ITS#9051 Technically LDAP_REFERRAL and LDAP_SASL_BIND_IN_PROGRESS
+	 * are not errors, but they aren't really success either
+	 */
+	if ( li->li_success && rs->sr_err != LDAP_SUCCESS &&
+			rs->sr_err != LDAP_COMPARE_TRUE &&
+			rs->sr_err != LDAP_COMPARE_FALSE )
 		goto done;
 
 	e = accesslog_entry( op, rs, li, logop, &op2 );
