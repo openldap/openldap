@@ -119,6 +119,7 @@ typedef struct ldap_chain_cb_t {
 	ldap_chain_status_t	lb_status;
 	ldap_chain_t		*lb_lc;
 	slap_operation_t	lb_op_type;
+	char			*lb_text;
 	int			lb_depth;
 } ldap_chain_cb_t;
 
@@ -381,6 +382,11 @@ retry:;
 			break;
 
 		default:
+			/* remember the text before it's freed in ldap_back_op_result */
+			if ( lb->lb_text ) {
+				ber_memfree_x( lb->lb_text, op->o_tmpmemctx );
+			}
+			lb->lb_text = ber_strdup_x( rs->sr_text, op->o_tmpmemctx );
 			return rs->sr_err;
 		}
 
@@ -965,6 +971,7 @@ ldap_chain_response( Operation *op, SlapReply *rs )
 	const char	*text = NULL;
 	const char	*matched;
 	BerVarray	ref;
+	slap_mask_t	flags = 0;
 	struct berval	ndn = op->o_ndn;
 
 	int		sr_err = rs->sr_err;
@@ -1027,6 +1034,9 @@ ldap_chain_response( Operation *op, SlapReply *rs )
 	rs->sr_matched = NULL;
 	ref = rs->sr_ref;
 	rs->sr_ref = NULL;
+
+	flags = rs->sr_flags & (REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED);
+	rs->sr_flags &= ~flags;
 
 	/* we need this to know if back-ldap returned any result */
 	lb.lb_lc = lc;
@@ -1153,6 +1163,7 @@ cannot_chain:;
 #endif /* LDAP_CONTROL_X_CHAINING_BEHAVIOR */
 			if ( LDAP_CHAIN_RETURN_ERR( lc ) ) {
 				sr_err = rs->sr_err = rc;
+				rs->sr_text = lb.lb_text;
 				rs->sr_type = sr_type;
 
 			} else {
@@ -1162,6 +1173,7 @@ cannot_chain:;
 				rs->sr_text = text;
 				rs->sr_matched = matched;
 				rs->sr_ref = ref;
+				rs->sr_flags |= flags;
 			}
 #ifdef LDAP_CONTROL_X_CHAINING_BEHAVIOR
 			break;
@@ -1182,9 +1194,18 @@ dont_chain:;
 	rs->sr_text = text;
 	rs->sr_matched = matched;
 	rs->sr_ref = ref;
+	rs->sr_flags |= flags;
+
 	op->o_bd = bd;
 	op->o_callback = sc;
 	op->o_ndn = ndn;
+
+	if ( rs->sr_text == lb.lb_text ) {
+		rs->sr_text = NULL;
+	}
+	if ( lb.lb_text ) {
+		ber_memfree_x( lb.lb_text, op->o_tmpmemctx );
+	}
 
 	return rc;
 }
