@@ -45,24 +45,9 @@ For back-mdb this command may be ran while slapd(8) is running.
 
 H2: Checkpointing
 
-MORE/TIDY
-
-If you put "checkpoint 1024 5" in slapd.conf (to checkpoint after 1024kb or 5 minutes, 
-for example), this does not checkpoint every 5 minutes as you may think. 
-The explanation from Howard is:
-
-'In OpenLDAP 2.1 and 2.2 the checkpoint directive acts as follows - *when there 
-is a write operation*, and more than <check> minutes have occurred since the 
-last checkpoint, perform the checkpoint. If more than <check> minutes pass after 
-a write without any other write operations occurring, no checkpoint is performed, 
-so it's possible to lose the last write that occurred.''
-
-In other words, a write operation occurring less than "check" minutes after the 
-last checkpoint will not be checkpointed until the next write occurs after "check" 
-minutes have passed since the checkpoint.
-
-This has been modified in 2.3 to indeed checkpoint every so often; in the meantime 
-a workaround is to invoke "db_checkpoint" from a cron script every so often, say 5 minutes. 
+Setting a checkpoint is only necessary when back-mdb has the dbnosync flag set. Otherwise
+it has no effect. With back-mdb the kbyte option is not implemented, meaning it will only
+run a checkpoint based on the elapsed amount of minutes flag.
 
 H2: Migration
 
@@ -87,8 +72,6 @@ type are:
 .{{S: }}
 +{{B: Start the server}}
 
-Obviously this doesn't cater for any complicated deployments like {{SECT: Mirror mode}} or {{SECT: N-Way Multi-Provider}}, 
+Obviously this doesn't cater for any complicated deployments with {{SECT: N-Way Multi-Provider}}, 
 but following the above sections and using either commercial support or community support should help. Also check the
 {{SECT: Troubleshooting}} section.
-
-
