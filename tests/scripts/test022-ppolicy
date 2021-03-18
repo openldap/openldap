@@ -78,9 +78,8 @@ if test $RC = 0 ; then
 fi
 
 echo "Using ldapadd to populate the database..."
-# may need "-e relax" for draft 09, but not yet.
-$LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD < \
-	$LDIFPPOLICY >> $TESTOUT 2>&1
+$LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD -e '!relax' \
+	< $LDIFPPOLICY >> $TESTOUT 2>&1
 RC=$?
 if test $RC != 0 ; then
 	echo "ldapadd failed ($RC)!"
