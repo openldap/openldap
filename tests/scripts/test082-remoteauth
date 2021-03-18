@@ -55,7 +55,7 @@ if test $RC != 0 ; then
 fi
 
 echo "DB tweaks..."
-$SLAPMODIFY -f $CONF1 >>$LOG1 2>&1 <<EOMODS
+$SLAPMODIFY -F $TESTDIR/confdir >>$LOG1 2>&1 <<EOMODS
 dn: $MELLIOTDN
 changetype: modify
 add: o
@@ -77,7 +77,7 @@ if test $RC != 0 ; then
 fi
 
 echo "Starting slapd on TCP/IP port $PORT1 for configuration..."
-$SLAPD -f $CONF1 -F $TESTDIR/confdir -h $URI1 -d $LVL > $LOG1 2>&1 &
+$SLAPD -F $TESTDIR/confdir -h $URI1 -d $LVL >> $LOG1 2>&1 &
 REMOTEAUTH_PID=$!
 if test $WAIT != 0 ; then
     echo REMOTEAUTH_PID $REMOTEAUTH_PID
