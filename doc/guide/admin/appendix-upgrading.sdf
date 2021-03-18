@@ -23,7 +23,7 @@ can then be imported.
 H2: unique overlay
 
 In OpenLDAP 2.4 it was possible to bypass {{slapo-unique}}(5) checks by using the manageDSAIT control as a part of the
-request. This is no longer possible. To achieve the same functionalty the relax control must be used instead, and the
+request. This is no longer possible. To achieve the same functionality the relax control must be used instead, and the
 binding identity must have manage permissions on the entry being modified.
 
 With OpenLDAP 2.5 a new keyword "serialize" has been added as a part of the unique_uri configuration parameter. This
