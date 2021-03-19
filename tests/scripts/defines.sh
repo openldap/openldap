@@ -192,6 +192,7 @@ SLURPLOG=$TESTDIR/slurp.log
 
 CONFIGPWF=$TESTDIR/configpw
 
+LIBTOOL="${LIBTOOL-$TESTWD/../libtool}"
 # wrappers (valgrind, gdb, environment variables, etc.)
 if [ -n "$WRAPPER" ]; then
 	: # skip
@@ -206,7 +207,7 @@ elif [ "$SLAPD_COMMON_WRAPPER" = vgdb ]; then
 fi
 
 if [ -n "$WRAPPER" ]; then
-	SLAPD_WRAPPER="$TESTWD/../libtool --mode=execute env $WRAPPER"
+	SLAPD_WRAPPER="$LIBTOOL --mode=execute env $WRAPPER"
 fi
 
 # args
