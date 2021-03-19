@@ -4536,6 +4536,7 @@ config_setup_ldif( BackendDB *be, const char *dir, int readit ) {
 				break;
 			}
 		}
+		closedir( dir_of_path );
 	}
 
 	/* ITS#4194 - only use if it's present, or we're converting. */
