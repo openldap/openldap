@@ -863,6 +863,20 @@ ldap_dump_connection( LDAP *ld, LDAPConn *lconns, int all )
 				lc->lconn_server->lud_port, ( lc->lconn_sb ==
 				ld->ld_sb ) ? "  (default)" : "" );
 		}
+		if ( lc->lconn_sb != NULL ) {
+			char 			from[LUTIL_ADDRLEN];
+			struct berval 	frombv = BER_BVC(from);
+			ber_socket_t 	sb;
+			if ( ber_sockbuf_ctrl( lc->lconn_sb, LBER_SB_OPT_GET_FD, &sb ) == 1 ) {
+				struct sockaddr_in sin;
+				socklen_t len = sizeof( sin );
+				if ( getsockname( sb, (struct sockaddr *)&sin, &len ) == 0 ) {
+					lutil_sockaddrstr( (Sockaddr *) &sin, &frombv );
+					Debug1( LDAP_DEBUG_TRACE, "* from: %s\n",
+						( from == NULL ) ? "(null)" : from );
+				}
+			}
+		}
 		Debug2( LDAP_DEBUG_TRACE, "  refcnt: %d  status: %s\n", lc->lconn_refcnt,
 			( lc->lconn_status == LDAP_CONNST_NEEDSOCKET )
 				? "NeedSocket" :
