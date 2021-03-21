@@ -771,7 +771,7 @@ static ConfigTable autoca_cfg[] = {
 	  "EQUALITY integerMatch "
 	  "SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ "localdn", "dn", 2, 2, 0,
-	  ARG_DN|ARG_MAGIC|ACA_LOCALDN, autoca_cf,
+	  ARG_DN|ARG_QUOTE|ARG_MAGIC|ACA_LOCALDN, autoca_cf,
 	  "( OLcfgOvAt:22.9 NAME 'olcAutoCAlocalDN' "
 	  "DESC 'DN of local server cert' "
 	  "EQUALITY distinguishedNameMatch "

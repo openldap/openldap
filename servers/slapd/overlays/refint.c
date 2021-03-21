@@ -116,13 +116,13 @@ static ConfigTable refintcfg[] = {
 	  "EQUALITY caseIgnoreMatch "
 	  "SYNTAX OMsDirectoryString )", NULL, NULL },
 	{ "refint_nothing", "string", 2, 2, 0,
-	  ARG_DN|ARG_MAGIC|REFINT_NOTHING, refint_cf_gen,
+	  ARG_DN|ARG_QUOTE|ARG_MAGIC|REFINT_NOTHING, refint_cf_gen,
 	  "( OLcfgOvAt:11.2 NAME 'olcRefintNothing' "
 	  "DESC 'Replacement DN to supply when needed' "
 	  "EQUALITY distinguishedNameMatch "
 	  "SYNTAX OMsDN SINGLE-VALUE )", NULL, NULL },
 	{ "refint_modifiersName", "DN", 2, 2, 0,
-	  ARG_DN|ARG_MAGIC|REFINT_MODIFIERSNAME, refint_cf_gen,
+	  ARG_DN|ARG_QUOTE|ARG_MAGIC|REFINT_MODIFIERSNAME, refint_cf_gen,
 	  "( OLcfgOvAt:11.3 NAME 'olcRefintModifiersName' "
 	  "DESC 'The DN to use as modifiersName' "
 	  "EQUALITY distinguishedNameMatch "

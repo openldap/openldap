@@ -3524,7 +3524,7 @@ static ConfigTable spcfg[] = {
 			"DESC 'Observe Reload Hint in Request control' "
 			"EQUALITY booleanMatch "
 			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
-	{ "syncprov-sessionlog-source", NULL, 2, 2, 0, ARG_DN|ARG_MAGIC|SP_LOGDB,
+	{ "syncprov-sessionlog-source", NULL, 2, 2, 0, ARG_DN|ARG_QUOTE|ARG_MAGIC|SP_LOGDB,
 		sp_cf_gen, "( OLcfgOvAt:1.5 NAME 'olcSpSessionlogSource' "
 			"DESC 'On startup, try loading sessionlog from this subtree' "
 			"SYNTAX OMsDN SINGLE-VALUE )", NULL, NULL },

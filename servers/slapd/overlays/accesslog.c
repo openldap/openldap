@@ -95,7 +95,7 @@ enum {
 };
 
 static ConfigTable log_cfats[] = {
-	{ "logdb", "suffix", 2, 2, 0, ARG_DN|ARG_MAGIC|LOG_DB,
+	{ "logdb", "suffix", 2, 2, 0, ARG_DN|ARG_QUOTE|ARG_MAGIC|LOG_DB,
 		log_cf_gen, "( OLcfgOvAt:4.1 NAME 'olcAccessLogDB' "
 			"DESC 'Suffix of database for log content' "
 			"EQUALITY distinguishedNameMatch "

@@ -1688,7 +1688,7 @@ static ConfigDriver mo_cf_gen;
 
 static ConfigTable mo_cfg[] = {
 	{ "memberof-dn", "modifiersName",
-		2, 2, 0, ARG_MAGIC|ARG_DN|MO_DN, mo_cf_gen,
+		2, 2, 0, ARG_MAGIC|ARG_QUOTE|ARG_DN|MO_DN, mo_cf_gen,
 		"( OLcfgOvAt:18.0 NAME 'olcMemberOfDN' "
 			"DESC 'DN to be used as modifiersName' "
 			"EQUALITY distinguishedNameMatch "
