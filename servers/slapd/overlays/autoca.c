@@ -973,7 +973,7 @@ autoca_db_open(
 	OperationBuffer opbuf;
 	Operation *op;
 	void *thrctx;
-	Entry *e;
+	Entry *e = NULL;
 	Attribute *a;
 	int rc;
 
