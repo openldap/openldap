@@ -3717,6 +3717,7 @@ slap_loglevel_get( struct berval *s, int *l )
 
 	} else {
 		*l = i;
+		slap_check_unknown_level( s->bv_val, i );
 	}
 
 	return rc;

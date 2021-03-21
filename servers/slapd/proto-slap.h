@@ -1249,6 +1249,8 @@ LDAP_SLAPD_F (int)
 parse_syslog_user LDAP_P(( const char *arg, int *syslogUser ));
 LDAP_SLAPD_F (int)
 parse_debug_unknowns LDAP_P(( char **unknowns, int *levelp ));
+LDAP_SLAPD_F (void)
+slap_check_unknown_level LDAP_P(( char *levelstr, int level ));
 
 /*
  * matchedValues.c
