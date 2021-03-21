@@ -1060,6 +1060,11 @@ config_resize_lthreads(ConfigArgs *c)
 	return slapd_daemon_resize( new_daemon_threads );
 }
 
+#define	GOT_CONFIG	1
+#define	GOT_FRONTEND	2
+static int
+config_unique_db;
+
 static int
 config_generic(ConfigArgs *c) {
 	int i;
@@ -1784,9 +1789,19 @@ config_generic(ConfigArgs *c) {
 			/* NOTE: config is always the first backend!
 			 */
 			if ( !strcasecmp( c->argv[1], "config" )) {
+				if (config_unique_db & GOT_CONFIG) {
+					sprintf( c->cr_msg, "config DB already defined");
+					return(1);
+				}
 				c->be = LDAP_STAILQ_FIRST(&backendDB);
+				config_unique_db |= GOT_CONFIG;
 			} else if ( !strcasecmp( c->argv[1], "frontend" )) {
+				if (config_unique_db & GOT_FRONTEND) {
+					sprintf( c->cr_msg, "frontend DB already defined");
+					return(1);
+				}
 				c->be = frontendDB;
+				config_unique_db |= GOT_FRONTEND;
 			} else {
 				c->be = backend_db_init(c->argv[1], NULL, c->valx, &c->reply);
 				if ( !c->be ) {
@@ -7808,8 +7823,10 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 	if ( bi && bi->bi_tool_entry_put &&
 		config_add_internal( cfb, e, &ca, NULL, NULL, NULL ) == 0 )
 		return bi->bi_tool_entry_put( &cfb->cb_db, e, text );
-	else
+	else {
+		ber_str2bv( ca.cr_msg, 0, 0, text );
 		return NOID;
+	}
 }
 
 static ID
