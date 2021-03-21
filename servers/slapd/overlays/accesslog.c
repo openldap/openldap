@@ -941,6 +941,14 @@ log_cf_gen(ConfigArgs *c)
 						c->log, c->cr_msg, c->value_dn.bv_val );
 					rc = 1;
 				}
+				if ( !rc && ( li->li_db->bd_self == c->be->bd_self )) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> invalid suffix, points to itself",
+						c->argv[0] );
+					Debug( LDAP_DEBUG_ANY, "%s: %s \"%s\"\n",
+						c->log, c->cr_msg, c->value_dn.bv_val );
+					rc = 1;
+				}
 				ch_free( c->value_ndn.bv_val );
 			} else {
 				li->li_db_suffix = c->value_ndn;
@@ -2411,6 +2419,11 @@ accesslog_db_open(
 	if ( li->li_db == NULL ) {
 		Debug( LDAP_DEBUG_ANY,
 			"accesslog: \"logdb <suffix>\" missing or invalid.\n" );
+		return 1;
+	}
+	if ( li->li_db->bd_self == be->bd_self ) {
+		Debug( LDAP_DEBUG_ANY,
+			"accesslog: \"logdb <suffix>\" is this database, cannot log to itself.\n" );
 		return 1;
 	}
 
