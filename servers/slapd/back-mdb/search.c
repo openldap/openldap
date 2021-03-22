@@ -432,6 +432,7 @@ mdb_search( Operation *op, SlapReply *rs )
 	time_t		stoptime;
 	int		manageDSAit;
 	int		tentries = 0;
+	int		admincheck = 0;
 	IdScopes	isc;
 	MDB_cursor	*mci, *mcd;
 	ww_ctx wwctx;
@@ -677,8 +678,13 @@ dn2entry_retry:
 		rs->sr_err = search_candidates( op, rs, base,
 			&isc, mci, candidates, stack );
 
-		if ( rs->sr_err == LDAP_ADMINLIMIT_EXCEEDED )
-			goto adminlimit;
+		if ( rs->sr_err == LDAP_ADMINLIMIT_EXCEEDED ) {
+adminlimit:
+			rs->sr_err = LDAP_ADMINLIMIT_EXCEEDED;
+			send_ldap_result( op, rs );
+			rs->sr_err = LDAP_SUCCESS;
+			goto done;
+		}
 
 		ncand = MDB_IDL_N( candidates );
 		if ( !base->e_id || ncand == NOID ) {
@@ -709,11 +715,7 @@ dn2entry_retry:
 		op->ors_limit->lms_s_unchecked != -1 &&
 		ncand > (unsigned) op->ors_limit->lms_s_unchecked )
 	{
-		rs->sr_err = LDAP_ADMINLIMIT_EXCEEDED;
-adminlimit:
-		send_ldap_result( op, rs );
-		rs->sr_err = LDAP_SUCCESS;
-		goto done;
+		admincheck = 1;
 	}
 
 	if ( op->ors_limit == NULL	/* isroot == TRUE */ ||
@@ -750,6 +752,10 @@ adminlimit:
 			send_ldap_result( op, rs );
 			goto done;
 		}
+
+		if ( admincheck )
+			goto adminlimit;
+
 		id = mdb_idl_first( candidates, &cursor );
 		if ( id == NOID ) {
 			Debug( LDAP_DEBUG_TRACE, 
@@ -768,6 +774,8 @@ adminlimit:
 	if ( nsubs < ncand ) {
 		int rc;
 		/* Do scope-based search */
+		if ( nsubs > (unsigned) op->ors_limit->lms_s_unchecked )
+			goto adminlimit;
 
 		/* if any alias scopes were set, save them */
 		if (scopes[0].mid > 1) {
@@ -793,6 +801,8 @@ adminlimit:
 			id = isc.id;
 		cscope = 0;
 	} else {
+		if ( admincheck )
+			goto adminlimit;
 		id = mdb_idl_first( candidates, &cursor );
 	}
 
