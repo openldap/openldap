@@ -480,6 +480,10 @@ static ConfigTable config_back_cf_table[] = {
 		&config_generic, "( OLcfgDbAt:0.6 NAME 'olcMaxDerefDepth' "
 			"EQUALITY integerMatch "
 			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+	{ "maxFilterDepth", "depth", 2, 2, 0, ARG_INT,
+		&slap_max_filter_depth, "( OLcfgGlAt:101 NAME 'olcMaxFilterDepth' "
+			"EQUALITY integerMatch "
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ "multiprovider", "on|off", 2, 2, 0, ARG_DB|ARG_ON_OFF|ARG_MAGIC|CFG_MULTIPROVIDER,
 		&config_generic, "( OLcfgDbAt:0.16 NAME ( 'olcMultiProvider' 'olcMirrorMode' ) "
 			"EQUALITY booleanMatch "
@@ -952,6 +956,7 @@ static ConfigOCs cf_ocs[] = {
 		 "olcIndexSubstrAnyLen $ olcIndexSubstrAnyStep $ olcIndexHash64 $ "
 		 "olcIndexIntLen $ "
 		 "olcListenerThreads $ olcLocalSSF $ olcLogFile $ olcLogLevel $ "
+		 "olcMaxFilterDepth $ "
 		 "olcPasswordCryptSaltFormat $ olcPasswordHash $ olcPidFile $ "
 		 "olcPluginLogFile $ olcReadOnly $ olcReferral $ "
 		 "olcReplogFile $ olcRequires $ olcRestrict $ olcReverseLookup $ "
