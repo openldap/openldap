@@ -774,7 +774,7 @@ adminlimit:
 	if ( nsubs < ncand ) {
 		int rc;
 		/* Do scope-based search */
-		if ( nsubs > (unsigned) op->ors_limit->lms_s_unchecked )
+		if ( admincheck && nsubs > (unsigned) op->ors_limit->lms_s_unchecked )
 			goto adminlimit;
 
 		/* if any alias scopes were set, save them */
