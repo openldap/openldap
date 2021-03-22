@@ -324,16 +324,11 @@ done:
 
 int txn_preop( Operation *op, SlapReply *rs )
 {
-	int settle = 0;
-
 	/* acquire connection lock */
 	ldap_pvt_thread_mutex_lock( &op->o_conn->c_mutex );
 	if( op->o_conn->c_txn == CONN_TXN_INACTIVE ) {
 		rs->sr_text = "invalid transaction identifier";
 		rs->sr_err = LDAP_TXN_ID_INVALID;
-		goto txnReturn;
-	} else if( op->o_conn->c_txn == CONN_TXN_SETTLE ) {
-		settle=1;
 		goto txnReturn;
 	}
 
@@ -346,6 +341,12 @@ int txn_preop( Operation *op, SlapReply *rs )
 		goto txnReturn;
 	}
 
+	if ( !SLAP_TXNS( op->o_bd )) {
+		rs->sr_text = "backend doesn't support transactions";
+		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+		goto txnReturn;
+	}
+
 	/* insert operation into transaction */
 	LDAP_STAILQ_REMOVE( &op->o_conn->c_ops, op, Operation, o_next );
 	LDAP_STAILQ_INSERT_TAIL( &op->o_conn->c_txn_ops, op, o_next );
@@ -354,11 +355,9 @@ txnReturn:
 	/* release connection lock */
 	ldap_pvt_thread_mutex_unlock( &op->o_conn->c_mutex );
 
-	if( !settle ) {
+	if ( op->o_tag != LDAP_REQ_EXTENDED )
 		send_ldap_result( op, rs );
-		if ( !rs->sr_err )
-			rs->sr_err = LDAP_TXN_SPECIFY_OKAY;
-		return rs->sr_err;
-	}
-	return LDAP_SUCCESS;	/* proceed with operation */
+	if ( !rs->sr_err )
+		rs->sr_err = LDAP_TXN_SPECIFY_OKAY;
+	return rs->sr_err;
 }

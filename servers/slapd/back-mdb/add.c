@@ -48,9 +48,6 @@ mdb_add(Operation *op, SlapReply *rs )
 	Debug(LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(mdb_add) ": %s\n",
 		op->ora_e->e_name.bv_val );
 
-	if( op->o_txnSpec && txn_preop( op, rs ))
-		return rs->sr_err;
-
 	ctrls[num_ctrls] = 0;
 
 	/* check entry's schema */

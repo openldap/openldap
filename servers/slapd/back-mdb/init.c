@@ -408,7 +408,8 @@ mdb_back_initialize(
 		SLAP_BFLAG_INCREMENT |
 		SLAP_BFLAG_SUBENTRIES |
 		SLAP_BFLAG_ALIASES |
-		SLAP_BFLAG_REFERRALS;
+		SLAP_BFLAG_REFERRALS |
+		SLAP_BFLAG_TXNS;
 
 	bi->bi_controls = controls;
 

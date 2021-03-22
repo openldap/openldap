@@ -59,9 +59,6 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 		op->o_req_dn.bv_val,op->oq_modrdn.rs_newrdn.bv_val,
 		op->oq_modrdn.rs_newSup ? op->oq_modrdn.rs_newSup->bv_val : "NULL" );
 
-	if( op->o_txnSpec && txn_preop( op, rs ))
-		return rs->sr_err;
-
 	ctrls[num_ctrls] = NULL;
 
 	/* begin transaction */

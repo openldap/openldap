@@ -203,6 +203,11 @@ int passwd_extop(
 		goto error_return;
 	}
 
+	if ( op->o_txnSpec ) {
+		rc = txn_preop( op, rs );
+		goto error_return;
+	}
+
 	op->o_bd = op_be;
 
 	/* Give the backend a chance to handle this itself */
