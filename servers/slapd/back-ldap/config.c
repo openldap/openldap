@@ -734,6 +734,9 @@ slap_idassert_parse( ConfigArgs *c, slap_idassert_t *si )
 {
 	int		i;
 
+	/* set default */
+	si->si_mode = LDAP_BACK_IDASSERT_LEGACY;
+
 	for ( i = 1; i < c->argc; i++ ) {
 		if ( strncasecmp( c->argv[ i ], "mode=", STRLENOF( "mode=" ) ) == 0 ) {
 			char	*argvi = c->argv[ i ] + STRLENOF( "mode=" );
