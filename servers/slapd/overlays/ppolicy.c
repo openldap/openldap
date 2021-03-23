@@ -2182,9 +2182,7 @@ ppolicy_add(
 			return rs->sr_err;
 		}
 
-		if ( ppolicy_get( op, op->ora_e, &pp ) != LDAP_SUCCESS ) {
-			return SLAP_CB_CONTINUE;
-		}
+		ppolicy_get( op, op->ora_e, &pp );
 
 		/*
 		 * new entry contains a password - if we're not the root user
@@ -2306,6 +2304,7 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 	int got_del_grace = 0, got_del_lock = 0, got_pw = 0, got_del_fail = 0,
 		got_del_success = 0;
 	int got_changed = 0, got_history = 0;
+	int have_policy = 0;
 
 	op->o_bd->bd_info = (BackendInfo *)on->on_info;
 	rc = be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &e );
@@ -2458,8 +2457,9 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 		}
 	}
 
-	if ( ppolicy_get( op, e, &pp ) != LDAP_SUCCESS ) {
-		goto do_modify;
+	/* ppolicy_hash_cleartext depends on pwmod being determined first */
+	if ( ppolicy_get( op, e, &pp ) == LDAP_SUCCESS ) {
+		have_policy = 1;
 	}
 
 	if ( access_allowed( op, e, pp.ad, NULL, ACL_MANAGE, NULL ) ) {
@@ -2575,7 +2575,7 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 	 * the root user is bound. Root can do anything, including avoid the policies.
 	 */
 
-	if (!pwmod) goto do_modify;
+	if (!have_policy || !pwmod) goto do_modify;
 
 	/*
 	 * Build the password history list in ascending time order
