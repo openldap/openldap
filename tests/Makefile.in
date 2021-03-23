@@ -26,12 +26,12 @@ BUILD_WT=@BUILD_WT@
 test tests:
 	@$(MAKE) mdb
 	@$(MAKE) lloadd
+	@$(MAKE) wt
 
 # test all backends
 alltests: tests
 	@$(MAKE) sql
 	@$(MAKE) ldif
-	@$(MAKE) wt
 
 mdb test-mdb:	mdb-$(BUILD_MDB)
 mdb-no:
