@@ -170,15 +170,22 @@ wt_cf_gen( ConfigArgs *c )
 															 c->be->be_suffix[0].bv_val );
 				ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 			}
-			break;
-		case WT_IDLCACHE:
-			if ( c->value_int ) {
-				wi->wi_flags |= WT_USE_IDLCACHE;
-			} else {
-				wi->wi_flags &= ~WT_USE_IDLCACHE;
-			}
-			break;
 		}
+		break;
+
+	case WT_MODE:
+		fprintf( stderr, "%s: "
+				 "back-wt does not support \"mode\" option. use umask instead.\n",
+				 c->log );
+		return 1;
+
+	case WT_IDLCACHE:
+		if ( c->value_int ) {
+			wi->wi_flags |= WT_USE_IDLCACHE;
+		} else {
+			wi->wi_flags &= ~WT_USE_IDLCACHE;
+		}
+		break;
 	}
 	return LDAP_SUCCESS;
 }
