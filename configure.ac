@@ -440,7 +440,8 @@ AC_ARG_ENABLE(xxliboptions,[
 Library Generation & Linking Options])
 AC_ENABLE_STATIC
 AC_ENABLE_SHARED
-
+OL_ARG_ENABLE(versioning, [AS_HELP_STRING([--enable-versioning], [Enable versioned symbols in shared library])],
+	auto, [no yes auto])
 dnl ----------------------------------------------------------------
 dnl Validate options
 dnl ----------------------------------------------------------------
@@ -3072,6 +3073,18 @@ if test "$ol_enable_slapi" != no ; then
 	SLAPD_SLAPI_DEPEND=libslapi.a
 fi
 
+OL_VERSIONED_SYMBOLS=""
+if test $ol_enable_versioning != no; then
+	LDVS=`$LD --help < /dev/null 2>/dev/null | grep version-script`
+	if test -z "$LDVS"; then
+		if test $ol_enable_versioning = "yes" ; then
+			AC_MSG_ERROR([Library symbol versioning requested but not supported])
+		fi
+	else
+		OL_VERSIONED_SYMBOLS="-Wl,--version-script="
+	fi
+fi
+
 dnl ----------------------------------------------------------------
 
 dnl
@@ -3094,6 +3107,7 @@ AC_SUBST(WITH_MODULES_ENABLED)
 AC_SUBST(WITH_ACI_ENABLED)
 AC_SUBST(BUILD_THREAD)
 AC_SUBST(BUILD_LIBS_DYNAMIC)
+AC_SUBST(OL_VERSIONED_SYMBOLS)
 
 AC_SUBST(BUILD_SLAPD)
 dnl slapi
@@ -3212,8 +3226,10 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk]
 [libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [libraries/liblber/lber.pc]
+[libraries/liblber/liblber.vers]
 [libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [libraries/libldap/ldap.pc]
+[libraries/libldap/libldap.vers]
 [libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk]
