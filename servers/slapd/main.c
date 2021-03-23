@@ -382,12 +382,21 @@ static BER_logger *ber_logger;
 static void debug_print( const char *data )
 {
 	char buf[4136];	/* 4096 + 40 */
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tv;
+#define	TS	"%08x"
+#define	Tfrac	tv.tv_nsec
+	clock_gettime( CLOCK_REALTIME, &tv );
+#else
 	struct timeval tv;
-
+#define	TS	"%05x"
+#define	Tfrac	tv.tv_usec
 	gettimeofday( &tv, NULL );
+#endif
+
 	buf[sizeof(buf)-1] = '\0';
-	snprintf( buf, sizeof(buf)-1, "%lx.%05x %p %s",
-		(long)tv.tv_sec, tv.tv_usec, (void *)ldap_pvt_thread_self(), data );
+	snprintf( buf, sizeof(buf)-1, "%lx." TS " %p %s",
+		(long)tv.tv_sec, Tfrac, (void *)ldap_pvt_thread_self(), data );
 	ber_logger( buf );
 }
 

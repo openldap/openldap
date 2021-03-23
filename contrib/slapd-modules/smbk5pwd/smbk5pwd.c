@@ -289,7 +289,7 @@ static int k5key_chk(
 			struct lutil_tm tm;
 			struct lutil_timet tt;
 			if ( lutil_parsetime( a->a_vals[0].bv_val, &tm ) == 0 &&
-				lutil_tm2time( &tm, &tt ) == 0 && tt.tt_usec < op->o_time ) {
+				lutil_tm2time( &tm, &tt ) == 0 && tt.tt_sec < op->o_time ) {
 				/* Account is expired */
 				rc = LUTIL_PASSWD_ERR;
 				break;
