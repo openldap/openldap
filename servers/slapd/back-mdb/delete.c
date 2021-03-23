@@ -46,9 +46,6 @@ mdb_delete( Operation *op, SlapReply *rs )
 	Debug( LDAP_DEBUG_ARGS, "==> " LDAP_XSTRING(mdb_delete) ": %s\n",
 		op->o_req_dn.bv_val );
 
-	if( op->o_txnSpec && txn_preop( op, rs ))
-		return rs->sr_err;
-
 	ctrls[num_ctrls] = 0;
 
 	/* begin transaction */

@@ -172,6 +172,11 @@ fe_op_delete( Operation *op, SlapReply *rs )
 			struct berval	org_ndn = BER_BVNULL;
 			int		org_managedsait;
 
+			if ( op->o_txnSpec ) {
+				txn_preop( op, rs );
+				goto cleanup;
+			}
+
 			op->o_bd = op_be;
 			op->o_bd->be_delete( op, rs );
 

@@ -2338,6 +2338,7 @@ struct BackendInfo {
 #define SLAP_BFLAG_SUBENTRIES		0x4000U
 #define SLAP_BFLAG_DYNAMIC			0x8000U
 #define SLAP_BFLAG_STANDALONE		0x10000U /* started up regardless of whether any databases use it */
+#define SLAP_BFLAG_TXNS				0x20000U /* supports LDAP transactions */
 
 /* overlay specific */
 #define	SLAPO_BFLAG_SINGLE		0x01000000U
@@ -2357,6 +2358,7 @@ struct BackendInfo {
 #define SLAP_DYNAMIC(be)	((SLAP_BFLAGS(be) & SLAP_BFLAG_DYNAMIC) || (SLAP_DBFLAGS(be) & SLAP_DBFLAG_DYNAMIC))
 #define SLAP_NOLASTMODCMD(be)	(SLAP_BFLAGS(be) & SLAP_BFLAG_NOLASTMODCMD)
 #define SLAP_LASTMODCMD(be)	(!SLAP_NOLASTMODCMD(be))
+#define SLAP_TXNS(be)		(SLAP_BFLAGS(be) & SLAP_BFLAG_TXNS)
 
 /* overlay specific */
 #define SLAPO_SINGLE(be)	(SLAP_BFLAGS(be) & SLAPO_BFLAG_SINGLE)

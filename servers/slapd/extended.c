@@ -174,7 +174,8 @@ do_extended(
 	op->o_bd = frontendDB;
 	rs->sr_err = frontendDB->be_extended( op, rs );
 
-	if ( rs->sr_err == SLAPD_ASYNCOP ){
+	if ( rs->sr_err == SLAPD_ASYNCOP ||
+		rs->sr_err == LDAP_TXN_SPECIFY_OKAY ) {
 		/* skip cleanup */
 		return rs->sr_err;
 	}
