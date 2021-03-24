@@ -207,7 +207,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
                 client->c_connid, pin );
 
         pinned_op =
-                tavl_delete( &client->c_ops, &needle, operation_client_cmp );
+                ldap_tavl_delete( &client->c_ops, &needle, operation_client_cmp );
         if ( pinned_op ) {
             assert( op->o_tag == pinned_op->o_tag );
 
@@ -225,12 +225,12 @@ request_bind( LloadConnection *client, LloadOperation *op )
             /* No one has seen this operation yet, plant the pin back in its stead */
             client->c_n_ops_executing--;
             op->o_res = LLOAD_OP_COMPLETED;
-            tavl_delete( &client->c_ops, op, operation_client_cmp );
+            ldap_tavl_delete( &client->c_ops, op, operation_client_cmp );
             op->o_client = NULL;
             assert( op->o_upstream == NULL );
 
-            rc = tavl_insert( &client->c_ops, pinned_op, operation_client_cmp,
-                    avl_dup_error );
+            rc = ldap_tavl_insert( &client->c_ops, pinned_op, operation_client_cmp,
+                    ldap_avl_dup_error );
             assert( rc == LDAP_SUCCESS );
 
             /* No one has seen this operation yet */
@@ -244,7 +244,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
         }
     }
 
-    tavl_delete( &client->c_ops, op, operation_client_cmp );
+    ldap_tavl_delete( &client->c_ops, op, operation_client_cmp );
     client->c_n_ops_executing--;
 
     client_reset( client );
@@ -326,7 +326,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
         goto fail;
     }
 
-    rc = tavl_insert( &client->c_ops, op, operation_client_cmp, avl_dup_error );
+    rc = ldap_tavl_insert( &client->c_ops, op, operation_client_cmp, ldap_avl_dup_error );
     assert( rc == LDAP_SUCCESS );
     client->c_n_ops_executing++;
     CONNECTION_UNLOCK(client);
@@ -413,7 +413,7 @@ request_bind( LloadConnection *client, LloadOperation *op )
     }
 
     if ( pin ) {
-        tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
+        ldap_tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
         if ( tag == LDAP_AUTH_SIMPLE ) {
             pin = op->o_pin_id = 0;
         }
@@ -468,8 +468,8 @@ request_bind( LloadConnection *client, LloadOperation *op )
             "added bind from client connid=%lu to upstream connid=%lu "
             "as msgid=%d\n",
             op->o_client_connid, op->o_upstream_connid, op->o_upstream_msgid );
-    if ( tavl_insert( &upstream->c_ops, op, operation_upstream_cmp,
-                 avl_dup_error ) ) {
+    if ( ldap_tavl_insert( &upstream->c_ops, op, operation_upstream_cmp,
+                 ldap_avl_dup_error ) ) {
         assert(0);
     }
     upstream->c_state = LLOAD_C_BINDING;
@@ -527,7 +527,7 @@ finish_sasl_bind(
     int rc;
 
     CONNECTION_ASSERT_LOCKED(upstream);
-    removed = tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
+    removed = ldap_tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
     if ( !removed ) {
         assert( upstream->c_state != LLOAD_C_BINDING );
         /* FIXME: has client replaced this bind since? */
@@ -563,8 +563,8 @@ finish_sasl_bind(
     op->o_ber = ber;
 
     /* Could we have been unlinked in the meantime? */
-    rc = tavl_insert(
-            &upstream->c_ops, op, operation_upstream_cmp, avl_dup_error );
+    rc = ldap_tavl_insert(
+            &upstream->c_ops, op, operation_upstream_cmp, ldap_avl_dup_error );
     assert( rc == LDAP_SUCCESS );
 
     CONNECTION_UNLOCK(upstream);
@@ -623,7 +623,7 @@ handle_bind_response(
     }
 
     CONNECTION_LOCK(upstream);
-    if ( !tavl_find( upstream->c_ops, op, operation_upstream_cmp ) ) {
+    if ( !ldap_tavl_find( upstream->c_ops, op, operation_upstream_cmp ) ) {
         /*
          * operation might not be found because:
          * - it has timed out (only happens when debugging/hung/...)
@@ -658,10 +658,10 @@ handle_bind_response(
         op->o_pin_id = 0;
 
     } else if ( result == LDAP_SASL_BIND_IN_PROGRESS ) {
-        tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
+        ldap_tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
         op->o_upstream_msgid = 0;
-        rc = tavl_insert(
-                &upstream->c_ops, op, operation_upstream_cmp, avl_dup_error );
+        rc = ldap_tavl_insert(
+                &upstream->c_ops, op, operation_upstream_cmp, ldap_avl_dup_error );
         assert( rc == LDAP_SUCCESS );
     } else {
         int sasl_finished = 0;
@@ -687,7 +687,7 @@ handle_bind_response(
     }
 
     CONNECTION_LOCK(client);
-    removed = tavl_delete( &client->c_ops, op, operation_client_cmp );
+    removed = ldap_tavl_delete( &client->c_ops, op, operation_client_cmp );
     assert( !removed || op == removed );
 
     if ( client->c_state == LLOAD_C_BINDING ) {
@@ -696,8 +696,8 @@ handle_bind_response(
             case LDAP_SASL_BIND_IN_PROGRESS:
                 op->o_saved_msgid = op->o_client_msgid;
                 op->o_client_msgid = 0;
-                rc = tavl_insert( &client->c_ops, op, operation_client_cmp,
-                        avl_dup_error );
+                rc = ldap_tavl_insert( &client->c_ops, op, operation_client_cmp,
+                        ldap_avl_dup_error );
                 assert( rc == LDAP_SUCCESS );
                 break;
             case LDAP_SUCCESS:
@@ -813,7 +813,7 @@ handle_whoami_response(
         }
     }
 
-    removed = tavl_delete( &client->c_ops, op, operation_client_cmp );
+    removed = ldap_tavl_delete( &client->c_ops, op, operation_client_cmp );
     assert( !removed || op == removed );
     op->o_pin_id = 0;
     if ( removed ) {

@@ -432,7 +432,7 @@ asyncmeta_back_db_destroy(
 
 		ldap_pvt_thread_mutex_lock( &mi->mi_cache.mutex );
 		if ( mi->mi_cache.tree ) {
-			avl_free( mi->mi_cache.tree, asyncmeta_dncache_free );
+			ldap_avl_free( mi->mi_cache.tree, asyncmeta_dncache_free );
 		}
 
 		ldap_pvt_thread_mutex_unlock( &mi->mi_cache.mutex );

@@ -38,7 +38,7 @@ handle_starttls( LloadConnection *c, LloadOperation *op )
     int rc = LDAP_SUCCESS;
 
     CONNECTION_LOCK(c);
-    found = tavl_delete( &c->c_ops, op, operation_client_cmp );
+    found = ldap_tavl_delete( &c->c_ops, op, operation_client_cmp );
     assert( op == found );
     c->c_n_ops_executing--;
 
@@ -138,7 +138,7 @@ request_extended( LloadConnection *c, LloadOperation *op )
 
     needle.oid = bv;
 
-    handler = avl_find( lload_exop_handlers, &needle, exop_handler_cmp );
+    handler = ldap_avl_find( lload_exop_handlers, &needle, exop_handler_cmp );
     if ( handler ) {
         Debug( LDAP_DEBUG_TRACE, "request_extended: "
                 "handling exop OID %.*s internally\n",
@@ -174,8 +174,8 @@ lload_register_exop_handlers( struct lload_exop_handlers_t *handler )
         Debug( LDAP_DEBUG_TRACE, "lload_register_exop_handlers: "
                 "registering handler for exop oid=%s\n",
                 handler->oid.bv_val );
-        if ( avl_insert( &lload_exop_handlers, handler, exop_handler_cmp,
-                     avl_dup_error ) ) {
+        if ( ldap_avl_insert( &lload_exop_handlers, handler, exop_handler_cmp,
+                     ldap_avl_dup_error ) ) {
             Debug( LDAP_DEBUG_ANY, "lload_register_exop_handlers: "
                     "failed to register handler for exop oid=%s\n",
                     handler->oid.bv_val );

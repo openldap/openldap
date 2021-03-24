@@ -1370,12 +1370,12 @@ mdb_tool_idl_flush_db( MDB_txn *txn, AttrInfo *ai, AttrIxInfo *ax )
 	int rc;
 
 	mdb_cursor_open( txn, ai->ai_dbi, &mc );
-	root = tavl_end( ai->ai_root, TAVL_DIR_LEFT );
+	root = ldap_tavl_end( ai->ai_root, TAVL_DIR_LEFT );
 	do {
 		rc = mdb_tool_idl_flush_one( mc, ax, root->avl_data );
 		if ( rc != -1 )
 			rc = 0;
-	} while ((root = tavl_next(root, TAVL_DIR_RIGHT)));
+	} while ((root = ldap_tavl_next(root, TAVL_DIR_RIGHT)));
 	mdb_cursor_close( mc );
 
 	return rc;
@@ -1391,7 +1391,7 @@ mdb_tool_idl_flush( BackendDB *be, MDB_txn *txn )
 	for ( i=0; i < mdb->mi_nattrs; i++ ) {
 		if ( !mdb->mi_attrs[i]->ai_root ) continue;
 		rc = mdb_tool_idl_flush_db( txn, mdb->mi_attrs[i], mdb_tool_axinfo[i % mdb_tool_threads] );
-		tavl_free(mdb->mi_attrs[i]->ai_root, NULL);
+		ldap_tavl_free(mdb->mi_attrs[i]->ai_root, NULL);
 		mdb->mi_attrs[i]->ai_root = NULL;
 		if ( rc )
 			break;
@@ -1416,7 +1416,7 @@ int mdb_tool_idl_add(
 	dbi = ai->ai_dbi;
 	for (i=0; keys[i].bv_val; i++) {
 	itmp.kstr = keys[i];
-	ic = tavl_find( ai->ai_root, &itmp, mdb_tool_idl_cmp );
+	ic = ldap_tavl_find( ai->ai_root, &itmp, mdb_tool_idl_cmp );
 
 	/* No entry yet, create one */
 	if ( !ic ) {
@@ -1438,8 +1438,8 @@ int mdb_tool_idl_add(
 		ic->count = 0;
 		ic->offset = 0;
 		ic->flags = 0;
-		tavl_insert( &ai->ai_root, ic, mdb_tool_idl_cmp,
-			avl_dup_error );
+		ldap_tavl_insert( &ai->ai_root, ic, mdb_tool_idl_cmp,
+			ldap_avl_dup_error );
 
 		/* load existing key count here */
 		key.mv_size = keys[i].bv_len;

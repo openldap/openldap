@@ -40,7 +40,7 @@
 #include <ac/time.h>
 #include <ac/param.h>
 
-#include "avl.h"
+#include "ldap_avl.h"
 
 #ifndef ldap_debug
 #define ldap_debug slap_debug

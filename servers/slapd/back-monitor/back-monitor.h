@@ -24,7 +24,7 @@
 
 #include <ldap_pvt.h>
 #include <ldap_pvt_thread.h>
-#include <avl.h>
+#include <ldap_avl.h>
 #include <slap.h>
 
 LDAP_BEGIN_DECL

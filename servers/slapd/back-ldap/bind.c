@@ -118,10 +118,10 @@ ldap_back_print_conntree( ldapinfo_t *li, char *msg )
 		fprintf( stderr, "\t(empty)\n" );
 
 	} else {
-		TAvlnode *edge = tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
+		TAvlnode *edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
 		while ( edge ) {
 			ldap_back_conn_print( (ldapconn_t *)edge->avl_data );
-			edge = tavl_next( edge, TAVL_DIR_RIGHT );
+			edge = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 		}
 	}
 	
@@ -179,7 +179,7 @@ ldap_back_conn_delete( ldapinfo_t *li, ldapconn_t *lc )
 
 		if ( LDAP_BACK_CONN_CACHED( lc ) ) {
 			assert( !LDAP_BACK_CONN_TAINTED( lc ) );
-			tmplc = tavl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc,
+			tmplc = ldap_tavl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc,
 				ldap_back_conndnlc_cmp );
 			assert( tmplc == lc );
 			LDAP_BACK_CONN_CACHED_CLEAR( lc );
@@ -333,7 +333,7 @@ retry_lock:;
 
 		/* delete all cached connections with the current connection */
 		if ( LDAP_BACK_SINGLECONN( li ) ) {
-			while ( ( tmplc = tavl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc, ldap_back_conn_cmp ) ) != NULL )
+			while ( ( tmplc = ldap_tavl_delete( &li->li_conninfo.lai_tree, (caddr_t)lc, ldap_back_conn_cmp ) ) != NULL )
 			{
 				assert( !LDAP_BACK_PCONN_ISPRIV( lc ) );
 				Debug( LDAP_DEBUG_TRACE,
@@ -361,7 +361,7 @@ retry_lock:;
 			if ( be_isroot_dn( op->o_bd, &op->o_req_ndn ) ) {
 				LDAP_BACK_PCONN_ROOTDN_SET( lc, op );
 			}
-			lerr = tavl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
+			lerr = ldap_tavl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
 				ldap_back_conndn_cmp, ldap_back_conndn_dup );
 		}
 
@@ -924,7 +924,7 @@ retry_lock:
 		} else {
 
 			/* Searches for a ldapconn in the avl tree */
-			lc = (ldapconn_t *)tavl_find( li->li_conninfo.lai_tree, 
+			lc = (ldapconn_t *)ldap_tavl_find( li->li_conninfo.lai_tree, 
 					(caddr_t)&lc_curr, ldap_back_conndn_cmp );
 		}
 
@@ -1070,7 +1070,7 @@ retry_lock:
 			rs->sr_err = 0;
 
 		} else {
-			rs->sr_err = tavl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
+			rs->sr_err = ldap_tavl_insert( &li->li_conninfo.lai_tree, (caddr_t)lc,
 				ldap_back_conndn_cmp, ldap_back_conndn_dup );
 			LDAP_BACK_CONN_CACHED_SET( lc );
 		}
@@ -3111,9 +3111,9 @@ ldap_back_conn_prune( ldapinfo_t *li )
 		}
 	}
 
-	edge = tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
+	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
 	while ( edge ) {
-		TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
 		time_t conn_expires = ldap_back_conn_expire_time( li, lc );
 

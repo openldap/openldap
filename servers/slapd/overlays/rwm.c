@@ -2229,10 +2229,10 @@ rwm_cf_gen( ConfigArgs *c )
 					/* in case of failure, restore
 					 * the existing mapping */
 					if ( rc ) {
-						avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
-						avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
-						avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
-						avl_free( rwmap->rwm_at.map, rwm_mapping_free );
+						ldap_avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
+						ldap_avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
+						ldap_avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
+						ldap_avl_free( rwmap->rwm_at.map, rwm_mapping_free );
 						rwmap->rwm_oc = rwm_oc;
 						rwmap->rwm_at = rwm_at;
 						break;
@@ -2242,10 +2242,10 @@ rwm_cf_gen( ConfigArgs *c )
 				/* in case of success, destroy the old mapping
 				 * and eliminate the deleted one */
 				if ( rc == 0 ) {
-					avl_free( rwm_oc.remap, rwm_mapping_dst_free );
-					avl_free( rwm_oc.map, rwm_mapping_free );
-					avl_free( rwm_at.remap, rwm_mapping_dst_free );
-					avl_free( rwm_at.map, rwm_mapping_free );
+					ldap_avl_free( rwm_oc.remap, rwm_mapping_dst_free );
+					ldap_avl_free( rwm_oc.map, rwm_mapping_free );
+					ldap_avl_free( rwm_at.remap, rwm_mapping_dst_free );
+					ldap_avl_free( rwm_at.map, rwm_mapping_free );
 
 					ber_memfree( rwmap->rwm_bva_map[ c->valx ].bv_val );
 					for ( cnt = c->valx; !BER_BVISNULL( &rwmap->rwm_bva_map[ cnt ] ); cnt++ ) {
@@ -2254,10 +2254,10 @@ rwm_cf_gen( ConfigArgs *c )
 				}
 
 			} else {
-				avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
-				avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
-				avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
-				avl_free( rwmap->rwm_at.map, rwm_mapping_free );
+				ldap_avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
+				ldap_avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
+				ldap_avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
+				ldap_avl_free( rwmap->rwm_at.map, rwm_mapping_free );
 
 				rwmap->rwm_oc.remap = NULL;
 				rwmap->rwm_oc.map = NULL;
@@ -2535,10 +2535,10 @@ rwm_cf_gen( ConfigArgs *c )
 				rwmap->rwm_bva_map = tmp;
 				BER_BVZERO( &rwmap->rwm_bva_map[ cnt + 1 ] );
 
-				avl_free( rwm_oc.remap, rwm_mapping_dst_free );
-				avl_free( rwm_oc.map, rwm_mapping_free );
-				avl_free( rwm_at.remap, rwm_mapping_dst_free );
-				avl_free( rwm_at.map, rwm_mapping_free );
+				ldap_avl_free( rwm_oc.remap, rwm_mapping_dst_free );
+				ldap_avl_free( rwm_oc.map, rwm_mapping_free );
+				ldap_avl_free( rwm_at.remap, rwm_mapping_dst_free );
+				ldap_avl_free( rwm_at.map, rwm_mapping_free );
 
 				for ( ; cnt-- > c->valx; ) {
 					rwmap->rwm_bva_map[ cnt + 1 ] = rwmap->rwm_bva_map[ cnt ];
@@ -2547,10 +2547,10 @@ rwm_cf_gen( ConfigArgs *c )
 
 			} else {
 rwmmap_fail:;
-				avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
-				avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
-				avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
-				avl_free( rwmap->rwm_at.map, rwm_mapping_free );
+				ldap_avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
+				ldap_avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
+				ldap_avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
+				ldap_avl_free( rwmap->rwm_at.map, rwm_mapping_free );
 				rwmap->rwm_oc = rwm_oc;
 				rwmap->rwm_at = rwm_at;
 			}
@@ -2644,10 +2644,10 @@ rwm_db_destroy(
 				ber_bvarray_free( rwmap->rwm_bva_rewrite );
 		}
 
-		avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
-		avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
-		avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
-		avl_free( rwmap->rwm_at.map, rwm_mapping_free );
+		ldap_avl_free( rwmap->rwm_oc.remap, rwm_mapping_dst_free );
+		ldap_avl_free( rwmap->rwm_oc.map, rwm_mapping_free );
+		ldap_avl_free( rwmap->rwm_at.remap, rwm_mapping_dst_free );
+		ldap_avl_free( rwmap->rwm_at.map, rwm_mapping_free );
 		ber_bvarray_free( rwmap->rwm_bva_map );
 
 		ch_free( rwmap );

@@ -1387,7 +1387,7 @@ ldap_back_cf_gen( ConfigArgs *c )
 			/* NOTE: don't worry about locking: if we got here,
 			 * other threads are suspended. */
 			if ( li->li_conninfo.lai_tree != NULL ) {
-				tavl_free( li->li_conninfo.lai_tree, ldap_back_conn_free );
+				ldap_tavl_free( li->li_conninfo.lai_tree, ldap_back_conn_free );
 				li->li_conninfo.lai_tree = NULL;
 			}
 			

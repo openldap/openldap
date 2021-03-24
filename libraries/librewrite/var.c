@@ -94,7 +94,7 @@ rewrite_var_delete(
 		Avlnode *tree
 )
 {
-	avl_free( tree, rewrite_var_free );
+	ldap_avl_free( tree, rewrite_var_free );
 	return REWRITE_SUCCESS;
 }
 
@@ -112,7 +112,7 @@ rewrite_var_find(
 	assert( name != NULL );
 
 	var.lv_name = ( char * )name;
-	return ( struct rewrite_var * )avl_find( tree, 
+	return ( struct rewrite_var * )ldap_avl_find( tree, 
 			( caddr_t )&var, rewrite_var_cmp );
 }
 
@@ -223,12 +223,12 @@ rewrite_var_insert_f(
 		var->lv_value.bv_val = (char *)value;
 	}
 	var->lv_value.bv_len = strlen( value );
-	rc = avl_insert( tree, ( caddr_t )var,
+	rc = ldap_avl_insert( tree, ( caddr_t )var,
 			rewrite_var_cmp, rewrite_var_dup );
 
 cleanup:;
 	if ( rc != 0 && var ) {
-		avl_delete( tree, ( caddr_t )var, rewrite_var_cmp );
+		ldap_avl_delete( tree, ( caddr_t )var, rewrite_var_cmp );
 		rewrite_var_free( var );
 		var = NULL;
 	}

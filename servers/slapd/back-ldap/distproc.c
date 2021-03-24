@@ -432,7 +432,7 @@ distproc_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 	if ( lc->lc_common_li == NULL ) {
 		lc->lc_common_li = li;
 
-	} else if ( tavl_insert( &lc->lc_lai.lai_tree, (caddr_t)li,
+	} else if ( ldap_tavl_insert( &lc->lc_lai.lai_tree, (caddr_t)li,
 		ldap_distproc_uri_cmp, ldap_distproc_uri_dup ) )
 	{
 		Debug( LDAP_DEBUG_ANY, "slapd-distproc: "
@@ -504,9 +504,9 @@ distproc_cfadd( Operation *op, SlapReply *rs, Entry *p, ConfigArgs *ca )
 
 		ldap_distproc_cfadd_apply( lc->lc_common_li, op, rs, p, ca, count++ );
 
-		edge = tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
+		edge = ldap_tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
 		while ( edge ) {
-			TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+			TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 			ldapinfo_t *li = (ldapinfo_t *)edge->avl_data;
 			ldap_distproc_cfadd_apply( li, op, rs, p, ca, count++ );
 			edge = next;
@@ -680,7 +680,7 @@ private_destroy:;
 					goto private_destroy;
 				}
 
-				if ( tavl_insert( &lc->lc_lai.lai_tree,
+				if ( ldap_tavl_insert( &lc->lc_lai.lai_tree,
 					(caddr_t)lc->lc_cfg_li,
 					ldap_distproc_uri_cmp, ldap_distproc_uri_dup ) )
 				{
@@ -732,9 +732,9 @@ ldap_distproc_db_func(
 			}
 
 			if ( lc->lc_lai.lai_tree != NULL ) {
-				TAvlnode *edge = tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
+				TAvlnode *edge = ldap_tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
 				while ( edge ) {
-					TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+					TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 					ldapinfo_t *li = (ldapinfo_t *)edge->avl_data;
 					be->be_private = (void *)li;
 					rc = func( &db, NULL );
@@ -779,7 +779,7 @@ ldap_distproc_db_destroy(
 	rc = ldap_distproc_db_func( be, db_destroy );
 
 	if ( lc ) {
-		tavl_free( lc->lc_lai.lai_tree, NULL );
+		ldap_tavl_free( lc->lc_lai.lai_tree, NULL );
 		ldap_pvt_thread_mutex_destroy( &lc->lc_lai.lai_mutex );
 		ch_free( lc );
 	}
@@ -863,9 +863,9 @@ ldap_distproc_connection_destroy(
 
 	be->be_private = NULL;
 	ldap_pvt_thread_mutex_lock( &lc->lc_lai.lai_mutex );
-	edge = tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
+	edge = ldap_tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
 	while ( edge ) {
-		TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 		ldapinfo_t *li = (ldapinfo_t *)edge->avl_data;
 		be->be_private = (void *)li;
 		rc = lback->bi_connection_destroy( be, conn );

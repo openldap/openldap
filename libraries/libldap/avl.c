@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 1998-2021 The OpenLDAP Foundation.
+ * Copyright 1998-2020 The OpenLDAP Foundation.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@
 #endif
 
 #define AVL_INTERNAL
-#include "avl.h"
+#include "ldap_avl.h"
 
 /* Maximum tree depth this host's address space could support */
 #define MAX_TREE_DEPTH	(sizeof(void *) * CHAR_BIT)
@@ -55,13 +55,13 @@
 static const int avl_bfs[] = {LH, RH};
 
 /*
- * avl_insert -- insert a node containing data data into the avl tree
+ * ldap_avl_insert -- insert a node containing data data into the avl tree
  * with root root.  fcmp is a function to call to compare the data portion
  * of two nodes.  it should take two arguments and return <, >, or == 0,
  * depending on whether its first argument is <, >, or == its second
  * argument (like strcmp, e.g.).  fdup is a function to call when a duplicate
  * node is inserted.  it should return 0, or -1 and its return value
- * will be the return value from avl_insert in the case of a duplicate node.
+ * will be the return value from ldap_avl_insert in the case of a duplicate node.
  * the function will be called with the original node's data as its first
  * argument and with the incoming duplicate node's data as its second
  * argument.  this could be used, for example, to keep a count with each
@@ -70,7 +70,7 @@ static const int avl_bfs[] = {LH, RH};
  * NOTE: this routine may malloc memory
  */
 int
-avl_insert( Avlnode ** root, void *data, AVL_CMP fcmp, AVL_DUP fdup )
+ldap_avl_insert( Avlnode ** root, void *data, AVL_CMP fcmp, AVL_DUP fdup )
 {
     Avlnode *t, *p, *s, *q, *r;
     int a, cmp, ncmp;
@@ -180,7 +180,7 @@ avl_insert( Avlnode ** root, void *data, AVL_CMP fcmp, AVL_DUP fdup )
 }
 
 void*
-avl_delete( Avlnode **root, void* data, AVL_CMP fcmp )
+ldap_avl_delete( Avlnode **root, void* data, AVL_CMP fcmp )
 {
 	Avlnode *p, *q, *r, *top;
 	int side, side_bf, shorter, nside;
@@ -207,7 +207,7 @@ avl_delete( Avlnode **root, void* data, AVL_CMP fcmp )
 		if ( p == NULL )
 			return p;
 	}
-  	data = p->avl_data;
+	data = p->avl_data;
 
 	/* If this node has two children, swap so we are deleting a node with
 	 * at most one child.
@@ -268,7 +268,7 @@ avl_delete( Avlnode **root, void* data, AVL_CMP fcmp )
 
 	top = NULL;
 	shorter = 1;
-  
+
 	while ( shorter ) {
 		p = pptr[depth];
 		side = pdir[depth];
@@ -280,7 +280,7 @@ avl_delete( Avlnode **root, void* data, AVL_CMP fcmp )
 			/* Tree is now heavier on opposite side */
 			p->avl_bf = avl_bfs[nside];
 			shorter = 0;
-		  
+
 		} else if ( p->avl_bf == side_bf ) {
 		/* case 2: taller subtree shortened, height reduced */
 			p->avl_bf = EH;
@@ -358,7 +358,7 @@ avl_inapply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag )
 		return( AVL_NOMORE );
 
 	if ( root->avl_left != 0 )
-		if ( avl_inapply( root->avl_left, fn, arg, stopflag ) 
+		if ( avl_inapply( root->avl_left, fn, arg, stopflag )
 		    == stopflag )
 			return( stopflag );
 
@@ -378,12 +378,12 @@ avl_postapply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag )
 		return( AVL_NOMORE );
 
 	if ( root->avl_left != 0 )
-		if ( avl_postapply( root->avl_left, fn, arg, stopflag ) 
+		if ( avl_postapply( root->avl_left, fn, arg, stopflag )
 		    == stopflag )
 			return( stopflag );
 
 	if ( root->avl_right != 0 )
-		if ( avl_postapply( root->avl_right, fn, arg, stopflag ) 
+		if ( avl_postapply( root->avl_right, fn, arg, stopflag )
 		    == stopflag )
 			return( stopflag );
 
@@ -400,7 +400,7 @@ avl_preapply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag )
 		return( stopflag );
 
 	if ( root->avl_left != 0 )
-		if ( avl_preapply( root->avl_left, fn, arg, stopflag ) 
+		if ( avl_preapply( root->avl_left, fn, arg, stopflag )
 		    == stopflag )
 			return( stopflag );
 
@@ -411,7 +411,7 @@ avl_preapply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag )
 }
 
 /*
- * avl_apply -- avl tree root is traversed, function fn is called with
+ * ldap_avl_apply -- avl tree root is traversed, function fn is called with
  * arguments arg and the data portion of each node.  if fn returns stopflag,
  * the traversal is cut short, otherwise it continues.  Do not use -6 as
  * a stopflag, as this is what is used to indicate the traversal ran out
@@ -419,7 +419,7 @@ avl_preapply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag )
  */
 
 int
-avl_apply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag, int type )
+ldap_avl_apply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag, int type )
 {
 	switch ( type ) {
 	case AVL_INORDER:
@@ -437,18 +437,18 @@ avl_apply( Avlnode *root, AVL_APPLY fn, void* arg, int stopflag, int type )
 }
 
 /*
- * avl_prefixapply - traverse avl tree root, applying function fprefix
+ * ldap_avl_prefixapply - traverse avl tree root, applying function fprefix
  * to any nodes that match.  fcmp is called with data as its first arg
  * and the current node's data as its second arg.  it should return
  * 0 if they match, < 0 if data is less, and > 0 if data is greater.
  * the idea is to efficiently find all nodes that are prefixes of
- * some key...  Like avl_apply, this routine also takes a stopflag
+ * some key...  Like ldap_avl_apply, this routine also takes a stopflag
  * and will return prematurely if fmatch returns this value.  Otherwise,
  * AVL_NOMORE is returned.
  */
 
 int
-avl_prefixapply(
+ldap_avl_prefixapply(
     Avlnode	*root,
     void*	data,
     AVL_CMP		fmatch,
@@ -469,23 +469,23 @@ avl_prefixapply(
 			return( stopflag );
 
 		if ( root->avl_left != 0 )
-			if ( avl_prefixapply( root->avl_left, data, fmatch,
+			if ( ldap_avl_prefixapply( root->avl_left, data, fmatch,
 			    marg, fcmp, carg, stopflag ) == stopflag )
 				return( stopflag );
 
 		if ( root->avl_right != 0 )
-			return( avl_prefixapply( root->avl_right, data, fmatch,
+			return( ldap_avl_prefixapply( root->avl_right, data, fmatch,
 			    marg, fcmp, carg, stopflag ) );
 		else
 			return( AVL_NOMORE );
 
 	} else if ( cmp < 0 ) {
 		if ( root->avl_left != 0 )
-			return( avl_prefixapply( root->avl_left, data, fmatch,
+			return( ldap_avl_prefixapply( root->avl_left, data, fmatch,
 			    marg, fcmp, carg, stopflag ) );
 	} else {
 		if ( root->avl_right != 0 )
-			return( avl_prefixapply( root->avl_right, data, fmatch,
+			return( ldap_avl_prefixapply( root->avl_right, data, fmatch,
 			    marg, fcmp, carg, stopflag ) );
 	}
 
@@ -493,13 +493,13 @@ avl_prefixapply(
 }
 
 /*
- * avl_free -- traverse avltree root, freeing the memory it is using.
+ * ldap_avl_free -- traverse avltree root, freeing the memory it is using.
  * the dfree() is called to free the data portion of each node.  The
  * number of items actually freed is returned.
  */
 
 int
-avl_free( Avlnode *root, AVL_FREE dfree )
+ldap_avl_free( Avlnode *root, AVL_FREE dfree )
 {
 	int	nleft, nright;
 
@@ -508,10 +508,10 @@ avl_free( Avlnode *root, AVL_FREE dfree )
 
 	nleft = nright = 0;
 	if ( root->avl_left != 0 )
-		nleft = avl_free( root->avl_left, dfree );
+		nleft = ldap_avl_free( root->avl_left, dfree );
 
 	if ( root->avl_right != 0 )
-		nright = avl_free( root->avl_right, dfree );
+		nright = ldap_avl_free( root->avl_right, dfree );
 
 	if ( dfree )
 		(*dfree)( root->avl_data );
@@ -521,14 +521,14 @@ avl_free( Avlnode *root, AVL_FREE dfree )
 }
 
 /*
- * avl_find -- search avltree root for a node with data data.  the function
- * cmp is used to compare things.  it is called with data as its first arg 
+ * ldap_avl_find -- search avltree root for a node with data data.  the function
+ * cmp is used to compare things.  it is called with data as its first arg
  * and the current node data as its second.  it should return 0 if they match,
  * < 0 if arg1 is less than arg2 and > 0 if arg1 is greater than arg2.
  */
 
 Avlnode *
-avl_find2( Avlnode *root, const void *data, AVL_CMP fcmp )
+ldap_avl_find2( Avlnode *root, const void *data, AVL_CMP fcmp )
 {
 	int	cmp;
 
@@ -540,7 +540,7 @@ avl_find2( Avlnode *root, const void *data, AVL_CMP fcmp )
 }
 
 void*
-avl_find( Avlnode *root, const void* data, AVL_CMP fcmp )
+ldap_avl_find( Avlnode *root, const void* data, AVL_CMP fcmp )
 {
 	int	cmp;
 
@@ -553,14 +553,14 @@ avl_find( Avlnode *root, const void* data, AVL_CMP fcmp )
 }
 
 /*
- * avl_find_lin -- search avltree root linearly for a node with data data. 
+ * ldap_avl_find_lin -- search avltree root linearly for a node with data data.
  * the function cmp is used to compare things.  it is called with data as its
  * first arg and the current node data as its second.  it should return 0 if
  * they match, non-zero otherwise.
  */
 
 void*
-avl_find_lin( Avlnode *root, const void* data, AVL_CMP fcmp )
+ldap_avl_find_lin( Avlnode *root, const void* data, AVL_CMP fcmp )
 {
 	void*	res;
 
@@ -571,21 +571,21 @@ avl_find_lin( Avlnode *root, const void* data, AVL_CMP fcmp )
 		return( root->avl_data );
 
 	if ( root->avl_left != 0 )
-		if ( (res = avl_find_lin( root->avl_left, data, fcmp ))
+		if ( (res = ldap_avl_find_lin( root->avl_left, data, fcmp ))
 		    != NULL )
 			return( res );
 
 	if ( root->avl_right == 0 )
 		return( NULL );
 	else
-		return( avl_find_lin( root->avl_right, data, fcmp ) );
+		return( ldap_avl_find_lin( root->avl_right, data, fcmp ) );
 }
 
 /* NON-REENTRANT INTERFACE */
 
 static void*	*avl_list;
 static int	avl_maxlist;
-static int	avl_nextlist;
+static int	ldap_avl_nextlist;
 
 #define AVL_GRABSIZE	100
 
@@ -611,61 +611,61 @@ avl_buildlist( void* data, void* arg )
 }
 
 /*
- * avl_getfirst() and avl_getnext() are provided as alternate tree
+ * ldap_avl_getfirst() and ldap_avl_getnext() are provided as alternate tree
  * traversal methods, to be used when a single function cannot be
- * provided to be called with every node in the tree.  avl_getfirst()
+ * provided to be called with every node in the tree.  ldap_avl_getfirst()
  * traverses the tree and builds a linear list of all the nodes,
- * returning the first node.  avl_getnext() returns the next thing
- * on the list built by avl_getfirst().  This means that avl_getfirst()
+ * returning the first node.  ldap_avl_getnext() returns the next thing
+ * on the list built by ldap_avl_getfirst().  This means that ldap_avl_getfirst()
  * can take a while, and that the tree should not be messed with while
  * being traversed in this way, and that multiple traversals (even of
  * different trees) cannot be active at once.
  */
 
 void*
-avl_getfirst( Avlnode *root )
+ldap_avl_getfirst( Avlnode *root )
 {
 	if ( avl_list ) {
 		ber_memfree( (char *) avl_list);
 		avl_list = (void* *) 0;
 	}
 	avl_maxlist = 0;
-	avl_nextlist = 0;
+	ldap_avl_nextlist = 0;
 
 	if ( root == 0 )
 		return( 0 );
 
-	(void) avl_apply( root, avl_buildlist, (void*) 0, -1, AVL_INORDER );
+	(void) ldap_avl_apply( root, avl_buildlist, (void*) 0, -1, AVL_INORDER );
 
-	return( avl_list[ avl_nextlist++ ] );
+	return( avl_list[ ldap_avl_nextlist++ ] );
 }
 
 void*
-avl_getnext( void )
+ldap_avl_getnext( void )
 {
 	if ( avl_list == 0 )
 		return( 0 );
 
-	if ( avl_nextlist == avl_maxlist ) {
+	if ( ldap_avl_nextlist == avl_maxlist ) {
 		ber_memfree( (void*) avl_list);
 		avl_list = (void* *) 0;
 		return( 0 );
 	}
 
-	return( avl_list[ avl_nextlist++ ] );
+	return( avl_list[ ldap_avl_nextlist++ ] );
 }
 
 /* end non-reentrant code */
 
 
 int
-avl_dup_error( void* left, void* right )
+ldap_avl_dup_error( void* left, void* right )
 {
 	return( -1 );
 }
 
 int
-avl_dup_ok( void* left, void* right )
+ldap_avl_dup_ok( void* left, void* right )
 {
 	return( 0 );
 }
