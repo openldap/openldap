@@ -28,6 +28,7 @@ build-openssl-heimdal-lloadd:
     - ./configure --enable-backends=mod --enable-overlays=mod --enable-modules --enable-dynamic --disable-ndb --enable-balancer=mod
     - make depend
     - make
+    - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
     - SLAPD_COMMON_WRAPPER=gdb make test
   artifacts:
@@ -46,6 +47,7 @@ build-gnutls-mit-standalone-lloadd:
     - ./configure --enable-backends=mod --enable-overlays=mod --disable-autoca --enable-modules --enable-dynamic --disable-ndb --enable-balancer=yes
     - make depend
     - make
+    - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
     - SLAPD_COMMON_WRAPPER=gdb make test
   artifacts:
