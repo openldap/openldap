@@ -376,6 +376,21 @@ must be a
 This is a read-only, handle-specific option.
 This option is OpenLDAP specific.
 .TP
+.B LDAP_OPT_SOCKET_BIND_ADDRESSES
+Sets/gets a space-separated list of IP Addresses used as binding interface
+to remote server when trying to establish a connection. Only one valid IPv4
+address and/or one valid IPv6 address are allowed in the list.
+.BR outvalue
+must be a
+.BR "char **",
+and the caller is responsible of freeing the returned string by calling
+.BR ldap_memfree (3),
+while
+.BR invalue
+must be a
+.BR "const char *" ;
+the library duplicates the corresponding string.
+.TP
 .B LDAP_OPT_TIMELIMIT
 Sets/gets the value that defines the time limit after which
 a search operation should be terminated by the server.

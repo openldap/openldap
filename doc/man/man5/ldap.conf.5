@@ -213,6 +213,11 @@ specifies a request for unlimited search size.  Please note that the server
 may still apply any server-side limit on the amount of entries that can be 
 returned by a search operation.
 .TP
+.B SOCKET_BIND_ADDRESSES <IP>
+Specifies the source bind IP to be used for connecting to target LDAP server.
+Multiple IP addresses must be space separated. Only one valid IPv4
+address and/or one valid IPv6 address are allowed in the list.
+.TP
 .B TIMELIMIT <integer>
 Specifies a time limit (in seconds) to use when performing searches.
 The number should be a non-negative integer.  \fITIMELIMIT\fP of zero (0)

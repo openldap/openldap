@@ -476,6 +476,43 @@ ldap_pvt_inet_aton( const char *host, struct in_addr *in)
 #endif
 
 int
+ldap_validate_and_fill_sourceip  (char** source_ip_lst, ldapsourceip* temp_source_ip )
+{
+	int i = 0;
+	int rc = LDAP_PARAM_ERROR;
+
+	for ( i = 0; source_ip_lst[i] != NULL; i++ ) {
+		Debug1( LDAP_DEBUG_TRACE,
+				"ldap_validate_and_fill_sourceip(%s)\n",
+				source_ip_lst[i] );
+
+		if ( !temp_source_ip->has_ipv4 ) {
+			if ( inet_aton( source_ip_lst[i], &temp_source_ip->ip4_addr ) ) {
+				temp_source_ip->has_ipv4 = 1;
+				rc = LDAP_OPT_SUCCESS;
+				continue;
+			}
+		}
+#ifdef LDAP_PF_INET6
+		if ( !temp_source_ip->has_ipv6 ) {
+			if ( inet_pton( AF_INET6, source_ip_lst[i],
+				& temp_source_ip->ip6_addr ) ) {
+				temp_source_ip->has_ipv6 = 1;
+				rc = LDAP_OPT_SUCCESS;
+				continue;
+			}
+		}
+#endif
+		memset( temp_source_ip, 0, sizeof( * (temp_source_ip ) ) );
+		Debug1( LDAP_DEBUG_TRACE,
+				"ldap_validate_and_fill_sourceip: validation failed for (%s)\n",
+				source_ip_lst[i] );
+		break;
+	}
+	return rc;
+}
+
+int
 ldap_int_connect_cbs(LDAP *ld, Sockbuf *sb, ber_socket_t *s, LDAPURLDesc *srv, struct sockaddr *addr)
 {
 	struct ldapoptions *lo;
@@ -607,6 +644,7 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 	rc = -1;
 
 	for( sai=res; sai != NULL; sai=sai->ai_next) {
+		unsigned short bind_success = 1;
 		if( sai->ai_addr == NULL ) {
 			Debug0(LDAP_DEBUG_TRACE,
 				"ldap_connect_to_host: getaddrinfo "
@@ -638,6 +676,24 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 				Debug2(LDAP_DEBUG_TRACE,
 				      "ldap_connect_to_host: Trying %s %s\n",
 					addr, serv );
+				if( ld->ld_options.ldo_local_ip_addrs.has_ipv6 ) {
+					struct sockaddr_in6 ip6addr;
+					char bind_addr[INET6_ADDRSTRLEN];
+					ip6addr.sin6_family = AF_INET6;
+					ip6addr.sin6_addr = ld->ld_options.ldo_local_ip_addrs.ip6_addr;
+					inet_ntop( AF_INET6,
+						&(ip6addr.sin6_addr),
+						bind_addr, sizeof bind_addr );
+					Debug1( LDAP_DEBUG_TRACE,
+						"ldap_connect_to_host: From source address %s\n",
+						bind_addr );
+					if ( bind( s, ( struct sockaddr* ) &ip6addr, sizeof ip6addr ) != 0 ) {
+						Debug1( LDAP_DEBUG_TRACE,
+								"ldap_connect_to_host: Failed to bind source address %s\n",
+								bind_addr );
+						bind_success = 0;
+					}
+				}
 			} break;
 #endif
 			case AF_INET: {
@@ -648,17 +704,36 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 				Debug2(LDAP_DEBUG_TRACE,
 				      "ldap_connect_to_host: Trying %s:%s\n",
 					addr, serv );
+				if( ld->ld_options.ldo_local_ip_addrs.has_ipv4 ) {
+					struct sockaddr_in ip4addr;
+					char bind_addr[INET_ADDRSTRLEN];
+					ip4addr.sin_family = AF_INET;
+					ip4addr.sin_addr = ld->ld_options.ldo_local_ip_addrs.ip4_addr;
+					inet_ntop( AF_INET,
+						&(ip4addr.sin_addr),
+						bind_addr, sizeof bind_addr );
+					Debug1( LDAP_DEBUG_TRACE,
+						"ldap_connect_to_host: From source address %s\n",
+						bind_addr );
+					if ( bind(s, ( struct sockaddr* )&ip4addr, sizeof ip4addr ) != 0 ) {
+						Debug1( LDAP_DEBUG_TRACE,
+								"ldap_connect_to_host: Failed to bind source address %s\n",
+								bind_addr );
+						bind_success = 0;
+					}
+				}
 			} break;
 		}
-
-		rc = ldap_pvt_connect( ld, s,
-			sai->ai_addr, sai->ai_addrlen, async );
-		if ( rc == 0 || rc == -2 ) {
-			err = ldap_int_connect_cbs( ld, sb, &s, srv, sai->ai_addr );
-			if ( err )
-				rc = err;
-			else
-				break;
+		if ( bind_success ) {
+			rc = ldap_pvt_connect( ld, s,
+				sai->ai_addr, sai->ai_addrlen, async );
+			if ( rc == 0 || rc == -2 ) {
+				err = ldap_int_connect_cbs( ld, sb, &s, srv, sai->ai_addr );
+				if ( err )
+					rc = err;
+				else
+					break;
+			}
 		}
 		ldap_pvt_close_socket(ld, s);
 	}
@@ -687,7 +762,14 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 	rc = s = -1;
 	for ( i = 0; !use_hp || (hp->h_addr_list[i] != 0); ++i, rc = -1 ) {
 		struct sockaddr_in	sin;
-
+		unsigned short bind_success = 1;
+#ifdef HAVE_INET_NTOA_B
+		char address[INET_ADDR_LEN];
+		char bind_addr[INET_ADDR_LEN];
+#else
+		char *address;
+		char *bind_addr;
+#endif
 		s = ldap_int_socket( ld, PF_INET, socktype );
 		if ( s == AC_SOCKET_INVALID ) {
 			/* use_hp ? continue : break; */
@@ -712,30 +794,45 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 		}
 
 #ifdef HAVE_INET_NTOA_B
-		{
-			/* for VxWorks */
-			char address[INET_ADDR_LEN];
-			inet_ntoa_b(sin.sin_address, address);
-			Debug2(LDAP_DEBUG_TRACE,
-			      "ldap_connect_to_host: Trying %s:%d\n",
-				address, port );
-		}
+		/* for VxWorks */
+		inet_ntoa_b( sin.sin_address, address );
 #else
-		Debug2(LDAP_DEBUG_TRACE,
-		      "ldap_connect_to_host: Trying %s:%d\n",
-			inet_ntoa(sin.sin_addr), port );
+		address = inet_ntoa( sin.sin_addr );
 #endif
+		Debug2( LDAP_DEBUG_TRACE,
+			"ldap_connect_to_host: Trying %s:%d\n",
+			address, port );
+		if( ld->ld_options.ldo_local_ip_addrs.has_ipv4 ) {
+			struct sockaddr_in ip4addr;
+			ip4addr.sin_family = AF_INET;
+			ip4addr.sin_addr = ld->ld_options.ldo_local_ip_addrs.ip4_addr;
+#ifdef HAVE_INET_NTOA_B
+			inet_ntoa_b( ip4addr.sin_address, bind_addr );
+#else
+			bind_addr = inet_ntoa( ip4addr.sin_addr );
+#endif
+			Debug1( LDAP_DEBUG_TRACE,
+				"ldap_connect_to_host: From source address %s\n",
+				bind_addr );
+			if ( bind( s, (struct sockaddr*)&ip4addr, sizeof ip4addr ) != 0 ) {
+				Debug1( LDAP_DEBUG_TRACE,
+						"ldap_connect_to_host: Failed to bind source address %s\n",
+						bind_addr );
+				bind_success = 0;
+			}
+		}
+		if ( bind_success ) {
+			rc = ldap_pvt_connect(ld, s,
+					(struct sockaddr *)&sin, sizeof(sin),
+					async);
 
-		rc = ldap_pvt_connect(ld, s,
-			(struct sockaddr *)&sin, sizeof(sin),
-			async);
-   
-		if ( (rc == 0) || (rc == -2) ) {
-			int err = ldap_int_connect_cbs( ld, sb, &s, srv, (struct sockaddr *)&sin );
-			if ( err )
-				rc = err;
-			else
-				break;
+			if ( (rc == 0) || (rc == -2) ) {
+				int err = ldap_int_connect_cbs( ld, sb, &s, srv, (struct sockaddr *)&sin );
+				if ( err )
+					rc = err;
+				else
+					break;
+			}
 		}
 
 		ldap_pvt_close_socket(ld, s);

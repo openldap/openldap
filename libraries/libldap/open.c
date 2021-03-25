@@ -207,6 +207,14 @@ ldap_create( LDAP **ldp )
 
 	if (( ld->ld_selectinfo = ldap_new_select_info()) == NULL ) goto nomem;
 
+	ld->ld_options.ldo_local_ip_addrs.local_ip_addrs = NULL;
+	if( gopts->ldo_local_ip_addrs.local_ip_addrs ) {
+		ld->ld_options.ldo_local_ip_addrs.local_ip_addrs =
+			LDAP_STRDUP( gopts->ldo_local_ip_addrs.local_ip_addrs );
+		if ( ld->ld_options.ldo_local_ip_addrs.local_ip_addrs == NULL )
+			goto nomem;
+	}
+
 	ld->ld_lberoptions = LBER_USE_DER;
 
 	ld->ld_sb = ber_sockbuf_alloc( );

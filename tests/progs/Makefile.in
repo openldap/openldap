@@ -57,7 +57,7 @@ slapd-bind: slapd-bind.o $(OBJS) $(XLIBS)
 	$(LTLINK) -o $@ slapd-bind.o $(OBJS) $(LIBS)
 
 ldif-filter: ldif-filter.o $(XLIBS)
-	$(LTLINK) -o $@ ldif-filter.o $(LIBS)
+	$(LTLINK) -o $@ ldif-filter.o $(OBJS) $(LIBS)
 
 slapd-mtread: slapd-mtread.o $(OBJS) $(XLIBS)
 	$(LTLINK) -o $@ slapd-mtread.o $(OBJS) $(LIBS)

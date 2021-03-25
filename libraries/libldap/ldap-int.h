@@ -45,9 +45,7 @@
 
 /* for struct timeval */
 #include <ac/time.h>
-#ifdef _WIN32
 #include <ac/socket.h>
-#endif
 
 #undef TV2MILLISEC
 #define TV2MILLISEC(tv) (((tv)->tv_sec * 1000) + ((tv)->tv_usec/1000))
@@ -200,6 +198,19 @@ typedef struct ldaplist {
 } ldaplist;
 
 /*
+ * LDAP Client Source IP structure
+ */
+typedef struct ldapsourceip {
+	char	*local_ip_addrs;
+	struct in_addr	ip4_addr;
+	unsigned short	has_ipv4;
+#ifdef LDAP_PF_INET6
+	struct in6_addr	ip6_addr;
+	unsigned short	has_ipv6;
+#endif
+} ldapsourceip;
+
+/*
  * structure representing get/set'able options
  * which have global defaults.
  * Protect access to this struct with ldo_mutex
@@ -255,6 +266,15 @@ struct ldapoptions {
 	LDAP_BOOLEANS ldo_booleans;	/* boolean options */
 
 #define LDAP_LDO_NULLARG	,0,0,0,0 ,{0},{0} ,0,0,0,0, 0,0,0,0, 0,0, 0,0,0,0,0,0, 0, 0
+
+	/* LDAP user configured bind IPs */
+	struct ldapsourceip ldo_local_ip_addrs;
+
+#ifdef LDAP_PF_INET6
+#define LDAP_LDO_SOURCEIP_NULLARG	,{0,0,0,0,0}
+#else
+#define LDAP_LDO_SOURCEIP_NULLARG	,{0,0,0}
+#endif
 
 #ifdef LDAP_CONNECTIONLESS
 #define	LDAP_IS_UDP(ld)		((ld)->ld_options.ldo_is_udp)
@@ -726,6 +746,9 @@ LDAP_F (void) ldap_mark_select_clear( LDAP *ld, Sockbuf *sb );
 LDAP_F (void) ldap_clear_select_write( LDAP *ld, Sockbuf *sb );
 LDAP_F (int) ldap_is_read_ready( LDAP *ld, Sockbuf *sb );
 LDAP_F (int) ldap_is_write_ready( LDAP *ld, Sockbuf *sb );
+
+LDAP_F (int) ldap_validate_and_fill_sourceip  ( char** source_ip_lst,
+	ldapsourceip* temp_source_ip );
 
 LDAP_F (int) ldap_int_connect_cbs( LDAP *ld, Sockbuf *sb,
 	ber_socket_t *s, LDAPURLDesc *srv, struct sockaddr *addr );

@@ -38,6 +38,7 @@
 struct ldapoptions ldap_int_global_options =
 	{ LDAP_UNINITIALIZED, LDAP_DEBUG_NONE
 		LDAP_LDO_NULLARG
+		LDAP_LDO_SOURCEIP_NULLARG
 		LDAP_LDO_CONNECTIONLESS_NULLARG
 		LDAP_LDO_TLS_NULLARG
 		LDAP_LDO_SASL_NULLARG
@@ -93,6 +94,7 @@ static const struct ol_attribute {
 		offsetof(struct ldapoptions, ldo_defport)},
 	{0, ATTR_OPTION,	"HOST",			NULL,	LDAP_OPT_HOST_NAME}, /* deprecated */
 	{0, ATTR_OPTION,	"URI",			NULL,	LDAP_OPT_URI}, /* replaces HOST/PORT */
+	{0, ATTR_OPTION,	"SOCKET_BIND_ADDRESSES",	NULL,	LDAP_OPT_SOCKET_BIND_ADDRESSES},
 	{0, ATTR_BOOL,		"REFERRALS",	NULL,	LDAP_BOOL_REFERRALS},
 	{0, ATTR_INT,		"KEEPALIVE_IDLE",	NULL,	LDAP_OPT_X_KEEPALIVE_IDLE},
 	{0, ATTR_INT,		"KEEPALIVE_PROBES",	NULL,	LDAP_OPT_X_KEEPALIVE_PROBES},
@@ -142,7 +144,7 @@ static const struct ol_attribute {
 	{0, ATTR_NONE,		NULL,		NULL,	0}
 };
 
-#define MAX_LDAP_ATTR_LEN  sizeof("TLS_CIPHER_SUITE")
+#define MAX_LDAP_ATTR_LEN  sizeof("SOCKET_BIND_ADDRESSES")
 #define MAX_LDAP_ENV_PREFIX_LEN 8
 
 static int
@@ -519,6 +521,12 @@ ldap_int_destroy_global_options(void)
 		ldap_free_urllist( gopts->ldo_defludp );
 		gopts->ldo_defludp = NULL;
 	}
+
+	if ( gopts->ldo_local_ip_addrs.local_ip_addrs ) {
+		LDAP_FREE( gopts->ldo_local_ip_addrs.local_ip_addrs );
+		gopts->ldo_local_ip_addrs.local_ip_addrs = NULL;
+	}
+
 #if defined(HAVE_WINSOCK) || defined(HAVE_WINSOCK2)
 	WSACleanup( );
 #endif
@@ -557,6 +565,9 @@ void ldap_int_initialize_global_options( struct ldapoptions *gopts, int *dbglvl 
 
 	gopts->ldo_tm_api.tv_sec = -1;
 	gopts->ldo_tm_net.tv_sec = -1;
+
+	memset( &gopts->ldo_local_ip_addrs, 0,
+		sizeof( gopts->ldo_local_ip_addrs ) );
 
 	/* ldo_defludp will be freed by the termination handler
 	 */

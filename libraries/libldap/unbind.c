@@ -175,6 +175,12 @@ ldap_ld_free(
 		ld->ld_options.ldo_defludp = NULL;
 	}
 
+	if ( ld->ld_options.ldo_local_ip_addrs.local_ip_addrs ) {
+		LDAP_FREE( ld->ld_options.ldo_local_ip_addrs.local_ip_addrs );
+		memset( & ld->ld_options.ldo_local_ip_addrs, 0,
+			sizeof( ldapsourceip ) );
+	}
+
 #ifdef LDAP_CONNECTIONLESS
 	if ( ld->ld_options.ldo_peer != NULL ) {
 		LDAP_FREE( ld->ld_options.ldo_peer );
