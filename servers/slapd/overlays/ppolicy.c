@@ -867,6 +867,7 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
 	pp_info *pi = on->on_bi.bi_private;
 	BackendDB *bd, *bd_orig = op->o_bd;
+	AttributeDescription *ad = NULL;
 	Attribute *a;
 	BerVarray vals;
 	int rc = LDAP_SUCCESS;
@@ -877,7 +878,8 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 
 	ppolicy_get_default( pp );
 
-	if ((a = attr_find( e->e_attrs, ad_pwdPolicySubentry )) == NULL) {
+	ad = ad_pwdPolicySubentry;
+	if ( (a = attr_find( e->e_attrs, ad )) == NULL ) {
 		/*
 		 * entry has no password policy assigned - use default
 		 */
@@ -909,113 +911,156 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 		slap_bv2ad( &a->a_vals[0], &pp->ad, &text );
 #endif
 
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMinAge ) )
+	ad = ad_pwdMinAge;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMinAge, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMaxAge ) )
+
+	ad = ad_pwdMaxAge;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMaxAge, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMaxIdle ) )
+
+	ad = ad_pwdMaxIdle;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMaxIdle, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdInHistory ) )
+
+	ad = ad_pwdInHistory;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdInHistory, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdCheckQuality ) )
+
+	ad = ad_pwdCheckQuality;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdCheckQuality, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMinLength ) )
+
+	ad = ad_pwdMinLength;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMinLength, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMaxLength ) )
+
+	ad = ad_pwdMaxLength;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMaxLength, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMaxFailure ) )
+
+	ad = ad_pwdMaxFailure;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMaxFailure, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMaxRecordedFailure ) )
+
+	ad = ad_pwdMaxRecordedFailure;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMaxRecordedFailure, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdGraceExpiry ) )
+
+	ad = ad_pwdGraceExpiry;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdGraceExpiry, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdGraceAuthNLimit ) )
+
+	ad = ad_pwdGraceAuthNLimit;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdGraceAuthNLimit, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdExpireWarning ) )
+
+	ad = ad_pwdExpireWarning;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdExpireWarning, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdFailureCountInterval ) )
+
+	ad = ad_pwdFailureCountInterval;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdFailureCountInterval, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdLockoutDuration ) )
+
+	ad = ad_pwdLockoutDuration;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdLockoutDuration, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMinDelay ) )
+
+	ad = ad_pwdMinDelay;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMinDelay, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdMaxDelay ) )
+
+	ad = ad_pwdMaxDelay;
+	if ( (a = attr_find( pe->e_attrs, ad ))
 			&& lutil_atoi( &pp->pwdMaxDelay, a->a_vals[0].bv_val ) != 0 ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto defaultpol;
 	}
 
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdCheckModule ) ) ) {
+	ad = ad_pwdCheckModule;
+	if ( (a = attr_find( pe->e_attrs, ad )) ) {
 		strncpy( pp->pwdCheckModule, a->a_vals[0].bv_val,
 			sizeof(pp->pwdCheckModule) );
 		pp->pwdCheckModule[sizeof(pp->pwdCheckModule)-1] = '\0';
 	}
-	if ( ( a = attr_find( pe->e_attrs, ad_pwdCheckModuleArg ) ) ) {
+
+	ad = ad_pwdCheckModuleArg;
+	if ( (a = attr_find( pe->e_attrs, ad )) ) {
 		ber_dupbv_x( &pp->pwdCheckModuleArg, &a->a_vals[0], op->o_tmpmemctx );
 	}
 
-	if ((a = attr_find( pe->e_attrs, ad_pwdLockout )))
+	ad = ad_pwdLockout;
+	if ( (a = attr_find( pe->e_attrs, ad )) )
 		pp->pwdLockout = bvmatch( &a->a_nvals[0], &slap_true_bv );
-	if ((a = attr_find( pe->e_attrs, ad_pwdMustChange )))
+
+	ad = ad_pwdMustChange;
+	if ( (a = attr_find( pe->e_attrs, ad )) )
 		pp->pwdMustChange = bvmatch( &a->a_nvals[0], &slap_true_bv );
-	if ((a = attr_find( pe->e_attrs, ad_pwdAllowUserChange )))
+
+	ad = ad_pwdAllowUserChange;
+	if ( (a = attr_find( pe->e_attrs, ad )) )
 		pp->pwdAllowUserChange = bvmatch( &a->a_nvals[0], &slap_true_bv );
-	if ((a = attr_find( pe->e_attrs, ad_pwdSafeModify )))
+
+	ad = ad_pwdSafeModify;
+	if ( (a = attr_find( pe->e_attrs, ad )) )
 		pp->pwdSafeModify = bvmatch( &a->a_nvals[0], &slap_true_bv );
 
 	if ( pp->pwdMaxRecordedFailure < pp->pwdMaxFailure )
 		pp->pwdMaxRecordedFailure = pp->pwdMaxFailure;
+
 	if ( !pp->pwdMaxRecordedFailure && pp->pwdMinDelay )
 		pp->pwdMaxRecordedFailure = PPOLICY_DEFAULT_MAXRECORDED_FAILURE;
 
 	if ( pp->pwdMinDelay && !pp->pwdMaxDelay ) {
-		Debug( LDAP_DEBUG_ANY, "ppolicy_get: pwdMinDelay was set but pwdMaxDelay wasn't, "
-				"assuming they are equal\n" );
+		Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
+				"pwdMinDelay was set but pwdMaxDelay wasn't, assuming they "
+				"are equal\n" );
 		pp->pwdMaxDelay = pp->pwdMinDelay;
 	}
 
@@ -1033,9 +1078,10 @@ defaultpol:
 	}
 
 	if ( rc && !BER_BVISNULL( vals ) ) {
-		Debug( LDAP_DEBUG_ANY,
-			"ppolicy_get: policy subentry %s missing or invalid\n",
-			vals->bv_val );
+		Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
+			"policy subentry %s missing or invalid at '%s', "
+			"no policy will be applied!\n",
+			vals->bv_val, ad ? ad->ad_cname.bv_val : "" );
 	} else {
 		Debug( LDAP_DEBUG_TRACE,
 			"ppolicy_get: using default policy\n" );
