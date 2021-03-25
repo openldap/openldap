@@ -24,6 +24,8 @@ SRCS     = slapd-common.c \
 LDAP_INCDIR= ../../include
 LDAP_LIBDIR= ../../libraries
 
+BUILD_BIN = yes
+
 XLIBS    = $(LDAP_LIBLDAP_LA) $(LDAP_LIBLUTIL_A) $(LDAP_LIBLDAP_LA) $(LDAP_LIBLBER_LA)
 XXLIBS	 = $(SECURITY_LIBS) $(LUTIL_LIBS)
 XXXLIBS  = $(LTHREAD_LIBS)
@@ -33,7 +35,7 @@ OBJS     = slapd-common.o
 # build-tools: FORCE
 # $(MAKE) $(MFLAGS) load-tools
 
-# load-tools: $(PROGRAMS)
+all-local-bin: $(PROGRAMS)
 
 slapd-tester: slapd-tester.o $(OBJS) $(XLIBS)
 	$(LTLINK) -o $@ slapd-tester.o $(OBJS) $(LIBS)

@@ -285,6 +285,7 @@ OL_ARG_ENABLE(modules, [AS_HELP_STRING([--enable-modules], [enable dynamic modul
 OL_ARG_ENABLE(rlookups, [AS_HELP_STRING([--enable-rlookups], [enable reverse lookups of client hostnames])], no)dnl
 OL_ARG_ENABLE(slapi, [AS_HELP_STRING([--enable-slapi], [enable SLAPI support (experimental)])], no)dnl
 OL_ARG_ENABLE(slp, [AS_HELP_STRING([--enable-slp], [enable SLPv2 support])], no)dnl
+OL_ARG_ENABLE(tools, [AS_HELP_STRING([--enable-tools], [enable client tools])], yes)dnl
 OL_ARG_ENABLE(wrappers, [AS_HELP_STRING([--enable-wrappers], [enable tcp wrapper support])], no)dnl
 
 dnl ----------------------------------------------------------------
@@ -556,6 +557,8 @@ BALANCER_INCLUDE=
 
 BUILD_SLAPD=no
 BUILD_BALANCER=no
+
+BUILD_TOOLS=no
 
 BUILD_THREAD=no
 
@@ -1754,8 +1757,16 @@ dnl	LIBS="$save_LIBS"
 fi  
 
 if test $ol_link_threads = no ; then
+	if test $ol_enable_ldap != no; then
+		AC_MSG_ERROR([ldap requires thread support])
+	fi
+
 	if test $ol_enable_slapd != no; then
 		AC_MSG_ERROR([slapd requires thread support])
+	fi
+
+	if test $ol_enable_tools != no; then
+		AC_MSG_ERROR([client tools require thread support])
 	fi
 
 	if test $ol_with_threads = yes ; then
@@ -2537,6 +2548,9 @@ if test "$ol_link_modules" != no ; then
 	BUILD_SLAPD=yes
 	SLAPD_MODULES_LDFLAGS="-dlopen self"
 fi
+if test "$ol_enable_tools" != no ; then
+	BUILD_TOOLS=$ol_enable_tools
+fi
 
 AC_DEFINE(SLAPD_MOD_STATIC,1,[statically linked module])
 AC_DEFINE(SLAPD_MOD_DYNAMIC,2,[dynamically linked module])
@@ -3080,6 +3094,7 @@ AC_SUBST(BUILD_THREAD)
 AC_SUBST(BUILD_LIBS_DYNAMIC)
 
 AC_SUBST(BUILD_SLAPD)
+AC_SUBST(BUILD_TOOLS)
 dnl slapi
   AC_SUBST(BUILD_SLAPI)
   AC_SUBST(SLAPD_SLAPI_DEPEND)

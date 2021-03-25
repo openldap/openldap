@@ -60,15 +60,15 @@ NT_LINK_LIBS = $(LDAP_LIBLBER_LA) $(AC_LIBS) $(SECURITY_LIBS)
 UNIX_LINK_LIBS = $(LDAP_LIBLBER_LA) $(AC_LIBS) $(SECURITY_LIBS) $(LTHREAD_LIBS)
 
 apitest:	$(XLIBS) apitest.o
-	$(LTLINK) -o $@ apitest.o $(LIBS)
+	$(LTLINK) -o $@ apitest.o $(LIBS) $(LINK_LIBS)
 dntest:	$(XLIBS) dntest.o
-	$(LTLINK) -o $@ dntest.o $(LIBS)
+	$(LTLINK) -o $@ dntest.o $(LIBS) $(LINK_LIBS)
 ftest:	$(XLIBS) ftest.o
-	$(LTLINK) -o $@ ftest.o $(LIBS)
+	$(LTLINK) -o $@ ftest.o $(LIBS) $(LINK_LIBS)
 ltest:	$(XLIBS) test.o
-	$(LTLINK) -o $@ test.o $(LIBS)
+	$(LTLINK) -o $@ test.o $(LIBS) $(LINK_LIBS)
 urltest: $(XLIBS) urltest.o
-	$(LTLINK) -o $@ urltest.o $(LIBS)
+	$(LTLINK) -o $@ urltest.o $(LIBS) $(LINK_LIBS)
 
 CFFILES=ldap.conf
 
