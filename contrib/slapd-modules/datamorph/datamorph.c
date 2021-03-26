@@ -804,7 +804,7 @@ datamorph_op_search( Operation *op, SlapReply *rs )
 	 * 1. check all requested attributes -> register callback if one matches
 	 * 2. check filter: parse filter, traverse, for configured attributes:
 	 *    - presence -> do not touch
-	 *    - ava -> replace assertion value with db value if possible, asssertion with undefined otherwise 
+	 *    - ava -> replace assertion value with db value if possible, assertion with undefined otherwise 
 	 *    - inequality -> ???
 	 *    - anything else -> undefined
 	 *    - might just check for equality and leave the rest to syntax?
