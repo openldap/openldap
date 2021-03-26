@@ -763,7 +763,8 @@ void connection_closing( Connection *c, const char *why )
 	assert( connections != NULL );
 	assert( c != NULL );
 
-	assert( c->c_conn_state != SLAP_C_INVALID );
+	if( c->c_conn_state == SLAP_C_INVALID )
+		return;
 
 	/* c_mutex must be locked by caller */
 
@@ -796,7 +797,8 @@ connection_close( Connection *c )
 	assert( connections != NULL );
 	assert( c != NULL );
 
-	assert( c->c_conn_state == SLAP_C_CLOSING );
+	if ( c->c_conn_state != SLAP_C_CLOSING )
+		return;
 
 	/* NOTE: c_mutex should be locked by caller */
 
