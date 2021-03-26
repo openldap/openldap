@@ -21,6 +21,7 @@
 #include <ac/stdlib.h>
 #include <ac/string.h>
 #include <ac/unistd.h>
+#include <ac/socket.h>
 
 #ifdef HAVE_SASL_SASL_H
 #include <sasl/sasl.h>

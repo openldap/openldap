@@ -30,7 +30,6 @@
 #include "ldap_log.h"
 #include "ldap_defaults.h"
 #include "lber.h"
-#include "ldap_pvt.h"
 
 static FILE *log_file = NULL;
 static int debug_lastc = '\n';
