@@ -65,11 +65,11 @@ useCracklib 0
 
 # cracklibDict parameter
 # Format:
-# cracklibDict [path_to_cracklib_dictionnary]
+# cracklibDict [path_to_cracklib_dictionary]
 # Description:
 # directory+filename-prefix that your version of CrackLib will go hunting for
 # For example, /var/pw_dict resolves as /var/pw_dict.pwd,
-# /var/pw_dict.pwi and /var/pw_dict.hwm dictionnary files
+# /var/pw_dict.pwi and /var/pw_dict.hwm dictionary files
 cracklibDict /var/cache/cracklib/cracklib_dict
 
 # classes parameter

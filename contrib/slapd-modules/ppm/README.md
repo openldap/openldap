@@ -80,7 +80,7 @@ character class are present in the password.
 - passwords must have at least n of the corresponding character class
 present, else they are rejected.
 
-- the two previous criterias are checked against any specific character class
+- the two previous criteria are checked against any specific character class
 defined.
 
 - if a password contains any of the forbidden characters, then it is
@@ -159,11 +159,11 @@ useCracklib 0
 
 # cracklibDict parameter
 # Format:
-# cracklibDict [path_to_cracklib_dictionnary]
+# cracklibDict [path_to_cracklib_dictionary]
 # Description:
 # directory+filename-prefix that your version of CrackLib will go hunting for
 # For example, /var/pw_dict resolves as /var/pw_dict.pwd,
-# /var/pw_dict.pwi and /var/pw_dict.hwm dictionnary files
+# /var/pw_dict.pwi and /var/pw_dict.hwm dictionary files
 cracklibDict /var/cache/cracklib/cracklib_dict
 
 # classes parameter
@@ -224,7 +224,7 @@ Feb 26 14:46:10 debian-10-64 slapd[1981]: conn=1000 op=16 MOD dn="uid=user,ou=pe
 Feb 26 14:46:10 debian-10-64 slapd[1981]: conn=1000 op=16 MOD attr=userPassword
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: entry uid=user,ou=persons,dc=my-domain,dc=com
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: Reading pwdCheckModuleArg attribute
-Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: RAW configuration: # minQuality parameter#012# Format:#012# minQuality [NUMBER]#012# Description:#012# One point is granted for each class for which MIN_FOR_POINT criteria is fulfilled.#012# defines the minimum point numbers for the password to be accepted.#012minQuality 3#012#012# checkRDN parameter#012# Format:#012# checkRDN [0 | 1]#012# Description:#012# If set to 1, password must not contain a token from the RDN.#012# Tokens are separated by the following delimiters : space tabulation _ - , ; £#012checkRDN 0#012#012# forbiddenChars parameter#012# Format:#012# forbiddenChars [CHARACTERS_FORBIDDEN]#012# Description:#012# Defines the forbidden characters list (no separator).#012# If one of them is found in the password, then it is rejected.#012forbiddenChars#012#012# maxConsecutivePerClass parameter#012# Format:#012# maxConsecutivePerClass [NUMBER]#012# Description:#012# Defines the maximum number of consecutive character allowed for any class#012maxConsecutivePerClass 0#012#012# useCracklib parameter#012# Format:#012# useCracklib [0 | 1]#012# Description:#012# If set to 1, the password must pass the cracklib check#012useCracklib 0#012#012# cracklibDict parameter#012# Format:#012# cracklibDict [path_to_cracklib_dictionnary]#012# Description:#012# directory+filename-prefix that your version of CrackLib will go hunting for#012# For example, /var/pw_dict resolves as /var/pw_dict.pwd,#012# /var/pw_dict.pwi and /var/pw_dict.hwm dictionnary files#012cracklibDict /var/cache/cracklib/cracklib_dict#012#012# classes parameter#012# Format:#012# class-[CLASS_NAME] [CHARACTERS_DEFINING_CLASS] [MIN] [MIN_FOR_POINT]#012# Description:#012# [CHARACTERS_DEFINING_CLASS]: characters defining the class (no separator)#012# [MIN]: If at least [MIN] characters of this class is not found in the password, then it is rejected#012# [MIN_FOR_POINT]: one point is granted if password contains at least [MIN_FOR_POINT] character numbers of this class#012class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1#012class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1#012class-digit 0123456789 0 1#012class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
+Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: RAW configuration: # minQuality parameter#012# Format:#012# minQuality [NUMBER]#012# Description:#012# One point is granted for each class for which MIN_FOR_POINT criteria is fulfilled.#012# defines the minimum point numbers for the password to be accepted.#012minQuality 3#012#012# checkRDN parameter#012# Format:#012# checkRDN [0 | 1]#012# Description:#012# If set to 1, password must not contain a token from the RDN.#012# Tokens are separated by the following delimiters : space tabulation _ - , ; £#012checkRDN 0#012#012# forbiddenChars parameter#012# Format:#012# forbiddenChars [CHARACTERS_FORBIDDEN]#012# Description:#012# Defines the forbidden characters list (no separator).#012# If one of them is found in the password, then it is rejected.#012forbiddenChars#012#012# maxConsecutivePerClass parameter#012# Format:#012# maxConsecutivePerClass [NUMBER]#012# Description:#012# Defines the maximum number of consecutive character allowed for any class#012maxConsecutivePerClass 0#012#012# useCracklib parameter#012# Format:#012# useCracklib [0 | 1]#012# Description:#012# If set to 1, the password must pass the cracklib check#012useCracklib 0#012#012# cracklibDict parameter#012# Format:#012# cracklibDict [path_to_cracklib_dictionary]#012# Description:#012# directory+filename-prefix that your version of CrackLib will go hunting for#012# For example, /var/pw_dict resolves as /var/pw_dict.pwd,#012# /var/pw_dict.pwi and /var/pw_dict.hwm dictionary files#012cracklibDict /var/cache/cracklib/cracklib_dict#012#012# classes parameter#012# Format:#012# class-[CLASS_NAME] [CHARACTERS_DEFINING_CLASS] [MIN] [MIN_FOR_POINT]#012# Description:#012# [CHARACTERS_DEFINING_CLASS]: characters defining the class (no separator)#012# [MIN]: If at least [MIN] characters of this class is not found in the password, then it is rejected#012# [MIN_FOR_POINT]: one point is granted if password contains at least [MIN_FOR_POINT] character numbers of this class#012class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1#012class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1#012class-digit 0123456789 0 1#012class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: Parsing pwdCheckModuleArg attribute
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # minQuality parameter
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # Format:
@@ -270,11 +270,11 @@ Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: Param = useCracklib, value = 0, m
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm:  Accepted replaced value: 0
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # cracklibDict parameter
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # cracklibDict [path_to_cracklib_dictionnary]
+Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # cracklibDict [path_to_cracklib_dictionary]
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # Description:
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # directory+filename-prefix that your version of CrackLib will go hunting for
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # For example, /var/pw_dict resolves as /var/pw_dict.pwd,
-Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # /var/pw_dict.pwi and /var/pw_dict.hwm dictionnary files
+Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: # /var/pw_dict.pwi and /var/pw_dict.hwm dictionary files
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: get line: cracklibDict /var/cache/cracklib/cracklib_dict
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm: Param = cracklibDict, value = /var/cache/cracklib/cracklib_dict, min = (null), minForPoint= (null)
 Feb 26 14:46:10 debian-10-64 slapd[1981]: ppm:  Accepted replaced value: /var/cache/cracklib/cracklib_dict
@@ -334,7 +334,7 @@ HISTORY
   Version 1.8
 * 2018-03-30 David Coutadeur <david.coutadeur@gmail.com>
   various minor improvements provided by Tim Bishop (tdb) (compilation, test program,
-  imprvts in Makefile: new OLDAP_SOURCES variable pointing to OLDAP instal. directory
+  imprvts in Makefile: new OLDAP_SOURCES variable pointing to OLDAP install. directory
   Version 1.7
 * 2017-05-19 David Coutadeur <david.coutadeur@gmail.com>
   Adds cracklib support
