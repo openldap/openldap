@@ -1647,7 +1647,7 @@ too_long:
 	return 1;
 }
 
-/* Sift through an entry for intersting values
+/* Sift through an entry for interesting values
  * return 0 on success and set vars
  * return 1 if homedir is not present or not valid
  * sets presence if any homedir attributes are noticed
