@@ -84,7 +84,7 @@ for i in 0 1 2 3 4 5; do
 	sleep ${SLEEP1}
 done
 
-echo "Testing slapd.conf suppport..."
+echo "Testing slapd.conf support..."
 mkdir $TESTDIR/conftest $DBDIR2
 . $CONFFILTER $BACKEND $MONITORDB < $CONFTWO \
 	| sed -e '/^argsfile.*/a\
