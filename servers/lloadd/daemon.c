@@ -835,7 +835,7 @@ lload_listener(
     LloadListener *sl = arg;
     LloadConnection *c;
     Sockaddr *from = (Sockaddr *)a;
-    char peername[LUTIL_ADDRLEN];
+    char peername[LDAP_IPADDRLEN];
     struct berval peerbv = BER_BVC(peername);
     int cflag;
     int tid;
@@ -916,7 +916,7 @@ lload_listener(
         case AF_INET6:
 #endif /* LDAP_PF_INET6 */
         case AF_INET:
-            lutil_sockaddrstr( from, &peerbv );
+            ldap_pvt_sockaddrstr( from, &peerbv );
             break;
 
         default:

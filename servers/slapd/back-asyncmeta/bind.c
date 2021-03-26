@@ -1575,14 +1575,14 @@ retry_bind:
 	}
 	if ( LogTest( LDAP_DEBUG_TRACE )) {
 		ber_socket_t s;
-		char sockname[LUTIL_ADDRLEN];
+		char sockname[LDAP_IPADDRLEN];
 		struct berval sockbv = BER_BVC( sockname );
 		Sockaddr addr;
 		socklen_t len = sizeof( addr );
 
 		ldap_get_option( msc->msc_ld, LDAP_OPT_DESC, &s );
 		getsockname( s, &addr.sa_addr, &len );
-		lutil_sockaddrstr( &addr, &sockbv );
+		ldap_pvt_sockaddrstr( &addr, &sockbv );
 		Debug( LDAP_DEBUG_TRACE, "%s asyncmeta_dobind_init msc %p ld %p ldr %p fd %d addr %s\n",
 			op->o_log_prefix, msc, msc->msc_ld, msc->msc_ldr, s, sockname );
 	}

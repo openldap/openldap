@@ -2098,7 +2098,7 @@ slap_listener(
 
 	char	*dnsname = NULL;
 	/* we assume INET6_ADDRSTRLEN > INET_ADDRSTRLEN */
-	char peername[LUTIL_ADDRLEN];
+	char peername[LDAP_IPADDRLEN];
 	struct berval peerbv = BER_BVC(peername);
 #ifdef LDAP_PF_LOCAL_SENDMSG
 	char peerbuf[8];
@@ -2278,7 +2278,7 @@ slap_listener(
 				return 0;
 			}
 		}
-		lutil_sockaddrstr( &from, &peerbv );
+		ldap_pvt_sockaddrstr( &from, &peerbv );
 		break;
 
 	default:

@@ -864,14 +864,14 @@ ldap_dump_connection( LDAP *ld, LDAPConn *lconns, int all )
 				ld->ld_sb ) ? "  (default)" : "" );
 		}
 		if ( lc->lconn_sb != NULL ) {
-			char 			from[LUTIL_ADDRLEN];
+			char 			from[LDAP_IPADDRLEN];
 			struct berval 	frombv = BER_BVC(from);
 			ber_socket_t 	sb;
 			if ( ber_sockbuf_ctrl( lc->lconn_sb, LBER_SB_OPT_GET_FD, &sb ) == 1 ) {
 				struct sockaddr_in sin;
 				socklen_t len = sizeof( sin );
 				if ( getsockname( sb, (struct sockaddr *)&sin, &len ) == 0 ) {
-					lutil_sockaddrstr( (Sockaddr *) &sin, &frombv );
+					ldap_pvt_sockaddrstr( (Sockaddr *) &sin, &frombv );
 					Debug1( LDAP_DEBUG_TRACE, "* from: %s\n",
 						( from == NULL ) ? "(null)" : from );
 				}

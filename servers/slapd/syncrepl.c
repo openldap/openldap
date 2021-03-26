@@ -167,7 +167,7 @@ typedef struct syncinfo_s {
 	struct berval	si_lastCookieRcvd;
 	struct berval	si_lastCookieSent;
 	struct berval	si_monitor_ndn;
-	char	si_connaddrbuf[LUTIL_ADDRLEN];
+	char	si_connaddrbuf[LDAP_IPADDRLEN];
 
 	ldap_pvt_thread_mutex_t	si_monitor_mutex;
 	ldap_pvt_thread_mutex_t	si_mutex;
@@ -2055,7 +2055,7 @@ do_syncrepl(
 			if ( !getsockname( s, &addr.sa_addr, &len )) {
 				si->si_connaddr.bv_val = si->si_connaddrbuf;
 				si->si_connaddr.bv_len = sizeof( si->si_connaddrbuf );
-				lutil_sockaddrstr( &addr, &si->si_connaddr );
+				ldap_pvt_sockaddrstr( &addr, &si->si_connaddr );
 			}
 		}
 
