@@ -40,6 +40,7 @@ sed -e "s/@BACKEND@/${BACKEND}/"			\
 	-e "s/^#${AC_dds}#//"				\
 	-e "s/^#${AC_deref}#//"				\
 	-e "s/^#${AC_dynlist}#//"			\
+	-e "s/^#${AC_homedir}#//"			\
 	-e "s/^#${AC_pcache}#//"			\
 	-e "s/^#${AC_ppolicy}#//"			\
 	-e "s/^#${AC_refint}#//"			\
