@@ -289,7 +289,7 @@ old_good:
 		rs->sr_err = LDAP_OTHER;
 
 	} else {
-		slap_callback *sc = op->o_callback;
+		slap_callback **sc;
 
 		op->o_tag = LDAP_REQ_MODIFY;
 		op->o_callback = &cb;
@@ -312,7 +312,12 @@ old_good:
 			rsp = NULL;
 		}
 		op->o_tag = LDAP_REQ_EXTENDED;
-		op->o_callback = sc;
+		for ( sc = &op->o_callback; *sc; sc = &(*sc)->sc_next ) {
+			if ( *sc == &cb ) {
+				*sc = cb.sc_next;
+				break;
+			}
+		}
 	}
 
 	rc = rs->sr_err;
