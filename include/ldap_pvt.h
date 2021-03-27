@@ -178,22 +178,7 @@ ldap_pvt_get_hname LDAP_P((
 #define LDAP_IPADDRLEN	sizeof("IP=255.255.255.255:65336")
 #endif
 
-struct sockaddr_in;
-struct sockaddr_in6;
-struct sockaddr_storage;
-struct sockaddr_un;
-
-typedef union Sockaddr {
-	struct sockaddr sa_addr;
-	struct sockaddr_in sa_in_addr;
-#ifdef LDAP_PF_INET6
-	struct sockaddr_storage sa_storage;
-	struct sockaddr_in6 sa_in6_addr;
-#endif
-#ifdef LDAP_PF_LOCAL
-	struct sockaddr_un sa_un_addr;
-#endif
-} Sockaddr;
+typedef union Sockaddr Sockaddr;
 
 LDAP_F (void)
 ldap_pvt_sockaddrstr LDAP_P((

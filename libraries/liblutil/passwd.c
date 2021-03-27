@@ -33,7 +33,6 @@
 #include <ac/string.h>
 #include <ac/unistd.h>
 #include <ac/param.h>
-#include <ac/socket.h>
 
 #ifdef SLAPD_CRYPT
 # include <ac/crypt.h>

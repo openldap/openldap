@@ -19,7 +19,6 @@
 #include <ac/stdlib.h>
 #include <ac/string.h>
 #include <ac/unistd.h>
-#include <ac/socket.h>
 
 #include <stdio.h>
 
