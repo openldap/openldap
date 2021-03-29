@@ -23,10 +23,14 @@ OBJS	= ldapsearch.o ldapmodify.o ldapdelete.o ldapmodrdn.o \
 LDAP_INCDIR= ../../include       
 LDAP_LIBDIR= ../../libraries
 
+BUILD_OPT = "--enable-tools"
+BUILD_BIN = @BUILD_TOOLS@
+
 MKVOPTS = -s
 
 XLIBS =  $(LDAP_L)
 XXLIBS	= $(SECURITY_LIBS) $(LUTIL_LIBS) $(CLIENT_LIBS)
+UNIX_LINK_LIBS = $(LTHREAD_LIBS)
 
 XSRCS	= ldsversion.c ldmversion.c lddversion.c ldrversion.c ldpversion.c \
 	ldwversion.c ldvversion.c ldcversion.c ldeversion.c lduversion.c
@@ -34,36 +38,37 @@ XSRCS	= ldsversion.c ldmversion.c lddversion.c ldrversion.c ldpversion.c \
 PROGRAMS = ldapsearch ldapmodify ldapdelete ldapmodrdn \
 	ldappasswd ldapwhoami ldapvc ldapcompare ldapexop ldapurl
 
+all-local-bin: $(PROGRAMS)
 
 ldapsearch:	ldsversion.o
-	$(LTLINK) -o $@ ldapsearch.o common.o ldsversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapsearch.o common.o ldsversion.o $(LIBS) $(LINK_LIBS)
 
 ldapmodify:	ldmversion.o
-	$(LTLINK) -o $@ ldapmodify.o common.o ldmversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapmodify.o common.o ldmversion.o $(LIBS) $(LINK_LIBS)
 
 ldapdelete:	lddversion.o
-	$(LTLINK) -o $@ ldapdelete.o common.o lddversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapdelete.o common.o lddversion.o $(LIBS) $(LINK_LIBS)
 
 ldapmodrdn:	ldrversion.o
-	$(LTLINK) -o $@ ldapmodrdn.o common.o ldrversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapmodrdn.o common.o ldrversion.o $(LIBS) $(LINK_LIBS)
 
 ldappasswd:	ldpversion.o
-	$(LTLINK) -o $@ ldappasswd.o common.o ldpversion.o $(LIBS)
+	$(LTLINK) -o $@ ldappasswd.o common.o ldpversion.o $(LIBS) $(LINK_LIBS)
 
 ldapwhoami:	ldwversion.o
-	$(LTLINK) -o $@ ldapwhoami.o common.o ldwversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapwhoami.o common.o ldwversion.o $(LIBS) $(LINK_LIBS)
 
 ldapvc:	ldvversion.o
-	$(LTLINK) -o $@ ldapvc.o common.o ldvversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapvc.o common.o ldvversion.o $(LIBS) $(LINK_LIBS)
 
 ldapcompare: ldcversion.o
-	$(LTLINK) -o $@ ldapcompare.o common.o ldcversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapcompare.o common.o ldcversion.o $(LIBS) $(LINK_LIBS)
 
 ldapexop: ldeversion.o
-	$(LTLINK) -o $@ ldapexop.o common.o ldeversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapexop.o common.o ldeversion.o $(LIBS) $(LINK_LIBS)
 
 ldapurl: lduversion.o
-	$(LTLINK) -o $@ ldapurl.o lduversion.o $(LIBS)
+	$(LTLINK) -o $@ ldapurl.o lduversion.o $(LIBS) $(LINK_LIBS)
 
 ldsversion.c: Makefile
 	@-$(RM) $@
@@ -126,13 +131,15 @@ lduversion.c: Makefile
 lduversion.o: ldapurl.o $(XLIBS)
 
 install-local:	FORCE
-	-$(MKDIR) $(DESTDIR)$(bindir)
-	@(								\
-	    for prg in $(PROGRAMS); do					\
-		$(LTINSTALL) $(INSTALLFLAGS) $(STRIP_OPTS) -m 755 $$prg$(EXEEXT)	\
-		    $(DESTDIR)$(bindir);				\
-	    done							\
-	)
-	$(RM) $(DESTDIR)$(bindir)/ldapadd$(EXEEXT)
-	$(LN_S) $(DESTDIR)$(bindir)/ldapmodify$(EXEEXT) $(DESTDIR)$(bindir)/ldapadd$(EXEEXT)
+	if test "$(BUILD_BIN)" = "yes"; then								\
+		-$(MKDIR) $(DESTDIR)$(bindir);								\
+		@(											\
+		    for prg in $(PROGRAMS); do								\
+			$(LTINSTALL) $(INSTALLFLAGS) $(STRIP_OPTS) -m 755 $$prg$(EXEEXT)		\
+			    $(DESTDIR)$(bindir);							\
+		    done										\
+		)											\
+		$(RM) $(DESTDIR)$(bindir)/ldapadd$(EXEEXT);						\
+		$(LN_S) $(DESTDIR)$(bindir)/ldapmodify$(EXEEXT) $(DESTDIR)$(bindir)/ldapadd$(EXEEXT);	\
+	fi
 

@@ -16,19 +16,34 @@
 # Makefile Template for Programs
 #
 
-all-common: $(PROGRAMS) FORCE
+all-no lint-no lint5-no depend-no: FORCE
+	@echo "run configure with $(BUILD_OPT) to make $(BINBSE)"
+
+all-common: all-$(BUILD_BIN)
+
+depend-common: depend-$(BUILD_BIN)
+
+lint: lint-$(BUILD_BIN)
+
+lint5: lint5-$(BUILD_BIN)
+
+all-local-bin:
+all-yes: $(PROGRAMS) all-local-bin FORCE
 
 clean-common: 	FORCE
 	$(RM) $(PROGRAMS) $(XPROGRAMS) $(XSRCS) *.o *.lo a.out core *.core \
 		    .libs/* *.exe
 
-depend-common: FORCE
+depend-local-bin:
+depend-yes: depend-local-bin FORCE
 	$(MKDEP) $(DEFS) $(DEFINES) $(SRCS)
 
-lint: FORCE
+lint-local-bin:
+lint-yes: lint-local-bin FORCE
 	$(LINT) $(DEFS) $(DEFINES) $(SRCS)
 
-lint5: FORCE
+lint5-local-bin:
+lint5: lint5-local-bin FORCE
 	$(5LINT) $(DEFS) $(DEFINES) $(SRCS)
 
 Makefile: $(top_srcdir)/build/rules.mk
