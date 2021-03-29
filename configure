@@ -688,6 +688,7 @@ BUILD_REFINT
 BUILD_PROXYCACHE
 BUILD_PPOLICY
 BUILD_MEMBEROF
+BUILD_HOMEDIR
 BUILD_LASTMOD
 BUILD_DYNLIST
 BUILD_DYNGROUP
@@ -716,6 +717,7 @@ BUILD_DNSSRV
 SLAPD_SLAPI_DEPEND
 BUILD_SLAPI
 BUILD_SLAPD
+OL_VERSIONED_SYMBOLS
 BUILD_LIBS_DYNAMIC
 BUILD_THREAD
 WITH_ACI_ENABLED
@@ -879,6 +881,7 @@ enable_dds
 enable_deref
 enable_dyngroup
 enable_dynlist
+enable_homedir
 enable_memberof
 enable_ppolicy
 enable_proxycache
@@ -900,6 +903,7 @@ enable_balancer
 enable_xxliboptions
 enable_static
 enable_shared
+enable_versioning
 with_pic
 enable_fast_install
 with_aix_soname
@@ -1588,6 +1592,7 @@ SLAPD Overlay Options:
   --enable-deref          Dereference overlay no|yes|mod [no]
   --enable-dyngroup       Dynamic Group overlay no|yes|mod [no]
   --enable-dynlist        Dynamic List overlay no|yes|mod [no]
+  --enable-homedir        Home Directory Management overlay no|yes|mod [no]
   --enable-memberof       Reverse Group Membership overlay no|yes|mod [no]
   --enable-ppolicy        Password Policy overlay no|yes|mod [no]
   --enable-proxycache     Proxy Cache overlay no|yes|mod [no]
@@ -1611,6 +1616,7 @@ LLOADD (Load Balancer Daemon) Options:
 Library Generation & Linking Options
   --enable-static[=PKGS]  build static libraries [default=yes]
   --enable-shared[=PKGS]  build shared libraries [default=yes]
+  --enable-versioning     Enable versioned symbols in shared library no|yes|auto [auto]
   --enable-fast-install[=PKGS]
                           optimize for fast installation [default=yes]
   --disable-libtool-lock  avoid locking (might break parallel builds)
@@ -3825,6 +3831,7 @@ Overlays="accesslog \
 	deref \
 	dyngroup \
 	dynlist \
+	homedir \
 	memberof \
 	ppolicy \
 	proxycache \
@@ -4063,6 +4070,28 @@ else
 fi
 
 # end --enable-dynlist
+
+# OpenLDAP --enable-homedir
+
+	# Check whether --enable-homedir was given.
+if test "${enable_homedir+set}" = set; then :
+  enableval=$enable_homedir;
+	ol_arg=invalid
+	for ol_val in no yes mod ; do
+		if test "$enableval" = "$ol_val" ; then
+			ol_arg="$ol_val"
+		fi
+	done
+	if test "$ol_arg" = "invalid" ; then
+		as_fn_error $? "bad value $enableval for --enable-homedir" "$LINENO" 5
+	fi
+	ol_enable_homedir="$ol_arg"
+
+else
+  	ol_enable_homedir=${ol_enable_overlays:-no}
+fi
+
+# end --enable-homedir
 
 # OpenLDAP --enable-memberof
 
@@ -4495,6 +4524,27 @@ fi
 
 
 
+# OpenLDAP --enable-versioning
+
+	# Check whether --enable-versioning was given.
+if test "${enable_versioning+set}" = set; then :
+  enableval=$enable_versioning;
+	ol_arg=invalid
+	for ol_val in no yes auto ; do
+		if test "$enableval" = "$ol_val" ; then
+			ol_arg="$ol_val"
+		fi
+	done
+	if test "$ol_arg" = "invalid" ; then
+		as_fn_error $? "bad value $enableval for --enable-versioning" "$LINENO" 5
+	fi
+	ol_enable_versioning="$ol_arg"
+
+else
+  	ol_enable_versioning=auto
+fi
+
+# end --enable-versioning
 
 
 if test $ol_enable_slapd = no ; then
@@ -4639,6 +4689,7 @@ BUILD_DEREF=no
 BUILD_DYNGROUP=no
 BUILD_DYNLIST=no
 BUILD_LASTMOD=no
+BUILD_HOMEDIR=no
 BUILD_MEMBEROF=no
 BUILD_PPOLICY=no
 BUILD_PROXYCACHE=no
@@ -25091,6 +25142,22 @@ _ACEOF
 
 fi
 
+if test "$ol_enable_homedir" != no ; then
+	BUILD_HOMEDIR=$ol_enable_homedir
+	if test "$ol_enable_homedir" = mod ; then
+		MFLAG=SLAPD_MOD_DYNAMIC
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS homedir.la"
+	else
+		MFLAG=SLAPD_MOD_STATIC
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS homedir.o"
+	fi
+
+cat >>confdefs.h <<_ACEOF
+#define SLAPD_OVER_HOMEDIR $MFLAG
+_ACEOF
+
+fi
+
 if test "$ol_enable_memberof" != no ; then
 	BUILD_MEMBEROF=$ol_enable_memberof
 	if test "$ol_enable_memberof" = mod ; then
@@ -25469,6 +25536,18 @@ $as_echo "#define ENABLE_SLAPI 1" >>confdefs.h
 	SLAPD_SLAPI_DEPEND=libslapi.a
 fi
 
+OL_VERSIONED_SYMBOLS=""
+if test $ol_enable_versioning != no; then
+	LDVS=`$LD --help < /dev/null 2>/dev/null | grep version-script`
+	if test -z "$LDVS"; then
+		if test $ol_enable_versioning = "yes" ; then
+			as_fn_error $? "Library symbol versioning requested but not supported" "$LINENO" 5
+		fi
+	else
+		OL_VERSIONED_SYMBOLS="-Wl,--version-script="
+	fi
+fi
+
 
 
 if test "$ac_cv_mingw32" = yes -o $ol_cv_msvc = yes ; then
@@ -25578,6 +25657,8 @@ fi
 
 
 
+
+
 # Check whether --with-xxinstall was given.
 if test "${with_xxinstall+set}" = set; then :
   withval=$with_xxinstall;
@@ -25585,7 +25666,7 @@ fi
 
 
 
-ac_config_files="$ac_config_files Makefile:build/top.mk:Makefile.in:build/dir.mk doc/Makefile:build/top.mk:doc/Makefile.in:build/dir.mk doc/man/Makefile:build/top.mk:doc/man/Makefile.in:build/dir.mk doc/man/man1/Makefile:build/top.mk:doc/man/man1/Makefile.in:build/man.mk doc/man/man3/Makefile:build/top.mk:doc/man/man3/Makefile.in:build/man.mk doc/man/man5/Makefile:build/top.mk:doc/man/man5/Makefile.in:build/man.mk doc/man/man8/Makefile:build/top.mk:doc/man/man8/Makefile.in:build/man.mk clients/Makefile:build/top.mk:clients/Makefile.in:build/dir.mk clients/tools/Makefile:build/top.mk:clients/tools/Makefile.in:build/rules.mk include/Makefile:build/top.mk:include/Makefile.in libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/liblber/lber.pc libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/libldap/ldap.pc libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk servers/Makefile:build/top.mk:servers/Makefile.in:build/dir.mk servers/slapd/Makefile:build/top.mk:servers/slapd/Makefile.in:build/srv.mk servers/slapd/back-dnssrv/Makefile:build/top.mk:servers/slapd/back-dnssrv/Makefile.in:build/mod.mk servers/slapd/back-ldap/Makefile:build/top.mk:servers/slapd/back-ldap/Makefile.in:build/mod.mk servers/slapd/back-ldif/Makefile:build/top.mk:servers/slapd/back-ldif/Makefile.in:build/mod.mk servers/slapd/back-mdb/Makefile:build/top.mk:servers/slapd/back-mdb/Makefile.in:build/mod.mk servers/slapd/back-meta/Makefile:build/top.mk:servers/slapd/back-meta/Makefile.in:build/mod.mk servers/slapd/back-asyncmeta/Makefile:build/top.mk:servers/slapd/back-asyncmeta/Makefile.in:build/mod.mk servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk servers/slapd/back-ndb/Makefile:build/top.mk:servers/slapd/back-ndb/Makefile.in:build/mod.mk servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/back-null/Makefile.in:build/mod.mk servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk servers/slapd/back-shell/Makefile:build/top.mk:servers/slapd/back-shell/Makefile.in:build/mod.mk servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk servers/slapd/shell-backends/Makefile:build/top.mk:servers/slapd/shell-backends/Makefile.in:build/srv.mk servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk servers/slapd/pwmods/Makefile:build/top.mk:servers/slapd/pwmods/Makefile.in:build/lib.mk servers/lloadd/Makefile:build/top.mk:servers/lloadd/Makefile.in servers/lloadd/Makefile.server:servers/lloadd/Makefile_server.in:build/srv.mk servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk tests/Makefile:build/top.mk:tests/Makefile.in:build/dir.mk tests/run tests/progs/Makefile:build/top.mk:tests/progs/Makefile.in:build/rules.mk"
+ac_config_files="$ac_config_files Makefile:build/top.mk:Makefile.in:build/dir.mk doc/Makefile:build/top.mk:doc/Makefile.in:build/dir.mk doc/man/Makefile:build/top.mk:doc/man/Makefile.in:build/dir.mk doc/man/man1/Makefile:build/top.mk:doc/man/man1/Makefile.in:build/man.mk doc/man/man3/Makefile:build/top.mk:doc/man/man3/Makefile.in:build/man.mk doc/man/man5/Makefile:build/top.mk:doc/man/man5/Makefile.in:build/man.mk doc/man/man8/Makefile:build/top.mk:doc/man/man8/Makefile.in:build/man.mk clients/Makefile:build/top.mk:clients/Makefile.in:build/dir.mk clients/tools/Makefile:build/top.mk:clients/tools/Makefile.in:build/rules.mk include/Makefile:build/top.mk:include/Makefile.in libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/liblber/lber.pc libraries/liblber/liblber.vers libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk libraries/libldap/ldap.pc libraries/libldap/libldap.vers libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk servers/Makefile:build/top.mk:servers/Makefile.in:build/dir.mk servers/slapd/Makefile:build/top.mk:servers/slapd/Makefile.in:build/srv.mk servers/slapd/back-dnssrv/Makefile:build/top.mk:servers/slapd/back-dnssrv/Makefile.in:build/mod.mk servers/slapd/back-ldap/Makefile:build/top.mk:servers/slapd/back-ldap/Makefile.in:build/mod.mk servers/slapd/back-ldif/Makefile:build/top.mk:servers/slapd/back-ldif/Makefile.in:build/mod.mk servers/slapd/back-mdb/Makefile:build/top.mk:servers/slapd/back-mdb/Makefile.in:build/mod.mk servers/slapd/back-meta/Makefile:build/top.mk:servers/slapd/back-meta/Makefile.in:build/mod.mk servers/slapd/back-asyncmeta/Makefile:build/top.mk:servers/slapd/back-asyncmeta/Makefile.in:build/mod.mk servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk servers/slapd/back-ndb/Makefile:build/top.mk:servers/slapd/back-ndb/Makefile.in:build/mod.mk servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/back-null/Makefile.in:build/mod.mk servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk servers/slapd/back-shell/Makefile:build/top.mk:servers/slapd/back-shell/Makefile.in:build/mod.mk servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk servers/slapd/shell-backends/Makefile:build/top.mk:servers/slapd/shell-backends/Makefile.in:build/srv.mk servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk servers/slapd/pwmods/Makefile:build/top.mk:servers/slapd/pwmods/Makefile.in:build/lib.mk servers/lloadd/Makefile:build/top.mk:servers/lloadd/Makefile.in servers/lloadd/Makefile.server:servers/lloadd/Makefile_server.in:build/srv.mk servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk tests/Makefile:build/top.mk:tests/Makefile.in:build/dir.mk tests/run tests/progs/Makefile:build/top.mk:tests/progs/Makefile.in:build/rules.mk"
 
 
 ac_config_commands="$ac_config_commands default"
@@ -26511,8 +26592,10 @@ do
     "libraries/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk" ;;
     "libraries/liblber/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk" ;;
     "libraries/liblber/lber.pc") CONFIG_FILES="$CONFIG_FILES libraries/liblber/lber.pc" ;;
+    "libraries/liblber/liblber.vers") CONFIG_FILES="$CONFIG_FILES libraries/liblber/liblber.vers" ;;
     "libraries/libldap/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk" ;;
     "libraries/libldap/ldap.pc") CONFIG_FILES="$CONFIG_FILES libraries/libldap/ldap.pc" ;;
+    "libraries/libldap/libldap.vers") CONFIG_FILES="$CONFIG_FILES libraries/libldap/libldap.vers" ;;
     "libraries/liblunicode/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk" ;;
     "libraries/liblutil/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk" ;;
     "libraries/librewrite/Makefile") CONFIG_FILES="$CONFIG_FILES libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk" ;;
