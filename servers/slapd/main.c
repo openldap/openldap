@@ -1129,7 +1129,7 @@ stop:
 		ch_free( global_host );
 
 	/* kludge, get symbols referenced */
-	tavl_free( NULL, NULL );
+	ldap_tavl_free( NULL, NULL );
 
 #ifdef CSRIMALLOC
 	mal_dumpleaktrace( leakfile );

@@ -351,7 +351,7 @@ rewrite_builtin_map_insert(
 	/*
 	 * May need a mutex?
 	 */
-	return avl_insert( &info->li_maps, ( caddr_t )map,
+	return ldap_avl_insert( &info->li_maps, ( caddr_t )map,
 			rewrite_builtin_map_cmp,
 		       	rewrite_builtin_map_dup );
 }
@@ -372,7 +372,7 @@ rewrite_builtin_map_find(
 
 	tmp.lb_name = ( char * )name;
 
-	return ( struct rewrite_builtin_map * )avl_find( info->li_maps,
+	return ( struct rewrite_builtin_map * )ldap_avl_find( info->li_maps,
 			( caddr_t )&tmp, rewrite_builtin_map_cmp );
 }
 

@@ -3812,8 +3812,8 @@ presentlist_insert(
 	memcpy(&s, syncUUID->bv_val, 2);
 	memcpy(val, syncUUID->bv_val+2, UUIDLEN-2);
 
-	if ( avl_insert( &av[s], val,
-		syncuuid_cmp, avl_dup_error ) )
+	if ( ldap_avl_insert( &av[s], val,
+		syncuuid_cmp, ldap_avl_dup_error ) )
 	{
 		ch_free( val );
 		return 0;
@@ -3823,8 +3823,8 @@ presentlist_insert(
 
 	AC_MEMCPY( val, syncUUID->bv_val, UUIDLEN );
 
-	if ( avl_insert( &si->si_presentlist, val,
-		syncuuid_cmp, avl_dup_error ) )
+	if ( ldap_avl_insert( &si->si_presentlist, val,
+		syncuuid_cmp, ldap_avl_dup_error ) )
 	{
 		ch_free( val );
 		return 0;
@@ -3847,9 +3847,9 @@ presentlist_find(
 		return NULL;
 
 	memcpy(&s, val->bv_val, 2);
-	return avl_find( a2[s], val->bv_val+2, syncuuid_cmp );
+	return ldap_avl_find( a2[s], val->bv_val+2, syncuuid_cmp );
 #else
-	return avl_find( av, val->bv_val, syncuuid_cmp );
+	return ldap_avl_find( av, val->bv_val, syncuuid_cmp );
 #endif
 }
 
@@ -3863,13 +3863,13 @@ presentlist_free( Avlnode *av )
 	if ( av ) {
 		for (i=0; i<65536; i++) {
 			if (a2[i])
-				count += avl_free( a2[i], ch_free );
+				count += ldap_avl_free( a2[i], ch_free );
 		}
 		ch_free( av );
 	}
 	return count;
 #else
-	return avl_free( av, ch_free );
+	return ldap_avl_free( av, ch_free );
 #endif
 }
 
@@ -3883,9 +3883,9 @@ presentlist_delete(
 	unsigned short s;
 
 	memcpy(&s, val->bv_val, 2);
-	avl_delete( &a2[s], val->bv_val+2, syncuuid_cmp );
+	ldap_avl_delete( &a2[s], val->bv_val+2, syncuuid_cmp );
 #else
-	avl_delete( av, val->bv_val, syncuuid_cmp );
+	ldap_avl_delete( av, val->bv_val, syncuuid_cmp );
 #endif
 }
 

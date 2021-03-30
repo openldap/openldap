@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2005-2021 The OpenLDAP Foundation.
+ * Copyright 2005-2020 The OpenLDAP Foundation.
  * Portions Copyright (c) 2005 by Howard Chu, Symas Corp.
  * All rights reserved.
  *
@@ -34,7 +34,7 @@
 #endif
 
 #define AVL_INTERNAL
-#include "avl.h"
+#include "ldap_avl.h"
 
 /* Maximum tree depth this host's address space could support */
 #define MAX_TREE_DEPTH	(sizeof(void *) * CHAR_BIT)
@@ -45,13 +45,13 @@ static const int avl_bfs[] = {LH, RH};
  * Threaded AVL trees - for fast in-order traversal of nodes.
  */
 /*
- * tavl_insert -- insert a node containing data data into the avl tree
+ * ldap_tavl_insert -- insert a node containing data data into the avl tree
  * with root root.  fcmp is a function to call to compare the data portion
  * of two nodes.  it should take two arguments and return <, >, or == 0,
  * depending on whether its first argument is <, >, or == its second
  * argument (like strcmp, e.g.).  fdup is a function to call when a duplicate
  * node is inserted.  it should return 0, or -1 and its return value
- * will be the return value from avl_insert in the case of a duplicate node.
+ * will be the return value from ldap_avl_insert in the case of a duplicate node.
  * the function will be called with the original node's data as its first
  * argument and with the incoming duplicate node's data as its second
  * argument.  this could be used, for example, to keep a count with each
@@ -60,7 +60,7 @@ static const int avl_bfs[] = {LH, RH};
  * NOTE: this routine may malloc memory
  */
 int
-tavl_insert( TAvlnode ** root, void *data, AVL_CMP fcmp, AVL_DUP fdup )
+ldap_tavl_insert( TAvlnode ** root, void *data, AVL_CMP fcmp, AVL_DUP fdup )
 {
     TAvlnode *t, *p, *s, *q, *r;
     int a, cmp, ncmp;
@@ -88,7 +88,7 @@ tavl_insert( TAvlnode ** root, void *data, AVL_CMP fcmp, AVL_DUP fdup )
 			return (*fdup)( p->avl_data, data );
 
 		cmp = (cmp > 0);
-		q = avl_child( p, cmp );
+		q = ldap_avl_child( p, cmp );
 		if (q == NULL) {
 			/* insert */
 			if (( q = (TAvlnode *) ber_memalloc( sizeof( TAvlnode ))) == NULL ) {
@@ -187,7 +187,7 @@ tavl_insert( TAvlnode ** root, void *data, AVL_CMP fcmp, AVL_DUP fdup )
 }
 
 void*
-tavl_delete( TAvlnode **root, void* data, AVL_CMP fcmp )
+ldap_tavl_delete( TAvlnode **root, void* data, AVL_CMP fcmp )
 {
 	TAvlnode *p, *q, *r, *top;
 	int side, side_bf, shorter, nside = -1;
@@ -214,7 +214,7 @@ tavl_delete( TAvlnode **root, void* data, AVL_CMP fcmp )
 			return NULL;
 		p = p->avl_link[side];
 	}
-  	data = p->avl_data;
+	data = p->avl_data;
 
 	/* If this node has two children, swap so we are deleting a node with
 	 * at most one child.
@@ -313,7 +313,7 @@ tavl_delete( TAvlnode **root, void* data, AVL_CMP fcmp )
 
 	top = NULL;
 	shorter = 1;
-  
+
 	while ( shorter ) {
 		p = pptr[depth];
 		side = pdir[depth];
@@ -325,7 +325,7 @@ tavl_delete( TAvlnode **root, void* data, AVL_CMP fcmp )
 			/* Tree is now heavier on opposite side */
 			p->avl_bf = avl_bfs[nside];
 			shorter = 0;
-		  
+
 		} else if ( p->avl_bf == side_bf ) {
 		/* case 2: taller subtree shortened, height reduced */
 			p->avl_bf = EH;
@@ -418,22 +418,22 @@ tavl_delete( TAvlnode **root, void* data, AVL_CMP fcmp )
 }
 
 /*
- * tavl_free -- traverse avltree root, freeing the memory it is using.
+ * ldap_tavl_free -- traverse avltree root, freeing the memory it is using.
  * the dfree() is called to free the data portion of each node.  The
  * number of items actually freed is returned.
  */
 
 int
-tavl_free( TAvlnode *root, AVL_FREE dfree )
+ldap_tavl_free( TAvlnode *root, AVL_FREE dfree )
 {
 	int	nleft, nright;
 
 	if ( root == 0 )
 		return( 0 );
 
-	nleft = tavl_free( avl_lchild( root ), dfree );
+	nleft = ldap_tavl_free( ldap_avl_lchild( root ), dfree );
 
-	nright = tavl_free( avl_rchild( root ), dfree );
+	nright = ldap_tavl_free( ldap_avl_rchild( root ), dfree );
 
 	if ( dfree )
 		(*dfree)( root->avl_data );
@@ -443,19 +443,19 @@ tavl_free( TAvlnode *root, AVL_FREE dfree )
 }
 
 /*
- * tavl_find -- search avltree root for a node with data data.  the function
- * cmp is used to compare things.  it is called with data as its first arg 
+ * ldap_tavl_find -- search avltree root for a node with data data.  the function
+ * cmp is used to compare things.  it is called with data as its first arg
  * and the current node data as its second.  it should return 0 if they match,
  * < 0 if arg1 is less than arg2 and > 0 if arg1 is greater than arg2.
  */
 
 /*
- * tavl_find2 - returns TAvlnode instead of data pointer.
- * tavl_find3 - as above, but returns TAvlnode even if no match is found.
+ * ldap_tavl_find2 - returns TAvlnode instead of data pointer.
+ * ldap_tavl_find3 - as above, but returns TAvlnode even if no match is found.
  *				also set *ret = last comparison result, or -1 if root == NULL.
  */
 TAvlnode *
-tavl_find3( TAvlnode *root, const void *data, AVL_CMP fcmp, int *ret )
+ldap_tavl_find3( TAvlnode *root, const void *data, AVL_CMP fcmp, int *ret )
 {
 	int	cmp = -1, dir;
 	TAvlnode *prev = root;
@@ -463,32 +463,32 @@ tavl_find3( TAvlnode *root, const void *data, AVL_CMP fcmp, int *ret )
 	while ( root != 0 && (cmp = (*fcmp)( data, root->avl_data )) != 0 ) {
 		prev = root;
 		dir = cmp > 0;
-		root = avl_child( root, dir );
+		root = ldap_avl_child( root, dir );
 	}
 	*ret = cmp;
 	return root ? root : prev;
 }
 
 TAvlnode *
-tavl_find2( TAvlnode *root, const void *data, AVL_CMP fcmp )
+ldap_tavl_find2( TAvlnode *root, const void *data, AVL_CMP fcmp )
 {
 	int	cmp;
 
 	while ( root != 0 && (cmp = (*fcmp)( data, root->avl_data )) != 0 ) {
 		cmp = cmp > 0;
-		root = avl_child( root, cmp );
+		root = ldap_avl_child( root, cmp );
 	}
 	return root;
 }
 
 void*
-tavl_find( TAvlnode *root, const void* data, AVL_CMP fcmp )
+ldap_tavl_find( TAvlnode *root, const void* data, AVL_CMP fcmp )
 {
 	int	cmp;
 
 	while ( root != 0 && (cmp = (*fcmp)( data, root->avl_data )) != 0 ) {
 		cmp = cmp > 0;
-		root = avl_child( root, cmp );
+		root = ldap_avl_child( root, cmp );
 	}
 
 	return( root ? root->avl_data : 0 );
@@ -496,7 +496,7 @@ tavl_find( TAvlnode *root, const void* data, AVL_CMP fcmp )
 
 /* Return the leftmost or rightmost node in the tree */
 TAvlnode *
-tavl_end( TAvlnode *root, int dir )
+ldap_tavl_end( TAvlnode *root, int dir )
 {
 	if ( root ) {
 		while ( root->avl_bits[dir] == AVL_CHILD )
@@ -507,7 +507,7 @@ tavl_end( TAvlnode *root, int dir )
 
 /* Return the next node in the given direction */
 TAvlnode *
-tavl_next( TAvlnode *root, int dir )
+ldap_tavl_next( TAvlnode *root, int dir )
 {
 	if ( root ) {
 		int c = root->avl_bits[dir];

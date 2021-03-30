@@ -40,7 +40,7 @@
 #include <ac/time.h>
 #include <ac/param.h>
 
-#include "avl.h"
+#include "ldap_avl.h"
 
 #include "../servers/slapd/slap.h"
 #include "../slapd/back-monitor/back-monitor.h"

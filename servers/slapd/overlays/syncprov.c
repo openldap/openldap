@@ -1532,7 +1532,7 @@ syncprov_op_cleanup( Operation *op, SlapReply *rs )
 		} else {
 			ldap_pvt_thread_mutex_unlock( &mt->mt_mutex );
 			ldap_pvt_thread_mutex_lock( &si->si_mods_mutex );
-			avl_delete( &si->si_mods, mt, sp_avl_cmp );
+			ldap_avl_delete( &si->si_mods, mt, sp_avl_cmp );
 			ldap_pvt_thread_mutex_unlock( &si->si_mods_mutex );
 			ldap_pvt_thread_mutex_destroy( &mt->mt_mutex );
 			ch_free( mt->mt_dn.bv_val );
@@ -1649,7 +1649,7 @@ syncprov_add_slog( Operation *op )
 			ldap_pvt_thread_rdwr_wlock( &sl->sl_mutex );
 			/* can only do this if no one else is reading the log at the moment */
 			if ( !sl->sl_playing ) {
-				tavl_free( sl->sl_entries, (AVL_FREE)ch_free );
+				ldap_tavl_free( sl->sl_entries, (AVL_FREE)ch_free );
 				sl->sl_num = 0;
 				sl->sl_entries = NULL;
 			}
@@ -1693,7 +1693,7 @@ syncprov_add_slog( Operation *op )
 				BER_BVZERO( &sl->sl_mincsn[1] );
 			}
 		}
-		rc = tavl_insert( &sl->sl_entries, se, syncprov_sessionlog_cmp, avl_dup_error );
+		rc = ldap_tavl_insert( &sl->sl_entries, se, syncprov_sessionlog_cmp, ldap_avl_dup_error );
 		if ( rc ) {
 			Debug( LDAP_DEBUG_SYNC, "%s syncprov_add_slog: "
 				"duplicate sessionlog entry ignored: csn=%s, uuid=%s\n",
@@ -1703,10 +1703,10 @@ syncprov_add_slog( Operation *op )
 		}
 		sl->sl_num++;
 		if ( !sl->sl_playing && sl->sl_num > sl->sl_size ) {
-			TAvlnode *edge = tavl_end( sl->sl_entries, TAVL_DIR_LEFT );
+			TAvlnode *edge = ldap_tavl_end( sl->sl_entries, TAVL_DIR_LEFT );
 			while ( sl->sl_num > sl->sl_size ) {
 				int i;
-				TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+				TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 				se = edge->avl_data;
 				Debug( LDAP_DEBUG_SYNC, "%s syncprov_add_slog: "
 					"expiring csn=%s from sessionlog (sessionlog size=%d)\n",
@@ -1726,7 +1726,7 @@ syncprov_add_slog( Operation *op )
 						op->o_log_prefix, se->se_sid, sl->sl_mincsn[i].bv_val, se->se_csn.bv_val );
 					ber_bvreplace( &sl->sl_mincsn[i], &se->se_csn );
 				}
-				tavl_delete( &sl->sl_entries, se, syncprov_sessionlog_cmp );
+				ldap_tavl_delete( &sl->sl_entries, se, syncprov_sessionlog_cmp );
 				ch_free( se );
 				edge = next;
 				sl->sl_num--;
@@ -1904,7 +1904,7 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 	}
 	uuid[0] = a->a_nvals[0];
 
-	bv = avl_find( uuid_progress->uuids, uuid, sp_uuid_cmp );
+	bv = ldap_avl_find( uuid_progress->uuids, uuid, sp_uuid_cmp );
 	if ( bv ) {
 		/* Already checked or sent, no change */
 		Debug( LDAP_DEBUG_SYNC, "%s syncprov_accesslog_uuid_cb: "
@@ -1928,7 +1928,7 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 	bv->bv_len = a->a_nvals[0].bv_len;
 	AC_MEMCPY( bv->bv_val, a->a_nvals[0].bv_val, a->a_nvals[0].bv_len );
 
-	rc = avl_insert( &uuid_progress->uuids, bv, sp_uuid_cmp, avl_dup_error );
+	rc = ldap_avl_insert( &uuid_progress->uuids, bv, sp_uuid_cmp, ldap_avl_dup_error );
 	assert( rc == LDAP_SUCCESS );
 
 	if ( is_delete ) {
@@ -1945,7 +1945,7 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 		int ndel;
 
 		assert( uuid_progress->ndel == uuid_progress->list_len );
-		ndel = avl_free( uuid_progress->uuids, NULL );
+		ndel = ldap_avl_free( uuid_progress->uuids, NULL );
 		assert( ndel == uuid_progress->ndel );
 		uuid_progress->ndel = 0;
 	}
@@ -2026,13 +2026,13 @@ syncprov_play_sessionlog( Operation *op, SlapReply *rs, sync_control *srs,
 	{
 		slog_entry te = {0};
 		te.se_csn = *mincsn;
-		entry = tavl_find3( sl->sl_entries, &te, syncprov_sessionlog_cmp, &ndel );
+		entry = ldap_tavl_find3( sl->sl_entries, &te, syncprov_sessionlog_cmp, &ndel );
 	}
 	if ( ndel > 0 && entry )
-		entry = tavl_next( entry, TAVL_DIR_LEFT );
+		entry = ldap_tavl_next( entry, TAVL_DIR_LEFT );
 	/* if none, just start at beginning */
 	if ( !entry )
-		entry = tavl_end( sl->sl_entries, TAVL_DIR_LEFT );
+		entry = ldap_tavl_end( sl->sl_entries, TAVL_DIR_LEFT );
 
 	do {
 		char uuidstr[40] = {};
@@ -2096,7 +2096,7 @@ syncprov_play_sessionlog( Operation *op, SlapReply *rs, sync_control *srs,
 				uuidstr, csns[j].bv_val );
 		}
 		ldap_pvt_thread_rdwr_rlock( &sl->sl_mutex );
-	} while ( (entry = tavl_next( entry, TAVL_DIR_RIGHT )) != NULL );
+	} while ( (entry = ldap_tavl_next( entry, TAVL_DIR_RIGHT )) != NULL );
 	ldap_pvt_thread_rdwr_runlock( &sl->sl_mutex );
 	ldap_pvt_thread_rdwr_wlock( &sl->sl_mutex );
 	sl->sl_playing--;
@@ -2649,7 +2649,7 @@ syncprov_op_mod( Operation *op, SlapReply *rs )
 		mtdummy.mt_dn = op->o_req_ndn;
 retry:
 		ldap_pvt_thread_mutex_lock( &si->si_mods_mutex );
-		mt = avl_find( si->si_mods, &mtdummy, sp_avl_cmp );
+		mt = ldap_avl_find( si->si_mods, &mtdummy, sp_avl_cmp );
 		if ( mt ) {
 			ldap_pvt_thread_mutex_lock( &mt->mt_mutex );
 			if ( mt->mt_mods == NULL ) {
@@ -2723,7 +2723,7 @@ retry:
 			mt->mt_tail = mi;
 			ber_dupbv( &mt->mt_dn, &mi->mi_op->o_req_ndn );
 			ldap_pvt_thread_mutex_init( &mt->mt_mutex );
-			avl_insert( &si->si_mods, mt, sp_avl_cmp, avl_dup_error );
+			ldap_avl_insert( &si->si_mods, mt, sp_avl_cmp, ldap_avl_dup_error );
 			ldap_pvt_thread_mutex_unlock( &si->si_mods_mutex );
 		}
 		opc->smt = mt;
@@ -4022,7 +4022,7 @@ syncprov_db_destroy(
 		if ( si->si_logs ) {
 			sessionlog *sl = si->si_logs;
 
-			tavl_free( sl->sl_entries, (AVL_FREE)ch_free );
+			ldap_tavl_free( sl->sl_entries, (AVL_FREE)ch_free );
 			if ( sl->sl_mincsn )
 				ber_bvarray_free( sl->sl_mincsn );
 			if ( sl->sl_sids )

@@ -565,9 +565,9 @@ ldap_back_monitor_conn_create(
 		}
 	}
 
-	edge = tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
+	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
 	while ( edge ) {
-		TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
 		ldap_back_monitor_conn_entry( lc, arg );
 		edge = next;

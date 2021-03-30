@@ -830,7 +830,7 @@ meta_back_retry(
 
 				} else {
 					/* FIXME: check if in tree, for consistency? */
-					(void)tavl_delete( &mi->mi_conninfo.lai_tree,
+					(void)ldap_tavl_delete( &mi->mi_conninfo.lai_tree,
 						( caddr_t )mc, meta_back_conndnmc_cmp );
 				}
 				LDAP_BACK_CONN_CACHED_CLEAR( mc );
@@ -1155,7 +1155,7 @@ retry_lock:;
 			
 
 		} else {
-			mc = (metaconn_t *)tavl_find( mi->mi_conninfo.lai_tree,
+			mc = (metaconn_t *)ldap_tavl_find( mi->mi_conninfo.lai_tree,
 				(caddr_t)&mc_curr, meta_back_conndn_cmp );
 		}
 
@@ -1200,7 +1200,7 @@ retry_lock:;
 						}
 
 					} else {
-						(void)tavl_delete( &mi->mi_conninfo.lai_tree,
+						(void)ldap_tavl_delete( &mi->mi_conninfo.lai_tree,
 							(caddr_t)mc, meta_back_conndnmc_cmp );
 					}
 
@@ -1420,7 +1420,7 @@ retry_lock:;
 			if ( !( sendok & LDAP_BACK_BINDING ) ) {
 retry_lock2:;
 				ldap_pvt_thread_mutex_lock( &mi->mi_conninfo.lai_mutex );
-				mc = (metaconn_t *)tavl_find( mi->mi_conninfo.lai_tree,
+				mc = (metaconn_t *)ldap_tavl_find( mi->mi_conninfo.lai_tree,
 					(caddr_t)&mc_curr, meta_back_conndn_cmp );
 				if ( mc != NULL ) {
 					/* catch taint errors */
@@ -1669,7 +1669,7 @@ done:;
 			rs->sr_err = 0;
 
 		} else if ( !( sendok & LDAP_BACK_BINDING ) ) {
-			err = tavl_insert( &mi->mi_conninfo.lai_tree, ( caddr_t )mc,
+			err = ldap_tavl_insert( &mi->mi_conninfo.lai_tree, ( caddr_t )mc,
 			       	meta_back_conndn_cmp, meta_back_conndn_dup );
 			LDAP_BACK_CONN_CACHED_SET( mc );
 		}
@@ -1786,7 +1786,7 @@ meta_back_release_conn_lock(
 		} else if ( LDAP_BACK_CONN_CACHED( mc ) ) {
 			metaconn_t	*tmpmc;
 
-			tmpmc = tavl_delete( &mi->mi_conninfo.lai_tree,
+			tmpmc = ldap_tavl_delete( &mi->mi_conninfo.lai_tree,
 				( caddr_t )mc, meta_back_conndnmc_cmp );
 
 			/* Overparanoid, but useful... */

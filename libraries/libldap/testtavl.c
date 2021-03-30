@@ -37,7 +37,7 @@
 #include <ac/string.h>
 
 #define AVL_INTERNAL
-#include "avl.h"
+#include "ldap_avl.h"
 
 static void ravl_print LDAP_P(( TAvlnode *root, int depth, int thread ));
 static void myprint LDAP_P(( TAvlnode *root ));
@@ -55,7 +55,7 @@ main( int argc, char **argv )
 	while ( fgets( command, sizeof( command ), stdin ) != NULL ) {
 		switch( *command ) {
 		case 'n':	/* new tree */
-			( void ) tavl_free( tree, free );
+			( void ) ldap_tavl_free( tree, free );
 			tree = NULL;
 			break;
 		case 'p':	/* print */
@@ -63,9 +63,9 @@ main( int argc, char **argv )
 			break;
 		case 't':	/* traverse with first, next */
 			printf( "***\n" );
-			for ( n = tavl_end( tree, TAVL_DIR_LEFT );
+			for ( n = ldap_tavl_end( tree, TAVL_DIR_LEFT );
 			    n != NULL;
-				n = tavl_next( n, TAVL_DIR_RIGHT ))
+				n = ldap_tavl_next( n, TAVL_DIR_RIGHT ))
 				printf( "%s\n", n->avl_data );
 			printf( "***\n" );
 			break;
@@ -74,7 +74,7 @@ main( int argc, char **argv )
 			if ( fgets( name, sizeof( name ), stdin ) == NULL )
 				exit( EXIT_SUCCESS );
 			name[ strlen( name ) - 1 ] = '\0';
-			if ( (p = (char *) tavl_find( tree, name, avl_strcmp ))
+			if ( (p = (char *) ldap_tavl_find( tree, name, avl_strcmp ))
 			    == NULL )
 				printf( "Not found.\n\n" );
 			else
@@ -85,8 +85,8 @@ main( int argc, char **argv )
 			if ( fgets( name, sizeof( name ), stdin ) == NULL )
 				exit( EXIT_SUCCESS );
 			name[ strlen( name ) - 1 ] = '\0';
-			if ( tavl_insert( &tree, strdup( name ), avl_strcmp, 
-			    avl_dup_error ) != 0 )
+			if ( ldap_tavl_insert( &tree, strdup( name ), avl_strcmp, 
+			    ldap_avl_dup_error ) != 0 )
 				printf( "\nNot inserted!\n" );
 			break;
 		case 'd':	/* delete */
@@ -94,7 +94,7 @@ main( int argc, char **argv )
 			if ( fgets( name, sizeof( name ), stdin ) == NULL )
 				exit( EXIT_SUCCESS );
 			name[ strlen( name ) - 1 ] = '\0';
-			if ( tavl_delete( &tree, name, avl_strcmp ) == NULL )
+			if ( ldap_tavl_delete( &tree, name, avl_strcmp ) == NULL )
 				printf( "\nNot found!\n" );
 			break;
 		case 'q':	/* quit */

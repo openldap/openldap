@@ -101,7 +101,7 @@ meta_dncache_get_target(
 
 	tmp_entry.dn = *ndn;
 	ldap_pvt_thread_mutex_lock( &cache->mutex );
-	entry = ( metadncacheentry_t * )avl_find( cache->tree,
+	entry = ( metadncacheentry_t * )ldap_avl_find( cache->tree,
 			( caddr_t )&tmp_entry, meta_dncache_cmp );
 
 	if ( entry != NULL ) {
@@ -157,7 +157,7 @@ meta_dncache_update_entry(
 	tmp_entry.dn = *ndn;
 
 	ldap_pvt_thread_mutex_lock( &cache->mutex );
-	entry = ( metadncacheentry_t * )avl_find( cache->tree,
+	entry = ( metadncacheentry_t * )ldap_avl_find( cache->tree,
 			( caddr_t )&tmp_entry, meta_dncache_cmp );
 
 	if ( entry != NULL ) {
@@ -179,7 +179,7 @@ meta_dncache_update_entry(
 		entry->target = target;
 		entry->lastupdated = curr_time;
 
-		err = avl_insert( &cache->tree, ( caddr_t )entry,
+		err = ldap_avl_insert( &cache->tree, ( caddr_t )entry,
 				meta_dncache_cmp, meta_dncache_dup );
 	}
 
@@ -209,7 +209,7 @@ meta_dncache_delete_entry(
 	tmp_entry.dn = *ndn;
 
 	ldap_pvt_thread_mutex_lock( &cache->mutex );
-	entry = avl_delete( &cache->tree, ( caddr_t )&tmp_entry,
+	entry = ldap_avl_delete( &cache->tree, ( caddr_t )&tmp_entry,
  			meta_dncache_cmp );
 	ldap_pvt_thread_mutex_unlock( &cache->mutex );
 

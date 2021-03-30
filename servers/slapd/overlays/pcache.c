@@ -31,7 +31,7 @@
 #include "slap.h"
 #include "lutil.h"
 #include "ldap_rq.h"
-#include "avl.h"
+#include "ldap_avl.h"
 
 #include "../back-monitor/back-monitor.h"
 
@@ -1290,10 +1290,10 @@ find_filter( Operation *op, TAvlnode *root, Filter *inputf, Filter *first )
 	 * walk the entire list.
 	 */
 	if ( first->f_choice == LDAP_FILTER_SUBSTRINGS ) {
-		ptr = tavl_end( root, 1 );
+		ptr = ldap_tavl_end( root, 1 );
 		dir = TAVL_DIR_LEFT;
 	} else {
-		ptr = tavl_find3( root, &cq, pcache_query_cmp, &ret );
+		ptr = ldap_tavl_find3( root, &cq, pcache_query_cmp, &ret );
 		dir = (first->f_choice == LDAP_FILTER_GE) ? TAVL_DIR_LEFT :
 			TAVL_DIR_RIGHT;
 	}
@@ -1317,7 +1317,7 @@ find_filter( Operation *op, TAvlnode *root, Filter *inputf, Filter *first )
 			if ( eqpass == 0 ) {
 				if ( qc->first->f_choice != LDAP_FILTER_EQUALITY ) {
 nextpass:			eqpass = 1;
-					ptr = tavl_end( root, 1 );
+					ptr = ldap_tavl_end( root, 1 );
 					dir = TAVL_DIR_LEFT;
 					continue;
 				}
@@ -1426,7 +1426,7 @@ nextpass:			eqpass = 1;
 
 		if ( res )
 			return qc;
-		ptr = tavl_next( ptr, dir );
+		ptr = ldap_tavl_next( ptr, dir );
 	}
 	return NULL;
 }
@@ -1456,7 +1456,7 @@ query_containment(Operation *op, query_manager *qm,
 		ldap_pvt_thread_rdwr_rlock(&templa->t_rwlock);
 		for( ;; ) {
 			/* Find the base */
-			qbptr = avl_find( templa->qbase, &qbase, pcache_dn_cmp );
+			qbptr = ldap_avl_find( templa->qbase, &qbase, pcache_dn_cmp );
 			if ( qbptr ) {
 				tscope = query->scope;
 				/* Find a matching scope:
@@ -1616,20 +1616,20 @@ add_query(
 	Debug( pcache_debug, "Lock AQ index = %p\n",
 			(void *) templ );
 	ldap_pvt_thread_rdwr_wlock(&templ->t_rwlock);
-	qbase = avl_find( templ->qbase, &qb, pcache_dn_cmp );
+	qbase = ldap_avl_find( templ->qbase, &qb, pcache_dn_cmp );
 	if ( !qbase ) {
 		qbase = ch_calloc( 1, sizeof(Qbase) + qb.base.bv_len + 1 );
 		qbase->base.bv_len = qb.base.bv_len;
 		qbase->base.bv_val = (char *)(qbase+1);
 		memcpy( qbase->base.bv_val, qb.base.bv_val, qb.base.bv_len );
 		qbase->base.bv_val[qbase->base.bv_len] = '\0';
-		avl_insert( &templ->qbase, qbase, pcache_dn_cmp, avl_dup_error );
+		ldap_avl_insert( &templ->qbase, qbase, pcache_dn_cmp, ldap_avl_dup_error );
 	}
 	new_cached_query->next = templ->query;
 	new_cached_query->prev = NULL;
 	new_cached_query->qbase = qbase;
-	rc = tavl_insert( &qbase->scopes[query->scope], new_cached_query,
-		pcache_query_cmp, avl_dup_error );
+	rc = ldap_tavl_insert( &qbase->scopes[query->scope], new_cached_query,
+		pcache_query_cmp, ldap_avl_dup_error );
 	if ( rc == 0 ) {
 		qbase->queries++;
 		if (templ->query == NULL)
@@ -1680,10 +1680,10 @@ remove_from_template (CachedQuery* qc, QueryTemplate* template)
 		qc->next->prev = qc->prev;
 		qc->prev->next = qc->next;
 	}
-	tavl_delete( &qc->qbase->scopes[qc->scope], qc, pcache_query_cmp );
+	ldap_tavl_delete( &qc->qbase->scopes[qc->scope], qc, pcache_query_cmp );
 	qc->qbase->queries--;
 	if ( qc->qbase->queries == 0 ) {
-		avl_delete( &template->qbase, qc->qbase, pcache_dn_cmp );
+		ldap_avl_delete( &template->qbase, qc->qbase, pcache_dn_cmp );
 		ch_free( qc->qbase );
 		qc->qbase = NULL;
 	}
@@ -4778,7 +4778,7 @@ pcache_free_qbase( void *v )
 	int i;
 
 	for (i=0; i<3; i++)
-		tavl_free( qb->scopes[i], NULL );
+		ldap_tavl_free( qb->scopes[i], NULL );
 	ch_free( qb );
 }
 
@@ -4910,7 +4910,7 @@ pcache_db_destroy(
 			qn = qc->next;
 			free_query( qc );
 		}
-		avl_free( tm->qbase, pcache_free_qbase );
+		ldap_avl_free( tm->qbase, pcache_free_qbase );
 		free( tm->querystr.bv_val );
 		free( tm->bindfattrs );
 		free( tm->bindftemp.bv_val );

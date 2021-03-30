@@ -37,7 +37,7 @@
 
 #define AVL_INTERNAL
 #define AVL_NONREENTRANT 
-#include "avl.h"
+#include "ldap_avl.h"
 
 static void ravl_print LDAP_P(( Avlnode *root, int depth ));
 static void myprint LDAP_P(( Avlnode *root ));
@@ -55,7 +55,7 @@ main( int argc, char **argv )
 	while ( fgets( command, sizeof( command ), stdin ) != NULL ) {
 		switch( *command ) {
 		case 'n':	/* new tree */
-			( void ) avl_free( tree, free );
+			( void ) ldap_avl_free( tree, free );
 			tree = NULL;
 			break;
 		case 'p':	/* print */
@@ -64,9 +64,9 @@ main( int argc, char **argv )
 		case 't':	/* traverse with first, next */
 #ifdef AVL_NONREENTRANT
 			printf( "***\n" );
-			for ( p = (char * ) avl_getfirst( tree );
+			for ( p = (char * ) ldap_avl_getfirst( tree );
 			    p != NULL;
-				p = (char *) avl_getnext())
+				p = (char *) ldap_avl_getnext())
 				printf( "%s\n", p );
 			printf( "***\n" );
 #else
@@ -78,7 +78,7 @@ main( int argc, char **argv )
 			if ( fgets( name, sizeof( name ), stdin ) == NULL )
 				exit( EXIT_SUCCESS );
 			name[ strlen( name ) - 1 ] = '\0';
-			if ( (p = (char *) avl_find( tree, name, avl_strcmp ))
+			if ( (p = (char *) ldap_avl_find( tree, name, avl_strcmp ))
 			    == NULL )
 				printf( "Not found.\n\n" );
 			else
@@ -89,8 +89,8 @@ main( int argc, char **argv )
 			if ( fgets( name, sizeof( name ), stdin ) == NULL )
 				exit( EXIT_SUCCESS );
 			name[ strlen( name ) - 1 ] = '\0';
-			if ( avl_insert( &tree, strdup( name ), avl_strcmp, 
-			    avl_dup_error ) != 0 )
+			if ( ldap_avl_insert( &tree, strdup( name ), avl_strcmp, 
+			    ldap_avl_dup_error ) != 0 )
 				printf( "\nNot inserted!\n" );
 			break;
 		case 'd':	/* delete */
@@ -98,7 +98,7 @@ main( int argc, char **argv )
 			if ( fgets( name, sizeof( name ), stdin ) == NULL )
 				exit( EXIT_SUCCESS );
 			name[ strlen( name ) - 1 ] = '\0';
-			if ( avl_delete( &tree, name, avl_strcmp ) == NULL )
+			if ( ldap_avl_delete( &tree, name, avl_strcmp ) == NULL )
 				printf( "\nNot found!\n" );
 			break;
 		case 'q':	/* quit */

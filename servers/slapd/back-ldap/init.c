@@ -336,7 +336,7 @@ ldap_back_db_destroy( Backend *be, ConfigReply *cr )
 			li->li_idassert_authz = NULL;
 		}
                	if ( li->li_conninfo.lai_tree ) {
-			tavl_free( li->li_conninfo.lai_tree, ldap_back_conn_free );
+			ldap_tavl_free( li->li_conninfo.lai_tree, ldap_back_conn_free );
 		}
 		for ( i = LDAP_BACK_PCONN_FIRST; i < LDAP_BACK_PCONN_LAST; i++ ) {
 			while ( !LDAP_TAILQ_EMPTY( &li->li_conn_priv[ i ].lic_priv ) ) {

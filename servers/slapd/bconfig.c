@@ -4591,7 +4591,7 @@ config_register_schema(ConfigTable *ct, ConfigOCs *ocs) {
 			ocs[i].co_name = &ocs[i].co_oc->soc_cname;
 			if ( !ocs[i].co_table )
 				ocs[i].co_table = ct;
-			avl_insert( &CfOcTree, &ocs[i], CfOc_cmp, avl_dup_error );
+			ldap_avl_insert( &CfOcTree, &ocs[i], CfOc_cmp, ldap_avl_dup_error );
 		}
 	}
 	return 0;
@@ -5181,7 +5181,7 @@ count_oc( ObjectClass *oc, ConfigOCs ***copp, int *nocs )
 	}
 
 	co.co_name = &oc->soc_cname;
-	cop = avl_find( CfOcTree, &co, CfOc_cmp );
+	cop = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 	if ( cop ) {
 		int	i;
 
@@ -5392,7 +5392,7 @@ config_add_oc( ConfigOCs **cop, CfEntryInfo *last, Entry *e, ConfigArgs *ca )
 		ConfigOCs	co = { 0 };
 
 		co.co_name = &(*ocp)->soc_cname;
-		*cop = avl_find( CfOcTree, &co, CfOc_cmp );
+		*cop = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 		if ( *cop == NULL ) {
 			return rc;
 		}
@@ -5527,7 +5527,7 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 	ca->ca_op = op;
 
 	co.co_name = &soc_at->a_nvals[0];
-	coptr = avl_find( CfOcTree, &co, CfOc_cmp );
+	coptr = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 	if ( coptr == NULL ) {
 		Debug( LDAP_DEBUG_TRACE, "%s: config_add_internal: "
 			"DN=\"%s\" no structural objectClass in configuration table\n",
@@ -6666,7 +6666,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 			}
 			for ( i=0; !BER_BVISNULL(&oc_at->a_nvals[i]); i++ ) {
 				co.co_name = &oc_at->a_nvals[i];
-				coptr = avl_find( CfOcTree, &co, CfOc_cmp );
+				coptr = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 				if ( coptr == NULL || coptr->co_type != Cft_Misc ) {
 					continue;
 				}
@@ -7540,7 +7540,7 @@ config_back_db_destroy( BackendDB *be, ConfigReply *cr )
 
 	ch_free( cfdir.bv_val );
 
-	avl_free( CfOcTree, NULL );
+	ldap_avl_free( CfOcTree, NULL );
 
 	if ( cfb->cb_db.bd_info ) {
 		cfb->cb_db.be_suffix = NULL;

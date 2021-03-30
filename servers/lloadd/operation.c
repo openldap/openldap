@@ -151,7 +151,7 @@ operation_init( LloadConnection *c, BerElement *ber )
     }
 
     CONNECTION_ASSERT_LOCKED(c);
-    rc = tavl_insert( &c->c_ops, op, operation_client_cmp, avl_dup_error );
+    rc = ldap_tavl_insert( &c->c_ops, op, operation_client_cmp, ldap_avl_dup_error );
     if ( rc ) {
         Debug( LDAP_DEBUG_PACKETS, "operation_init: "
                 "several operations with same msgid=%d in-flight "
@@ -167,7 +167,7 @@ operation_init( LloadConnection *c, BerElement *ber )
             break;
     }
     if ( rc ) {
-        tavl_delete( &c->c_ops, op, operation_client_cmp );
+        ldap_tavl_delete( &c->c_ops, op, operation_client_cmp );
         goto fail;
     }
 
@@ -269,7 +269,7 @@ operation_unlink_client( LloadOperation *op, LloadConnection *client )
             op, op->o_client_msgid, op->o_client_connid );
 
     CONNECTION_LOCK(client);
-    if ( (removed = tavl_delete(
+    if ( (removed = ldap_tavl_delete(
                    &client->c_ops, op, operation_client_cmp )) ) {
         result = LLOAD_OP_DETACHING_CLIENT;
 
@@ -312,7 +312,7 @@ operation_unlink_upstream( LloadOperation *op, LloadConnection *upstream )
             op, op->o_upstream_msgid, op->o_upstream_connid );
 
     CONNECTION_LOCK(upstream);
-    if ( (removed = tavl_delete(
+    if ( (removed = ldap_tavl_delete(
                    &upstream->c_ops, op, operation_upstream_cmp )) ) {
         result |= LLOAD_OP_DETACHING_UPSTREAM;
 
@@ -525,13 +525,13 @@ connection_timeout( LloadConnection *upstream, void *arg )
     int rc, nops = 0;
 
     CONNECTION_LOCK(upstream);
-    for ( node = tavl_end( upstream->c_ops, TAVL_DIR_LEFT ); node &&
+    for ( node = ldap_tavl_end( upstream->c_ops, TAVL_DIR_LEFT ); node &&
             ((LloadOperation *)node->avl_data)->o_start <
                     threshold; /* shortcut */
             node = next ) {
         LloadOperation *found_op;
 
-        next = tavl_next( node, TAVL_DIR_RIGHT );
+        next = ldap_tavl_next( node, TAVL_DIR_RIGHT );
         op = node->avl_data;
 
         /* Have we received another response since? */
@@ -540,7 +540,7 @@ connection_timeout( LloadConnection *upstream, void *arg )
         }
 
         op->o_res = LLOAD_OP_FAILED;
-        found_op = tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
+        found_op = ldap_tavl_delete( &upstream->c_ops, op, operation_upstream_cmp );
         assert( op == found_op );
 
         if ( upstream->c_state == LLOAD_C_BINDING ) {
@@ -552,7 +552,7 @@ connection_timeout( LloadConnection *upstream, void *arg )
             }
         }
 
-        rc = tavl_insert( &ops, op, operation_upstream_cmp, avl_dup_error );
+        rc = ldap_tavl_insert( &ops, op, operation_upstream_cmp, ldap_avl_dup_error );
         assert( rc == LDAP_SUCCESS );
 
         Debug( LDAP_DEBUG_STATS2, "connection_timeout: "
@@ -579,8 +579,8 @@ connection_timeout( LloadConnection *upstream, void *arg )
     b->b_n_ops_executing -= nops;
     checked_unlock( &b->b_mutex );
 
-    for ( node = tavl_end( ops, TAVL_DIR_LEFT ); node;
-            node = tavl_next( node, TAVL_DIR_RIGHT ) ) {
+    for ( node = ldap_tavl_end( ops, TAVL_DIR_LEFT ); node;
+            node = ldap_tavl_next( node, TAVL_DIR_RIGHT ) ) {
         op = node->avl_data;
 
         operation_send_reject( op,
@@ -607,7 +607,7 @@ connection_timeout( LloadConnection *upstream, void *arg )
     }
 
     /* just dispose of the AVL, most operations should already be gone */
-    tavl_free( ops, NULL );
+    ldap_tavl_free( ops, NULL );
     return LDAP_SUCCESS;
 }
 

@@ -3073,8 +3073,8 @@ ldap_back_map_config(
 		}
 	}
 
-	if ( (src[ 0 ] != '\0' && avl_find( map->map, (caddr_t)&mapping[ 0 ], mapping_cmp ) != NULL)
-			|| avl_find( map->remap, (caddr_t)&mapping[ 1 ], mapping_cmp ) != NULL)
+	if ( (src[ 0 ] != '\0' && ldap_avl_find( map->map, (caddr_t)&mapping[ 0 ], mapping_cmp ) != NULL)
+			|| ldap_avl_find( map->remap, (caddr_t)&mapping[ 1 ], mapping_cmp ) != NULL)
 	{
 		snprintf( c->cr_msg, sizeof( c->cr_msg ),
 			"duplicate mapping found." );
@@ -3083,10 +3083,10 @@ ldap_back_map_config(
 	}
 
 	if ( src[ 0 ] != '\0' ) {
-		avl_insert( &map->map, (caddr_t)&mapping[ 0 ],
+		ldap_avl_insert( &map->map, (caddr_t)&mapping[ 0 ],
 					mapping_cmp, mapping_dup );
 	}
-	avl_insert( &map->remap, (caddr_t)&mapping[ 1 ],
+	ldap_avl_insert( &map->remap, (caddr_t)&mapping[ 1 ],
 				mapping_cmp, mapping_dup );
 
 success_return:;

@@ -26,6 +26,7 @@
 
 #include "../liblber/lber-int.h"
 #include "lutil.h"
+#include "ldap_avl.h"
 
 #ifdef LDAP_R_COMPILE
 #include <ldap_pvt_thread.h>
@@ -438,7 +439,7 @@ struct ldap_common {
 
 	/* do not mess with these */
 	/* protected by req_mutex */
-	LDAPRequest	*ldc_requests;	/* list of outstanding requests */
+	TAvlnode	*ldc_requests;	/* list of outstanding requests */
 	/* protected by res_mutex */
 	LDAPMessage	*ldc_responses;	/* list of outstanding responses */
 #define	ld_requests		ldc->ldc_requests
@@ -776,6 +777,8 @@ LDAP_F (LDAPConn *) ldap_new_connection( LDAP *ld, LDAPURLDesc **srvlist,
 	int use_ldsb, int connect, LDAPreqinfo *bind, int m_req, int m_res );
 LDAP_F (LDAPRequest *) ldap_find_request_by_msgid( LDAP *ld, ber_int_t msgid );
 LDAP_F (void) ldap_return_request( LDAP *ld, LDAPRequest *lr, int freeit );
+LDAP_F (int) ldap_req_cmp( const void *l, const void *r );
+LDAP_F (void) ldap_do_free_request( void *arg );
 LDAP_F (void) ldap_free_request( LDAP *ld, LDAPRequest *lr );
 LDAP_F (void) ldap_free_connection( LDAP *ld, LDAPConn *lc, int force, int unbind );
 LDAP_F (void) ldap_dump_connection( LDAP *ld, LDAPConn *lconns, int all );

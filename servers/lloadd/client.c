@@ -51,7 +51,7 @@ request_abandon( LloadConnection *c, LloadOperation *op )
     }
 
     CONNECTION_LOCK(c);
-    request = tavl_find( c->c_ops, &needle, operation_client_cmp );
+    request = ldap_tavl_find( c->c_ops, &needle, operation_client_cmp );
     if ( !request ) {
         Debug( LDAP_DEBUG_STATS, "request_abandon: "
                 "connid=%lu msgid=%d requests abandon of an operation "
@@ -152,8 +152,8 @@ request_process( LloadConnection *client, LloadOperation *op )
     upstream->c_pendingber = output;
 
     op->o_upstream_msgid = msgid = upstream->c_next_msgid++;
-    rc = tavl_insert(
-            &upstream->c_ops, op, operation_upstream_cmp, avl_dup_error );
+    rc = ldap_tavl_insert(
+            &upstream->c_ops, op, operation_upstream_cmp, ldap_avl_dup_error );
     CONNECTION_UNLOCK(upstream);
 
     Debug( LDAP_DEBUG_TRACE, "request_process: "
@@ -505,7 +505,7 @@ client_reset( LloadConnection *c )
     CONNECTION_UNLOCK(c);
 
     if ( root ) {
-        freed = tavl_free( root, (AVL_FREE)operation_abandon );
+        freed = ldap_tavl_free( root, (AVL_FREE)operation_abandon );
         Debug( LDAP_DEBUG_TRACE, "client_reset: "
                 "dropped %ld operations\n",
                 freed );

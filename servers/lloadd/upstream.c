@@ -183,7 +183,7 @@ handle_one_response( LloadConnection *c )
     CONNECTION_LOCK(c);
     if ( needle.o_upstream_msgid == 0 ) {
         return handle_unsolicited( c, ber );
-    } else if ( !( op = tavl_find(
+    } else if ( !( op = ldap_tavl_find(
                            c->c_ops, &needle, operation_upstream_cmp ) ) ) {
         /* Already abandoned, do nothing */
         CONNECTION_UNLOCK(c);
@@ -1008,7 +1008,7 @@ upstream_unlink( LloadConnection *c )
 
     CONNECTION_UNLOCK(c);
 
-    freed = tavl_free( root, (AVL_FREE)operation_lost_upstream );
+    freed = ldap_tavl_free( root, (AVL_FREE)operation_lost_upstream );
     assert( freed == executing );
 
     /*

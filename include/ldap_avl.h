@@ -1,4 +1,4 @@
-/* avl.h - avl tree definitions */
+/* ldap_avl.h - avl tree definitions */
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
@@ -73,15 +73,15 @@ struct tavlnode {
 #define	AVL_THREAD	1
 
 /* avl routines */
-#define avl_getone(x)	((x) == 0 ? 0 : (x)->avl_data)
-#define avl_onenode(x)	((x) == 0 || ((x)->avl_left == 0 && (x)->avl_right == 0))
+#define ldap_avl_getone(x)	((x) == 0 ? 0 : (x)->avl_data)
+#define ldap_avl_onenode(x)	((x) == 0 || ((x)->avl_left == 0 && (x)->avl_right == 0))
 
 #endif /* AVL_INTERNALS */
 
-#define	avl_child(x,dir)	((x)->avl_bits[dir]) == AVL_CHILD ? \
+#define	ldap_avl_child(x,dir)	((x)->avl_bits[dir]) == AVL_CHILD ? \
 	(x)->avl_link[dir] : NULL
-#define	avl_lchild(x)	avl_child(x,0)
-#define	avl_rchild(x)	avl_child(x,1)
+#define	ldap_avl_lchild(x)	ldap_avl_child(x,0)
+#define	ldap_avl_rchild(x)	ldap_avl_child(x,1)
 
 typedef int		(*AVL_APPLY) LDAP_P((void *, void*));
 typedef int		(*AVL_CMP) LDAP_P((const void*, const void*));
@@ -89,69 +89,69 @@ typedef int		(*AVL_DUP) LDAP_P((void*, void*));
 typedef void	(*AVL_FREE) LDAP_P((void*));
 
 LDAP_AVL_F( int )
-avl_free LDAP_P(( Avlnode *root, AVL_FREE dfree ));
+ldap_avl_free LDAP_P(( Avlnode *root, AVL_FREE dfree ));
 
 LDAP_AVL_F( int )
-avl_insert LDAP_P((Avlnode **, void*, AVL_CMP, AVL_DUP));
+ldap_avl_insert LDAP_P((Avlnode **, void*, AVL_CMP, AVL_DUP));
 
 LDAP_AVL_F( void* )
-avl_delete LDAP_P((Avlnode **, void*, AVL_CMP));
+ldap_avl_delete LDAP_P((Avlnode **, void*, AVL_CMP));
 
 LDAP_AVL_F( void* )
-avl_find LDAP_P((Avlnode *, const void*, AVL_CMP));
+ldap_avl_find LDAP_P((Avlnode *, const void*, AVL_CMP));
 
 LDAP_AVL_F( Avlnode* )
-avl_find2 LDAP_P((Avlnode *, const void*, AVL_CMP));
+ldap_avl_find2 LDAP_P((Avlnode *, const void*, AVL_CMP));
 
 LDAP_AVL_F( void* )
-avl_find_lin LDAP_P((Avlnode *, const void*, AVL_CMP));
+ldap_avl_find_lin LDAP_P((Avlnode *, const void*, AVL_CMP));
 
 #ifdef AVL_NONREENTRANT
 LDAP_AVL_F( void* )
-avl_getfirst LDAP_P((Avlnode *));
+ldap_avl_getfirst LDAP_P((Avlnode *));
 
 LDAP_AVL_F( void* )
-avl_getnext LDAP_P((void));
+ldap_avl_getnext LDAP_P((void));
 #endif
 
 LDAP_AVL_F( int )
-avl_dup_error LDAP_P((void*, void*));
+ldap_avl_dup_error LDAP_P((void*, void*));
 
 LDAP_AVL_F( int )
-avl_dup_ok LDAP_P((void*, void*));
+ldap_avl_dup_ok LDAP_P((void*, void*));
 
 LDAP_AVL_F( int )
-avl_apply LDAP_P((Avlnode *, AVL_APPLY, void*, int, int));
+ldap_avl_apply LDAP_P((Avlnode *, AVL_APPLY, void*, int, int));
 
 LDAP_AVL_F( int )
-avl_prefixapply LDAP_P((Avlnode *, void*, AVL_CMP, void*, AVL_CMP, void*, int));
+ldap_avl_prefixapply LDAP_P((Avlnode *, void*, AVL_CMP, void*, AVL_CMP, void*, int));
 
 LDAP_AVL_F( int )
-tavl_free LDAP_P(( TAvlnode *root, AVL_FREE dfree ));
+ldap_tavl_free LDAP_P(( TAvlnode *root, AVL_FREE dfree ));
 
 LDAP_AVL_F( int )
-tavl_insert LDAP_P((TAvlnode **, void*, AVL_CMP, AVL_DUP));
+ldap_tavl_insert LDAP_P((TAvlnode **, void*, AVL_CMP, AVL_DUP));
 
 LDAP_AVL_F( void* )
-tavl_delete LDAP_P((TAvlnode **, void*, AVL_CMP));
+ldap_tavl_delete LDAP_P((TAvlnode **, void*, AVL_CMP));
 
 LDAP_AVL_F( void* )
-tavl_find LDAP_P((TAvlnode *, const void*, AVL_CMP));
+ldap_tavl_find LDAP_P((TAvlnode *, const void*, AVL_CMP));
 
 LDAP_AVL_F( TAvlnode* )
-tavl_find2 LDAP_P((TAvlnode *, const void*, AVL_CMP));
+ldap_tavl_find2 LDAP_P((TAvlnode *, const void*, AVL_CMP));
 
 LDAP_AVL_F( TAvlnode* )
-tavl_find3 LDAP_P((TAvlnode *, const void*, AVL_CMP, int *ret));
+ldap_tavl_find3 LDAP_P((TAvlnode *, const void*, AVL_CMP, int *ret));
 
 #define	TAVL_DIR_LEFT	0
 #define	TAVL_DIR_RIGHT	1
 
 LDAP_AVL_F( TAvlnode* )
-tavl_end LDAP_P((TAvlnode *, int direction));
+ldap_tavl_end LDAP_P((TAvlnode *, int direction));
 
 LDAP_AVL_F( TAvlnode* )
-tavl_next LDAP_P((TAvlnode *, int direction));
+ldap_tavl_next LDAP_P((TAvlnode *, int direction));
 
 /* apply traversal types */
 #define AVL_PREORDER	1

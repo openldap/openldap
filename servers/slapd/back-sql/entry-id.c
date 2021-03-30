@@ -949,7 +949,7 @@ backsql_id2entry( backsql_srch_info *bsi, backsql_entryID *eid )
 	{
 		Debug( LDAP_DEBUG_TRACE, "backsql_id2entry(): "
 			"retrieving all attributes\n" );
-		avl_apply( bsi->bsi_oc->bom_attrs, backsql_get_attr_vals,
+		ldap_avl_apply( bsi->bsi_oc->bom_attrs, backsql_get_attr_vals,
 				bsi, 0, AVL_INORDER );
 
 	} else {
