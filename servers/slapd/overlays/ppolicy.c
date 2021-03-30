@@ -2327,6 +2327,21 @@ ppolicy_mod_cb( Operation *op, SlapReply *rs )
 }
 
 static int
+ppolicy_text_cleanup( Operation *op, SlapReply *rs )
+{
+	slap_callback *sc = op->o_callback;
+
+	if ( rs->sr_text == sc->sc_private ) {
+		rs->sr_text = NULL;
+	}
+	free( sc->sc_private );
+
+	op->o_callback = sc->sc_next;
+	op->o_tmpfree( sc, op->o_tmpmemctx );
+	return SLAP_CB_CONTINUE;
+}
+
+static int
 ppolicy_modify( Operation *op, SlapReply *rs )
 {
 	slap_overinst		*on = (slap_overinst *)op->o_bd->bd_info;
@@ -3083,8 +3098,21 @@ return_results:
 	}
 	send_ldap_result( op, rs );
 	if ( free_txt ) {
-		free( (char *)txt );
-		rs->sr_text = NULL;
+		if ( is_pwdexop ) {
+			slap_callback *cb;
+			cb = op->o_tmpcalloc( sizeof(ppbind)+sizeof(slap_callback),
+				1, op->o_tmpmemctx );
+
+			/* Setup a callback so we can free the text when sent */
+			cb->sc_cleanup = ppolicy_text_cleanup;
+			cb->sc_private = (void *)txt;
+			overlay_callback_after_backover( op, cb, 1 );
+		} else {
+			if ( rs->sr_text == txt ) {
+				rs->sr_text = NULL;
+			}
+			free( (char *)txt );
+		}
 	}
 	if ( send_ctrl ) {
 		if ( is_pwdexop ) {
