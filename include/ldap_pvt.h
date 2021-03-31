@@ -131,6 +131,13 @@ ldap_pvt_gettime LDAP_P(( struct lutil_tm * ));
 struct timeval;
 LDAP_F( int )
 ldap_pvt_gettimeofday LDAP_P(( struct timeval *tv, void *unused ));
+#ifndef CLOCK_REALTIME
+#define CLOCK_REALTIME	0
+#endif
+#define clock_gettime(clkid,tv)	ldap_pvt_clock_gettime(clkid,tv)
+struct timespec;
+LDAP_F( int )
+ldap_pvt_clock_gettime LDAP_P(( int clkid, struct timespec *tv ));
 #endif
 
 /* use this macro to allocate buffer for ldap_pvt_csnstr */

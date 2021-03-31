@@ -20,7 +20,6 @@
 #include <ac/stdarg.h>
 #include <ac/stdlib.h>
 #include <ac/string.h>
-#include <ac/time.h>
 #include <ac/ctype.h>
 
 #ifdef LDAP_SYSLOG
@@ -32,12 +31,8 @@
 #include "lber.h"
 #include "ldap_pvt.h"
 
-static FILE *log_file = NULL;
-static int debug_lastc = '\n';
-
 int lutil_debug_file( FILE *file )
 {
-	log_file = file;
 	ber_set_option( NULL, LBER_OPT_LOG_PRINT_FILE, file );
 
 	return 0;
@@ -47,41 +42,13 @@ void (lutil_debug)( int debug, int level, const char *fmt, ... )
 {
 	char buffer[4096];
 	va_list vl;
-	int len, off;
 
 	if ( !(level & debug ) ) return;
 
-#ifdef HAVE_WINSOCK
-	if( log_file == NULL ) {
-		log_file = fopen( LDAP_RUNDIR LDAP_DIRSEP "openldap.log", "w" );
-
-		if ( log_file == NULL ) {
-			log_file = fopen( "openldap.log", "w" );
-			if ( log_file == NULL ) return;
-		}
-
-		ber_set_option( NULL, LBER_OPT_LOG_PRINT_FILE, log_file );
-	}
-#endif
-
-	if (debug_lastc == '\n') {
-		sprintf(buffer, "%08x ", (unsigned) time(0L));
-		off = 9;
-	} else {
-		off = 0;
-	}
 	va_start( vl, fmt );
-	len = vsnprintf( buffer+off, sizeof(buffer)-off, fmt, vl );
-	if (len > sizeof(buffer)-off)
-		len = sizeof(buffer)-off;
-	debug_lastc = buffer[len+off-1];
-	buffer[sizeof(buffer)-1] = '\0';
-	if( log_file != NULL ) {
-		fputs( buffer, log_file );
-		fflush( log_file );
-	}
-	fputs( buffer, stderr );
+	vsnprintf( buffer, sizeof(buffer), fmt, vl );
 	va_end( vl );
+	ber_pvt_log_print( buffer );
 }
 
 #if defined(HAVE_EBCDIC) && defined(LDAP_SYSLOG)

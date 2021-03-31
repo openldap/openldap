@@ -1500,7 +1500,7 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 	strcpy(nowstr_usec, nowstr);
 	timestamp_usec.bv_val = nowstr_usec;
 	timestamp_usec.bv_len = timestamp.bv_len;
-	snprintf( timestamp_usec.bv_val + timestamp_usec.bv_len-1, sizeof(".123456Z"), ".%06dZ", now_usec.tt_usec );
+	snprintf( timestamp_usec.bv_val + timestamp_usec.bv_len-1, sizeof(".123456Z"), ".%06dZ", now_usec.tt_nsec / 1000 );
 	timestamp_usec.bv_len += STRLENOF(".123456");
 
 	if ( rs->sr_err == LDAP_INVALID_CREDENTIALS && ppb->pp.pwdMaxRecordedFailure ) {

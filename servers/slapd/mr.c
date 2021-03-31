@@ -415,8 +415,8 @@ matching_rule_use_init( void )
 		mru->smru_names = mr->smr_names;
 		mru->smru_desc = mr->smr_desc;
 
-		Debug( LDAP_DEBUG_TRACE, "    %s (%s): ", 
-				mru->smru_oid, 
+		Debug( LDAP_DEBUG_TRACE, "    %s (%s):\n",
+				mru->smru_oid,
 				mru->smru_names ? mru->smru_names[ 0 ] : "" );
 
 		at = NULL;
@@ -437,7 +437,7 @@ matching_rule_use_init( void )
 			mru->smru_applies_oids = applies_oids;
 			{
 				char *str = ldap_matchingruleuse2str( &mru->smru_mruleuse );
-				Debug( LDAP_DEBUG_TRACE, "matchingRuleUse: %s\n", str );
+				Debug( LDAP_DEBUG_TRACE, "       matchingRuleUse: %s\n", str );
 				ldap_memfree( str );
 			}
 

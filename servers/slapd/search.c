@@ -118,9 +118,8 @@ do_search(
 		goto return_results;
 	}
 
-	Debug( LDAP_DEBUG_ARGS, "SRCH \"%s\" %d %d",
-		base.bv_val, op->ors_scope, op->ors_deref );
-	Debug( LDAP_DEBUG_ARGS, "    %d %d %d\n",
+	Debug( LDAP_DEBUG_ARGS, "SRCH \"%s\" %d %d    %d %d %d\n",
+		base.bv_val, op->ors_scope, op->ors_deref,
 		op->ors_slimit, op->ors_tlimit, op->ors_attrsonly);
 
 	/* filter - returns a "normalized" version */
@@ -198,15 +197,36 @@ do_search(
 		goto return_results;
 	}
 
-	Debug( LDAP_DEBUG_ARGS, "    attrs:" );
+	if (LogTest( LDAP_DEBUG_ARGS ) ) {
+		char abuf[BUFSIZ/2], *ptr = abuf;
+		unsigned len = 0, alen;
 
-	if ( siz != 0 ) {
+		if ( !siz ) {
+			len = 1;
+			abuf[0] = '\0';
+		}
 		for ( i = 0; i<siz; i++ ) {
-			Debug( LDAP_DEBUG_ARGS, " %s", op->ors_attrs[i].an_name.bv_val );
+			alen = op->ors_attrs[i].an_name.bv_len;
+			if (alen >= sizeof(abuf)) {
+				alen = sizeof(abuf)-1;
+			}
+			if (len && (len + 1 + alen >= sizeof(abuf))) {
+				Debug( LDAP_DEBUG_ARGS, "    attrs: %s\n", abuf );
+				len = 0;
+				ptr = abuf;
+			}
+			if (len) {
+				*ptr++ = ' ';
+				len++;
+			}
+			ptr = lutil_strncopy(ptr, op->ors_attrs[i].an_name.bv_val, alen);
+			len += alen;
+			*ptr = '\0';
+		}
+		if (len) {
+			Debug( LDAP_DEBUG_ARGS, "    attrs: %s\n", abuf );
 		}
 	}
-
-	Debug( LDAP_DEBUG_ARGS, "\n" );
 
 	if (LogTest( LDAP_DEBUG_STATS ) ) {
 		char abuf[BUFSIZ/2], *ptr = abuf;
