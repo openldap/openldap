@@ -2368,6 +2368,7 @@ fi
 
 AC_CHECK_FUNCS(			\
 	bcopy			\
+	clock_gettime	\
 	closesocket		\
 	chroot			\
 	endgrent		\

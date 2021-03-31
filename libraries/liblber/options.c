@@ -66,6 +66,10 @@ ber_get_option(
 		case LBER_OPT_LOG_PRINT_FILE:
 			*((FILE**)outvalue) = (FILE*)ber_pvt_err_file;
 			return LBER_OPT_SUCCESS;
+
+		case LBER_OPT_LOG_PRINT_FN:
+			*(BER_LOG_PRINT_FN *)outvalue = ber_pvt_log_print;
+			return LBER_OPT_SUCCESS;
 		}
 
 		ber_errno = LBER_ERROR_PARAM;

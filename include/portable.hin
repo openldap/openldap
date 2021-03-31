@@ -105,6 +105,9 @@
 /* Define to 1 if you have the `chroot' function. */
 #undef HAVE_CHROOT
 
+/* Define to 1 if you have the `clock_gettime' function. */
+#undef HAVE_CLOCK_GETTIME
+
 /* Define to 1 if you have the `closesocket' function. */
 #undef HAVE_CLOSESOCKET
 

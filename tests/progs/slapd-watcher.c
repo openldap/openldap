@@ -425,7 +425,7 @@ void get_csns(
 		if (j < numservers) {
 			ber_bvreplace( &c->vals[j], &bvs[i] );
 			lutil_parsetime(bvs[i].bv_val, &tm);
-			c->tvs[j].tv_usec = tm.tm_usec;
+			c->tvs[j].tv_usec = tm.tm_nsec / 1000;
 			lutil_tm2time( &tm, &tt );
 			c->tvs[j].tv_sec = tt.tt_sec;
 		}

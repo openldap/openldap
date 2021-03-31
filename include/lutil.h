@@ -172,7 +172,7 @@ typedef struct lutil_tm {
 	int tm_mday;	/* day 1-31 */
 	int tm_mon;	/* month 0-11 */
 	int tm_year;	/* year - 1900 */
-	int tm_usec;	/* microseconds */
+	int tm_nsec;	/* nanoseconds */
 	int tm_usub;	/* submicro */
 } lutil_tm;
 
@@ -180,7 +180,7 @@ typedef struct lutil_timet {
 	unsigned int tt_sec;	/* seconds since epoch, 0000 or 1970 */
 	int tt_gsec;		/* seconds since epoch, high 7 bits, maybe sign-flipped */
 						/* sign flipped to sort properly as unsigned ints */
-	unsigned int tt_usec;	/* microseconds */
+	unsigned int tt_nsec;	/* nanoseconds */
 } lutil_timet;
 
 /* Parse a timestamp string into a structure */
