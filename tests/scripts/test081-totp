@@ -44,7 +44,7 @@ done
 
 export URI1 MANAGERDN PASSWD BABSDN BJORNSDN
 
-OTP_DATA=$DATADIR/otp_2fa/totp.ldif
+OTP_DATA=$DATADIR/otp/totp.ldif
 
 mkdir -p $TESTDIR $DBDIR1
 
@@ -93,7 +93,7 @@ dn: cn=module,cn=config
 objectClass: olcModuleList
 cn: module
 olcModulePath: $TESTWD/../servers/slapd/overlays
-olcModuleLoad: otp_2fa.la
+olcModuleLoad: otp.la
 EOMOD
 RC=$?
 if test $RC != 0 ; then
@@ -103,10 +103,10 @@ if test $RC != 0 ; then
 fi
 fi
 
-echo "Loading test otp_2fa configuration..."
+echo "Loading test otp configuration..."
 $LDAPMODIFY -v -D cn=config -H $URI1 -y $CONFIGPWF \
     >> $TESTOUT 2>&1 <<EOMOD
-dn: olcOverlay={0}otp_2fa,olcDatabase={1}$BACKEND,cn=config
+dn: olcOverlay={0}otp,olcDatabase={1}$BACKEND,cn=config
 changetype: add
 objectClass: olcOverlayConfig
 EOMOD
