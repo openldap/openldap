@@ -1,4 +1,4 @@
-/* otp_2fa.c - OATH 2-factor authentication module */
+/* otp.c - OATH 2-factor authentication module */
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
@@ -927,11 +927,11 @@ otp_initialize( void )
 	char *argv[4];
 	int i;
 
-	otp.on_bi.bi_type = "otp_2fa";
+	otp.on_bi.bi_type = "otp";
 	otp.on_bi.bi_op_bind = otp_op_bind;
 
 	ca.argv = argv;
-	argv[0] = "otp_2fa";
+	argv[0] = "otp";
 	ca.argv = argv;
 	ca.argc = 3;
 	ca.fname = argv[0];

@@ -1,20 +1,19 @@
-.TH PW-TOTP 5 "2018/6/29" "SLAPO-OTP_2FA"
+.TH SLAPO_OTP 5 "2018/6/29" "SLAPO-OTP"
 .\" Copyright 2015-2021 The OpenLDAP Foundation.
 .\" Portions Copyright 2015 by Howard Chu, Symas Corp. All rights reserved.
 .\" Portions Copyright 2018 by Ondřej Kuzník, Symas Corp. All rights reserved.
 .\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
 .SH NAME
-slapo-otp_2fa \- Two factor authentication module
+slapo-otp \- OATH One-Time Password module
 .SH SYNOPSIS
 .B moduleload
-.I otp_2fa.la
+.I otp.la
 .SH DESCRIPTION
 The
-.B otp_2fa
+.B otp
 module allows time-based one-time password, AKA "authenticator-style", and
-HMAC-based one-time password authentication to be used in applications that use
-LDAP for authentication. In most cases no changes to the applications are
-needed to switch to this type of authentication.
+HMAC-based one-time password authentication to be used in conjunction with
+a standard LDAP password for two-factor authentication.
 
 With this module, users would use their password, followed with the one-time
 password in the password prompt to authenticate.

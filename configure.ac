@@ -2880,10 +2880,10 @@ if test "$ol_enable_otp" != no ; then
 	BUILD_OTP=$ol_enable_otp
 	if test "$ol_enable_otp" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS otp_2fa.la"
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS otp.la"
 	else
 		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS otp_2fa.o"
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS otp.o"
 	fi
 	AC_DEFINE_UNQUOTED(SLAPD_OVER_OTP,$MFLAG,[define for OTP 2-factor Authentication overlay])
 fi
