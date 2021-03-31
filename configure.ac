@@ -346,7 +346,9 @@ Overlays="accesslog \
 	deref \
 	dyngroup \
 	dynlist \
+	homedir \
 	memberof \
+	otp \
 	ppolicy \
 	proxycache \
 	refint \
@@ -385,7 +387,11 @@ OL_ARG_ENABLE(dyngroup, [AS_HELP_STRING([--enable-dyngroup], [Dynamic Group over
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(dynlist, [AS_HELP_STRING([--enable-dynlist], [Dynamic List overlay])],
 	no, [no yes mod], ol_enable_overlays)
+OL_ARG_ENABLE(homedir, [AS_HELP_STRING([--enable-homedir], [Home Directory Management overlay])],
+	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(memberof, [AS_HELP_STRING([--enable-memberof], [Reverse Group Membership overlay])],
+	no, [no yes mod], ol_enable_overlays)
+OL_ARG_ENABLE(otp, [AS_HELP_STRING([--enable-otp], [OTP 2-factor authentication overlay])],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(ppolicy, [AS_HELP_STRING([--enable-ppolicy], [Password Policy overlay])],
 	no, [no yes mod], ol_enable_overlays)
@@ -434,7 +440,8 @@ AC_ARG_ENABLE(xxliboptions,[
 Library Generation & Linking Options])
 AC_ENABLE_STATIC
 AC_ENABLE_SHARED
-
+OL_ARG_ENABLE(versioning, [AS_HELP_STRING([--enable-versioning], [Enable versioned symbols in shared library])],
+	auto, [no yes auto])
 dnl ----------------------------------------------------------------
 dnl Validate options
 dnl ----------------------------------------------------------------
@@ -584,7 +591,9 @@ BUILD_DEREF=no
 BUILD_DYNGROUP=no
 BUILD_DYNLIST=no
 BUILD_LASTMOD=no
+BUILD_HOMEDIR=no
 BUILD_MEMBEROF=no
+BUILD_OTP=no
 BUILD_PPOLICY=no
 BUILD_PROXYCACHE=no
 BUILD_REFINT=no
@@ -2819,6 +2828,18 @@ if test "$ol_enable_dynlist" != no ; then
 	AC_DEFINE_UNQUOTED(SLAPD_OVER_DYNLIST,$MFLAG,[define for Dynamic List overlay])
 fi
 
+if test "$ol_enable_homedir" != no ; then
+	BUILD_HOMEDIR=$ol_enable_homedir
+	if test "$ol_enable_homedir" = mod ; then
+		MFLAG=SLAPD_MOD_DYNAMIC
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS homedir.la"
+	else
+		MFLAG=SLAPD_MOD_STATIC
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS homedir.o"
+	fi
+	AC_DEFINE_UNQUOTED(SLAPD_OVER_HOMEDIR,$MFLAG,[define for Home Directory Management overlay])
+fi
+
 if test "$ol_enable_memberof" != no ; then
 	BUILD_MEMBEROF=$ol_enable_memberof
 	if test "$ol_enable_memberof" = mod ; then
@@ -2829,6 +2850,22 @@ if test "$ol_enable_memberof" != no ; then
 		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS memberof.o"
 	fi
 	AC_DEFINE_UNQUOTED(SLAPD_OVER_MEMBEROF,$MFLAG,[define for Reverse Group Membership overlay])
+fi
+
+if test "$ol_enable_otp" != no ; then
+	if test $ol_with_tls = no ; then
+		AC_MSG_ERROR([--enable-otp=$ol_enable_otp requires --with-tls])
+	fi
+
+	BUILD_OTP=$ol_enable_otp
+	if test "$ol_enable_otp" = mod ; then
+		MFLAG=SLAPD_MOD_DYNAMIC
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS otp_2fa.la"
+	else
+		MFLAG=SLAPD_MOD_STATIC
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS otp_2fa.o"
+	fi
+	AC_DEFINE_UNQUOTED(SLAPD_OVER_OTP,$MFLAG,[define for OTP 2-factor Authentication overlay])
 fi
 
 if test "$ol_enable_ppolicy" != no ; then
@@ -3037,6 +3074,18 @@ if test "$ol_enable_slapi" != no ; then
 	SLAPD_SLAPI_DEPEND=libslapi.a
 fi
 
+OL_VERSIONED_SYMBOLS=""
+if test $ol_enable_versioning != no; then
+	LDVS=`$LD --help < /dev/null 2>/dev/null | grep version-script`
+	if test -z "$LDVS"; then
+		if test $ol_enable_versioning = "yes" ; then
+			AC_MSG_ERROR([Library symbol versioning requested but not supported])
+		fi
+	else
+		OL_VERSIONED_SYMBOLS="-Wl,--version-script="
+	fi
+fi
+
 dnl ----------------------------------------------------------------
 
 dnl
@@ -3059,6 +3108,7 @@ AC_SUBST(WITH_MODULES_ENABLED)
 AC_SUBST(WITH_ACI_ENABLED)
 AC_SUBST(BUILD_THREAD)
 AC_SUBST(BUILD_LIBS_DYNAMIC)
+AC_SUBST(OL_VERSIONED_SYMBOLS)
 
 AC_SUBST(BUILD_SLAPD)
 dnl slapi
@@ -3091,7 +3141,9 @@ dnl overlays
   AC_SUBST(BUILD_DYNGROUP)
   AC_SUBST(BUILD_DYNLIST)
   AC_SUBST(BUILD_LASTMOD)
+  AC_SUBST(BUILD_HOMEDIR)
   AC_SUBST(BUILD_MEMBEROF)
+  AC_SUBST(BUILD_OTP)
   AC_SUBST(BUILD_PPOLICY)
   AC_SUBST(BUILD_PROXYCACHE)
   AC_SUBST(BUILD_REFINT)
@@ -3176,8 +3228,10 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk]
 [libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [libraries/liblber/lber.pc]
+[libraries/liblber/liblber.vers]
 [libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [libraries/libldap/ldap.pc]
+[libraries/libldap/libldap.vers]
 [libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk]

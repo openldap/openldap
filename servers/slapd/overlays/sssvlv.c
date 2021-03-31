@@ -29,7 +29,7 @@
 #include <ac/string.h>
 #include <ac/ctype.h>
 
-#include <avl.h>
+#include <ldap_avl.h>
 
 #include "slap.h"
 #include "lutil.h"
@@ -411,14 +411,14 @@ static void free_sort_op( Connection *conn, sort_op *so )
 			    TAvlnode *cur_node, *next_node;
 			    cur_node = so->so_tree;
 			    while ( cur_node ) {
-				    next_node = tavl_next( cur_node, TAVL_DIR_RIGHT );
+				    next_node = ldap_tavl_next( cur_node, TAVL_DIR_RIGHT );
 				    ch_free( cur_node->avl_data );
 				    ber_memfree( cur_node );
 
 				    cur_node = next_node;
 			    }
 		    } else {
-			    tavl_free( so->so_tree, ch_free );
+			    ldap_tavl_free( so->so_tree, ch_free );
 		    }
 		    so->so_tree = NULL;
 	    }
@@ -463,11 +463,11 @@ static void send_list(
 	if ( BER_BVISNULL( &vc->vc_value )) {
 		if ( vc->vc_offset == vc->vc_count ) {
 			/* wants the last entry in the list */
-			cur_node = tavl_end(so->so_tree, TAVL_DIR_RIGHT);
+			cur_node = ldap_tavl_end(so->so_tree, TAVL_DIR_RIGHT);
 			so->so_vlv_target = so->so_nentries;
 		} else if ( vc->vc_offset == 1 ) {
 			/* wants the first entry in the list */
-			cur_node = tavl_end(so->so_tree, TAVL_DIR_LEFT);
+			cur_node = ldap_tavl_end(so->so_tree, TAVL_DIR_LEFT);
 			so->so_vlv_target = 1;
 		} else {
 			int target;
@@ -491,15 +491,15 @@ range_err:
 			so->so_vlv_target = target;
 			/* Start at left and go right, or start at right and go left? */
 			if ( target < so->so_nentries / 2 ) {
-				cur_node = tavl_end(so->so_tree, TAVL_DIR_LEFT);
+				cur_node = ldap_tavl_end(so->so_tree, TAVL_DIR_LEFT);
 				dir = TAVL_DIR_RIGHT;
 			} else {
-				cur_node = tavl_end(so->so_tree, TAVL_DIR_RIGHT);
+				cur_node = ldap_tavl_end(so->so_tree, TAVL_DIR_RIGHT);
 				dir = TAVL_DIR_LEFT;
 				target = so->so_nentries - target + 1;
 			}
 			for ( i=1; i<target; i++ )
-				cur_node = tavl_next( cur_node, dir );
+				cur_node = ldap_tavl_next( cur_node, dir );
 		}
 	} else {
 	/* we're looking for a specific value */
@@ -532,11 +532,11 @@ range_err:
 		for (i=1; i<sc->sc_nkeys; i++) {
 			BER_BVZERO( &sn->sn_vals[i] );
 		}
-		cur_node = tavl_find3( so->so_tree, sn, node_cmp, &j );
+		cur_node = ldap_tavl_find3( so->so_tree, sn, node_cmp, &j );
 		/* didn't find >= match */
 		if ( j > 0 ) {
 			if ( cur_node )
-				cur_node = tavl_next( cur_node, TAVL_DIR_RIGHT );
+				cur_node = ldap_tavl_next( cur_node, TAVL_DIR_RIGHT );
 		}
 		op->o_tmpfree( sn, op->o_tmpmemctx );
 
@@ -547,14 +547,14 @@ range_err:
 			/* start from the left or the right side? */
 			mr->smr_match( &i, 0, mr->smr_syntax, mr, &bv, &sn->sn_vals[0] );
 			if ( i > 0 ) {
-				tmp_node = tavl_end(so->so_tree, TAVL_DIR_RIGHT);
+				tmp_node = ldap_tavl_end(so->so_tree, TAVL_DIR_RIGHT);
 				dir = TAVL_DIR_LEFT;
 			} else {
-				tmp_node = tavl_end(so->so_tree, TAVL_DIR_LEFT);
+				tmp_node = ldap_tavl_end(so->so_tree, TAVL_DIR_LEFT);
 				dir = TAVL_DIR_RIGHT;
 			}
 			for (i=0; tmp_node != cur_node;
-				tmp_node = tavl_next( tmp_node, dir ), i++);
+				tmp_node = ldap_tavl_next( tmp_node, dir ), i++);
 			so->so_vlv_target = (dir == TAVL_DIR_RIGHT) ? i+1 : so->so_nentries - i;
 		}
 		if ( bv.bv_val != vc->vc_value.bv_val )
@@ -562,12 +562,12 @@ range_err:
 	}
 	if ( !cur_node ) {
 		i = 1;
-		cur_node = tavl_end(so->so_tree, TAVL_DIR_RIGHT);
+		cur_node = ldap_tavl_end(so->so_tree, TAVL_DIR_RIGHT);
 	} else {
 		i = 0;
 	}
 	for ( ; i<vc->vc_before; i++ ) {
-		tmp_node = tavl_next( cur_node, TAVL_DIR_LEFT );
+		tmp_node = ldap_tavl_next( cur_node, TAVL_DIR_LEFT );
 		if ( !tmp_node ) break;
 		cur_node = tmp_node;
 	}
@@ -589,7 +589,7 @@ range_err:
 			if ( rs->sr_err == LDAP_UNAVAILABLE )
 				break;
 		}
-		cur_node = tavl_next( cur_node, TAVL_DIR_RIGHT );
+		cur_node = ldap_tavl_next( cur_node, TAVL_DIR_RIGHT );
 		if ( !cur_node ) break;
 	}
 	so->so_vlv_rc = LDAP_SUCCESS;
@@ -612,7 +612,7 @@ static void send_page( Operation *op, SlapReply *rs, sort_op *so )
 
 		if ( slapd_shutdown ) break;
 
-		next_node = tavl_next( cur_node, TAVL_DIR_RIGHT );
+		next_node = ldap_tavl_next( cur_node, TAVL_DIR_RIGHT );
 
 		op->o_bd = select_backend( &sn->sn_dn, 0 );
 		e = NULL;
@@ -664,7 +664,7 @@ static void send_entry(
 			send_list( op, rs, so );
 		} else {
 			/* Get the first node to send */
-			TAvlnode *start_node = tavl_end(so->so_tree, TAVL_DIR_LEFT);
+			TAvlnode *start_node = ldap_tavl_end(so->so_tree, TAVL_DIR_LEFT);
 			so->so_tree = start_node;
 
 			if ( so->so_paged <= SLAP_CONTROL_IGNORED ) {
@@ -777,7 +777,7 @@ static int sssvlv_op_response(
 		sn->sn_session = find_session_by_so( so->so_info->svi_max_percon, op->o_conn->c_conn_idx, so );
 
 		/* Insert into the AVL tree */
-		tavl_insert(&(so->so_tree), sn, node_insert, avl_dup_error);
+		ldap_tavl_insert(&(so->so_tree), sn, node_insert, ldap_avl_dup_error);
 
 		so->so_nentries++;
 

@@ -165,7 +165,7 @@ ldap_pvt_tls_destroy( void )
  * Called once per implementation.
  */
 static int
-tls_init(tls_impl *impl )
+tls_init(tls_impl *impl, int do_threads )
 {
 	static int tls_initialized = 0;
 
@@ -177,9 +177,12 @@ tls_init(tls_impl *impl )
 
 	if ( impl->ti_inited++ ) return 0;
 
+	if ( do_threads ) {
 #ifdef LDAP_R_COMPILE
-	impl->ti_thr_init();
+		impl->ti_thr_init();
 #endif
+	}
+
 	return impl->ti_tls_init();
 }
 
@@ -187,9 +190,9 @@ tls_init(tls_impl *impl )
  * Initialize TLS subsystem. Called once per implementation.
  */
 int
-ldap_pvt_tls_init( void )
+ldap_pvt_tls_init( int do_threads )
 {
-	return tls_init( tls_imp );
+	return tls_init( tls_imp, do_threads );
 }
 
 /*
@@ -205,7 +208,7 @@ ldap_int_tls_init_ctx( struct ldapoptions *lo, int is_server )
 	if ( lo->ldo_tls_ctx )
 		return 0;
 
-	tls_init( ti );
+	tls_init( ti, 0 );
 
 	if ( is_server && !lts.lt_certfile && !lts.lt_keyfile &&
 		!lts.lt_cacertfile && !lts.lt_cacertdir &&
@@ -1102,7 +1105,7 @@ ldap_int_tls_start ( LDAP *ld, LDAPConn *conn, LDAPURLDesc *srv )
 		host = "localhost";
 	}
 
-	(void) tls_init( tls_imp );
+	(void) tls_init( tls_imp, 0 );
 
 	/*
 	 * Use non-blocking io during SSL Handshake when a timeout is configured

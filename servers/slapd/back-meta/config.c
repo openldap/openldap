@@ -377,10 +377,10 @@ static ConfigTable metacfg[] = {
 		ARG_MAGIC|ARG_ON_OFF|LDAP_BACK_CFG_PSEUDOROOT_BIND_DEFER,
 		meta_back_cf_gen, NULL, NULL, NULL },
 	{ "pseudorootdn", "dn", 2, 2, 0,
-		ARG_MAGIC|ARG_DN|LDAP_BACK_CFG_PSEUDOROOTDN,
+		ARG_MAGIC|ARG_DN|ARG_QUOTE|LDAP_BACK_CFG_PSEUDOROOTDN,
 		meta_back_cf_gen, NULL, NULL, NULL },
 	{ "pseudorootpw", "password", 2, 2, 0,
-		ARG_MAGIC|ARG_STRING|LDAP_BACK_CFG_PSEUDOROOTDN,
+		ARG_MAGIC|ARG_STRING|LDAP_BACK_CFG_PSEUDOROOTPW,
 		meta_back_cf_gen, NULL, NULL, NULL },
 	{ "nretries", "NEVER|forever|<number>", 2, 2, 0,
 		ARG_MAGIC|LDAP_BACK_CFG_NRETRIES,
@@ -3073,8 +3073,8 @@ ldap_back_map_config(
 		}
 	}
 
-	if ( (src[ 0 ] != '\0' && avl_find( map->map, (caddr_t)&mapping[ 0 ], mapping_cmp ) != NULL)
-			|| avl_find( map->remap, (caddr_t)&mapping[ 1 ], mapping_cmp ) != NULL)
+	if ( (src[ 0 ] != '\0' && ldap_avl_find( map->map, (caddr_t)&mapping[ 0 ], mapping_cmp ) != NULL)
+			|| ldap_avl_find( map->remap, (caddr_t)&mapping[ 1 ], mapping_cmp ) != NULL)
 	{
 		snprintf( c->cr_msg, sizeof( c->cr_msg ),
 			"duplicate mapping found." );
@@ -3083,10 +3083,10 @@ ldap_back_map_config(
 	}
 
 	if ( src[ 0 ] != '\0' ) {
-		avl_insert( &map->map, (caddr_t)&mapping[ 0 ],
+		ldap_avl_insert( &map->map, (caddr_t)&mapping[ 0 ],
 					mapping_cmp, mapping_dup );
 	}
-	avl_insert( &map->remap, (caddr_t)&mapping[ 1 ],
+	ldap_avl_insert( &map->remap, (caddr_t)&mapping[ 1 ],
 				mapping_cmp, mapping_dup );
 
 success_return:;

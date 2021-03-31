@@ -60,7 +60,7 @@ syn_find( const char *synname )
 {
 	struct sindexrec	*sir = NULL;
 
-	if ( (sir = avl_find( syn_index, synname, syn_index_name_cmp )) != NULL ) {
+	if ( (sir = ldap_avl_find( syn_index, synname, syn_index_name_cmp )) != NULL ) {
 		return( sir->sir_syn );
 	}
 	return( NULL );
@@ -113,7 +113,7 @@ syn_destroy( void )
 {
 	Syntax	*s;
 
-	avl_free( syn_index, ldap_memfree );
+	ldap_avl_free( syn_index, ldap_memfree );
 	while( !LDAP_STAILQ_EMPTY( &syn_list ) ) {
 		s = LDAP_STAILQ_FIRST( &syn_list );
 		LDAP_STAILQ_REMOVE_HEAD( &syn_list, ssyn_next );
@@ -143,8 +143,8 @@ syn_insert(
 		}
 		sir->sir_name = ssyn->ssyn_oid;
 		sir->sir_syn = ssyn;
-		if ( avl_insert( &syn_index, (caddr_t) sir,
-		                 syn_index_cmp, avl_dup_error ) ) {
+		if ( ldap_avl_insert( &syn_index, (caddr_t) sir,
+		                 syn_index_cmp, ldap_avl_dup_error ) ) {
 			*err = ssyn->ssyn_oid;
 			ldap_memfree(sir);
 			return SLAP_SCHERR_SYN_DUP;

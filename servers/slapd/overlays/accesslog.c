@@ -95,7 +95,7 @@ enum {
 };
 
 static ConfigTable log_cfats[] = {
-	{ "logdb", "suffix", 2, 2, 0, ARG_DN|ARG_MAGIC|LOG_DB,
+	{ "logdb", "suffix", 2, 2, 0, ARG_DN|ARG_QUOTE|ARG_MAGIC|LOG_DB,
 		log_cf_gen, "( OLcfgOvAt:4.1 NAME 'olcAccessLogDB' "
 			"DESC 'Suffix of database for log content' "
 			"EQUALITY distinguishedNameMatch "
@@ -941,6 +941,14 @@ log_cf_gen(ConfigArgs *c)
 						c->log, c->cr_msg, c->value_dn.bv_val );
 					rc = 1;
 				}
+				if ( !rc && ( li->li_db->bd_self == c->be->bd_self )) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> invalid suffix, points to itself",
+						c->argv[0] );
+					Debug( LDAP_DEBUG_ANY, "%s: %s \"%s\"\n",
+						c->log, c->cr_msg, c->value_dn.bv_val );
+					rc = 1;
+				}
 				ch_free( c->value_ndn.bv_val );
 			} else {
 				li->li_db_suffix = c->value_ndn;
@@ -1492,7 +1500,9 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 	Operation op2 = {0};
 	SlapReply rs2 = {REP_RESULT};
 
-	{
+	/* ITS#9051 Make sure we only remove the callback on a final response */
+	if ( rs->sr_type == REP_RESULT || rs->sr_type == REP_EXTENDED ||
+			rs->sr_type == REP_SASL ) {
 		slap_callback *sc = op->o_callback;
 		op->o_callback = sc->sc_next;
 		op->o_tmpfree(sc, op->o_tmpmemctx );
@@ -1547,7 +1557,13 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 		return SLAP_CB_CONTINUE;
 	}
 
-	if ( li->li_success && rs->sr_err != LDAP_SUCCESS )
+	/*
+	 * ITS#9051 Technically LDAP_REFERRAL and LDAP_SASL_BIND_IN_PROGRESS
+	 * are not errors, but they aren't really success either
+	 */
+	if ( li->li_success && rs->sr_err != LDAP_SUCCESS &&
+			rs->sr_err != LDAP_COMPARE_TRUE &&
+			rs->sr_err != LDAP_COMPARE_FALSE )
 		goto done;
 
 	e = accesslog_entry( op, rs, li, logop, &op2 );
@@ -2403,6 +2419,11 @@ accesslog_db_open(
 	if ( li->li_db == NULL ) {
 		Debug( LDAP_DEBUG_ANY,
 			"accesslog: \"logdb <suffix>\" missing or invalid.\n" );
+		return 1;
+	}
+	if ( li->li_db->bd_self == be->bd_self ) {
+		Debug( LDAP_DEBUG_ANY,
+			"accesslog: \"logdb <suffix>\" is this database, cannot log to itself.\n" );
 		return 1;
 	}
 

@@ -61,7 +61,7 @@ int
 proxyp( ber_socket_t sfd, Sockaddr *from ) {
 	proxyp_header pph;
 	proxyp_addr ppa;
-	char peername[LUTIL_ADDRLEN];
+	char peername[LDAP_IPADDRLEN];
 	struct berval peerbv = BER_BVC(peername);
 	/* Maximum size of header minus static component size is max option size */
 	uint8_t proxyp_options[536 - 16];
@@ -152,7 +152,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from ) {
 	case 0x01: /* PROXY command */
 		switch ( pph.fam ) {
 		case 0x11: /* TCPv4 */
-			lutil_sockaddrstr( from, &peerbv );
+			ldap_pvt_sockaddrstr( from, &peerbv );
 			Debug( LDAP_DEBUG_STATS, "proxyp(%ld): via %s\n",
 					(long)sfd, peername );
 
@@ -163,7 +163,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from ) {
 
 		case 0x21: /* TCPv6 */
 #ifdef LDAP_PF_INET6
-			lutil_sockaddrstr( from, &peerbv );
+			ldap_pvt_sockaddrstr( from, &peerbv );
 			Debug( LDAP_DEBUG_STATS, "proxyp(%ld): via %s\n",
 					(long)sfd, peername );
 			from->sa_in6_addr.sin6_family = AF_INET6;

@@ -170,6 +170,21 @@ ldap_pvt_get_hname LDAP_P((
 	int namelen,
 	char **herr ));
 
+#ifdef LDAP_PF_LOCAL
+#define LDAP_IPADDRLEN	(MAXPATHLEN + sizeof("PATH="))
+#elif defined(LDAP_PF_INET6)
+#define LDAP_IPADDRLEN	sizeof("IP=[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff]:65535")
+#else
+#define LDAP_IPADDRLEN	sizeof("IP=255.255.255.255:65336")
+#endif
+
+typedef union Sockaddr Sockaddr;
+
+LDAP_F (void)
+ldap_pvt_sockaddrstr LDAP_P((
+	Sockaddr *sa,
+	struct berval * ));
+
 
 /* charray.c */
 
@@ -426,7 +441,7 @@ LDAP_F (int) ldap_pvt_tls_set_option LDAP_P(( struct ldap *ld,
 	int option, void *arg ));
 
 LDAP_F (void) ldap_pvt_tls_destroy LDAP_P(( void ));
-LDAP_F (int) ldap_pvt_tls_init LDAP_P(( void ));
+LDAP_F (int) ldap_pvt_tls_init LDAP_P(( int do_threads ));
 LDAP_F (int) ldap_pvt_tls_init_def_ctx LDAP_P(( int is_server ));
 LDAP_F (int) ldap_pvt_tls_accept LDAP_P(( Sockbuf *sb, void *ctx_arg ));
 LDAP_F (int) ldap_pvt_tls_connect LDAP_P(( struct ldap *ld, Sockbuf *sb, const char *host ));

@@ -526,7 +526,7 @@ lload_connection_close( LloadConnection *c, void *arg )
     c->c_state = LLOAD_C_CLOSING;
 
     do {
-        TAvlnode *node = tavl_end( c->c_ops, TAVL_DIR_LEFT );
+        TAvlnode *node = ldap_tavl_end( c->c_ops, TAVL_DIR_LEFT );
         op = node->avl_data;
 
         /* Close operations that would need client action to resolve,

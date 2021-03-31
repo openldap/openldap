@@ -790,7 +790,7 @@ static ConfigDriver rc_cf_gen;
 
 static ConfigTable rccfg[] = {
 	{ "retcode-parent", "dn",
-		2, 2, 0, ARG_MAGIC|ARG_DN|RC_PARENT, rc_cf_gen,
+		2, 2, 0, ARG_MAGIC|ARG_DN|ARG_QUOTE|RC_PARENT, rc_cf_gen,
 		"( OLcfgOvAt:20.1 NAME 'olcRetcodeParent' "
 			"DESC '' "
 			"EQUALITY distinguishedNameMatch "

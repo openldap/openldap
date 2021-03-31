@@ -135,7 +135,7 @@ rewrite_param_destroy(
 	ldap_pvt_thread_rdwr_wlock( &info->li_params_mutex );
 #endif /* USE_REWRITE_LDAP_PVT_THREADS */
 	
-	avl_free( info->li_params, rewrite_param_free );
+	ldap_avl_free( info->li_params, rewrite_param_free );
 	info->li_params = NULL;
 
 #ifdef USE_REWRITE_LDAP_PVT_THREADS

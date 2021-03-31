@@ -119,6 +119,7 @@ typedef struct ldap_chain_cb_t {
 	ldap_chain_status_t	lb_status;
 	ldap_chain_t		*lb_lc;
 	slap_operation_t	lb_op_type;
+	char			*lb_text;
 	int			lb_depth;
 } ldap_chain_cb_t;
 
@@ -381,6 +382,11 @@ retry:;
 			break;
 
 		default:
+			/* remember the text before it's freed in ldap_back_op_result */
+			if ( lb->lb_text ) {
+				ber_memfree_x( lb->lb_text, op->o_tmpmemctx );
+			}
+			lb->lb_text = ber_strdup_x( rs->sr_text, op->o_tmpmemctx );
 			return rs->sr_err;
 		}
 
@@ -558,7 +564,7 @@ Document: RFC 4511
 
 		/* Searches for a ldapinfo in the avl tree */
 		ldap_pvt_thread_mutex_lock( &lc->lc_lai.lai_mutex );
-		lip = (ldapinfo_t *)tavl_find( lc->lc_lai.lai_tree,
+		lip = (ldapinfo_t *)ldap_tavl_find( lc->lc_lai.lai_tree,
 			(caddr_t)&li, ldap_chain_uri_cmp );
 		ldap_pvt_thread_mutex_unlock( &lc->lc_lai.lai_mutex );
 
@@ -590,7 +596,7 @@ Document: RFC 4511
 
 			if ( LDAP_CHAIN_CACHE_URI( lc ) ) {
 				ldap_pvt_thread_mutex_lock( &lc->lc_lai.lai_mutex );
-				if ( tavl_insert( &lc->lc_lai.lai_tree,
+				if ( ldap_tavl_insert( &lc->lc_lai.lai_tree,
 					(caddr_t)lip, ldap_chain_uri_cmp, ldap_chain_uri_dup ) )
 				{
 					/* someone just inserted another;
@@ -830,7 +836,7 @@ ldap_chain_search(
 
 		/* Searches for a ldapinfo in the avl tree */
 		ldap_pvt_thread_mutex_lock( &lc->lc_lai.lai_mutex );
-		lip = (ldapinfo_t *)tavl_find( lc->lc_lai.lai_tree,
+		lip = (ldapinfo_t *)ldap_tavl_find( lc->lc_lai.lai_tree,
 			(caddr_t)&li, ldap_chain_uri_cmp );
 		ldap_pvt_thread_mutex_unlock( &lc->lc_lai.lai_mutex );
 
@@ -863,7 +869,7 @@ ldap_chain_search(
 
 			if ( LDAP_CHAIN_CACHE_URI( lc ) ) {
 				ldap_pvt_thread_mutex_lock( &lc->lc_lai.lai_mutex );
-				if ( tavl_insert( &lc->lc_lai.lai_tree,
+				if ( ldap_tavl_insert( &lc->lc_lai.lai_tree,
 					(caddr_t)lip, ldap_chain_uri_cmp, ldap_chain_uri_dup ) )
 				{
 					/* someone just inserted another;
@@ -965,6 +971,7 @@ ldap_chain_response( Operation *op, SlapReply *rs )
 	const char	*text = NULL;
 	const char	*matched;
 	BerVarray	ref;
+	slap_mask_t	flags = 0;
 	struct berval	ndn = op->o_ndn;
 
 	int		sr_err = rs->sr_err;
@@ -1027,6 +1034,9 @@ ldap_chain_response( Operation *op, SlapReply *rs )
 	rs->sr_matched = NULL;
 	ref = rs->sr_ref;
 	rs->sr_ref = NULL;
+
+	flags = rs->sr_flags & (REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED);
+	rs->sr_flags &= ~flags;
 
 	/* we need this to know if back-ldap returned any result */
 	lb.lb_lc = lc;
@@ -1153,6 +1163,7 @@ cannot_chain:;
 #endif /* LDAP_CONTROL_X_CHAINING_BEHAVIOR */
 			if ( LDAP_CHAIN_RETURN_ERR( lc ) ) {
 				sr_err = rs->sr_err = rc;
+				rs->sr_text = lb.lb_text;
 				rs->sr_type = sr_type;
 
 			} else {
@@ -1162,6 +1173,7 @@ cannot_chain:;
 				rs->sr_text = text;
 				rs->sr_matched = matched;
 				rs->sr_ref = ref;
+				rs->sr_flags |= flags;
 			}
 #ifdef LDAP_CONTROL_X_CHAINING_BEHAVIOR
 			break;
@@ -1182,9 +1194,18 @@ dont_chain:;
 	rs->sr_text = text;
 	rs->sr_matched = matched;
 	rs->sr_ref = ref;
+	rs->sr_flags |= flags;
+
 	op->o_bd = bd;
 	op->o_callback = sc;
 	op->o_ndn = ndn;
+
+	if ( rs->sr_text == lb.lb_text ) {
+		rs->sr_text = NULL;
+	}
+	if ( lb.lb_text ) {
+		ber_memfree_x( lb.lb_text, op->o_tmpmemctx );
+	}
 
 	return rc;
 }
@@ -1387,7 +1408,7 @@ fail:
 
 		li->li_uri = ch_strdup( at->a_vals[ 0 ].bv_val );
 		value_add_one( &li->li_bvuri, &at->a_vals[ 0 ] );
-		if ( tavl_insert( &lc->lc_lai.lai_tree, (caddr_t)li,
+		if ( ldap_tavl_insert( &lc->lc_lai.lai_tree, (caddr_t)li,
 			ldap_chain_uri_cmp, ldap_chain_uri_dup ) )
 		{
 			Debug( LDAP_DEBUG_ANY, "slapd-chain: "
@@ -1447,9 +1468,9 @@ chain_cfadd( Operation *op, SlapReply *rs, Entry *p, ConfigArgs *ca )
 
 		ldap_chain_cfadd_apply( lc->lc_common_li, op, rs, p, ca, count++ );
 
-		edge = tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
+		edge = ldap_tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
 		while ( edge ) {
-			TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+			TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 			ldapinfo_t *li = (ldapinfo_t *)edge->avl_data;
 			ldap_chain_cfadd_apply( li, op, rs, p, ca, count++ );
 			edge = next;
@@ -1473,8 +1494,8 @@ chain_lddel( CfEntryInfo *ce, Operation *op )
 	ldapinfo_t	*li = (ldapinfo_t *) ce->ce_be->be_private;
 
 	if ( li != lc->lc_common_li ) {
-		if (! tavl_delete( &lc->lc_lai.lai_tree, li, ldap_chain_uri_cmp ) ) {
-			Debug( LDAP_DEBUG_ANY, "slapd-chain: avl_delete failed. "
+		if (! ldap_tavl_delete( &lc->lc_lai.lai_tree, li, ldap_chain_uri_cmp ) ) {
+			Debug( LDAP_DEBUG_ANY, "slapd-chain: ldap_avl_delete failed. "
 				"\"%s\" not found.\n", li->li_uri );
 			return -1;
 		}
@@ -1882,7 +1903,7 @@ private_destroy:;
 					goto private_destroy;
 				}
 
-				if ( tavl_insert( &lc->lc_lai.lai_tree,
+				if ( ldap_tavl_insert( &lc->lc_lai.lai_tree,
 					(caddr_t)lc->lc_cfg_li,
 					ldap_chain_uri_cmp, ldap_chain_uri_dup ) )
 				{
@@ -1934,9 +1955,9 @@ ldap_chain_db_func(
 			}
 
 			if ( lc->lc_lai.lai_tree != NULL ) {
-				TAvlnode *edge = tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
+				TAvlnode *edge = ldap_tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
 				while ( edge ) {
-					TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+					TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 					ldapinfo_t *li = (ldapinfo_t *)edge->avl_data;
 					db.be_private = (void *)li;
 					rc = func( &db, NULL );
@@ -2011,7 +2032,7 @@ ldap_chain_db_destroy(
 	rc = ldap_chain_db_func( be, db_destroy );
 
 	if ( lc ) {
-		tavl_free( lc->lc_lai.lai_tree, NULL );
+		ldap_tavl_free( lc->lc_lai.lai_tree, NULL );
 		ldap_pvt_thread_mutex_destroy( &lc->lc_lai.lai_mutex );
 		ch_free( lc );
 	}
@@ -2139,9 +2160,9 @@ ldap_chain_connection_destroy(
 
 	be->be_private = NULL;
 	ldap_pvt_thread_mutex_lock( &lc->lc_lai.lai_mutex );
-	edge = tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
+	edge = ldap_tavl_end( lc->lc_lai.lai_tree, TAVL_DIR_LEFT );
 	while ( edge ) {
-		TAvlnode *next = tavl_next( edge, TAVL_DIR_RIGHT );
+		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
 		ldapinfo_t *li = (ldapinfo_t *)edge->avl_data;
 		be->be_private = (void *)li;
 		rc = lback->bi_connection_destroy( be, conn );

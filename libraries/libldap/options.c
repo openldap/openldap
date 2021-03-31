@@ -258,6 +258,17 @@ ldap_get_option(
 		rc = LDAP_OPT_SUCCESS;
 		break;
 
+	case LDAP_OPT_SOCKET_BIND_ADDRESSES:
+		if ( lo->ldo_local_ip_addrs.local_ip_addrs == NULL ) {
+			* (void **) outvalue = NULL;
+		}
+		else {
+			* (char **) outvalue =
+				LDAP_STRDUP( lo->ldo_local_ip_addrs.local_ip_addrs );
+		}
+		rc = LDAP_OPT_SUCCESS;
+		break;
+
 	case LDAP_OPT_URI:
 		* (char **) outvalue = ldap_url_list2urls(lo->ldo_defludp);
 		rc = LDAP_OPT_SUCCESS;
@@ -590,6 +601,43 @@ ldap_set_option(
 				if (lo->ldo_defludp != NULL)
 					ldap_free_urllist(lo->ldo_defludp);
 				lo->ldo_defludp = ludlist;
+			}
+			break;
+		}
+
+	case LDAP_OPT_SOCKET_BIND_ADDRESSES: {
+			const char *source_ip = (const char *) invalue;
+			char **source_ip_lst = NULL;
+
+			ldapsourceip temp_source_ip;
+			memset( &temp_source_ip, 0, sizeof( ldapsourceip ) );
+			rc = LDAP_OPT_SUCCESS;
+			if( source_ip == NULL ) {
+				if ( ld->ld_options.ldo_local_ip_addrs.local_ip_addrs ) {
+					LDAP_FREE( ld->ld_options.ldo_local_ip_addrs.local_ip_addrs );
+					memset( &ld->ld_options.ldo_local_ip_addrs, 0,
+						sizeof( ldapsourceip ) );
+				}
+			}
+			else {
+				source_ip_lst = ldap_str2charray( source_ip, " " );
+
+				if ( source_ip_lst == NULL )
+					rc =  LDAP_NO_MEMORY;
+
+				if( rc == LDAP_OPT_SUCCESS ) {
+					rc = ldap_validate_and_fill_sourceip ( source_ip_lst,
+						&temp_source_ip );
+					ldap_charray_free( source_ip_lst );
+				}
+				if ( rc == LDAP_OPT_SUCCESS ) {
+					if ( lo->ldo_local_ip_addrs.local_ip_addrs != NULL ) {
+						LDAP_FREE( lo->ldo_local_ip_addrs.local_ip_addrs );
+						lo->ldo_local_ip_addrs.local_ip_addrs = NULL;
+					}
+					lo->ldo_local_ip_addrs = temp_source_ip;
+					lo->ldo_local_ip_addrs.local_ip_addrs = LDAP_STRDUP( source_ip );
+				}
 			}
 			break;
 		}

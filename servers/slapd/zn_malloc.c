@@ -87,7 +87,7 @@ slap_zn_mem_destroy(
 	ch_free(zh->zh_seqno);
 	ch_free(zh->zh_znlock);
 
-	avl_free(zh->zh_zonetree, slap_zo_release);
+	ldap_avl_free(zh->zh_zonetree, slap_zo_release);
 
 	zo = LDAP_LIST_FIRST(&zh->zh_zopool);
 	while (zo) {
@@ -217,7 +217,7 @@ slap_zn_mem_create(
 		zo->zo_ptr = zh->zh_zones[i];
 		zo->zo_siz = zh->zh_zonesize;
 		zo->zo_idx = i;
-		avl_insert(&zh->zh_zonetree, zo, slap_zone_cmp, avl_dup_error);
+		ldap_avl_insert(&zh->zh_zonetree, zo, slap_zone_cmp, ldap_avl_dup_error);
 		ldap_pvt_thread_rdwr_init(&zh->zh_znlock[i]);
 	}
 
@@ -371,7 +371,7 @@ retry:
 			zo->zo_ptr = zh->zh_zones[i];
 			zo->zo_siz = zh->zh_zonesize;
 			zo->zo_idx = i;
-			avl_insert(&zh->zh_zonetree, zo, slap_zone_cmp, avl_dup_error);
+			ldap_avl_insert(&zh->zh_zonetree, zo, slap_zone_cmp, ldap_avl_dup_error);
 			ldap_pvt_thread_rdwr_init(&zh->zh_znlock[i]);
 		}
 		zh->zh_numzones += zh->zh_deltazones;
@@ -416,7 +416,7 @@ slap_zn_realloc(void *ptr, ber_len_t size, void *ctx)
 
 	if (zh) {
 		ldap_pvt_thread_mutex_lock( &zh->zh_mutex );
-		zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+		zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 		ldap_pvt_thread_mutex_unlock( &zh->zh_mutex );
 	}
 
@@ -472,7 +472,7 @@ slap_zn_free(void *ptr, void *ctx)
 
 	if (zh) {
 		ldap_pvt_thread_mutex_lock( &zh->zh_mutex );
-		zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+		zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 		ldap_pvt_thread_mutex_unlock( &zh->zh_mutex );
 	}
 
@@ -694,7 +694,7 @@ slap_zn_invalidate(
 	zoi.zo_idx = -1;
 
 	ldap_pvt_thread_mutex_lock( &zh->zh_mutex );
-	zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+	zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 
 	if (zoo) {
 		idx = zoo->zo_idx;
@@ -752,7 +752,7 @@ slap_zn_validate(
 	zoi.zo_ptr = ptr;
 	zoi.zo_idx = -1;
 
-	zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+	zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 
 	if (zoo) {
 		idx = zoo->zo_idx;
@@ -810,7 +810,7 @@ int slap_zn_rlock(
 	zoi.zo_idx = -1;
 
 	ldap_pvt_thread_mutex_lock( &zh->zh_mutex );
-	zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+	zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 	ldap_pvt_thread_mutex_unlock( &zh->zh_mutex );
 
 	if (zoo) {
@@ -834,7 +834,7 @@ int slap_zn_runlock(
 	zoi.zo_idx = -1;
 
 	ldap_pvt_thread_mutex_lock( &zh->zh_mutex );
-	zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+	zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 	ldap_pvt_thread_mutex_unlock( &zh->zh_mutex );
 
 	if (zoo) {
@@ -858,7 +858,7 @@ int slap_zn_wlock(
 	zoi.zo_idx = -1;
 
 	ldap_pvt_thread_mutex_lock( &zh->zh_mutex );
-	zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+	zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 	ldap_pvt_thread_mutex_unlock( &zh->zh_mutex );
 
 	if (zoo) {
@@ -882,7 +882,7 @@ int slap_zn_wunlock(
 	zoi.zo_idx = -1;
 
 	ldap_pvt_thread_mutex_lock( &zh->zh_mutex );
-	zoo = avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
+	zoo = ldap_avl_find(zh->zh_zonetree, &zoi, slap_zone_cmp);
 	ldap_pvt_thread_mutex_unlock( &zh->zh_mutex );
 
 	if (zoo) {

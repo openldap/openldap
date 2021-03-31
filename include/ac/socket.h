@@ -234,6 +234,18 @@ LDAP_LUTIL_F( int ) lutil_getpeereid( int s, uid_t *, gid_t * );
 #define	LUTIL_GETPEEREID( s, uid, gid, bv )	lutil_getpeereid( s, uid, gid )
 #endif
 
+typedef union Sockaddr {
+	struct sockaddr sa_addr;
+	struct sockaddr_in sa_in_addr;
+#ifdef LDAP_PF_INET6
+	struct sockaddr_storage sa_storage;
+	struct sockaddr_in6 sa_in6_addr;
+#endif
+#ifdef LDAP_PF_LOCAL
+	struct sockaddr_un sa_un_addr;
+#endif
+} Sockaddr;
+
 /* DNS RFC defines max host name as 255. New systems seem to use 1024 */
 #ifndef NI_MAXHOST
 #define	NI_MAXHOST	256

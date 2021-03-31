@@ -37,10 +37,6 @@
 const Filter *slap_filter_objectClass_pres;
 const struct berval *slap_filterstr_objectClass_pres;
 
-#ifndef SLAPD_MAX_FILTER_DEPTH
-#define SLAPD_MAX_FILTER_DEPTH	5000
-#endif
-
 static int	get_filter_list(
 	Operation *op,
 	BerElement *ber,
@@ -132,7 +128,7 @@ get_filter0(
 	 *
 	 */
 
-	if( depth > SLAPD_MAX_FILTER_DEPTH ) {
+	if( depth > slap_max_filter_depth ) {
 		*text = "filter nested too deeply";
 		return SLAPD_DISCONNECT;
 	}

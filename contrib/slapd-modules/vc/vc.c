@@ -281,7 +281,7 @@ vc_exop(
 
 		AC_MEMCPY( (char *)&tmp.conn, (const char *)cookie.bv_val, cookie.bv_len );
 		ldap_pvt_thread_mutex_lock( &vc_mutex );
-		conn = (vc_conn_t *)avl_find( vc_tree, (caddr_t)&tmp, vc_conn_cmp );
+		conn = (vc_conn_t *)ldap_avl_find( vc_tree, (caddr_t)&tmp, vc_conn_cmp );
 		if ( conn == NULL || ( conn != NULL && conn->refcnt != 0 ) ) {
 			conn = NULL;
 			ldap_pvt_thread_mutex_unlock( &vc_mutex );
@@ -376,7 +376,7 @@ done:;
 				conn->conn = conn;
 				conn->refcnt--;
 				ldap_pvt_thread_mutex_lock( &vc_mutex );
-				rc = avl_insert( &vc_tree, (caddr_t)conn,
+				rc = ldap_avl_insert( &vc_tree, (caddr_t)conn,
 					vc_conn_cmp, vc_conn_dup );
 				ldap_pvt_thread_mutex_unlock( &vc_mutex );
 				assert( rc == 0 );
@@ -392,7 +392,7 @@ done:;
 				vc_conn_t *tmp;
 
 				ldap_pvt_thread_mutex_lock( &vc_mutex );
-				tmp = avl_delete( &vc_tree, (caddr_t)conn, vc_conn_cmp );
+				tmp = ldap_avl_delete( &vc_tree, (caddr_t)conn, vc_conn_cmp );
 				ldap_pvt_thread_mutex_unlock( &vc_mutex );
 			}
 			SLAP_FREE( conn );

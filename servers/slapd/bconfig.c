@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <ac/string.h>
 #include <ac/ctype.h>
+#include <ac/dirent.h>
 #include <ac/errno.h>
 #include <sys/stat.h>
 #include <ac/unistd.h>
@@ -477,6 +478,10 @@ static ConfigTable config_back_cf_table[] = {
 			"SYNTAX OMsDirectoryString )", NULL, NULL },
 	{ "maxDerefDepth", "depth", 2, 2, 0, ARG_DB|ARG_INT|ARG_MAGIC|CFG_DEPTH,
 		&config_generic, "( OLcfgDbAt:0.6 NAME 'olcMaxDerefDepth' "
+			"EQUALITY integerMatch "
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+	{ "maxFilterDepth", "depth", 2, 2, 0, ARG_INT,
+		&slap_max_filter_depth, "( OLcfgGlAt:101 NAME 'olcMaxFilterDepth' "
 			"EQUALITY integerMatch "
 			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ "multiprovider", "on|off", 2, 2, 0, ARG_DB|ARG_ON_OFF|ARG_MAGIC|CFG_MULTIPROVIDER,
@@ -951,6 +956,7 @@ static ConfigOCs cf_ocs[] = {
 		 "olcIndexSubstrAnyLen $ olcIndexSubstrAnyStep $ olcIndexHash64 $ "
 		 "olcIndexIntLen $ "
 		 "olcListenerThreads $ olcLocalSSF $ olcLogFile $ olcLogLevel $ "
+		 "olcMaxFilterDepth $ "
 		 "olcPasswordCryptSaltFormat $ olcPasswordHash $ olcPidFile $ "
 		 "olcPluginLogFile $ olcReadOnly $ olcReferral $ "
 		 "olcReplogFile $ olcRequires $ olcRestrict $ olcReverseLookup $ "
@@ -1058,6 +1064,11 @@ config_resize_lthreads(ConfigArgs *c)
 {
 	return slapd_daemon_resize( new_daemon_threads );
 }
+
+#define	GOT_CONFIG	1
+#define	GOT_FRONTEND	2
+static int
+config_unique_db;
 
 static int
 config_generic(ConfigArgs *c) {
@@ -1783,9 +1794,19 @@ config_generic(ConfigArgs *c) {
 			/* NOTE: config is always the first backend!
 			 */
 			if ( !strcasecmp( c->argv[1], "config" )) {
+				if (config_unique_db & GOT_CONFIG) {
+					sprintf( c->cr_msg, "config DB already defined");
+					return(1);
+				}
 				c->be = LDAP_STAILQ_FIRST(&backendDB);
+				config_unique_db |= GOT_CONFIG;
 			} else if ( !strcasecmp( c->argv[1], "frontend" )) {
+				if (config_unique_db & GOT_FRONTEND) {
+					sprintf( c->cr_msg, "frontend DB already defined");
+					return(1);
+				}
 				c->be = frontendDB;
+				config_unique_db |= GOT_FRONTEND;
 			} else {
 				c->be = backend_db_init(c->argv[1], NULL, c->valx, &c->reply);
 				if ( !c->be ) {
@@ -3701,6 +3722,7 @@ slap_loglevel_get( struct berval *s, int *l )
 
 	} else {
 		*l = i;
+		slap_check_unknown_level( s->bv_val, i );
 	}
 
 	return rc;
@@ -4520,6 +4542,22 @@ config_setup_ldif( BackendDB *be, const char *dir, int readit ) {
 			rc = op->o_bd->be_add( op, &rs );
 		}
 		ldap_pvt_thread_pool_context_reset( thrctx );
+	} else {
+		/* ITS#9016 Check directory is empty (except perhaps hidden files) */
+		DIR *dir_of_path;
+		struct dirent *entry;
+
+		dir_of_path = opendir( dir );
+		while ( (entry = readdir( dir_of_path )) != NULL ) {
+			if ( entry->d_name[0] != '.' ) {
+				Debug( LDAP_DEBUG_ANY, "config_setup_ldif: "
+						"expected directory %s to be empty!\n",
+						dir );
+				rc = LDAP_ALREADY_EXISTS;
+				break;
+			}
+		}
+		closedir( dir_of_path );
 	}
 
 	/* ITS#4194 - only use if it's present, or we're converting. */
@@ -4553,7 +4591,7 @@ config_register_schema(ConfigTable *ct, ConfigOCs *ocs) {
 			ocs[i].co_name = &ocs[i].co_oc->soc_cname;
 			if ( !ocs[i].co_table )
 				ocs[i].co_table = ct;
-			avl_insert( &CfOcTree, &ocs[i], CfOc_cmp, avl_dup_error );
+			ldap_avl_insert( &CfOcTree, &ocs[i], CfOc_cmp, ldap_avl_dup_error );
 		}
 	}
 	return 0;
@@ -5143,7 +5181,7 @@ count_oc( ObjectClass *oc, ConfigOCs ***copp, int *nocs )
 	}
 
 	co.co_name = &oc->soc_cname;
-	cop = avl_find( CfOcTree, &co, CfOc_cmp );
+	cop = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 	if ( cop ) {
 		int	i;
 
@@ -5354,7 +5392,7 @@ config_add_oc( ConfigOCs **cop, CfEntryInfo *last, Entry *e, ConfigArgs *ca )
 		ConfigOCs	co = { 0 };
 
 		co.co_name = &(*ocp)->soc_cname;
-		*cop = avl_find( CfOcTree, &co, CfOc_cmp );
+		*cop = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 		if ( *cop == NULL ) {
 			return rc;
 		}
@@ -5489,7 +5527,7 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 	ca->ca_op = op;
 
 	co.co_name = &soc_at->a_nvals[0];
-	coptr = avl_find( CfOcTree, &co, CfOc_cmp );
+	coptr = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 	if ( coptr == NULL ) {
 		Debug( LDAP_DEBUG_TRACE, "%s: config_add_internal: "
 			"DN=\"%s\" no structural objectClass in configuration table\n",
@@ -6628,7 +6666,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 			}
 			for ( i=0; !BER_BVISNULL(&oc_at->a_nvals[i]); i++ ) {
 				co.co_name = &oc_at->a_nvals[i];
-				coptr = avl_find( CfOcTree, &co, CfOc_cmp );
+				coptr = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 				if ( coptr == NULL || coptr->co_type != Cft_Misc ) {
 					continue;
 				}
@@ -7502,7 +7540,7 @@ config_back_db_destroy( BackendDB *be, ConfigReply *cr )
 
 	ch_free( cfdir.bv_val );
 
-	avl_free( CfOcTree, NULL );
+	ldap_avl_free( CfOcTree, NULL );
 
 	if ( cfb->cb_db.bd_info ) {
 		cfb->cb_db.be_suffix = NULL;
@@ -7791,8 +7829,10 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 	if ( bi && bi->bi_tool_entry_put &&
 		config_add_internal( cfb, e, &ca, NULL, NULL, NULL ) == 0 )
 		return bi->bi_tool_entry_put( &cfb->cb_db, e, text );
-	else
+	else {
+		ber_str2bv( ca.cr_msg, 0, 0, text );
 		return NOID;
+	}
 }
 
 static ID

@@ -109,10 +109,6 @@ target entry does not support the given operation.
 The password backend is only willing to perform searches. It will return an 
 unwilling to perform error for all other operations.
 
-The shell backend is configurable and may support a limited subset of operations.
-Check for other errors indicating a shortage of resources required by the 
-directory server. i.e. you may have a full disk etc
-
 H3: ldap_*: Insufficient access
 
 This error occurs when server denies the operation due to insufficient access. 

@@ -289,8 +289,6 @@ fe_op_modify( Operation *op, SlapReply *rs )
 		if ( !SLAP_SINGLE_SHADOW(op->o_bd) || repl_user ) {
 			int update = !BER_BVISEMPTY( &op->o_bd->be_update_ndn );
 
-			op->o_bd = op_be;
-
 			if ( !update ) {
 				rs->sr_err = slap_mods_no_user_mod_check( op, op->orm_modlist,
 					&rs->sr_text, textbuf, textlen );
@@ -299,6 +297,11 @@ fe_op_modify( Operation *op, SlapReply *rs )
 					goto cleanup;
 				}
 			}
+			if ( op->o_txnSpec ) {
+				txn_preop( op, rs );
+				goto cleanup;
+			}
+			op->o_bd = op_be;
 			op->o_bd->be_modify( op, rs );
 
 		} else { /* send a referral */

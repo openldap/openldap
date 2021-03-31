@@ -87,7 +87,7 @@ static ConfigDriver unique_cf_strict;
 static ConfigDriver unique_cf_uri;
 
 static ConfigTable uniquecfg[] = {
-	{ "unique_base", "basedn", 2, 2, 0, ARG_DN|ARG_MAGIC|UNIQUE_BASE,
+	{ "unique_base", "basedn", 2, 2, 0, ARG_DN|ARG_QUOTE|ARG_MAGIC|UNIQUE_BASE,
 	  unique_cf_base, "( OLcfgOvAt:10.1 NAME 'olcUniqueBase' "
 	  "DESC 'Subtree for uniqueness searches' "
 	  "EQUALITY distinguishedNameMatch "

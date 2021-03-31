@@ -76,7 +76,7 @@ mr_bvfind( struct berval *mrname )
 {
 	struct mindexrec	*mir = NULL;
 
-	if ( (mir = avl_find( mr_index, mrname, mr_index_name_cmp )) != NULL ) {
+	if ( (mir = ldap_avl_find( mr_index, mrname, mr_index_name_cmp )) != NULL ) {
 		return( mir->mir_mr );
 	}
 	return( NULL );
@@ -87,7 +87,7 @@ mr_destroy( void )
 {
 	MatchingRule *m;
 
-	avl_free(mr_index, ldap_memfree);
+	ldap_avl_free(mr_index, ldap_memfree);
 	while( !LDAP_SLIST_EMPTY(&mr_list) ) {
 		m = LDAP_SLIST_FIRST(&mr_list);
 		LDAP_SLIST_REMOVE_HEAD(&mr_list, smr_next);
@@ -115,8 +115,8 @@ mr_insert(
 		mir->mir_name.bv_val = smr->smr_oid;
 		mir->mir_name.bv_len = strlen( smr->smr_oid );
 		mir->mir_mr = smr;
-		if ( avl_insert( &mr_index, (caddr_t) mir,
-		                 mr_index_cmp, avl_dup_error ) ) {
+		if ( ldap_avl_insert( &mr_index, (caddr_t) mir,
+		                 mr_index_cmp, ldap_avl_dup_error ) ) {
 			*err = smr->smr_oid;
 			ldap_memfree(mir);
 			return SLAP_SCHERR_MR_DUP;
@@ -131,8 +131,8 @@ mr_insert(
 			mir->mir_name.bv_val = *names;
 			mir->mir_name.bv_len = strlen( *names );
 			mir->mir_mr = smr;
-			if ( avl_insert( &mr_index, (caddr_t) mir,
-			                 mr_index_cmp, avl_dup_error ) ) {
+			if ( ldap_avl_insert( &mr_index, (caddr_t) mir,
+			                 mr_index_cmp, ldap_avl_dup_error ) ) {
 				*err = *names;
 				ldap_memfree(mir);
 				return SLAP_SCHERR_MR_DUP;

@@ -707,7 +707,7 @@ unhandled_option:;
     }
 
 #ifdef HAVE_TLS
-    rc = ldap_pvt_tls_init();
+    rc = ldap_pvt_tls_init( 1 );
     if ( rc != 0 ) {
         Debug( LDAP_DEBUG_ANY, "main: "
                 "TLS init failed: %d\n",
@@ -903,7 +903,7 @@ stop:
     if ( global_host ) ch_free( global_host );
 
     /* kludge, get symbols referenced */
-    tavl_free( NULL, NULL );
+    ldap_tavl_free( NULL, NULL );
 
     MAIN_RETURN(rc);
 }

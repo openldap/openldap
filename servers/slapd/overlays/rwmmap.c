@@ -99,9 +99,9 @@ rwm_map_init( struct ldapmap *lm, struct ldapmapping **m )
 	mapping[1].m_src_ad = mapping[0].m_src_ad;
 	mapping[1].m_dst_ad = mapping[1].m_src_ad;
 
-	avl_insert( &lm->map, (caddr_t)&mapping[0], 
+	ldap_avl_insert( &lm->map, (caddr_t)&mapping[0], 
 			rwm_mapping_cmp, rwm_mapping_dup );
-	avl_insert( &lm->remap, (caddr_t)&mapping[1], 
+	ldap_avl_insert( &lm->remap, (caddr_t)&mapping[1], 
 			rwm_mapping_cmp, rwm_mapping_dup );
 
 	*m = mapping;
@@ -138,7 +138,7 @@ rwm_mapping( struct ldapmap *map, struct berval *s, struct ldapmapping **m, int 
 	}
 
 	fmapping.m_src = *s;
-	*m = (struct ldapmapping *)avl_find( tree, (caddr_t)&fmapping,
+	*m = (struct ldapmapping *)ldap_avl_find( tree, (caddr_t)&fmapping,
 			rwm_mapping_cmp );
 
 	if ( *m == NULL ) {

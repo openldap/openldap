@@ -84,6 +84,8 @@ ber_len_t sockbuf_max_incoming_auth= SLAP_SB_MAX_INCOMING_AUTH;
 int	slap_conn_max_pending = SLAP_CONN_MAX_PENDING_DEFAULT;
 int	slap_conn_max_pending_auth = SLAP_CONN_MAX_PENDING_AUTH;
 
+int	slap_max_filter_depth = SLAP_MAX_FILTER_DEPTH_DEFAULT;
+
 char   *slapd_pid_file  = NULL;
 char   *slapd_args_file = NULL;
 

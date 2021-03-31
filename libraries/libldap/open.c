@@ -207,6 +207,14 @@ ldap_create( LDAP **ldp )
 
 	if (( ld->ld_selectinfo = ldap_new_select_info()) == NULL ) goto nomem;
 
+	ld->ld_options.ldo_local_ip_addrs.local_ip_addrs = NULL;
+	if( gopts->ldo_local_ip_addrs.local_ip_addrs ) {
+		ld->ld_options.ldo_local_ip_addrs.local_ip_addrs =
+			LDAP_STRDUP( gopts->ldo_local_ip_addrs.local_ip_addrs );
+		if ( ld->ld_options.ldo_local_ip_addrs.local_ip_addrs == NULL )
+			goto nomem;
+	}
+
 	ld->ld_lberoptions = LBER_USE_DER;
 
 	ld->ld_sb = ber_sockbuf_alloc( );
@@ -566,7 +574,8 @@ ldap_open_internal_connection( LDAP **ldp, ber_socket_t *fdp )
 	lr->lr_status = LDAP_REQST_INPROGRESS;
 	lr->lr_res_errno = LDAP_SUCCESS;
 	/* no mutex lock needed, we just created this ld here */
-	ld->ld_requests = lr;
+	rc = ldap_tavl_insert( &ld->ld_requests, lr, ldap_req_cmp, ldap_avl_dup_error );
+	assert( rc == LDAP_SUCCESS );
 
 	LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
 	/* Attach the passed socket as the *LDAP's connection */

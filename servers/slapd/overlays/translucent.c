@@ -819,7 +819,7 @@ static int translucent_search_cb(Operation *op, SlapReply *rs) {
 		le = rs->sr_entry;
 		/* If entry is already on list, use it */
 		if ( tc->step & USE_LIST ) {
-			re = tavl_delete( &tc->list, le, entry_dn_cmp );
+			re = ldap_tavl_delete( &tc->list, le, entry_dn_cmp );
 			if ( re ) {
 				rs_flush_entry( op, rs, on );
 				rc = test_filter( op, re, tc->orig );
@@ -910,7 +910,7 @@ static int translucent_search_cb(Operation *op, SlapReply *rs) {
 		}
 		/* If both filters, save entry for later */
 		if ( tc->step == (USE_LIST|RMT_SIDE) ) {
-			tavl_insert( &tc->list, re, entry_dn_cmp, avl_dup_error );
+			ldap_tavl_insert( &tc->list, re, entry_dn_cmp, ldap_avl_dup_error );
 			rs->sr_entry = NULL;
 			rc = 0;
 		} else {
@@ -1180,7 +1180,7 @@ static int translucent_search(Operation *op, SlapReply *rs) {
 		if ( tc.list ) {
 			TAvlnode *av;
 
-			av = tavl_end( tc.list, TAVL_DIR_LEFT );
+			av = ldap_tavl_end( tc.list, TAVL_DIR_LEFT );
 			while ( av ) {
 				rs->sr_entry = av->avl_data;
 				if ( rc == LDAP_SUCCESS && LDAP_COMPARE_TRUE ==
@@ -1191,9 +1191,9 @@ static int translucent_search(Operation *op, SlapReply *rs) {
 				} else {
 					entry_free( rs->sr_entry );
 				}
-				av = tavl_next( av, TAVL_DIR_RIGHT );
+				av = ldap_tavl_next( av, TAVL_DIR_RIGHT );
 			}
-			tavl_free( tc.list, NULL );
+			ldap_tavl_free( tc.list, NULL );
 			rs->sr_flags = 0;
 			rs->sr_entry = NULL;
 		}

@@ -1249,6 +1249,8 @@ LDAP_SLAPD_F (int)
 parse_syslog_user LDAP_P(( const char *arg, int *syslogUser ));
 LDAP_SLAPD_F (int)
 parse_debug_unknowns LDAP_P(( char **unknowns, int *levelp ));
+LDAP_SLAPD_F (void)
+slap_check_unknown_level LDAP_P(( char *levelstr, int level ));
 
 /*
  * matchedValues.c
@@ -2065,6 +2067,7 @@ LDAP_SLAPD_V (ber_len_t) sockbuf_max_incoming;
 LDAP_SLAPD_V (ber_len_t) sockbuf_max_incoming_auth;
 LDAP_SLAPD_V (int)		slap_conn_max_pending;
 LDAP_SLAPD_V (int)		slap_conn_max_pending_auth;
+LDAP_SLAPD_V (int)		slap_max_filter_depth;
 
 LDAP_SLAPD_V (slap_mask_t)	global_allows;
 LDAP_SLAPD_V (slap_mask_t)	global_disallows;

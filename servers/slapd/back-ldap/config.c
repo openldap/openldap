@@ -734,6 +734,9 @@ slap_idassert_parse( ConfigArgs *c, slap_idassert_t *si )
 {
 	int		i;
 
+	/* set default */
+	si->si_mode = LDAP_BACK_IDASSERT_LEGACY;
+
 	for ( i = 1; i < c->argc; i++ ) {
 		if ( strncasecmp( c->argv[ i ], "mode=", STRLENOF( "mode=" ) ) == 0 ) {
 			char	*argvi = c->argv[ i ] + STRLENOF( "mode=" );
@@ -1384,7 +1387,7 @@ ldap_back_cf_gen( ConfigArgs *c )
 			/* NOTE: don't worry about locking: if we got here,
 			 * other threads are suspended. */
 			if ( li->li_conninfo.lai_tree != NULL ) {
-				tavl_free( li->li_conninfo.lai_tree, ldap_back_conn_free );
+				ldap_tavl_free( li->li_conninfo.lai_tree, ldap_back_conn_free );
 				li->li_conninfo.lai_tree = NULL;
 			}
 			

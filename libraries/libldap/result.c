@@ -344,13 +344,17 @@ wait4msg(
 				int serviced = 0;
 				rc = LDAP_MSG_X_KEEP_LOOKING;
 				LDAP_MUTEX_LOCK( &ld->ld_req_mutex );
-				if ( ld->ld_requests &&
-					ld->ld_requests->lr_status == LDAP_REQST_WRITING &&
-					ldap_is_write_ready( ld,
-						ld->ld_requests->lr_conn->lconn_sb ) )
-				{
-					serviced = 1;
-					ldap_int_flush_request( ld, ld->ld_requests );
+				if ( ld->ld_requests != NULL ) {
+					TAvlnode *node = ldap_tavl_end( ld->ld_requests, TAVL_DIR_RIGHT );
+					LDAPRequest *lr;
+
+					assert( node != NULL );
+					lr = node->avl_data;
+					if ( lr->lr_status == LDAP_REQST_WRITING &&
+							ldap_is_write_ready( ld, lr->lr_conn->lconn_sb ) ) {
+						serviced = 1;
+						ldap_int_flush_request( ld, lr );
+					}
 				}
 				for ( lc = ld->ld_conns;
 					rc == LDAP_MSG_X_KEEP_LOOKING && lc != NULL;
@@ -452,7 +456,7 @@ try_read1msg(
 	LDAPRequest	*lr, *tmplr, dummy_lr = { 0 };
 	BerElement	tmpber;
 	int		rc, refer_cnt, hadref, simple_request, err;
-	ber_int_t	lderr;
+	ber_int_t	lderr = -1;
 
 #ifdef LDAP_CONNECTIONLESS
 	LDAPMessage	*tmp = NULL, *chain_head = NULL;

@@ -689,6 +689,10 @@ This level should usually also be included when using other loglevels, to
 help analyze the logs.
 .RE
 .TP
+.B olcMaxFilterDepth: <integer>
+Specify the maximum depth of nested filters in search requests.
+The default is 1000.
+.TP
 .B olcPasswordCryptSaltFormat: <format>
 Specify the format of the salt passed to
 .BR crypt (3)

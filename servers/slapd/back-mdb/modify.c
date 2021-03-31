@@ -589,9 +589,6 @@ mdb_modify( Operation *op, SlapReply *rs )
 	Debug( LDAP_DEBUG_ARGS, LDAP_XSTRING(mdb_modify) ": %s\n",
 		op->o_req_dn.bv_val );
 
-	if( op->o_txnSpec && txn_preop( op, rs ))
-		return rs->sr_err;
-
 	ctrls[num_ctrls] = NULL;
 
 	/* begin transaction */

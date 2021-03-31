@@ -40,7 +40,7 @@
 #include <ac/time.h>
 #include <ac/param.h>
 
-#include "avl.h"
+#include "ldap_avl.h"
 
 #ifndef ldap_debug
 #define ldap_debug slap_debug
@@ -143,6 +143,7 @@ LDAP_BEGIN_DECL
 
 #define SLAP_CONN_MAX_PENDING_DEFAULT	100
 #define SLAP_CONN_MAX_PENDING_AUTH	1000
+#define SLAP_MAX_FILTER_DEPTH_DEFAULT	1000
 
 #define SLAP_TEXT_BUFLEN (256)
 
@@ -2337,6 +2338,7 @@ struct BackendInfo {
 #define SLAP_BFLAG_SUBENTRIES		0x4000U
 #define SLAP_BFLAG_DYNAMIC			0x8000U
 #define SLAP_BFLAG_STANDALONE		0x10000U /* started up regardless of whether any databases use it */
+#define SLAP_BFLAG_TXNS				0x20000U /* supports LDAP transactions */
 
 /* overlay specific */
 #define	SLAPO_BFLAG_SINGLE		0x01000000U
@@ -2356,6 +2358,7 @@ struct BackendInfo {
 #define SLAP_DYNAMIC(be)	((SLAP_BFLAGS(be) & SLAP_BFLAG_DYNAMIC) || (SLAP_DBFLAGS(be) & SLAP_DBFLAG_DYNAMIC))
 #define SLAP_NOLASTMODCMD(be)	(SLAP_BFLAGS(be) & SLAP_BFLAG_NOLASTMODCMD)
 #define SLAP_LASTMODCMD(be)	(!SLAP_NOLASTMODCMD(be))
+#define SLAP_TXNS(be)		(SLAP_BFLAGS(be) & SLAP_BFLAG_TXNS)
 
 /* overlay specific */
 #define SLAPO_SINGLE(be)	(SLAP_BFLAGS(be) & SLAPO_BFLAG_SINGLE)
@@ -2849,14 +2852,6 @@ typedef struct Listener Listener;
 /*
  * represents a connection from an ldap client
  */
-/* structure state (protected by connections_mutex) */
-enum sc_struct_state {
-	SLAP_C_UNINITIALIZED = 0,	/* MUST BE ZERO (0) */
-	SLAP_C_UNUSED,
-	SLAP_C_USED,
-	SLAP_C_PENDING
-};
-
 /* connection state (protected by c_mutex ) */
 enum sc_conn_state {
 	SLAP_C_INVALID = 0,		/* MUST BE ZERO (0) */
@@ -2867,7 +2862,6 @@ enum sc_conn_state {
 	SLAP_C_CLIENT			/* outbound client conn */
 };
 struct Connection {
-	enum sc_struct_state	c_struct_state; /* structure management state */
 	enum sc_conn_state	c_conn_state;	/* connection state */
 	int			c_conn_idx;		/* slot in connections array */
 	ber_socket_t	c_sd;

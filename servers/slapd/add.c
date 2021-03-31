@@ -302,8 +302,6 @@ fe_op_add( Operation *op, SlapReply *rs )
 		if ( !SLAP_SINGLE_SHADOW(op->o_bd) || repl_user ) {
 			int		update = !BER_BVISEMPTY( &op->o_bd->be_update_ndn );
 
-			op->o_bd = op_be;
-
 			if ( !update ) {
 				rs->sr_err = slap_mods_no_user_mod_check( op, op->ora_modlist,
 					&rs->sr_text, textbuf, textlen );
@@ -334,6 +332,12 @@ fe_op_add( Operation *op, SlapReply *rs )
 				}
 			}
 
+			if ( op->o_txnSpec ) {
+				rc = txn_preop( op, rs );
+				goto done;
+			}
+
+			op->o_bd = op_be;
 			rc = op->o_bd->be_add( op, rs );
 			if ( rc == LDAP_SUCCESS ) {
 				OpExtra *oex;

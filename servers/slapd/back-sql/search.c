@@ -2181,7 +2181,7 @@ backsql_search( Operation *op, SlapReply *rs )
 		 * of entries matching LDAP query filter and scope (or at least 
 		 * candidates), and get the IDs. Do this in ID order for paging.
 		 */
-		avl_apply( bi->sql_oc_by_id, backsql_oc_get_candidates,
+		ldap_avl_apply( bi->sql_oc_by_id, backsql_oc_get_candidates,
 				&bsi, BACKSQL_AVL_STOP, AVL_INORDER );
 
 		/* check for abandon */

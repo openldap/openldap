@@ -227,6 +227,9 @@ parse_syslog_level( const char *arg, int *levelp )
 }
 #endif /* LDAP_DEBUG && LDAP_SYSLOG */
 
+static char **debug_unknowns;
+static char **syslog_unknowns;
+
 int
 parse_debug_unknowns( char **unknowns, int *levelp )
 {
@@ -303,6 +306,29 @@ parse_debug_level( const char *arg, int *levelp, char ***unknowns )
 	return 0;
 }
 
+void slap_check_unknown_level( char *levelstr, int level )
+{
+	int i;
+
+	if ( debug_unknowns ) {
+		for ( i = 0; debug_unknowns[ i ]; i++ ) {
+			if ( !strcasecmp( debug_unknowns[ i ], levelstr )) {
+				slap_debug |= level;
+				break;
+			}
+		}
+	}
+
+	if ( syslog_unknowns ) {
+		for ( i = 0; syslog_unknowns[ i ]; i++ ) {
+			if ( !strcasecmp( syslog_unknowns[ i ], levelstr )) {
+				ldap_syslog |= level;
+				break;
+			}
+		}
+	}
+}
+
 static void
 usage( char *name )
 {
@@ -351,6 +377,7 @@ usage( char *name )
     );
 }
 
+
 #ifdef HAVE_NT_SERVICE_MANAGER
 void WINAPI ServiceMain( DWORD argc, LPTSTR *argv )
 #else
@@ -384,9 +411,6 @@ int main( int argc, char **argv )
 
 	struct sync_cookie *scp = NULL;
 	struct sync_cookie *scp_entry = NULL;
-
-	char **debug_unknowns = NULL;
-	char **syslog_unknowns = NULL;
 
 	char *serverNamePrefix = "";
 	size_t	l;
@@ -858,7 +882,7 @@ unhandled_option:;
 	}
 
 #ifdef HAVE_TLS
-	rc = ldap_pvt_tls_init();
+	rc = ldap_pvt_tls_init( 1 );
 	if( rc != 0) {
 		Debug( LDAP_DEBUG_ANY,
 		    "main: TLS init failed: %d\n",
@@ -1105,7 +1129,7 @@ stop:
 		ch_free( global_host );
 
 	/* kludge, get symbols referenced */
-	tavl_free( NULL, NULL );
+	ldap_tavl_free( NULL, NULL );
 
 #ifdef CSRIMALLOC
 	mal_dumpleaktrace( leakfile );

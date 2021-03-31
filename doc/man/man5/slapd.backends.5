@@ -19,6 +19,13 @@ corresponding
 .BR slapd\-<backend> (5)
 manual pages.
 .TP
+.B asyncmeta
+This backend performs basic LDAP proxying with respect to a set of
+remote LDAP servers. It is an enhancement of the
+.B ldap
+backend that operates asynchronously, to prevent tying up slapd threads
+while waiting for operations to complete.
+.TP
 .B config
 This backend is used to manage the configuration of slapd at run-time.
 Unlike other backends, only a single instance of the
@@ -61,7 +68,7 @@ daemon. Only a single instance of the
 backend may be defined.
 .TP
 .B ndb
-This backend is experimental.
+This backend is experimental, incomplete, and deprecated.
 It uses the transactional database interface of the MySQL Cluster Engine
 (NDB) to store data. Note that Oracle, which now owns MySQL, has withdrawn
 support for NDB and this backend is unlikely to be developed any further.
@@ -80,6 +87,7 @@ This backend embeds a
 .BR perl (1)
 interpreter into slapd.
 It runs Perl subroutines to implement LDAP operations.
+This backend is deprecated.
 .TP
 .B relay
 This backend is experimental.
@@ -93,13 +101,13 @@ for details) to rewrite the naming context of the request.
 It is primarily intended to implement virtual views on databases
 that actually store data.
 .TP
-.B shell
-This backend executes external programs to implement LDAP operations.
-It is primarily intended to be used in prototypes.
-.TP
 .B sql
-This backend is experimental.
+This backend is experimental and deprecated.
 It services LDAP requests from an SQL database.
+.TP
+.B wiredtiger
+This backend is experimental.
+It services LDAP requests from a wiredtiger database.
 .SH FILES
 .TP
 ETCDIR/slapd.conf
@@ -109,6 +117,7 @@ ETCDIR/slapd.d
 default slapd configuration directory
 .SH SEE ALSO
 .BR ldap (3),
+.BR slapd\-asyncmeta (5),
 .BR slapd\-config (5),
 .BR slapd\-dnssrv (5),
 .BR slapd\-ldap (5),
@@ -121,8 +130,8 @@ default slapd configuration directory
 .BR slapd\-passwd (5),
 .BR slapd\-perl (5),
 .BR slapd\-relay (5),
-.BR slapd\-shell (5),
 .BR slapd\-sql (5),
+.BR slapd\-wt (5),
 .BR slapd.conf (5),
 .BR slapd.overlays (5),
 .BR slapd (8).

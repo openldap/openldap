@@ -35,7 +35,9 @@ CONSTRAINT=${AC_constraint-constraintno}
 DDS=${AC_dds-ddsno}
 DEREF=${AC_deref-derefno}
 DYNLIST=${AC_dynlist-dynlistno}
+HOMEDIR=${AC_homedir-homedirno}
 MEMBEROF=${AC_memberof-memberofno}
+OTP=${AC_otp-otpno}
 PROXYCACHE=${AC_pcache-pcacheno}
 PPOLICY=${AC_ppolicy-ppolicyno}
 REFINT=${AC_refint-refintno}
@@ -150,6 +152,7 @@ ACICONF=$DATADIR/slapd-aci.conf
 VALSORTCONF=$DATADIR/slapd-valsort.conf
 DEREFCONF=$DATADIR/slapd-deref.conf
 DYNLISTCONF=$DATADIR/slapd-dynlist.conf
+HOMEDIRCONF=$DATADIR/slapd-homedir.conf
 RCONSUMERCONF=$DATADIR/slapd-repl-consumer-remote.conf
 PLSRCONSUMERCONF=$DATADIR/slapd-syncrepl-consumer-persist-ldap.conf
 PLSRPROVIDERCONF=$DATADIR/slapd-syncrepl-multiproxy.conf
@@ -190,6 +193,7 @@ SLURPLOG=$TESTDIR/slurp.log
 
 CONFIGPWF=$TESTDIR/configpw
 
+LIBTOOL="${LIBTOOL-$TESTWD/../libtool}"
 # wrappers (valgrind, gdb, environment variables, etc.)
 if [ -n "$WRAPPER" ]; then
 	: # skip
@@ -204,7 +208,7 @@ elif [ "$SLAPD_COMMON_WRAPPER" = vgdb ]; then
 fi
 
 if [ -n "$WRAPPER" ]; then
-	SLAPD_WRAPPER="$TESTWD/../libtool --mode=execute env $WRAPPER"
+	SLAPD_WRAPPER="$LIBTOOL --mode=execute env $WRAPPER"
 fi
 
 # args

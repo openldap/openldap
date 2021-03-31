@@ -328,11 +328,16 @@ ldap_send_server_request(
 	 * request to be in WRITING state.
 	 */
 	rc = 0;
-	if ( ld->ld_requests &&
-		ld->ld_requests->lr_status == LDAP_REQST_WRITING &&
-		ldap_int_flush_request( ld, ld->ld_requests ) < 0 )
-	{
-		rc = -1;
+	if ( ld->ld_requests != NULL ) {
+		TAvlnode *node = ldap_tavl_end( ld->ld_requests, TAVL_DIR_RIGHT );
+		LDAPRequest *lr;
+
+		assert( node != NULL );
+		lr = node->avl_data;
+		if ( lr->lr_status == LDAP_REQST_WRITING &&
+				ldap_int_flush_request( ld, lr ) < 0 ) {
+			rc = -1;
+		}
 	}
 	if ( rc ) {
 		ber_free( ber, 1 );
@@ -399,12 +404,8 @@ ldap_send_server_request(
 		}
 	}
 
-	lr->lr_prev = NULL;
-	lr->lr_next = ld->ld_requests;
-	if ( lr->lr_next != NULL ) {
-		lr->lr_next->lr_prev = lr;
-	}
-	ld->ld_requests = lr;
+	rc = ldap_tavl_insert( &ld->ld_requests, lr, ldap_req_cmp, ldap_avl_dup_error );
+	assert( rc == LDAP_SUCCESS );
 
 	ld->ld_errno = LDAP_SUCCESS;
 	if ( ldap_int_flush_request( ld, lr ) == -1 ) {
@@ -803,19 +804,10 @@ ldap_free_connection( LDAP *ld, LDAPConn *lc, int force, int unbind )
 		/* FIXME: is this at all possible?
 		 * ldap_ld_free() in unbind.c calls ldap_free_connection()
 		 * with force == 1 __after__ explicitly calling
-		 * ldap_free_request() on all requests */
+		 * ldap_tavl_free on ld->ld_requests */
 		if ( force ) {
-			LDAPRequest	*lr;
-
-			for ( lr = ld->ld_requests; lr; ) {
-				LDAPRequest	*lr_next = lr->lr_next;
-
-				if ( lr->lr_conn == lc ) {
-					ldap_free_request_int( ld, lr );
-				}
-
-				lr = lr_next;
-			}
+			ldap_tavl_free( ld->ld_requests, ldap_do_free_request );
+			ld->ld_requests = NULL;
 		}
 
 		if ( lc->lconn_sb != ld->ld_sb ) {
@@ -863,6 +855,20 @@ ldap_dump_connection( LDAP *ld, LDAPConn *lconns, int all )
 				lc->lconn_server->lud_port, ( lc->lconn_sb ==
 				ld->ld_sb ) ? "  (default)" : "" );
 		}
+		if ( lc->lconn_sb != NULL ) {
+			char 			from[LDAP_IPADDRLEN];
+			struct berval 	frombv = BER_BVC(from);
+			ber_socket_t 	sb;
+			if ( ber_sockbuf_ctrl( lc->lconn_sb, LBER_SB_OPT_GET_FD, &sb ) == 1 ) {
+				struct sockaddr_in sin;
+				socklen_t len = sizeof( sin );
+				if ( getsockname( sb, (struct sockaddr *)&sin, &len ) == 0 ) {
+					ldap_pvt_sockaddrstr( (Sockaddr *) &sin, &frombv );
+					Debug1( LDAP_DEBUG_TRACE, "* from: %s\n",
+						( from == NULL ) ? "(null)" : from );
+				}
+			}
+		}
 		Debug2( LDAP_DEBUG_TRACE, "  refcnt: %d  status: %s\n", lc->lconn_refcnt,
 			( lc->lconn_status == LDAP_CONNST_NEEDSOCKET )
 				? "NeedSocket" :
@@ -899,17 +905,19 @@ ldap_dump_connection( LDAP *ld, LDAPConn *lconns, int all )
 void
 ldap_dump_requests_and_responses( LDAP *ld )
 {
-	LDAPRequest	*lr;
 	LDAPMessage	*lm, *l;
+	TAvlnode *node;
 	int		i;
 
 	Debug1( LDAP_DEBUG_TRACE, "** ld %p Outstanding Requests:\n",
 		(void *)ld );
-	lr = ld->ld_requests;
-	if ( lr == NULL ) {
+	node = ldap_tavl_end( ld->ld_requests, TAVL_DIR_LEFT );
+	if ( node == NULL ) {
 		Debug0( LDAP_DEBUG_TRACE, "   Empty\n" );
 	}
-	for ( i = 0; lr != NULL; lr = lr->lr_next, i++ ) {
+	for ( i = 0 ; node != NULL; i++, node = ldap_tavl_next( node, TAVL_DIR_RIGHT ) ) {
+		LDAPRequest	*lr = node->avl_data;
+
 		Debug3( LDAP_DEBUG_TRACE, " * msgid %d,  origid %d, status %s\n",
 			lr->lr_msgid, lr->lr_origid,
 			( lr->lr_status == LDAP_REQST_INPROGRESS ) ? "InProgress" :
@@ -945,39 +953,21 @@ ldap_dump_requests_and_responses( LDAP *ld )
 #endif /* LDAP_DEBUG */
 
 /* protected by req_mutex */
-static void
-ldap_free_request_int( LDAP *ld, LDAPRequest *lr )
+void
+ldap_do_free_request( void *arg )
 {
-	LDAP_ASSERT_MUTEX_OWNER( &ld->ld_req_mutex );
+	LDAPRequest *lr = arg;
+
+	Debug3( LDAP_DEBUG_TRACE, "ldap_do_free_request: "
+			"asked to free lr %p msgid %d refcnt %d\n",
+			lr, lr->lr_msgid, lr->lr_refcnt );
 	/* if lr_refcnt > 0, the request has been looked up 
 	 * by ldap_find_request_by_msgid(); if in the meanwhile
 	 * the request is free()'d by someone else, just decrease
-	 * the reference count and extract it from the request
-	 * list; later on, it will be freed. */
-	if ( lr->lr_prev == NULL ) {
-		if ( lr->lr_refcnt == 0 ) {
-			/* free'ing the first request? */
-			assert( ld->ld_requests == lr );
-		}
-
-		if ( ld->ld_requests == lr ) {
-			ld->ld_requests = lr->lr_next;
-		}
-
-	} else {
-		lr->lr_prev->lr_next = lr->lr_next;
-	}
-
-	if ( lr->lr_next != NULL ) {
-		lr->lr_next->lr_prev = lr->lr_prev;
-	}
-
+	 * the reference count; later on, it will be freed. */
 	if ( lr->lr_refcnt > 0 ) {
+		assert( lr->lr_refcnt == 1 );
 		lr->lr_refcnt = -lr->lr_refcnt;
-
-		lr->lr_prev = NULL;
-		lr->lr_next = NULL;
-
 		return;
 	}
 
@@ -997,6 +987,29 @@ ldap_free_request_int( LDAP *ld, LDAPRequest *lr )
 	}
 
 	LDAP_FREE( lr );
+}
+
+int
+ldap_req_cmp( const void *l, const void *r )
+{
+	const LDAPRequest *left = l, *right = r;
+	return left->lr_msgid - right->lr_msgid;
+}
+
+/* protected by req_mutex */
+static void
+ldap_free_request_int( LDAP *ld, LDAPRequest *lr )
+{
+	LDAPRequest *removed;
+
+	LDAP_ASSERT_MUTEX_OWNER( &ld->ld_req_mutex );
+	removed = ldap_tavl_delete( &ld->ld_requests, lr, ldap_req_cmp );
+	assert( !removed || removed == lr );
+	Debug3( LDAP_DEBUG_TRACE, "ldap_free_request_int: "
+			"lr %p msgid %d%s removed\n",
+			lr, lr->lr_msgid, removed ? "" : " not" );
+
+	ldap_do_free_request( lr );
 }
 
 /* protected by req_mutex */
@@ -1648,19 +1661,24 @@ re_encode_request( LDAP *ld,
 LDAPRequest *
 ldap_find_request_by_msgid( LDAP *ld, ber_int_t msgid )
 {
-	LDAPRequest	*lr;
+	LDAPRequest	*lr, needle = {0};
+	needle.lr_msgid = msgid;
 
-	for ( lr = ld->ld_requests; lr != NULL; lr = lr->lr_next ) {
-		if ( lr->lr_status == LDAP_REQST_COMPLETED ) {
-			continue;	/* Skip completed requests */
-		}
-		if ( msgid == lr->lr_msgid ) {
-			lr->lr_refcnt++;
-			break;
-		}
+	lr = ldap_tavl_find( ld->ld_requests, &needle, ldap_req_cmp );
+	if ( lr != NULL && lr->lr_status != LDAP_REQST_COMPLETED ) {
+		/* try_read1msg is the only user at the moment and we would free it
+		 * multiple times if retrieving the request again */
+		assert( lr->lr_refcnt == 0 );
+		lr->lr_refcnt++;
+		Debug3( LDAP_DEBUG_TRACE, "ldap_find_request_by_msgid: "
+				"msgid %d, lr %p lr->lr_refcnt = %d\n",
+				msgid, lr, lr->lr_refcnt );
+		return lr;
 	}
 
-	return( lr );
+	Debug2( LDAP_DEBUG_TRACE, "ldap_find_request_by_msgid: "
+			"msgid %d, lr %p\n", msgid, lr );
+	return NULL;
 }
 
 /* protected by req_mutex */
@@ -1669,23 +1687,26 @@ ldap_return_request( LDAP *ld, LDAPRequest *lrx, int freeit )
 {
 	LDAPRequest	*lr;
 
-	for ( lr = ld->ld_requests; lr != NULL; lr = lr->lr_next ) {
-		if ( lr == lrx ) {
-			if ( lr->lr_refcnt > 0 ) {
-				lr->lr_refcnt--;
-
-			} else if ( lr->lr_refcnt < 0 ) {
-				lr->lr_refcnt++;
-				if ( lr->lr_refcnt == 0 ) {
-					lr = NULL;
-				}
+	lr = ldap_tavl_find( ld->ld_requests, lrx, ldap_req_cmp );
+	Debug2( LDAP_DEBUG_TRACE, "ldap_return_request: "
+			"lrx %p, lr %p\n", lrx, lr );
+	if ( lr ) {
+		assert( lr == lrx );
+		if ( lr->lr_refcnt > 0 ) {
+			lr->lr_refcnt--;
+		} else if ( lr->lr_refcnt < 0 ) {
+			lr->lr_refcnt++;
+			if ( lr->lr_refcnt == 0 ) {
+				lr = NULL;
 			}
-			break;
 		}
 	}
+	Debug3( LDAP_DEBUG_TRACE, "ldap_return_request: "
+			"lrx->lr_msgid %d, lrx->lr_refcnt is now %d, lr is %s present\n",
+			lrx->lr_msgid, lrx->lr_refcnt, lr ? "still" : "not" );
+	/* The request is not tracked anymore */
 	if ( lr == NULL ) {
 		ldap_free_request_int( ld, lrx );
-
 	} else if ( freeit ) {
 		ldap_free_request( ld, lrx );
 	}

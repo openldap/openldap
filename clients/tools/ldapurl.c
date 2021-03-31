@@ -34,6 +34,7 @@
 #include <ac/stdlib.h>
 #include <stdio.h>
 #include <ac/unistd.h>
+#include <ac/socket.h>
 
 #include "ldap.h"
 #include "ldap_pvt.h"
