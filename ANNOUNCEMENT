@@ -37,6 +37,10 @@ A N N O U N C E M E N T -- OpenLDAP 2.5
             - back-shell
         * New overlays
             - autoca
+            - homedir
+            - otp_2fa
+        * New password hashing module
+            - argon2
         * Overlay updates
             - pcache can access private DB with control
             - pcache can remove a query from the cache
@@ -66,13 +70,22 @@ A N N O U N C E M E N T -- OpenLDAP 2.5
             - adremap remaps attributes for PAM/NSS MS AD
                support
             - authzid implements RFC 3829 support
-            - usn adds MS AD usnCreated and usnChanged
-               operational attributes to entries
-            - vc provides the verify credentials
-               extended operation
+            - datamorph stores enumerated values and fixed
+               size integers
+            - ppm adds additional password checking critera
+               to the slapo-ppolicy overlay
             - pw-radius allows bind operations to be
                passed to the specified radius server(s)
+            - rbac intercepts, decodes and enforces specific
+               RBAC policies per the Apache Fortress RBAC
+               data formats
             - totp provides one time password support
+            - usn adds MS AD usnCreated and usnChanged
+               operational attributes to entries
+            - variant allows attributes/values to be shared
+               between several entries
+            - vc provides the verify credentials
+               extended operation
 
     This release includes the following major components:
 
