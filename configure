@@ -24423,6 +24423,7 @@ fi
 
 for ac_func in \
 	bcopy			\
+	clock_gettime	\
 	closesocket		\
 	chroot			\
 	endgrent		\
