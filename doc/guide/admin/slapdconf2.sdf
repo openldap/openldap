@@ -1171,7 +1171,7 @@ First, create a directory to serve as the hosting DB and create the structure:
 > cp /usr/local/etc/openldap/slapd.d/cn=config.ldif ./recovery/cn=recovery
 > cp -r /usr/local/etc/openldap/slapd.d/cn=config ./recovery/cn=recovery
 
-Or, if you have already backed up your old configration, you can symlink it
+Or, if you have already backed up your old configuration, you can symlink it
 into place:
 
 > mkdir ./recovery
