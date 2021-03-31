@@ -687,6 +687,7 @@ BUILD_REMOTEAUTH
 BUILD_REFINT
 BUILD_PROXYCACHE
 BUILD_PPOLICY
+BUILD_OTP
 BUILD_MEMBEROF
 BUILD_HOMEDIR
 BUILD_LASTMOD
@@ -883,6 +884,7 @@ enable_dyngroup
 enable_dynlist
 enable_homedir
 enable_memberof
+enable_otp
 enable_ppolicy
 enable_proxycache
 enable_refint
@@ -1594,6 +1596,7 @@ SLAPD Overlay Options:
   --enable-dynlist        Dynamic List overlay no|yes|mod [no]
   --enable-homedir        Home Directory Management overlay no|yes|mod [no]
   --enable-memberof       Reverse Group Membership overlay no|yes|mod [no]
+  --enable-otp            OTP 2-factor authentication overlay no|yes|mod [no]
   --enable-ppolicy        Password Policy overlay no|yes|mod [no]
   --enable-proxycache     Proxy Cache overlay no|yes|mod [no]
   --enable-refint         Referential Integrity overlay no|yes|mod [no]
@@ -3833,6 +3836,7 @@ Overlays="accesslog \
 	dynlist \
 	homedir \
 	memberof \
+	otp \
 	ppolicy \
 	proxycache \
 	refint \
@@ -4114,6 +4118,28 @@ else
 fi
 
 # end --enable-memberof
+
+# OpenLDAP --enable-otp
+
+	# Check whether --enable-otp was given.
+if test "${enable_otp+set}" = set; then :
+  enableval=$enable_otp;
+	ol_arg=invalid
+	for ol_val in no yes mod ; do
+		if test "$enableval" = "$ol_val" ; then
+			ol_arg="$ol_val"
+		fi
+	done
+	if test "$ol_arg" = "invalid" ; then
+		as_fn_error $? "bad value $enableval for --enable-otp" "$LINENO" 5
+	fi
+	ol_enable_otp="$ol_arg"
+
+else
+  	ol_enable_otp=${ol_enable_overlays:-no}
+fi
+
+# end --enable-otp
 
 # OpenLDAP --enable-ppolicy
 
@@ -4691,6 +4717,7 @@ BUILD_DYNLIST=no
 BUILD_LASTMOD=no
 BUILD_HOMEDIR=no
 BUILD_MEMBEROF=no
+BUILD_OTP=no
 BUILD_PPOLICY=no
 BUILD_PROXYCACHE=no
 BUILD_REFINT=no
@@ -25174,6 +25201,26 @@ _ACEOF
 
 fi
 
+if test "$ol_enable_otp" != no ; then
+	if test $ol_with_tls = no ; then
+		as_fn_error $? "--enable-otp=$ol_enable_otp requires --with-tls" "$LINENO" 5
+	fi
+
+	BUILD_OTP=$ol_enable_otp
+	if test "$ol_enable_otp" = mod ; then
+		MFLAG=SLAPD_MOD_DYNAMIC
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS otp_2fa.la"
+	else
+		MFLAG=SLAPD_MOD_STATIC
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS otp_2fa.o"
+	fi
+
+cat >>confdefs.h <<_ACEOF
+#define SLAPD_OVER_OTP $MFLAG
+_ACEOF
+
+fi
+
 if test "$ol_enable_ppolicy" != no ; then
 	BUILD_PPOLICY=$ol_enable_ppolicy
 	if test "$ol_enable_ppolicy" = mod ; then
@@ -25556,6 +25603,7 @@ if test "$ac_cv_mingw32" = yes -o $ol_cv_msvc = yes ; then
 else
 	PLAT=UNIX
 fi
+
 
 
 
