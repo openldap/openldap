@@ -74,11 +74,22 @@ It has no effect on any other operations.
 Dynamic List.
 This overlay allows expansion of dynamic groups and more.
 .TP
+.B homedir
+Home Directory Provisioning.
+This overlay manages creation/deletion of home directories for LDAP-based
+Unix accounts.
+.TP
 .B memberof
 MemberOf.
 This overlay maintains automatic reverse group membership values,
 typically stored in an attribute called memberOf. This overlay
 is deprecated and should be replaced with dynlist.
+.TP
+.B otp_2fa
+Two factor authentication module.
+This module allows time-based one-time password, AKA "authenticator-style",
+and HMAC-based one-time password authentication to be used in applications
+that use LDAP for authentication.
 .TP
 .B pbind
 Proxybind.
