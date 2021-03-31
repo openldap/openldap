@@ -37,6 +37,7 @@ DEREF=${AC_deref-derefno}
 DYNLIST=${AC_dynlist-dynlistno}
 HOMEDIR=${AC_homedir-homedirno}
 MEMBEROF=${AC_memberof-memberofno}
+OTP=${AC_otp-otpno}
 PROXYCACHE=${AC_pcache-pcacheno}
 PPOLICY=${AC_ppolicy-ppolicyno}
 REFINT=${AC_refint-refintno}

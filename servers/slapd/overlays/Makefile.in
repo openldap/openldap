@@ -24,6 +24,7 @@ SRCS = overlays.c \
 	dynlist.c \
 	homedir.c \
 	memberof.c \
+	otp_2fa.c \
 	pcache.c \
 	collect.c \
 	ppolicy.c \
@@ -94,6 +95,9 @@ homedir.la : homedir.lo
 
 memberof.la : memberof.lo
 	$(LTLINK_MOD) -module -o $@ memberof.lo version.lo $(LINK_LIBS)
+
+otp_2fa.la : otp_2fa.lo
+	$(LTLINK_MOD) -module -o $@ otp_2fa.lo version.lo $(LINK_LIBS)
 
 pcache.la : pcache.lo
 	$(LTLINK_MOD) -module -o $@ pcache.lo version.lo $(LINK_LIBS)

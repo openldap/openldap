@@ -351,6 +351,7 @@ Overlays="accesslog \
 	dynlist \
 	homedir \
 	memberof \
+	otp \
 	ppolicy \
 	proxycache \
 	refint \
@@ -392,6 +393,8 @@ OL_ARG_ENABLE(dynlist, [AS_HELP_STRING([--enable-dynlist], [Dynamic List overlay
 OL_ARG_ENABLE(homedir, [AS_HELP_STRING([--enable-homedir], [Home Directory Management overlay])],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(memberof, [AS_HELP_STRING([--enable-memberof], [Reverse Group Membership overlay])],
+	no, [no yes mod], ol_enable_overlays)
+OL_ARG_ENABLE(otp, [AS_HELP_STRING([--enable-otp], [OTP 2-factor authentication overlay])],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE(ppolicy, [AS_HELP_STRING([--enable-ppolicy], [Password Policy overlay])],
 	no, [no yes mod], ol_enable_overlays)
@@ -593,6 +596,7 @@ BUILD_DYNLIST=no
 BUILD_LASTMOD=no
 BUILD_HOMEDIR=no
 BUILD_MEMBEROF=no
+BUILD_OTP=no
 BUILD_PPOLICY=no
 BUILD_PROXYCACHE=no
 BUILD_REFINT=no
@@ -2867,6 +2871,22 @@ if test "$ol_enable_memberof" != no ; then
 	AC_DEFINE_UNQUOTED(SLAPD_OVER_MEMBEROF,$MFLAG,[define for Reverse Group Membership overlay])
 fi
 
+if test "$ol_enable_otp" != no ; then
+	if test $ol_with_tls = no ; then
+		AC_MSG_ERROR([--enable-otp=$ol_enable_otp requires --with-tls])
+	fi
+
+	BUILD_OTP=$ol_enable_otp
+	if test "$ol_enable_otp" = mod ; then
+		MFLAG=SLAPD_MOD_DYNAMIC
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS otp_2fa.la"
+	else
+		MFLAG=SLAPD_MOD_STATIC
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS otp_2fa.o"
+	fi
+	AC_DEFINE_UNQUOTED(SLAPD_OVER_OTP,$MFLAG,[define for OTP 2-factor Authentication overlay])
+fi
+
 if test "$ol_enable_ppolicy" != no ; then
 	BUILD_PPOLICY=$ol_enable_ppolicy
 	if test "$ol_enable_ppolicy" = mod ; then
@@ -3142,6 +3162,7 @@ dnl overlays
   AC_SUBST(BUILD_LASTMOD)
   AC_SUBST(BUILD_HOMEDIR)
   AC_SUBST(BUILD_MEMBEROF)
+  AC_SUBST(BUILD_OTP)
   AC_SUBST(BUILD_PPOLICY)
   AC_SUBST(BUILD_PROXYCACHE)
   AC_SUBST(BUILD_REFINT)
