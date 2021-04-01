@@ -21,16 +21,17 @@
  */
 
 #include "portable.h"
+
+/*
+ * Note: if ltdl.h is not available, slapi should not be compiled
+ */
+
+#ifdef HAVE_LTDL_H
 #include "ldap_pvt_thread.h"
 #include "slap.h"
 #include "slap-config.h"
 #include "slapi.h"
 #include "lutil.h"
-
-/*
- * Note: if ltdl.h is not available, slapi should not be compiled
- */
-#include <ltdl.h>
 
 static int slapi_int_load_plugin( Slapi_PBlock *, const char *, const char *, int, 
 	SLAPI_FUNC *, lt_dlhandle * );
@@ -827,4 +828,4 @@ slapi_int_plugin_unparse(
 		ber_bvarray_add( out, &bv );
 	}
 }
-
+#endif /* HAVE_LTDL_H /*
