@@ -279,7 +279,9 @@ n=`expr $n + 1`
 done
 
 echo "Using ldapadd to populate server 2..."
-$LDAPADD -D "$MANAGERDN" -H $URI2 -w $PASSWD -f $LDIFADD1 \
+cp $LDIFADD1 $TESTDIR/add.ldif
+echo "displayName: The other" >>$TESTDIR/add.ldif
+$LDAPADD -D "$MANAGERDN" -H $URI2 -w $PASSWD -f $TESTDIR/add.ldif \
 	>> $TESTOUT 2>&1
 RC=$?
 if test $RC != 0 ; then
@@ -377,6 +379,12 @@ dn: $THEDN
 changetype: modify
 add: description
 description: Amazing
+-
+add: displayName
+displayName: James the Second
+-
+delete: displayName
+displayName: The other
 
 EOF
 RC=$?
@@ -394,6 +402,12 @@ replace: employeetype
 -
 add: description
 description: Stupendous
+-
+add: displayName
+displayName: James II
+-
+delete: displayName
+displayName: The other
 
 EOF
 RC=$?

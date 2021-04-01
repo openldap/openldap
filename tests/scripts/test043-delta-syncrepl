@@ -177,6 +177,17 @@ sn: Jones
 -
 add: sn
 sn: Jones
+-
+add: displayName
+displayName: The one
+
+dn: cn=James A Jones 1, ou=Alumni Association, ou=People, dc=example,dc=com
+changetype: modify
+add: displayName
+displayName: James the First
+-
+delete: displayName
+displayName: The one
 
 dn: cn=Bjorn Jensen, ou=Information Technology Division, ou=People, dc=example,dc=com
 changetype: modify
