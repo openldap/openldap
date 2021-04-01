@@ -490,7 +490,7 @@ variant_op_mod( Operation *op, SlapReply *rs )
 				needle.o_req_ndn = vai->dn;
 			}
 
-			nop = avl_find( ops, &needle, variant_cmp_op );
+			nop = ldap_avl_find( ops, &needle, variant_cmp_op );
 			if ( nop == NULL ) {
 				nop = ch_calloc( 1, sizeof(Operation) );
 				*nop = *op;
@@ -499,7 +499,7 @@ variant_op_mod( Operation *op, SlapReply *rs )
 				nop->o_req_dn = nop->o_req_ndn;
 				nop->orm_modlist = NULL;
 
-				rc = avl_insert( &ops, nop, variant_cmp_op, avl_dup_error );
+				rc = ldap_avl_insert( &ops, nop, variant_cmp_op, ldap_avl_dup_error );
 				assert( rc == 0 );
 			}
 			mod->sml_desc = vai->alternative;
@@ -532,11 +532,11 @@ variant_op_mod( Operation *op, SlapReply *rs )
 	rc = on->on_info->oi_orig->bi_op_modify( op, rs );
 	if ( rc == LDAP_SUCCESS ) {
 		/* FIXME: if a mod fails, should we attempt to apply the rest? */
-		avl_apply( ops, variant_run_mod, &rc, -1, AVL_INORDER );
+		ldap_avl_apply( ops, variant_run_mod, &rc, -1, AVL_INORDER );
 	}
 
-	avl_apply( ops, variant_reassign_mods, op, -1, AVL_INORDER );
-	avl_free( ops, variant_free_op );
+	ldap_avl_apply( ops, variant_reassign_mods, op, -1, AVL_INORDER );
+	ldap_avl_free( ops, variant_free_op );
 
 done:
 	Debug( LDAP_DEBUG_TRACE, "variant_op_mod: "
