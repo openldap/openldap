@@ -2296,9 +2296,16 @@ syncrepl_accesslog_mods(
 			mod->sml_nvalues = NULL;
 			mod->sml_numvals = 0;
 
-			/* Keep 'op' to reflect what we read out from accesslog */
-			if ( op == LDAP_MOD_ADD && is_at_single_value( ad->ad_type ))
-				mod->sml_op = LDAP_MOD_REPLACE;
+			if ( is_at_single_value( ad->ad_type ) ) {
+				if ( op == LDAP_MOD_ADD ) {
+					/* ITS#9295 an ADD might conflict with an existing value */
+					mod->sml_op = LDAP_MOD_REPLACE;
+				} else if ( op == LDAP_MOD_DELETE ) {
+					/* ITS#9295 the above REPLACE could invalidate subsequent
+					 * DELETEs */
+					mod->sml_op = SLAP_MOD_SOFTDEL;
+				}
+			}
 
 			*modtail = mod;
 			modtail = &mod->sml_next;
@@ -2556,6 +2563,7 @@ syncrepl_resolve_cb( Operation *op, SlapReply *rs )
 						continue;
 					}
 					if ( m2->sml_op == LDAP_MOD_DELETE ||
+						m2->sml_op == SLAP_MOD_SOFTDEL ||
 						m2->sml_op == LDAP_MOD_REPLACE ) {
 						int numvals = m2->sml_numvals;
 						if ( m2->sml_op == LDAP_MOD_REPLACE )
@@ -2567,7 +2575,8 @@ drop:
 							op->o_tmpfree( m1, op->o_tmpmemctx );
 							continue;
 						}
-						if ( m1->sml_op == LDAP_MOD_DELETE ) {
+						if ( m1->sml_op == LDAP_MOD_DELETE ||
+							m1->sml_op == SLAP_MOD_SOFTDEL ) {
 							if ( m1->sml_numvals == 0 ) {
 								/* turn this to SOFTDEL later */
 								m1->sml_flags = SLAP_MOD_INTERNAL;
