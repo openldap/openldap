@@ -49,10 +49,12 @@ sp :=
 dir := tests
 include $(dir)/Rules.mk
 
-%.lo: %.c
+.SUFFIXES: .c .o .lo
+
+.c.lo:
 	$(LIBTOOL) --mode=compile $(CC) $(OPT) $(DEFS) $(INCS) -c $<
 
-%.la: %.lo
+datamorph.la: datamorph.lo
 	$(LIBTOOL) --mode=link $(CC) $(OPT) -version-info $(LTVER) \
 		-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
