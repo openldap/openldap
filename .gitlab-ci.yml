@@ -25,7 +25,9 @@ build-openssl-heimdal-lloadd:
     - apt update
     - DEBIAN_FRONTEND=noninteractive apt install -y build-essential python3 gdb procps pkg-config automake libsasl2-dev heimdal-multidev libssl-dev libltdl-dev groff-base unixodbc-dev libwiredtiger-dev libperl-dev heimdal-kdc libsasl2-modules-gssapi-heimdal sasl2-bin libevent-dev libargon2-dev
     - autoreconf
-    - ./configure --enable-backends=mod --enable-overlays=mod --enable-modules --enable-dynamic --disable-ndb --enable-balancer=mod --enable-argon2
+    - mkdir obj
+    - cd obj
+    - ../configure --enable-backends=mod --enable-overlays=mod --enable-modules --enable-dynamic --disable-ndb --enable-balancer=mod --enable-argon2
     - make depend
     - make
     - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"
@@ -36,7 +38,8 @@ build-openssl-heimdal-lloadd:
     when: on_failure
     expire_in: '1 week'
     paths:
-      - tests/testrun/
+      - obj/tests/testrun/
+      - obj/servers/
 
 build-gnutls-mit-standalone-lloadd:
   stage: build
@@ -44,7 +47,9 @@ build-gnutls-mit-standalone-lloadd:
     - apt update
     - DEBIAN_FRONTEND=noninteractive apt install -y build-essential python3 gdb procps pkg-config automake libsasl2-dev libltdl-dev groff-base unixodbc-dev libwiredtiger-dev libperl-dev krb5-user krb5-kdc krb5-admin-server libsasl2-modules-gssapi-mit sasl2-bin libgnutls28-dev libevent-dev libargon2-dev
     - autoreconf
-    - ./configure --enable-backends=mod --enable-overlays=mod --disable-autoca --enable-modules --enable-dynamic --disable-ndb --enable-balancer=yes --enable-argon2
+    - mkdir obj
+    - cd obj
+    - ../configure --enable-backends=mod --enable-overlays=mod --disable-autoca --enable-modules --enable-dynamic --disable-ndb --enable-balancer=yes --enable-argon2
     - make depend
     - make
     - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"
@@ -55,4 +60,5 @@ build-gnutls-mit-standalone-lloadd:
     when: on_failure
     expire_in: '1 week'
     paths:
-      - tests/testrun/
+      - obj/tests/testrun/
+      - obj/servers/
