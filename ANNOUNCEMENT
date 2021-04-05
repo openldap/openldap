@@ -38,7 +38,7 @@ A N N O U N C E M E N T -- OpenLDAP 2.5
         * New overlays
             - autoca
             - homedir
-            - otp_2fa
+            - otp
         * New password hashing module
             - argon2
         * Overlay updates
