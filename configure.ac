@@ -428,7 +428,7 @@ SLAPD Password Module Options:])
 OL_ARG_ENABLE(argon2, [AS_HELP_STRING([--enable-argon2], [Argon2 password hashing module])],
 	no, [no yes], ol_enable_pwmodules)
 OL_ARG_WITH(argon2,
-	[AS_HELP_STRING([--with-argon2], [with argon2 support library auto|libsodum|libargon2])],
+	[AS_HELP_STRING([--with-argon2], [with argon2 support library auto|libsodium|libargon2])],
 	auto, [auto libsodium libargon2 yes no] )
 
 dnl ----------------------------------------------------------------
