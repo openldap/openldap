@@ -225,7 +225,7 @@ done:
 			*/
 		}
 
-		rc = op->o_bd->be_modify( &op2, &r2 );
+		rc = op2.o_bd->be_modify( &op2, &r2 );
 		slap_mods_free( mod, 1 );
 	}
 
