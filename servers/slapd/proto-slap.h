@@ -928,6 +928,9 @@ LDAP_SLAPD_V (SOCKET *) slapd_ws_sockets;
 #define	SLAP_SOCKNEW(s)	s
 #endif
 
+LDAP_SLAPD_V (ldap_pvt_thread_mutex_t) slapd_init_mutex;
+LDAP_SLAPD_V (ldap_pvt_thread_cond_t) slapd_init_cond;
+
 /*
  * dn.c
  */

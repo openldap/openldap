@@ -237,6 +237,8 @@ dnl ----------------------------------------------------------------
 dnl General "with" options
 OL_ARG_WITH(cyrus_sasl, [AS_HELP_STRING([--with-cyrus-sasl], [with Cyrus SASL support])],
 	auto, [auto yes no] )
+OL_ARG_WITH(systemd, [AS_HELP_STRING([--with-systemd],	[with systemd service notification support])],
+	auto, [auto yes no] )
 OL_ARG_WITH(fetch, [AS_HELP_STRING([--with-fetch], [with fetch(3) URL support])],
 	auto, [auto yes no] )
 OL_ARG_WITH(threads,
@@ -638,6 +640,7 @@ MODULES_LIBS=
 SLAPI_LIBS=
 LIBSLAPI=
 AUTH_LIBS=
+SYSTEMD_LIBS=
 
 SLAPD_SLP_LIBS=
 SLAPD_GMP_LIBS=
@@ -2084,6 +2087,40 @@ else
 fi
 
 dnl ----------------------------------------------------------------
+dnl
+dnl Check for systemd (only if we have a server)
+dnl
+WITH_SYSTEMD=no
+ol_link_systemd=no
+if test $ol_enable_slapd == no && test $ol_enable_balancer != yes ; then
+	if test $ol_with_systemd != no ; then
+		AC_MSG_WARN([servers disabled, ignoring --with-systemd=$ol_with_systemd argument])
+		ol_with_systemd=no
+	fi
+fi
+if test $ol_with_systemd != no ; then
+	AC_CHECK_HEADERS(systemd/sd-daemon.h)
+
+	if test $ac_cv_header_systemd_sd_daemon_h = yes; then
+		AC_CHECK_LIB(systemd, sd_notify,
+			[ol_link_systemd="-lsystemd"])
+	fi
+
+	if test $ol_link_systemd = no ; then
+		if test $ol_with_systemd != auto ; then
+			AC_MSG_ERROR([Could not locate systemd])
+		else
+			AC_MSG_WARN([Could not locate systemd])
+			AC_MSG_WARN([systemd service notification not supported!])
+		fi
+	else
+		AC_DEFINE(HAVE_SYSTEMD,1,[define if you have systemd])
+		SYSTEMD_LIBS="$ol_link_systemd"
+		WITH_SYSTEMD=yes
+	fi
+fi
+
+dnl ----------------------------------------------------------------
 dnl Check for entropy sources
 if test $cross_compiling != yes && test "$ac_cv_mingw32" != yes ; then
 	dev=no
@@ -3126,6 +3163,7 @@ AC_SUBST(WITH_SASL)
 AC_SUBST(WITH_TLS)
 AC_SUBST(WITH_MODULES_ENABLED)
 AC_SUBST(WITH_ACI_ENABLED)
+AC_SUBST(WITH_SYSTEMD)
 AC_SUBST(BUILD_THREAD)
 AC_SUBST(BUILD_LIBS_DYNAMIC)
 AC_SUBST(OL_VERSIONED_SYMBOLS)
@@ -3213,6 +3251,7 @@ AC_SUBST(SLAPI_LIBS)
 AC_SUBST(LIBSLAPI)
 AC_SUBST(AUTH_LIBS)
 AC_SUBST(ARGON2_LIBS)
+AC_SUBST(SYSTEMD_LIBS)
 
 AC_SUBST(SLAPD_SLP_LIBS)
 AC_SUBST(SLAPD_GMP_LIBS)
