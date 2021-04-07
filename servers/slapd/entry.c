@@ -248,7 +248,7 @@ str2entry2( char *s, int checkvals )
 				rc = slap_bv2ad( type+i, &ad, &text );
 	
 				if( rc != LDAP_SUCCESS ) {
-					int wtool = ( slapMode & (SLAP_TOOL_MODE|SLAP_TOOL_READONLY) ) == SLAP_TOOL_MODE;
+					int wtool = ( slapMode & (SLAP_TOOL_MODE|SLAP_TOOL_READONLY|SLAP_TOOL_NO_SCHEMA_CHECK) ) == SLAP_TOOL_MODE;
 					Debug( wtool ? LDAP_DEBUG_ANY : LDAP_DEBUG_TRACE,
 						"<= str2entry: str2ad(%s): %s\n", type[i].bv_val, text );
 					if( wtool ) {
