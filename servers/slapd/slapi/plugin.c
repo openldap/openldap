@@ -828,4 +828,4 @@ slapi_int_plugin_unparse(
 		ber_bvarray_add( out, &bv );
 	}
 }
-#endif /* HAVE_LTDL_H /*
+#endif /* HAVE_LTDL_H */
