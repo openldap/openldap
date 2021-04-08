@@ -40,9 +40,8 @@
 #include <ldap.h>
 #include <ldap_schema.h>
 
-extern int at_add(LDAPAttributeType *at, const char **err);
-extern int oc_add(LDAPObjectClass *oc, int user, const char **err);
-extern int cr_add(LDAPContentRule *cr, int user, const char **err);
+#include <slap.h>
+#include <slap-config.h>
 
 #define ARGS_STEP 512
 
@@ -58,96 +57,17 @@ static char *strtok_quote_ptr;
 
 int init_module(int argc, char *argv[]);
 
-static int dsaschema_parse_at(const char *fname, int lineno, char *line, char **argv)
-{
-	LDAPAttributeType *at;
-	int code;
-	const char *err;
-
-	at = ldap_str2attributetype(line, &code, &err, LDAP_SCHEMA_ALLOW_ALL);
-	if (!at) {
-		fprintf(stderr, "%s: line %d: %s before %s\n",
-			fname, lineno, ldap_scherr2str(code), err);
-		return 1;
-	}
-
-	if (at->at_oid == NULL) {
-		fprintf(stderr, "%s: line %d: attributeType has no OID\n",
-			fname, lineno);
-		return 1;
-	}
-
-	code = at_add(at, &err);
-	if (code) {
-		fprintf(stderr, "%s: line %d: %s: \"%s\"\n",
-			fname, lineno, ldap_scherr2str(code), err);
-		return 1;
-	}
-
-	ldap_memfree(at);
-
-	return 0;
-}
-
-static int dsaschema_parse_oc(const char *fname, int lineno, char *line, char **argv)
-{
-	LDAPObjectClass *oc;
-	int code;
-	const char *err;
-
-	oc = ldap_str2objectclass(line, &code, &err, LDAP_SCHEMA_ALLOW_ALL);
-	if (!oc) {
-		fprintf(stderr, "%s: line %d: %s before %s\n",
-			fname, lineno, ldap_scherr2str(code), err);
-		return 1;
-	}
-
-	if (oc->oc_oid == NULL) {
-		fprintf(stderr,
-			"%s: line %d: objectclass has no OID\n",
-			fname, lineno);
-		return 1;
-	}
-
-	code = oc_add(oc, 0, &err);
-	if (code) {
-		fprintf(stderr, "%s: line %d: %s: \"%s\"\n",
-			fname, lineno, ldap_scherr2str(code), err);
-		return 1;
-	}
-
-	ldap_memfree(oc);
-	return 0;
-}
-
 static int dsaschema_parse_cr(const char *fname, int lineno, char *line, char **argv)
 {
-	LDAPContentRule *cr;
-	int code;
-	const char *err;
+	struct config_args_s c = { .line = line };
 
-	cr = ldap_str2contentrule(line, &code, &err, LDAP_SCHEMA_ALLOW_ALL);
-	if (!cr) {
-		fprintf(stderr, "%s: line %d: %s before %s\n",
-			fname, lineno, ldap_scherr2str(code), err);
+	if ( parse_cr( &c, NULL ) ) {
+		Debug( LDAP_DEBUG_ANY, "dsaschema_parse_cr: "
+				"ditcontentrule definition invalid at %s:%d\n",
+				fname, lineno );
 		return 1;
 	}
 
-	if (cr->cr_oid == NULL) {
-		fprintf(stderr,
-			"%s: line %d: objectclass has no OID\n",
-			fname, lineno);
-		return 1;
-	}
-
-	code = cr_add(cr, 0, &err);
-	if (code) {
-		fprintf(stderr, "%s: line %d: %s: \"%s\"\n",
-			fname, lineno, ldap_scherr2str(code), err);
-		return 1;
-	}
-
-	ldap_memfree(cr);
 	return 0;
 }
 
@@ -205,9 +125,13 @@ static int dsaschema_read_config(const char *fname, int depth)
 				char *p;
 	
 				p = strchr(saveline, '(' /*')'*/);
-				rc = dsaschema_parse_at(fname, lineno, p, cargv);
-				if (rc != 0)
+				rc = register_at(p, NULL, 0);
+				if (rc != 0) {
+					Debug( LDAP_DEBUG_ANY, "dsaschema_read_config: "
+							"attribute definition invalid at %s:%d\n",
+							fname, lineno );
 					return rc;
+				}
 			} else {
 				fprintf(stderr, "%s: line %d: old attribute type format not supported\n",
 					fname, lineno);
@@ -227,9 +151,13 @@ static int dsaschema_read_config(const char *fname, int depth)
 				char *p;
 
 				p = strchr(saveline, '(' /*')'*/);
-				rc = dsaschema_parse_oc(fname, lineno, p, cargv);
-				if (rc != 0)
+				rc = register_oc(p, NULL, 0);
+				if (rc != 0) {
+					Debug( LDAP_DEBUG_ANY, "dsaschema_read_config: "
+							"objectclass definition invalid at %s:%d\n",
+							fname, lineno );
 					return rc;
+				}
 			} else {
 				fprintf(stderr, "%s: line %d: object class format not supported\n",
 					fname, lineno);
@@ -240,6 +168,7 @@ static int dsaschema_read_config(const char *fname, int depth)
 					fname, lineno);
 				return 1;
 			}
+			savelineno = lineno;
 			savefname = strdup(cargv[1]);
 			if (savefname == NULL) {
 				return 1;
