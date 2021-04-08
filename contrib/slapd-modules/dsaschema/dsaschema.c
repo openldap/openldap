@@ -74,15 +74,12 @@ static int dsaschema_parse_cr(const char *fname, int lineno, char *line, char **
 static int dsaschema_read_config(const char *fname, int depth)
 {
 	FILE *fp;
-	char *line, *savefname, *saveline;
+	char *line, *savefname, *saveline = NULL;
 	int savelineno, lineno;
 	int rc;
 
 	if (depth == 0) {
-		cargv = calloc(ARGS_STEP + 1, sizeof(*cargv));
-		if (cargv == NULL) {
-			return 1;
-		}
+		cargv = ch_calloc(ARGS_STEP + 1, sizeof(*cargv));
 		cargv_size = ARGS_STEP + 1;
 	}
 
@@ -102,13 +99,11 @@ static int dsaschema_read_config(const char *fname, int depth)
 			continue;
 		}
 
-		saveline = strdup(line);
-		if (saveline == NULL) {
-			return 1;
-		}
+		saveline = ch_strdup(line);
 
 		if (fp_parse_line(lineno, line) != 0) {
-			return 1;
+			rc = 1;
+			break;
 		}
 
 		if (cargc < 1) {
@@ -120,7 +115,8 @@ static int dsaschema_read_config(const char *fname, int depth)
 			if (cargc < 2) {
 				fprintf(stderr, "%s: line %d: illegal attribute type format\n",
 					fname, lineno);
-				return 1;
+				rc = 1;
+				break;
 			} else if (*cargv[1] == '(' /*')'*/) {
 				char *p;
 	
@@ -130,7 +126,7 @@ static int dsaschema_read_config(const char *fname, int depth)
 					Debug( LDAP_DEBUG_ANY, "dsaschema_read_config: "
 							"attribute definition invalid at %s:%d\n",
 							fname, lineno );
-					return rc;
+					break;
 				}
 			} else {
 				fprintf(stderr, "%s: line %d: old attribute type format not supported\n",
@@ -141,12 +137,13 @@ static int dsaschema_read_config(const char *fname, int depth)
 			p = strchr(saveline, '(' /*')'*/);
 			rc = dsaschema_parse_cr(fname, lineno, p, cargv);
 			if (rc != 0)
-				return rc;
+				break;
 		} else if (strcasecmp(cargv[0], "objectclass") == 0) {
 			if (cargc < 2) {
 				fprintf(stderr, "%s: line %d: illegal objectclass format\n",
 					fname, lineno);
-				return 1;
+				rc = 1;
+				break;
 			} else if (*cargv[1] == '(' /*')'*/) {
 				char *p;
 
@@ -156,7 +153,7 @@ static int dsaschema_read_config(const char *fname, int depth)
 					Debug( LDAP_DEBUG_ANY, "dsaschema_read_config: "
 							"objectclass definition invalid at %s:%d\n",
 							fname, lineno );
-					return rc;
+					break;
 				}
 			} else {
 				fprintf(stderr, "%s: line %d: object class format not supported\n",
@@ -166,30 +163,36 @@ static int dsaschema_read_config(const char *fname, int depth)
 			if (cargc < 2) {
 				fprintf(stderr, "%s: line %d: missing file name in \"include <filename>\" line",
 					fname, lineno);
-				return 1;
+				rc = 1;
+				break;
 			}
 			savelineno = lineno;
-			savefname = strdup(cargv[1]);
-			if (savefname == NULL) {
-				return 1;
-			}
-			if (dsaschema_read_config(savefname, depth + 1) != 0) {
-				return 1;
-			}
-			free(savefname);
+			savefname = ch_strdup(cargv[1]);
+
+			rc = dsaschema_read_config(savefname, depth + 1);
+			ch_free(savefname);
 			lineno = savelineno - 1;
+			if (rc != 0) {
+				break;
+			}
 		} else {
 			fprintf(stderr, "%s: line %d: unknown directive \"%s\" (ignored)\n",
 				fname, lineno, cargv[0]);
 		}
+
+		ch_free(saveline);
+		saveline = NULL;
 	}
 
 	fclose(fp);
 
 	if (depth == 0)
-		free(cargv);
+		ch_free(cargv);
 
-	return 0;
+	if (saveline != NULL)
+		ch_free(saveline);
+
+	return rc;
 }
 
 int init_module(int argc, char *argv[])
@@ -230,11 +233,8 @@ fp_parse_line(
 	for ( ; token != NULL; token = strtok_quote( NULL, " \t" ) ) {
 		if ( cargc == cargv_size - 1 ) {
 			char **tmp;
-			tmp = realloc( cargv, (cargv_size + ARGS_STEP) *
+			tmp = ch_realloc( cargv, (cargv_size + ARGS_STEP) *
 					    sizeof(*cargv) );
-			if ( tmp == NULL ) {
-				return -1;
-			}
 			cargv = tmp;
 			cargv_size += ARGS_STEP;
 		}
@@ -308,7 +308,7 @@ static size_t lmax, lcur;
 		size_t len = strlen( buf ); \
 		while ( lcur + len + 1 > lmax ) { \
 			lmax += BUFSIZ; \
-			line = (char *) realloc( line, lmax ); \
+			line = (char *) ch_realloc( line, lmax ); \
 		} \
 		strcpy( line + lcur, buf ); \
 		lcur += len; \
