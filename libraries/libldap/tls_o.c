@@ -275,6 +275,51 @@ tlso_ctx_free ( tls_ctx *ctx )
 	SSL_CTX_free( c );
 }
 
+static char *
+tlso_stecpy( char *dst, const char *src, const char *end )
+{
+	while ( dst < end && *src )
+		*dst++ = *src++;
+	if ( dst < end )
+		*dst = '\0';
+	return dst;
+}
+
+/* OpenSSL 1.1 uses a separate API for TLS1.3 ciphersuites.
+ * Try to find any TLS1.3 ciphers in the given list of suites.
+ */
+static void
+tlso_ctx_cipher13( tlso_ctx *ctx, char *suites )
+{
+	char tls13_suites[1024], *ts = tls13_suites, *te = tls13_suites + sizeof(tls13_suites);
+	char *ptr, *colon, *nptr;
+	char sname[128];
+	int ret;
+
+	*ts = '\0';
+	for ( ptr = suites;; ) {
+		colon = strchr( ptr, ':' );
+		if ( colon ) {
+			int len = colon - ptr;
+			if ( len > 63 ) len = 63;
+			strncpy( sname, ptr, len );
+			sname[len] = '\0';
+			nptr = sname;
+		} else {
+			nptr = ptr;
+		}
+		if ( SSL_CTX_set_ciphersuites( ctx, nptr )) {
+			if ( tls13_suites[0] )
+				ts = tlso_stecpy( ts, ":", te );
+			ts = tlso_stecpy( ts, sname, te );
+		}
+		if ( !colon || ts >= te )
+			break;
+		ptr = colon+1;
+	}
+	SSL_CTX_set_ciphersuites( ctx, tls13_suites );
+}
+
 /*
  * initialize a new TLS context
  */
@@ -322,14 +367,16 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		SSL_CTX_clear_options( ctx, SSL_OP_NO_SSLv3 );
 	}
 
-	if ( lo->ldo_tls_ciphersuite &&
-		!SSL_CTX_set_cipher_list( ctx, lt->lt_ciphersuite ) )
-	{
-		Debug1( LDAP_DEBUG_ANY,
-			   "TLS: could not set cipher list %s.\n",
-			   lo->ldo_tls_ciphersuite );
-		tlso_report_error();
-		return -1;
+	if ( lo->ldo_tls_ciphersuite ) {
+		tlso_ctx_cipher13( ctx, lt->lt_ciphersuite );
+		if ( !SSL_CTX_set_cipher_list( ctx, lt->lt_ciphersuite ) )
+		{
+			Debug1( LDAP_DEBUG_ANY,
+				   "TLS: could not set cipher list %s.\n",
+				   lo->ldo_tls_ciphersuite );
+			tlso_report_error();
+			return -1;
+		}
 	}
 
 	if ( lo->ldo_tls_cacertfile == NULL && lo->ldo_tls_cacertdir == NULL &&
