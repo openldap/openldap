@@ -125,6 +125,17 @@ object class.  The definition of that class is as follows:
         pwdMinDelay $ pwdMaxDelay $ pwdMaxIdle ) )
 .RE
 
+The
+.B pwdPolicy
+class is not structural, and so entries using it require another,
+structural, object class.  The
+.B namedPolicy
+object class is a good choice.
+.B namedPolicy
+requires a
+.B cn
+attribute, suitable as the policy entry's rDN.
+
 This implementation also provides an additional
 .B pwdPolicyChecker
 objectclass, used for password quality checking (see below).
