@@ -363,7 +363,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		if ( opt )
 			SSL_CTX_set_options( ctx, opt );
 	}
-	{
+	if ( lo->ldo_tls_protocol_max ) {
 		int opt = 0;
 #ifdef SSL_OP_NO_TLSv1_3
 		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_3 )
