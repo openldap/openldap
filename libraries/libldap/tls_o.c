@@ -275,6 +275,7 @@ tlso_ctx_free ( tls_ctx *ctx )
 	SSL_CTX_free( c );
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x10101000
 static char *
 tlso_stecpy( char *dst, const char *src, const char *end )
 {
@@ -285,7 +286,7 @@ tlso_stecpy( char *dst, const char *src, const char *end )
 	return dst;
 }
 
-/* OpenSSL 1.1 uses a separate API for TLS1.3 ciphersuites.
+/* OpenSSL 1.1.1 uses a separate API for TLS1.3 ciphersuites.
  * Try to find any TLS1.3 ciphers in the given list of suites.
  */
 static void
@@ -319,6 +320,7 @@ tlso_ctx_cipher13( tlso_ctx *ctx, char *suites )
 	}
 	SSL_CTX_set_ciphersuites( ctx, tls13_suites );
 }
+#endif /* OpenSSL 1.1.1 */
 
 /*
  * initialize a new TLS context
@@ -386,7 +388,9 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 	}
 
 	if ( lo->ldo_tls_ciphersuite ) {
+#if OPENSSL_VERSION_NUMBER >= 0x10101000
 		tlso_ctx_cipher13( ctx, lt->lt_ciphersuite );
+#endif
 		if ( !SSL_CTX_set_cipher_list( ctx, lt->lt_ciphersuite ) )
 		{
 			Debug1( LDAP_DEBUG_ANY,
