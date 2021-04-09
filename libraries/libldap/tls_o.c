@@ -334,37 +334,55 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			(const unsigned char *) "OpenLDAP", sizeof("OpenLDAP")-1 );
 	}
 
+	if ( lo->ldo_tls_protocol_min ) {
+		int opt = 0;
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL2 ) {
+			opt |= SSL_OP_NO_SSLv2;
+			SSL_CTX_clear_options( ctx, SSL_OP_NO_SSLv3 );
+		}
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL3 )
+			opt |= SSL_OP_NO_SSLv3;
 #ifdef SSL_OP_NO_TLSv1
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_0 )
+			opt |= SSL_OP_NO_TLSv1;
+#endif
 #ifdef SSL_OP_NO_TLSv1_1
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_1 )
+			opt |= SSL_OP_NO_TLSv1_1;
+#endif
 #ifdef SSL_OP_NO_TLSv1_2
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 )
+			opt |= SSL_OP_NO_TLSv1_2;
+#endif
 #ifdef SSL_OP_NO_TLSv1_3
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_3)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 |
-			SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3 );
-	else
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_3 )
+			opt |= SSL_OP_NO_TLSv1_3;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_2)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 |
-			SSL_OP_NO_TLSv1_2 );
-	else
+		if ( opt )
+			SSL_CTX_set_options( ctx, opt );
+	}
+	{
+		int opt = 0;
+#ifdef SSL_OP_NO_TLSv1_3
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_3 )
+			opt |= SSL_OP_NO_TLSv1_3;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_1)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 );
-	else
+#ifdef SSL_OP_NO_TLSv1_2
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 )
+			opt |= SSL_OP_NO_TLSv1_2;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_0)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1);
-	else
+#ifdef SSL_OP_NO_TLSv1_1
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_1 )
+			opt |= SSL_OP_NO_TLSv1_1;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL3 )
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 );
-	else if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL2 ) {
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 );
-		SSL_CTX_clear_options( ctx, SSL_OP_NO_SSLv3 );
+#ifdef SSL_OP_NO_TLSv1
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_0 )
+			opt |= SSL_OP_NO_TLSv1;
+#endif
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_SSL3 )
+			opt |= SSL_OP_NO_SSLv3;
+		if ( opt )
+			SSL_CTX_set_options( ctx, opt );
 	}
 
 	if ( lo->ldo_tls_ciphersuite ) {

@@ -800,6 +800,15 @@ must be
 and the data it returns needs to be freed by the caller using
 .BR ldap_memfree (3).
 .TP
+.B LDAP_OPT_X_TLS_PROTOCOL_MAX
+Sets/gets the maximum protocol version.
+.BR invalue
+must be
+.BR "const int *" ;
+.BR outvalue
+must be
+.BR "int *" .
+.TP
 .B LDAP_OPT_X_TLS_PROTOCOL_MIN
 Sets/gets the minimum protocol version.
 .BR invalue
