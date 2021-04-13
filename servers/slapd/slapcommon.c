@@ -39,6 +39,7 @@
 #include "ldif.h"
 
 tool_vars tool_globals;
+enum slaptool slapTool;
 
 #ifdef CSRIMALLOC
 static char *leakfilename;
@@ -671,6 +672,7 @@ slap_tool_init(
 	 * initialize stuff and figure out which backend we're dealing with
 	 */
 
+	slapTool = tool;
 	rc = slap_init( mode, progname );
 	if ( rc != 0 ) {
 		fprintf( stderr, "%s: slap_init failed!\n", progname );

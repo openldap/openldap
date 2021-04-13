@@ -37,9 +37,11 @@
 #include <lutil_sha1.h>
 
 #include "ldap_defaults.h"
-#include "slap.h"
 
-static int	verbose = 0;
+#include "slap.h"
+#include "slap-config.h"
+#include "slapcommon.h"
+
 static char	*modulepath = NULL;
 static char	*moduleload = NULL;
 
@@ -204,6 +206,7 @@ slappasswd( int argc, char *argv[] )
 			usage ( progname );
 		}
 	}
+	slapTool = SLAPPASSWD;
 
 	if( argc - optind != 0 ) {
 		usage( progname );
