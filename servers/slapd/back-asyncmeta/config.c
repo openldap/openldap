@@ -456,11 +456,21 @@ static ConfigOCs a_metaocs[] = {
 static int
 asyncmeta_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *c )
 {
+	a_metainfo_t	*mi;
+
 	if ( p->ce_type != Cft_Database || !p->ce_be ||
 		p->ce_be->be_cf_ocs != a_metaocs )
 		return LDAP_CONSTRAINT_VIOLATION;
 
 	c->be = p->ce_be;
+	mi = ( a_metainfo_t * )c->be->be_private;
+
+	if ( asyncmeta_db_has_pending_ops ( mi ) > 0 ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+			  "cannot modify a working database" );
+		Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+		return 1;
+	}
 	return LDAP_SUCCESS;
 }
 
@@ -486,12 +496,15 @@ asyncmeta_cfadd( Operation *op, SlapReply *rs, Entry *p, ConfigArgs *c )
 
 static int
 asyncmeta_back_new_target(
-	a_metatarget_t	**mtp )
+	a_metatarget_t	**mtp,
+	a_metainfo_t     *mi )
 {
 	a_metatarget_t		*mt;
 
 	*mtp = NULL;
+	int i;
 
+	assert ( mi != NULL );
 	mt = ch_calloc( sizeof( a_metatarget_t ), 1 );
 
 	ldap_pvt_thread_mutex_init( &mt->mt_uri_mutex );
@@ -504,6 +517,18 @@ asyncmeta_back_new_target(
 
 	*mtp = mt;
 
+	for ( i = 0; i < mi->mi_num_conns; i++ ) {
+		a_metaconn_t *mc = &mi->mi_conns[i];
+		mc->mc_conns = ch_realloc( mc->mc_conns, sizeof( a_metasingleconn_t ) * mi->mi_ntargets);
+		memset( &(mc->mc_conns[mi->mi_ntargets-1]), 0, sizeof( a_metasingleconn_t ) );
+	}
+	/* If this is the first target, start the timeout loop */
+	if ( mi->mi_ntargets == 1 ) {
+		ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
+		mi->mi_task = ldap_pvt_runqueue_insert( &slapd_rq, 1,
+							asyncmeta_timeout_loop, mi, "asyncmeta_timeout_loop", mi->mi_suffix.bv_val );
+		ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+	}
 	return 0;
 }
 
@@ -1026,6 +1051,13 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 		}
 	}
 
+	if ( c->op != SLAP_CONFIG_EMIT && asyncmeta_db_has_pending_ops ( mi ) > 0 ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+			  "cannot modify a working database" );
+		Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+		return 1;
+	}
+
 	if ( c->op == SLAP_CONFIG_EMIT ) {
 		struct berval bv = BER_BVNULL;
 
@@ -1520,6 +1552,7 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 		}
 		return rc;
 	} else if ( c->op == LDAP_MOD_DELETE ) {
+
 		switch( c->type ) {
 		/* Base attrs */
 		case LDAP_BACK_CFG_DNCACHE_TTL:
@@ -1544,8 +1577,15 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 
 		/* common attrs */
 		case LDAP_BACK_CFG_BIND_TIMEOUT:
-			mc->mc_bind_timeout.tv_sec = 0;
-			mc->mc_bind_timeout.tv_usec = 0;
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
+			} else {
+				mc->mc_bind_timeout.tv_sec = 0;
+				mc->mc_bind_timeout.tv_usec = 0;
+			}
 			break;
 
 		case LDAP_BACK_CFG_CANCEL:
@@ -1567,7 +1607,14 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			break;
 
 		case LDAP_BACK_CFG_NETWORK_TIMEOUT:
-			mc->mc_network_timeout = 0;
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
+			} else {
+				mc->mc_network_timeout = 0;
+			}
 			break;
 
 		case LDAP_BACK_CFG_NOREFS:
@@ -1604,7 +1651,14 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			break;
 
 		case LDAP_BACK_CFG_VERSION:
-			mc->mc_version = 0;
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
+			} else {
+				mc->mc_version = 0;
+			}
 			break;
 
 #ifdef SLAP_CONTROL_X_SESSION_TRACKING
@@ -1625,9 +1679,16 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 
 		/* target attrs */
 		case LDAP_BACK_CFG_URI:
-			if ( mt->mt_uri ) {
-				ch_free( mt->mt_uri );
-				mt->mt_uri = NULL;
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
+			} else {
+				if ( mt->mt_uri ) {
+					ch_free( mt->mt_uri );
+					mt->mt_uri = NULL;
+				}
 			}
 			/* FIXME: should have a way to close all cached
 			 * connections associated with this target.
@@ -1638,44 +1699,66 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			BerVarray *bvp;
 
 			bvp = &mt->mt_idassert_authz;
-			if ( c->valx < 0 ) {
-				if ( *bvp != NULL ) {
-					ber_bvarray_free( *bvp );
-					*bvp = NULL;
-				}
-
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
 			} else {
-				if ( *bvp == NULL ) {
-					rc = 1;
-					break;
-				}
+				if ( c->valx < 0 ) {
+					if ( *bvp != NULL ) {
+						ber_bvarray_free( *bvp );
+						*bvp = NULL;
+					}
 
-				for ( i = 0; !BER_BVISNULL( &((*bvp)[ i ]) ); i++ )
-					;
+				} else {
+					if ( *bvp == NULL ) {
+						rc = 1;
+						break;
+					}
 
-				if ( i >= c->valx ) {
-					rc = 1;
-					break;
+					for ( i = 0; !BER_BVISNULL( &((*bvp)[ i ]) ); i++ )
+						;
+
+					if ( i >= c->valx ) {
+						rc = 1;
+						break;
+					}
+					ber_memfree( ((*bvp)[ c->valx ]).bv_val );
+					for ( i = c->valx; !BER_BVISNULL( &((*bvp)[ i + 1 ]) ); i++ ) {
+						(*bvp)[ i ] = (*bvp)[ i + 1 ];
+					}
+					BER_BVZERO( &((*bvp)[ i ]) );
 				}
-				ber_memfree( ((*bvp)[ c->valx ]).bv_val );
-				for ( i = c->valx; !BER_BVISNULL( &((*bvp)[ i + 1 ]) ); i++ ) {
-					(*bvp)[ i ] = (*bvp)[ i + 1 ];
-				}
-				BER_BVZERO( &((*bvp)[ i ]) );
 			}
-			} break;
+		}
+			break;
 
 		case LDAP_BACK_CFG_IDASSERT_BIND:
-			bindconf_free( &mt->mt_idassert.si_bc );
-			memset( &mt->mt_idassert, 0, sizeof( slap_idassert_t ) );
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
+			} else {
+				bindconf_free( &mt->mt_idassert.si_bc );
+				memset( &mt->mt_idassert, 0, sizeof( slap_idassert_t ) );
+			}
 			break;
 
 		case LDAP_BACK_CFG_SUFFIXM:
-			if ( mt->mt_lsuffixm.bv_val ) {
-				ch_free( mt->mt_lsuffixm.bv_val );
-				ch_free( mt->mt_rsuffixm.bv_val );
-				BER_BVZERO( &mt->mt_lsuffixm );
-				BER_BVZERO( &mt->mt_rsuffixm );
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
+			} else {
+				if ( mt->mt_lsuffixm.bv_val ) {
+					ch_free( mt->mt_lsuffixm.bv_val );
+					ch_free( mt->mt_rsuffixm.bv_val );
+					BER_BVZERO( &mt->mt_lsuffixm );
+					BER_BVZERO( &mt->mt_rsuffixm );
+				}
 			}
 			break;
 
@@ -1729,7 +1812,10 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			break;
 
 		case LDAP_BACK_CFG_MAX_TARGET_CONNS:
-			mi->mi_max_target_conns = 0;
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				  "max-target-conns cannot be modified at runtime" );
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			rc = 1;
 			break;
 
 		case LDAP_BACK_CFG_MAX_TIMEOUT_OPS:
@@ -1737,9 +1823,16 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			break;
 
 		case LDAP_BACK_CFG_KEEPALIVE:
-			mt->mt_tls.sb_keepalive.sk_idle = 0;
-			mt->mt_tls.sb_keepalive.sk_probes = 0;
-			mt->mt_tls.sb_keepalive.sk_interval = 0;
+			if ( asyncmeta_db_has_mscs ( mi ) > 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					  "cannot modify this attribute if there are established target connections" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				rc = 1;
+			} else {
+				mt->mt_tls.sb_keepalive.sk_idle = 0;
+				mt->mt_tls.sb_keepalive.sk_probes = 0;
+				mt->mt_tls.sb_keepalive.sk_interval = 0;
+			}
 			break;
 
 		case LDAP_BACK_CFG_TCP_USER_TIMEOUT:
@@ -1814,7 +1907,7 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			return 1;
 		}
 
-		if ( asyncmeta_back_new_target( &mi->mi_targets[ i ] ) != 0 ) {
+		if ( asyncmeta_back_new_target( &mi->mi_targets[ i ], mi ) != 0 ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
 				"unable to init server"
 				" in \"%s <protocol>://<server>[:port]/<naming context>\"",

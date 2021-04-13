@@ -687,6 +687,13 @@ asyncmeta_back_search( Operation *op, SlapReply *rs )
 	rs_assert_ready( rs );
 	rs->sr_flags &= ~REP_ENTRY_MASK; /* paranoia, we can set rs = non-entry */
 
+	if ( mi->mi_ntargets == 0 ) {
+		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+		rs->sr_text = "No targets are configured for this database";
+		send_ldap_result(op, rs);
+		return rs->sr_err;
+	}
+
 	/*
 	 * controls are set in ldap_back_dobind()
 	 *
