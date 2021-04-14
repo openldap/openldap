@@ -39,7 +39,8 @@ kiB.
 .BI p= <parallelism>
 Set parallelism to
 .I <parallelism>
-threads.
+threads. Currently supported only when linked with
+.BR libargon2 .
 .TP
 .BI t= <iterations>
 Set the number of iterations to
@@ -73,6 +74,14 @@ The relevant option/value is:
 .LP
 .B \-o
 .BR module\-load = argon2
+.LP
+.RE
+Or if non-default parameters are required:
+.RS
+.LP
+.B \-o
+.BR module\-load =" argon2
+.RB [ <param> ...]"
 .LP
 .RE
 Depending on
