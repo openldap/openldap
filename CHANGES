@@ -3,6 +3,8 @@ OpenLDAP 2.4 Change Log
 OpenLDAP 2.4.59 Engineering
 	Fixed libldap TLSv1.3 cipher suites with OpenSSL 1.1.1 (ITS#9521)
 	Fixed slapd syncrepl handling of add+delete on single value attr (ITS#9295)
+	Contrib
+		Fixed slapo-autogroup to not thrash thead context (ITS#9494)
 
 OpenLDAP 2.4.58 Release (2021/03/16)
 	Fixed slapd validity checks for issuerAndThisUpdateCheck (ITS#9454)
