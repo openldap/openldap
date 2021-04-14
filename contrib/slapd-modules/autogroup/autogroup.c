@@ -2071,7 +2071,7 @@ autogroup_db_open(
 		return 0;
 	}
 
-	connection_fake_init( &conn, &opbuf, thrctx );
+	connection_fake_init2( &conn, &opbuf, thrctx, 0 );
 	op = &opbuf.ob_op;
 
 	op->ors_attrsonly = 0;
