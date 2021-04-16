@@ -22,7 +22,7 @@ LDAP_LIB = $(LDAP_BUILD)/libraries/libldap/libldap.la \
 LIBTOOL = $(LDAP_BUILD)/libtool
 INSTALL = /usr/bin/install
 CC = gcc
-OPT = -g -O2 -Wall
+OPT = -g -O2
 DEFS = -DSLAPD_OVER_VARIANT=SLAPD_MOD_DYNAMIC
 INCS = $(LDAP_INC)
 LIBS = $(LDAP_LIB)
@@ -52,10 +52,10 @@ include $(dir)/Rules.mk
 .SUFFIXES: .c .o .lo
 
 .c.lo:
-	$(LIBTOOL) --mode=compile $(CC) $(OPT) $(DEFS) $(INCS) -c $<
+	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(DEFS) $(INCS) -c $<
 
 variant.la: variant.lo
-	$(LIBTOOL) --mode=link $(CC) $(OPT) -version-info $(LTVER) \
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
 		-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
 clean:
