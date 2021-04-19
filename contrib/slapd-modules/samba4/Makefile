@@ -20,7 +20,7 @@ LDAP_LIB = $(LDAP_BUILD)/libraries/libldap/libldap.la \
 
 LIBTOOL = $(LDAP_BUILD)/libtool
 CC = gcc
-OPT = -g -O2 -Wall
+OPT = -g -O2
 DEFS = -DSLAPD_OVER_RDNVAL=SLAPD_MOD_DYNAMIC \
 	-DSLAPD_OVER_PGUID=SLAPD_MOD_DYNAMIC \
 	-DSLAPD_OVER_VERNUM=SLAPD_MOD_DYNAMIC
@@ -41,20 +41,20 @@ moduledir = $(libexecdir)$(ldap_subdir)
 .SUFFIXES: .c .o .lo
 
 .c.lo:
-	$(LIBTOOL) --mode=compile $(CC) $(OPT) $(DEFS) $(INCS) -c $<
+	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(DEFS) $(INCS) -c $<
 
 all: $(PROGRAMS)
 
 pguid.la: pguid.lo
-	$(LIBTOOL) --mode=link $(CC) $(OPT) -version-info $(LTVER) \
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
 	-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
 rdnval.la: rdnval.lo
-	$(LIBTOOL) --mode=link $(CC) $(OPT) -version-info $(LTVER) \
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
 	-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
 vernum.la: vernum.lo
-	$(LIBTOOL) --mode=link $(CC) $(OPT) -version-info $(LTVER) \
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
 	-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
 clean:

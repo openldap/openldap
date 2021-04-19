@@ -27,7 +27,7 @@ HEIMDAL_LIB = -L/usr/heimdal/lib -lkrb5 -lkadm5srv
 LIBTOOL = $(LDAP_BUILD)/libtool
 INSTALL = /usr/bin/install
 CC = gcc
-OPT = -g -O2 -Wall
+OPT = -g -O2
 # Omit DO_KRB5, DO_SAMBA or DO_SHADOW if you don't want to support it.
 DEFS = -DDO_KRB5 -DDO_SAMBA -DDO_SHADOW
 INCS = $(LDAP_INC) $(HEIMDAL_INC) $(SSL_INC)
@@ -50,12 +50,12 @@ man5dir = $(mandir)/man5
 .SUFFIXES: .c .o .lo
 
 .c.lo:
-	$(LIBTOOL) --mode=compile $(CC) $(OPT) $(DEFS) $(INCS) -c $<
+	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(DEFS) $(INCS) -c $<
 
 all: $(PROGRAMS)
 
 smbk5pwd.la:	smbk5pwd.lo
-	$(LIBTOOL) --mode=link $(CC) $(OPT) -version-info $(LTVER) \
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
 	-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
 clean:

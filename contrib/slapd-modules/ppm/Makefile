@@ -18,7 +18,7 @@ LDAP_LIB = $(LDAP_BUILD)/libraries/liblber/liblber.la $(LDAP_BUILD)/libraries/li
 LIBTOOL = $(LDAP_BUILD)/libtool
 INSTALL = /usr/bin/install
 CC = gcc
-OPT = -g -O2 -Wall -fpic
+OPT = -g -O2 -fpic
 
 # To skip linking against CRACKLIB make CRACK=no
 CRACK=yes
@@ -61,13 +61,13 @@ TESTS=./unit_tests.sh
 all: 	ppm $(TEST)
 
 $(TEST): ppm
-	$(CC) -g $(INCS) $(LDAP_LIBS) -Wl,-rpath=. -o $(TEST) ppm_test.c $(PROGRAMS) $(LDAP_LIBS) $(CRACKLIB)
+	$(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(LDFLAGS) $(INCS) $(LDAP_LIBS) -Wl,-rpath=. -o $(TEST) ppm_test.c $(PROGRAMS) $(LDAP_LIBS) $(CRACKLIB)
 
 ppm.o:
-	$(CC) $(OPT) $(DEFS) -c $(INCS) ppm.c
+	$(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(DEFS) -c $(INCS) ppm.c
 
 ppm: ppm.o
-	$(CC) $(INCS) -shared -o $(PROGRAMS) ppm.o $(CRACKLIB)
+	$(CC) $(LDFLAGS) $(INCS) -shared -o $(PROGRAMS) ppm.o $(CRACKLIB)
 
 install: ppm
 	mkdir -p $(DESTDIR)$(moduledir)
