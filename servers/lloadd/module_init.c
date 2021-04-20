@@ -53,10 +53,17 @@ lload_start_daemon( void *arg )
         Debug( LDAP_DEBUG_ANY, "lload_start_daemon: "
                 "main event base allocation failed\n" );
         rc = 1;
-        return (void *)(uintptr_t)rc;
+        goto done;
     }
 
     rc = lloadd_daemon( daemon_base );
+done:
+    if ( rc != LDAP_SUCCESS ) {
+        assert( lloadd_inited == 0 );
+        checked_lock( &lload_wait_mutex );
+        ldap_pvt_thread_cond_signal( &lload_wait_cond );
+        checked_unlock( &lload_wait_mutex );
+    }
     return (void *)(uintptr_t)rc;
 }
 
@@ -81,6 +88,8 @@ lload_unpause_cb( BackendInfo *bi )
 int
 lload_back_open( BackendInfo *bi )
 {
+    int rc = 0;
+
     if ( slapMode & SLAP_TOOL_MODE ) {
         return 0;
     }
@@ -99,8 +108,18 @@ lload_back_open( BackendInfo *bi )
 
     assert( lloadd_get_listeners() );
 
-    return ldap_pvt_thread_create(
-            &lloadd_main_thread, 0, lload_start_daemon, NULL );
+    checked_lock( &lload_wait_mutex );
+    rc = ldap_pvt_thread_create( &lloadd_main_thread,
+            0, lload_start_daemon, NULL );
+    if ( !rc ) {
+        ldap_pvt_thread_cond_wait( &lload_wait_cond, &lload_wait_mutex );
+        if ( lloadd_inited != 1 ) {
+            ldap_pvt_thread_join( lloadd_main_thread, (void *)NULL );
+            rc = -1;
+        }
+    }
+    checked_unlock( &lload_wait_mutex );
+    return rc;
 }
 
 int
@@ -109,6 +128,8 @@ lload_back_close( BackendInfo *bi )
     if ( slapMode & SLAP_TOOL_MODE ) {
         return 0;
     }
+
+    assert( lloadd_inited == 1 );
 
     checked_lock( &lload_wait_mutex );
     event_base_loopexit( daemon_base, NULL );

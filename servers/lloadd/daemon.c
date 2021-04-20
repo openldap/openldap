@@ -45,6 +45,10 @@
 
 #include "ldap_rq.h"
 
+#ifdef HAVE_SYSTEMD_SD_DAEMON_H
+#include <systemd/sd-daemon.h>
+#endif
+
 #ifdef LDAP_PF_LOCAL
 #include <sys/stat.h>
 /* this should go in <ldap.h> as soon as it is accepted */
@@ -1303,7 +1307,18 @@ lloadd_daemon( struct event_base *daemon_base )
         event_add( event, lload_timeout_api );
     }
 
+    checked_lock( &lload_wait_mutex );
     lloadd_inited = 1;
+    ldap_pvt_thread_cond_signal( &lload_wait_cond );
+    checked_unlock( &lload_wait_mutex );
+#if !defined(BALANCER_MODULE) && defined(HAVE_SYSTEMD)
+    rc = sd_notify( 1, "READY=1" );
+    if ( rc < 0 ) {
+        Debug( LDAP_DEBUG_ANY, "lloadd startup: "
+            "systemd sd_notify failed (%d)\n", rc );
+    }
+#endif /* !BALANCER_MODULE && HAVE_SYSTEMD */
+
     rc = event_base_dispatch( daemon_base );
     Debug( LDAP_DEBUG_ANY, "lloadd shutdown: "
             "Main event loop finished: rc=%d\n",
@@ -1361,7 +1376,9 @@ lloadd_daemon( struct event_base *daemon_base )
 
     /* If we're a slapd module, let the thread that initiated the shut down
      * know we've finished */
+    checked_lock( &lload_wait_mutex );
     ldap_pvt_thread_cond_signal( &lload_wait_cond );
+    checked_unlock( &lload_wait_mutex );
 
     return 0;
 }

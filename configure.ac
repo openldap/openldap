@@ -33,6 +33,9 @@ dnl OpenLDAP Autoconf Macros
 builtin(include, build/openldap.m4)dnl
 dnl ================================================================
 
+m4_ifndef([PKG_PREREQ],
+	[m4_fatal([must install pkg-config 0.29 or later before running autoconf/autogen])])
+
 AC_CONFIG_AUX_DIR(build)dnl
 AC_CONFIG_MACRO_DIRS([build])
 
@@ -236,6 +239,8 @@ OL_ARG_ENABLE(local, [AS_HELP_STRING([--enable-local], [enable AF_LOCAL (AF_UNIX
 dnl ----------------------------------------------------------------
 dnl General "with" options
 OL_ARG_WITH(cyrus_sasl, [AS_HELP_STRING([--with-cyrus-sasl], [with Cyrus SASL support])],
+	auto, [auto yes no] )
+OL_ARG_WITH(systemd, [AS_HELP_STRING([--with-systemd],	[with systemd service notification support])],
 	auto, [auto yes no] )
 OL_ARG_WITH(fetch, [AS_HELP_STRING([--with-fetch], [with fetch(3) URL support])],
 	auto, [auto yes no] )
@@ -638,6 +643,7 @@ MODULES_LIBS=
 SLAPI_LIBS=
 LIBSLAPI=
 AUTH_LIBS=
+SYSTEMD_LIBS=
 
 SLAPD_SLP_LIBS=
 SLAPD_GMP_LIBS=
@@ -2003,26 +2009,10 @@ dnl ----------------------------------------------------------------
 dnl WiredTiger
 ol_link_wt=no
 if test $ol_enable_wt != no ; then
-	AC_CHECK_PROG(PKGCONFIG,pkg-config,yes)
-	if test "$PKGCONFIG" != yes ; then
-		AC_MSG_ERROR([could not locate pkg-config])
+	PKG_CHECK_MODULES(WT, wiredtiger)
+	if test $ol_enable_wt = yes ; then
+		SLAPD_LIBS="$SLAPD_LIBS \$(WT_LIBS)"
 	fi
-	WT_INCS=`pkg-config --cflags wiredtiger`
-	WT_LIBS=`pkg-config --libs wiredtiger`
-
-	save_CFLAGS="$CFLAGS"
-	save_LDFLAGS="$LDFLAGS"
-	CFLAGS="$WT_INCS"
-	CPPFLAGS="$WT_INCS"
-	LDFLAGS="$WT_LIBS"
-	AC_CHECK_HEADERS([wiredtiger.h])
-	AC_CHECK_LIB(wiredtiger,wiredtiger_version,[: ok],[
-		AC_MSG_ERROR([could not locate wiredtiger library])
-	])
-	CFLAGS="$save_CFLAGS"
-	CPPFLAGS="$save_CPPFLAGS"
-	LDFLAGS="$save_LDFLAGS"
-	SLAPD_LIBS="$SLAPD_LIBS \$(WT_LIBS)"
 	ol_link_wt=yes
 fi
 
@@ -2082,6 +2072,51 @@ else
 		AC_MSG_WARN([Strong authentication not supported!])
 	fi
 fi
+
+dnl ----------------------------------------------------------------
+dnl
+dnl Check for systemd (only if we have a server)
+dnl
+WITH_SYSTEMD=no
+systemdsystemunitdir=
+ol_link_systemd=no
+if test $ol_enable_slapd == no && test $ol_enable_balancer != yes ; then
+	if test $ol_with_systemd != no ; then
+		AC_MSG_WARN([servers disabled, ignoring --with-systemd=$ol_with_systemd argument])
+		ol_with_systemd=no
+	fi
+fi
+if test $ol_with_systemd != no ; then
+	AC_CHECK_HEADERS(systemd/sd-daemon.h)
+
+	if test $ac_cv_header_systemd_sd_daemon_h = yes; then
+		AC_CHECK_LIB(systemd, sd_notify,
+			[ol_link_systemd="-lsystemd"])
+	fi
+
+	if test $ol_link_systemd = no ; then
+		if test $ol_with_systemd != auto ; then
+			AC_MSG_ERROR([Could not locate systemd])
+		else
+			AC_MSG_WARN([Could not locate systemd])
+			AC_MSG_WARN([systemd service notification not supported!])
+		fi
+	else
+		AC_DEFINE(HAVE_SYSTEMD,1,[define if you have systemd])
+		SYSTEMD_LIBS="$ol_link_systemd"
+		WITH_SYSTEMD=yes
+
+		PKG_CHECK_VAR(systemdsystemunitdir, systemd, systemdsystemunitdir)
+		if test -z "$systemdsystemunitdir"; then
+			if test -d /usr/lib/systemd/system; then
+				systemdsystemunitdir=/usr/lib/systemd/system
+			else
+				systemdsystemunitdir=/lib/systemd/system
+			fi
+		fi
+	fi
+fi
+AC_SUBST(systemdsystemunitdir)
 
 dnl ----------------------------------------------------------------
 dnl Check for entropy sources
@@ -3126,6 +3161,7 @@ AC_SUBST(WITH_SASL)
 AC_SUBST(WITH_TLS)
 AC_SUBST(WITH_MODULES_ENABLED)
 AC_SUBST(WITH_ACI_ENABLED)
+AC_SUBST(WITH_SYSTEMD)
 AC_SUBST(BUILD_THREAD)
 AC_SUBST(BUILD_LIBS_DYNAMIC)
 AC_SUBST(OL_VERSIONED_SYMBOLS)
@@ -3213,6 +3249,7 @@ AC_SUBST(SLAPI_LIBS)
 AC_SUBST(LIBSLAPI)
 AC_SUBST(AUTH_LIBS)
 AC_SUBST(ARGON2_LIBS)
+AC_SUBST(SYSTEMD_LIBS)
 
 AC_SUBST(SLAPD_SLP_LIBS)
 AC_SUBST(SLAPD_GMP_LIBS)
@@ -3221,7 +3258,7 @@ AC_SUBST(SLAPD_SQL_LDFLAGS)
 AC_SUBST(SLAPD_SQL_LIBS)
 AC_SUBST(SLAPD_SQL_INCLUDES)
 
-AC_SUBST(WT_INCS)
+AC_SUBST(WT_CFLAGS)
 AC_SUBST(WT_LIBS)
 
 AC_SUBST(BALANCER_INCLUDE)

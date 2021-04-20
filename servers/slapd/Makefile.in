@@ -401,11 +401,15 @@ all-cffiles: slapd $(SLAPD_DYNAMIC_BACKENDS) dynamic_overlays dynamic_pwmods
 	$(SED) -e "s;%SYSCONFDIR%;$$sysconfdir;" \
 		-e "s;%LOCALSTATEDIR%;$$localstatedir;" \
 		-e "s;%MODULEDIR%;$$moduledir;" \
-		$(srcdir)/slapd.conf > slapd.conf.tmp ; \
+		$(srcdir)/slapd.conf > slapd.conf.tmp || exit $$? ; \
 	$(SED) -e "s;%SYSCONFDIR%;$$sysconfdir;" \
 		-e "s;%LOCALSTATEDIR%;$$localstatedir;" \
 		-e "s;%MODULEDIR%;$$moduledir;" \
-		$(srcdir)/slapd.ldif > slapd.ldif.tmp ; \
+		$(srcdir)/slapd.ldif > slapd.ldif.tmp || exit $$? ;
+	@if test -n "$(systemdsystemunitdir)"; then \
+		$(SED) -e "s;%LIBEXECDIR%;$(libexecdir);" \
+			$(srcdir)/slapd.service > slapd.service.tmp ; \
+	fi
 	touch all-cffiles
 
 install-schema: FORCE
@@ -438,6 +442,12 @@ install-conf: FORCE
 		$(INSTALL) $(INSTALLFLAGS) -m 600 slapd.ldif.tmp $(DESTDIR)$(sysconfdir)/slapd.ldif; \
 	else \
 		echo "PRESERVING EXISTING CONFIGURATION FILE $(DESTDIR)$(sysconfdir)/slapd.ldif" ; \
+	fi
+	if test -n "$(systemdsystemunitdir)" && test ! -f $(DESTDIR)$(systemdsystemunitdir)/slapd.service; then \
+		$(MKDIR) $(DESTDIR)$(systemdsystemunitdir); \
+		echo "installing slapd.service in $(systemdsystemunitdir)"; \
+		echo "$(INSTALL) $(INSTALLFLAGS) -m 644 slapd.service.tmp $(DESTDIR)$(systemdsystemunitdir)/slapd.service"; \
+		$(INSTALL) $(INSTALLFLAGS) -m 644 slapd.service.tmp $(DESTDIR)$(systemdsystemunitdir)/slapd.service; \
 	fi
 
 install-db-config: FORCE
