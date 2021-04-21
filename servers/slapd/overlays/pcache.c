@@ -3645,6 +3645,7 @@ consistency_check(
 					 */
 					if ( query->expiry_time > op->o_time ) {
 						refresh_query( op, query, on );
+						query->refresh_time = op->o_time + templ->ttr;
 					}
 				}
 			}
