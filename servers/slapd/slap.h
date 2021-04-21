@@ -1612,6 +1612,22 @@ LDAP_SLAPD_V (int) slapMode;
 #define SB_TLS_ON		1
 #define SB_TLS_CRITICAL		2
 
+enum slaptool {
+	SLAPADD=1,	/* LDIF -> database tool */
+	SLAPCAT,	/* database -> LDIF tool */
+	SLAPDN,		/* DN check w/ syntax tool */
+	SLAPINDEX,	/* database index tool */
+	SLAPMODIFY,	/* database modify tool */
+	SLAPPASSWD,	/* password generation tool */
+	SLAPSCHEMA,	/* schema checking tool */
+	SLAPTEST,	/* slapd.conf test tool */
+	SLAPAUTH,	/* test authz-regexp and authc/authz stuff */
+	SLAPACL,	/* test acl */
+	SLAPLAST
+};
+
+LDAP_SLAPD_V(enum slaptool) slapTool;
+
 typedef struct slap_keepalive {
 	int sk_idle;
 	int sk_probes;

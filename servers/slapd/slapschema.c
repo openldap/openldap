@@ -53,7 +53,7 @@ slapschema( int argc, char **argv )
 	int requestBSF = 0;
 	int doBSF = 0;
 
-	slap_tool_init( progname, SLAPCAT, argc, argv );
+	slap_tool_init( progname, SLAPSCHEMA, argc, argv );
 
 	requestBSF = ( sub_ndn.bv_len || filter );
 

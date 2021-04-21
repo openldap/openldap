@@ -16,15 +16,19 @@
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh
 
-if test $SYNCPROV = syncprovno; then 
+if test $SYNCPROV = syncprovno; then
 	echo "Syncrepl provider overlay not available, test skipped"
 	exit 0
-fi 
+fi
+if test $ACCESSLOG = accesslogno; then
+	echo "Accesslog overlay not available, test skipped"
+	exit 0
+fi
 
 CFPRO=$TESTDIR/cfpro.d
 CFCON=$TESTDIR/cfcon.d
 
-mkdir -p $TESTDIR $DBDIR1A $DBDIR1B $DBDIR2A $CFPRO $CFCON
+mkdir -p $TESTDIR $DBDIR1A $DBDIR1B $DBDIR1C $DBDIR1D $DBDIR2A $CFPRO $CFCON
 
 $SLAPPASSWD -g -n >$CONFIGPWF
 
@@ -85,33 +89,140 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-echo "Inserting syncprov overlay on provider..."
-if [ "$SYNCPROV" = syncprovmod ]; then
-	$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+echo "Inserting syncprov and accesslog overlays on provider..."
+if [ "$SYNCPROV" = syncprovmod -a "$ACCESSLOG" = accesslogmod ]; then
+    $LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulePath: ../servers/slapd/overlays
+olcModuleLoad: syncprov.la
+olcModuleLoad: accesslog.la
+EOF
+    RC=$?
+    if test $RC != 0 ; then
+        echo "ldapadd failed for moduleLoad of syncprov and accesslog ($RC)!"
+        test $KILLSERVERS != no && kill -HUP $KILLPIDS
+        exit $RC
+    fi
+elif [ "$SYNCPROV" = syncprovmod ]; then
+    $LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
 dn: cn=module,cn=config
 objectClass: olcModuleList
 cn: module
 olcModulePath: ../servers/slapd/overlays
 olcModuleLoad: syncprov.la
 EOF
-	RC=$?
-	if test $RC != 0 ; then
-		echo "ldapadd failed for moduleLoad ($RC)!"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
-		exit $RC
-	fi
+    RC=$?
+    if test $RC != 0 ; then
+        echo "ldapadd failed for moduleLoad of syncprov ($RC)!"
+        test $KILLSERVERS != no && kill -HUP $KILLPIDS
+        exit $RC
+    fi
+elif [ "$ACCESSLOG" = accesslogmod ]; then
+    $LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulePath: ../servers/slapd/overlays
+olcModuleLoad: accesslog.la
+EOF
+    RC=$?
+    if test $RC != 0 ; then
+        echo "ldapadd failed for moduleLoad of accesslog ($RC)!"
+        test $KILLSERVERS != no && kill -HUP $KILLPIDS
+        exit $RC
+    fi
 fi
+
+echo "Adding backend accesslog databases using $BACKEND..."
+if [ "$BACKENDTYPE" = mod ]; then
+    $LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulePath: $TESTWD/../servers/slapd/back-$BACKEND
+olcModuleLoad: back_$BACKEND.la
+EOF
+    RC=$?
+    if test $RC != 0 ; then
+        echo "ldapadd failed for moduleLoad of $BACKEND ($RC)!"
+        test $KILLSERVERS != no && kill -HUP $KILLPIDS
+        exit $RC
+    fi
+fi
+
 read CONFIGPW < $CONFIGPWF
+$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: olcDatabase={1}$BACKEND,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olc${BACKEND}Config
+olcDatabase: {1}$BACKEND
+olcSuffix: cn=accesslog
+${nullExclude}olcDbDirectory: $DBDIR1C
+olcRootDN: cn=config
+olcSizeLimit: unlimited
+olcTimeLimit: unlimited
+olcDbIndex: default eq
+olcDbIndex: entryCSN,objectClass,reqEnd,reqResult,reqStart,reqDN
+
+dn: olcOverlay=syncprov,olcDatabase={1}${BACKEND},cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+olcSpNoPresent: TRUE
+olcSpReloadHint: TRUE
+
+dn: olcDatabase={2}$BACKEND,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olc${BACKEND}Config
+olcDatabase: {2}$BACKEND
+olcSuffix: cn=consumer-accesslog
+${nullExclude}olcDbDirectory: $DBDIR1D
+olcRootDN: cn=consumer,cn=config
+olcSizeLimit: unlimited
+olcTimeLimit: unlimited
+olcDbIndex: default eq
+olcDbIndex: entryCSN,objectClass,reqEnd,reqResult,reqStart,reqDN
+
+dn: olcOverlay=syncprov,olcDatabase={2}${BACKEND},cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcSyncProvConfig
+olcOverlay: syncprov
+olcSpNoPresent: TRUE
+olcSpReloadHint: TRUE
+EOF
+
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed for accesslog databases using $BACKEND ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
 $LDAPMODIFY -D cn=config -H $URI1 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
 dn: olcOverlay=syncprov,olcDatabase={0}config,cn=config
 changetype: add
 objectClass: olcOverlayConfig
 objectClass: olcSyncProvConfig
 olcOverlay: syncprov
+
+dn: olcOverlay=accesslog,olcDatabase={0}config,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcAccessLogConfig
+olcOverlay: accesslog
+olcAccessLogDB: cn=accesslog
+olcAccessLogOps: writes
+olcAccessLogPurge: 07+00:00 01+00:00
+olcAccessLogSuccess: TRUE
 EOF
+
 RC=$?
 if test $RC != 0 ; then
-	echo "ldapmodify failed for syncprov config ($RC)!"
+	echo "ldapmodify failed for syncprov and accesslog overlay config ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
 fi
@@ -145,6 +256,16 @@ changetype: add
 objectClass: olcOverlayConfig
 objectClass: olcSyncProvConfig
 olcOverlay: syncprov
+
+dn: olcOverlay=accesslog,olcDatabase={1}ldif,cn=config
+changetype: add
+objectClass: olcOverlayConfig
+objectClass: olcAccessLogConfig
+olcOverlay: accesslog
+olcAccessLogDB: cn=consumer-accesslog
+olcAccessLogOps: writes
+olcAccessLogPurge: 07+00:00 01+00:00
+olcAccessLogSuccess: TRUE
 
 dn: cn=config,cn=consumer
 changetype: add
@@ -217,8 +338,9 @@ changetype: modify
 add: olcSyncRepl
 olcSyncRepl: rid=001 provider=$URI1 binddn="cn=config,cn=consumer"
   bindmethod=simple credentials=repsecret searchbase="cn=config,cn=consumer"
-  $SYNCTYPE retry="3 5 300 5" timeout=3
-  suffixmassage="cn=config"
+  $SYNCTYPE retry="3 5 300 5" timeout=3 logbase="cn=consumer-accesslog"
+  logfilter="(&(objectclass=auditWriteObject)(reqresult=0))"
+  syncdata=accesslog suffixmassage="cn=config"
 -
 add: olcUpdateRef
 olcUpdateRef: $URI1
@@ -279,17 +401,17 @@ for i in 0 1 2 3 4 5; do
 	sleep $SLEEP1
 done
 
+if test "x$RESULT" != "xOK" ; then
+	echo "consumer never received complete schema!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 nullExclude="" nullOK=""
 test $BACKEND = null && nullExclude="# " nullOK="OK"
 
 if [ "$BACKENDTYPE" = mod ]; then
 	$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF <<EOF >>$TESTOUT 2>&1
-dn: cn=module,cn=config
-objectClass: olcModuleList
-cn: module
-olcModulePath: ../servers/slapd/back-$BACKEND
-olcModuleLoad: back_$BACKEND.la
-
 dn: cn=module,cn=config,cn=consumer
 objectClass: olcModuleList
 cn: module

@@ -14,6 +14,12 @@ H2: {{B:cn=config}} olc* attributes
 
 H2: ppolicy overlay
 
+The overlay now implements version 10 of the ppolicy draft in full. This includes the notion of a password
+administrator where applicable (as determined by having a {{manage}} permission to the {{userPassword}} attribute)
+and skips certain processing when there is no valid policy in effect or where the operation is initiated by
+a password administrator. Many attributes are now tagged with {{NO-USER-MODIFICATION}} in the schema, requiring
+the use of {{relax}} control to modify them.
+
 In OpenLDAP 2.4 the {{slapo-ppolicy}}(5) overlay relied on a separate schema file to be included for it to function.
 This schema is now implemented internally in the slapo-ppolicy module. When upgrading {{slapd.conf}}(5) deployments
 the include statement for the schema must be removed.  For {{slapd-config}}(5) deployments, the config database

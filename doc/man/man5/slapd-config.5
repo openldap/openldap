@@ -935,6 +935,9 @@ locations will be used.
 Specifies the file that contains the
 .B slapd
 server certificate.
+
+When using OpenSSL that file may also contain any number of intermediate
+certificates after the server certificate.
 .TP
 .B olcTLSCertificateKeyFile: <filename>
 Specifies the file that contains the
@@ -1060,8 +1063,9 @@ per
 Normally the config engine generates the "{x}" index in the RDN
 automatically, so it can be omitted when initially loading these entries.
 .TP
-.B olcModuleLoad: <filename>
-Specify the name of a dynamically loadable module to load. The filename
+.B olcModuleLoad: <filename> [<arguments>...]
+Specify the name of a dynamically loadable module to load and any
+additional arguments if supported by the module. The filename
 may be an absolute path name or a simple filename. Non-absolute names
 are searched for in the directories specified by the
 .B olcModulePath

@@ -640,6 +640,12 @@
 /* Define to 1 if you have the <syslog.h> header file. */
 #undef HAVE_SYSLOG_H
 
+/* define if you have systemd */
+#undef HAVE_SYSTEMD
+
+/* Define to 1 if you have the <systemd/sd-daemon.h> header file. */
+#undef HAVE_SYSTEMD_SD_DAEMON_H
+
 /* Define to 1 if you have the <sys/devpoll.h> header file. */
 #undef HAVE_SYS_DEVPOLL_H
 
@@ -788,9 +794,6 @@
 
 /* Define to 1 if you have the <winsock.h> header file. */
 #undef HAVE_WINSOCK_H
-
-/* Define to 1 if you have the <wiredtiger.h> header file. */
-#undef HAVE_WIREDTIGER_H
 
 /* Define to 1 if you have the `write' function. */
 #undef HAVE_WRITE

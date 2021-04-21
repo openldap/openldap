@@ -183,7 +183,7 @@ transform_to_db_format_one(
 			datamorph_enum_mapping *mapping, needle = { .wire_value = *value };
 			struct berval db_value = { .bv_len = 1 };
 
-			mapping = avl_find( definition->ti_enum.to_db, &needle,
+			mapping = ldap_avl_find( definition->ti_enum.to_db, &needle,
 					transformation_mapping_cmp );
 			if ( !mapping ) {
 				Debug( LDAP_DEBUG_ANY, "transform_to_db_format_one: "
@@ -515,7 +515,7 @@ datamorph_filter( Operation *op, datamorph_info *ov, Filter *f )
 		case LDAP_FILTER_LE: {
 			transformation_info *t, needle = { .attr = f->f_ava->aa_desc };
 
-			t = avl_find(
+			t = ldap_avl_find(
 					ov->transformations, &needle, transformation_info_cmp );
 			if ( t ) {
 				struct berval new_val;
@@ -567,7 +567,7 @@ datamorph_op_add( Operation *op, SlapReply *rs )
 				continue;
 			}
 
-			if ( avl_find( ov->transformations, &needle,
+			if ( ldap_avl_find( ov->transformations, &needle,
 						 transformation_info_cmp ) ) {
 				rc = LDAP_CONSTRAINT_VIOLATION;
 				Debug( LDAP_DEBUG_TRACE, "datamorph_op_add: "
@@ -590,7 +590,7 @@ datamorph_op_add( Operation *op, SlapReply *rs )
 
 		next = a->a_next;
 
-		t = avl_find( ov->transformations, &needle, transformation_info_cmp );
+		t = ldap_avl_find( ov->transformations, &needle, transformation_info_cmp );
 		if ( !t ) continue;
 
 		rc = transform_to_db_format(
@@ -627,7 +627,7 @@ datamorph_op_compare( Operation *op, SlapReply *rs )
 	transformation_info *t, needle = { .attr = op->orc_ava->aa_desc };
 	int rc = SLAP_CB_CONTINUE;
 
-	t = avl_find( ov->transformations, &needle, transformation_info_cmp );
+	t = ldap_avl_find( ov->transformations, &needle, transformation_info_cmp );
 	if ( t ) {
 		struct berval new_val;
 
@@ -662,7 +662,7 @@ datamorph_op_mod( Operation *op, SlapReply *rs )
 
 		if ( mod->sml_numvals == 0 ) continue; /* Nothing to transform */
 
-		t = avl_find( ov->transformations, &needle, transformation_info_cmp );
+		t = ldap_avl_find( ov->transformations, &needle, transformation_info_cmp );
 		if ( !t ) continue;
 
 		assert( !mod->sml_nvalues );
@@ -712,7 +712,7 @@ datamorph_op_modrdn( Operation *op, SlapReply *rs )
 			continue;
 		}
 
-		if ( avl_find(
+		if ( ldap_avl_find(
 					 ov->transformations, &needle, transformation_info_cmp ) ) {
 			rc = LDAP_CONSTRAINT_VIOLATION;
 			Debug( LDAP_DEBUG_TRACE, "datamorph_op_modrdn: "
@@ -751,7 +751,7 @@ datamorph_response( Operation *op, SlapReply *rs )
 
 		next = a->a_next;
 
-		t = avl_find( ov->transformations, &needle, transformation_info_cmp );
+		t = ldap_avl_find( ov->transformations, &needle, transformation_info_cmp );
 		if ( !t ) continue;
 
 		rc = transform_from_db_format(
@@ -867,7 +867,7 @@ datamorph_entry_get_rw(
 			transformation_info *t, needle = { .attr = a->a_desc };
 			BerVarray new_vals;
 
-			t = avl_find(
+			t = ldap_avl_find(
 					ov->transformations, &needle, transformation_info_cmp );
 			if ( !t ) continue;
 
@@ -1338,7 +1338,7 @@ datamorph_info_free( void *arg )
 	transformation_info *info = arg;
 
 	if ( info->type == DATAMORPH_ENUM ) {
-		avl_free( info->ti_enum.to_db, datamorph_mapping_free );
+		ldap_avl_free( info->ti_enum.to_db, datamorph_mapping_free );
 	}
 	ch_free( info );
 }
@@ -1357,7 +1357,7 @@ datamorph_set_attribute( ConfigArgs *ca )
 		ca->value_string = info->attr->ad_cname.bv_val;
 		return LDAP_SUCCESS;
 	} else if ( ca->op == LDAP_MOD_DELETE ) {
-		info = avl_delete( &ov->transformations, info,
+		info = ldap_avl_delete( &ov->transformations, info,
 				transformation_info_cmp );
 		assert( info );
 
@@ -1393,7 +1393,7 @@ datamorph_set_attribute( ConfigArgs *ca )
 	}
 
 	needle.attr = info->attr;
-	if ( avl_find( ov->transformations, &needle, transformation_info_cmp ) ) {
+	if ( ldap_avl_find( ov->transformations, &needle, transformation_info_cmp ) ) {
 		rc = LDAP_CONSTRAINT_VIOLATION;
 		goto done;
 	}
@@ -1702,8 +1702,8 @@ datamorph_add_transformation( ConfigArgs *ca )
 
 	if ( ov->wip_transformation ) {
 		/* We checked everything as were processing the lines */
-		int rc = avl_insert( &ov->transformations, ov->wip_transformation,
-				transformation_info_cmp, avl_dup_error );
+		int rc = ldap_avl_insert( &ov->transformations, ov->wip_transformation,
+				transformation_info_cmp, ldap_avl_dup_error );
 		assert( rc == LDAP_SUCCESS );
 	}
 
@@ -1767,8 +1767,8 @@ datamorph_add_mapping( ConfigArgs *ca )
 
 done:
 	if ( rc == LDAP_SUCCESS ) {
-		rc = avl_insert( &info->ti_enum.to_db, mapping,
-				transformation_mapping_cmp, avl_dup_error );
+		rc = ldap_avl_insert( &info->ti_enum.to_db, mapping,
+				transformation_mapping_cmp, ldap_avl_dup_error );
 	}
 	if ( rc ) {
 		ca->reply.err = rc;
@@ -1791,8 +1791,8 @@ fail:
 		return LDAP_SUCCESS;
 	}
 
-	if ( avl_insert( &ov->transformations, info, transformation_info_cmp,
-			avl_dup_error ) ) {
+	if ( ldap_avl_insert( &ov->transformations, info, transformation_info_cmp,
+			ldap_avl_dup_error ) ) {
 		goto fail;
 	}
 	return LDAP_SUCCESS;
@@ -1849,8 +1849,8 @@ fail:
 		return LDAP_SUCCESS;
 	}
 
-	if ( avl_insert( &info->ti_enum.to_db, mapping, transformation_mapping_cmp,
-			avl_dup_error ) ) {
+	if ( ldap_avl_insert( &info->ti_enum.to_db, mapping, transformation_mapping_cmp,
+			ldap_avl_dup_error ) ) {
 		goto fail;
 	}
 	info->ti_enum.from_db[mapping->db_value] = mapping->wire_value;
@@ -1962,7 +1962,7 @@ datamorph_config_build_attr( void *item, void *arg )
 		new_args.p = e;
 		new_args.index = 0;
 
-		return avl_apply( info->ti_enum.to_db, datamorph_config_build_enum,
+		return ldap_avl_apply( info->ti_enum.to_db, datamorph_config_build_enum,
 				&new_args, 1, AVL_PREORDER );
 	}
 
@@ -1984,12 +1984,12 @@ datamorph_cfadd( Operation *op, SlapReply *rs, Entry *p, ConfigArgs *ca )
 
 	if ( ov->wip_transformation ) {
 		/* There is one last item that is unfinished */
-		int rc = avl_insert( &ov->transformations, ov->wip_transformation,
-				transformation_info_cmp, avl_dup_error );
+		int rc = ldap_avl_insert( &ov->transformations, ov->wip_transformation,
+				transformation_info_cmp, ldap_avl_dup_error );
 		assert( rc == LDAP_SUCCESS );
 	}
 
-	return avl_apply( ov->transformations, &datamorph_config_build_attr, &args,
+	return ldap_avl_apply( ov->transformations, &datamorph_config_build_attr, &args,
 			1, AVL_PREORDER );
 }
 
@@ -2021,7 +2021,7 @@ datamorph_db_destroy( BackendDB *be, ConfigReply *cr )
 	datamorph_info *ov = on->on_bi.bi_private;
 
 	if ( ov ) {
-		avl_free( ov->transformations, datamorph_info_free );
+		ldap_avl_free( ov->transformations, datamorph_info_free );
 	}
 	ch_free( ov );
 

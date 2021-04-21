@@ -615,6 +615,7 @@ ldap_pvt_tls_config( LDAP *ld, int option, const char *arg )
 			return ldap_pvt_tls_set_option( ld, option, &i );
 		}
 		return -1;
+	case LDAP_OPT_X_TLS_PROTOCOL_MAX:
 	case LDAP_OPT_X_TLS_PROTOCOL_MIN: {
 		char *next;
 		long l;
@@ -733,6 +734,9 @@ ldap_pvt_tls_get_option( LDAP *ld, int option, void *arg )
 		break;
 	case LDAP_OPT_X_TLS_PROTOCOL_MIN:
 		*(int *)arg = lo->ldo_tls_protocol_min;
+		break;
+	case LDAP_OPT_X_TLS_PROTOCOL_MAX:
+		*(int *)arg = lo->ldo_tls_protocol_max;
 		break;
 	case LDAP_OPT_X_TLS_RANDOM_FILE:
 		*(char **)arg = lo->ldo_tls_randfile ?
@@ -960,6 +964,10 @@ ldap_pvt_tls_set_option( LDAP *ld, int option, void *arg )
 	case LDAP_OPT_X_TLS_PROTOCOL_MIN:
 		if ( !arg ) return -1;
 		lo->ldo_tls_protocol_min = *(int *)arg;
+		return 0;
+	case LDAP_OPT_X_TLS_PROTOCOL_MAX:
+		if ( !arg ) return -1;
+		lo->ldo_tls_protocol_max = *(int *)arg;
 		return 0;
 	case LDAP_OPT_X_TLS_RANDOM_FILE:
 		if ( ld != NULL )

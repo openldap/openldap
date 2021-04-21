@@ -275,6 +275,53 @@ tlso_ctx_free ( tls_ctx *ctx )
 	SSL_CTX_free( c );
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x10101000
+static char *
+tlso_stecpy( char *dst, const char *src, const char *end )
+{
+	while ( dst < end && *src )
+		*dst++ = *src++;
+	if ( dst < end )
+		*dst = '\0';
+	return dst;
+}
+
+/* OpenSSL 1.1.1 uses a separate API for TLS1.3 ciphersuites.
+ * Try to find any TLS1.3 ciphers in the given list of suites.
+ */
+static void
+tlso_ctx_cipher13( tlso_ctx *ctx, char *suites )
+{
+	char tls13_suites[1024], *ts = tls13_suites, *te = tls13_suites + sizeof(tls13_suites);
+	char *ptr, *colon, *nptr;
+	char sname[128];
+	int ret;
+
+	*ts = '\0';
+	for ( ptr = suites;; ) {
+		colon = strchr( ptr, ':' );
+		if ( colon ) {
+			int len = colon - ptr;
+			if ( len > 63 ) len = 63;
+			strncpy( sname, ptr, len );
+			sname[len] = '\0';
+			nptr = sname;
+		} else {
+			nptr = ptr;
+		}
+		if ( SSL_CTX_set_ciphersuites( ctx, nptr )) {
+			if ( tls13_suites[0] )
+				ts = tlso_stecpy( ts, ":", te );
+			ts = tlso_stecpy( ts, sname, te );
+		}
+		if ( !colon || ts >= te )
+			break;
+		ptr = colon+1;
+	}
+	SSL_CTX_set_ciphersuites( ctx, tls13_suites );
+}
+#endif /* OpenSSL 1.1.1 */
+
 /*
  * initialize a new TLS context
  */
@@ -289,47 +336,69 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			(const unsigned char *) "OpenLDAP", sizeof("OpenLDAP")-1 );
 	}
 
+	if ( lo->ldo_tls_protocol_min ) {
+		int opt = 0;
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL2 ) {
+			opt |= SSL_OP_NO_SSLv2;
+			SSL_CTX_clear_options( ctx, SSL_OP_NO_SSLv3 );
+		}
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL3 )
+			opt |= SSL_OP_NO_SSLv3;
 #ifdef SSL_OP_NO_TLSv1
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_0 )
+			opt |= SSL_OP_NO_TLSv1;
+#endif
 #ifdef SSL_OP_NO_TLSv1_1
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_1 )
+			opt |= SSL_OP_NO_TLSv1_1;
+#endif
 #ifdef SSL_OP_NO_TLSv1_2
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 )
+			opt |= SSL_OP_NO_TLSv1_2;
+#endif
 #ifdef SSL_OP_NO_TLSv1_3
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_3)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 |
-			SSL_OP_NO_TLSv1_2 | SSL_OP_NO_TLSv1_3 );
-	else
+		if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_3 )
+			opt |= SSL_OP_NO_TLSv1_3;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_2)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 |
-			SSL_OP_NO_TLSv1_2 );
-	else
+		if ( opt )
+			SSL_CTX_set_options( ctx, opt );
+	}
+	if ( lo->ldo_tls_protocol_max ) {
+		int opt = 0;
+#ifdef SSL_OP_NO_TLSv1_3
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_3 )
+			opt |= SSL_OP_NO_TLSv1_3;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_1)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1 );
-	else
+#ifdef SSL_OP_NO_TLSv1_2
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_2 )
+			opt |= SSL_OP_NO_TLSv1_2;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_TLS1_0)
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-			SSL_OP_NO_TLSv1);
-	else
+#ifdef SSL_OP_NO_TLSv1_1
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_1 )
+			opt |= SSL_OP_NO_TLSv1_1;
 #endif
-	if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL3 )
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 );
-	else if ( lo->ldo_tls_protocol_min > LDAP_OPT_X_TLS_PROTOCOL_SSL2 ) {
-		SSL_CTX_set_options( ctx, SSL_OP_NO_SSLv2 );
-		SSL_CTX_clear_options( ctx, SSL_OP_NO_SSLv3 );
+#ifdef SSL_OP_NO_TLSv1
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_TLS1_0 )
+			opt |= SSL_OP_NO_TLSv1;
+#endif
+		if ( lo->ldo_tls_protocol_max < LDAP_OPT_X_TLS_PROTOCOL_SSL3 )
+			opt |= SSL_OP_NO_SSLv3;
+		if ( opt )
+			SSL_CTX_set_options( ctx, opt );
 	}
 
-	if ( lo->ldo_tls_ciphersuite &&
-		!SSL_CTX_set_cipher_list( ctx, lt->lt_ciphersuite ) )
-	{
-		Debug1( LDAP_DEBUG_ANY,
-			   "TLS: could not set cipher list %s.\n",
-			   lo->ldo_tls_ciphersuite );
-		tlso_report_error();
-		return -1;
+	if ( lo->ldo_tls_ciphersuite ) {
+#if OPENSSL_VERSION_NUMBER >= 0x10101000
+		tlso_ctx_cipher13( ctx, lt->lt_ciphersuite );
+#endif
+		if ( !SSL_CTX_set_cipher_list( ctx, lt->lt_ciphersuite ) )
+		{
+			Debug1( LDAP_DEBUG_ANY,
+				   "TLS: could not set cipher list %s.\n",
+				   lo->ldo_tls_ciphersuite );
+			tlso_report_error();
+			return -1;
+		}
 	}
 
 	if ( lo->ldo_tls_cacertfile == NULL && lo->ldo_tls_cacertdir == NULL &&
@@ -396,8 +465,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		X509_free( cert );
 	} else
 	if ( lo->ldo_tls_certfile &&
-		!SSL_CTX_use_certificate_file( ctx,
-			lt->lt_certfile, SSL_FILETYPE_PEM ) )
+		!SSL_CTX_use_certificate_chain_file( ctx, lt->lt_certfile) )
 	{
 		Debug1( LDAP_DEBUG_ANY,
 			"TLS: could not use certificate file `%s'.\n",

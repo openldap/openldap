@@ -931,7 +931,7 @@ The actual policy would be:
 >       dn: cn=default,ou=policies,dc=example,dc=com
 >       cn: default
 >       objectClass: pwdPolicy
->       objectClass: person
+>       objectClass: namedPolicy
 >       objectClass: top
 >       pwdAllowUserChange: TRUE
 >       pwdAttribute: userPassword
@@ -948,10 +948,11 @@ The actual policy would be:
 >       pwdMinLength: 5
 >       pwdMustChange: FALSE
 >       pwdSafeModify: FALSE
->       sn: dummy value
 
 You can create additional policy objects as needed. 
 
+The namedPolicy object class is present because the policy entry
+requires a structural object class.
 
 There are two ways password policy can be applied to individual objects:
 

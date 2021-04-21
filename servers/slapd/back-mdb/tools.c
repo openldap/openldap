@@ -675,6 +675,8 @@ ID mdb_tool_entry_put(
 				 text->bv_val );
 			return NOID;
 		}
+	}
+	if ( !idcursor ) {
 		rc = mdb_cursor_open( mdb_tool_txn, mdb->mi_id2entry, &idcursor );
 		if( rc != 0 ) {
 			snprintf( text->bv_val, text->bv_len,

@@ -20,6 +20,8 @@
 #include "lber_pvt.h"
 #include "lutil.h"
 
+#include "slap.h"
+
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -215,6 +217,22 @@ int init_module( int argc, char *argv[] )
 				return -1;
 		}
 	}
+
+#ifndef HAVE_LIBARGON2
+	/* At the moment, we can only use libargon2 to set parallelism for new
+	 * hashes */
+	if ( parallelism != SLAPD_ARGON2_PARALLELISM ) {
+		Debug( LDAP_DEBUG_ANY, "pw-argon2: "
+				"non-default parallelism only supported when linked with "
+				"libargon2, got p=%lu\n",
+				parallelism );
+
+		if ( (slapMode & SLAP_MODE) != SLAP_TOOL_MODE ||
+				slapTool == SLAPPASSWD || slapTool == SLAPTEST ) {
+			return 1;
+		}
+	}
+#endif
 
 	return lutil_passwd_add( (struct berval *)&slapd_argon2_scheme,
 			slapd_argon2_verify, slapd_argon2_hash );

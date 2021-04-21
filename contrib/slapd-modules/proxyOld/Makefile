@@ -20,7 +20,7 @@ LDAP_LIB = $(LDAP_BUILD)/libraries/libldap/libldap.la \
 
 LIBTOOL = $(LDAP_BUILD)/libtool
 CC = gcc
-OPT = -g -O2 -Wall
+OPT = -g -O2
 DEFS = 
 INCS = $(LDAP_INC)
 LIBS = $(LDAP_LIB)
@@ -39,12 +39,12 @@ moduledir = $(libexecdir)$(ldap_subdir)
 .SUFFIXES: .c .o .lo
 
 .c.lo:
-	$(LIBTOOL) --mode=compile $(CC) $(OPT) $(DEFS) $(INCS) -c $<
+	$(LIBTOOL) --mode=compile $(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(DEFS) $(INCS) -c $<
 
 all: $(PROGRAMS)
 
 proxyOld.la:	proxyOld.lo
-	$(LIBTOOL) --mode=link $(CC) $(OPT) -version-info $(LTVER) \
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
 	-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
 clean:

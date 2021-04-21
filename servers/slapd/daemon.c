@@ -41,6 +41,10 @@
 
 #include "ldap_rq.h"
 
+#ifdef HAVE_SYSTEMD_SD_DAEMON_H
+#include <systemd/sd-daemon.h>
+#endif
+
 #ifdef HAVE_POLL
 #include <poll.h>
 #endif
@@ -110,6 +114,10 @@ static volatile int waking;
 		(void)!tcp_write( SLAP_FD2SOCK(wake_sds[l][1]), "0", 1 ); \
 	} \
 } while (0)
+
+ldap_pvt_thread_mutex_t slapd_init_mutex;
+ldap_pvt_thread_cond_t slapd_init_cond;
+int slapd_ready = 0;
 
 volatile sig_atomic_t slapd_shutdown = 0;
 volatile sig_atomic_t slapd_gentle_shutdown = 0;
@@ -2589,6 +2597,10 @@ slapd_daemon_task(
 				"daemon: listen(%s, 5) failed errno=%d (%s)\n",
 					slap_listeners[l]->sl_url.bv_val, err,
 					sock_errstr(err, ebuf, sizeof(ebuf)) );
+			ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
+			slapd_shutdown = 2;
+			ldap_pvt_thread_cond_signal( &slapd_init_cond );
+			ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 			return (void*)-1;
 		}
 
@@ -2596,12 +2608,20 @@ slapd_daemon_task(
 		if ( ber_pvt_socket_set_nonblock( SLAP_FD2SOCK( slap_listeners[l]->sl_sd ), 1 ) < 0 ) {
 			Debug( LDAP_DEBUG_ANY, "slapd_daemon_task: "
 				"set nonblocking on a listening socket failed\n" );
+			ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
 			slapd_shutdown = 2;
+			ldap_pvt_thread_cond_signal( &slapd_init_cond );
+			ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 			return (void*)-1;
 		}
 
 		slapd_add( slap_listeners[l]->sl_sd, 0, slap_listeners[l], -1 );
 	}
+
+	ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
+	slapd_ready = 1;
+	ldap_pvt_thread_cond_signal( &slapd_init_cond );
+	ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 
 #ifdef HAVE_NT_SERVICE_MANAGER
 	if ( started_event != NULL ) {
@@ -3312,6 +3332,26 @@ slapd_daemon( void )
 			return rc;
 		}
 	}
+
+	ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
+	while ( !slapd_ready && !slapd_shutdown ) {
+		ldap_pvt_thread_cond_wait( &slapd_init_cond, &slapd_init_mutex );
+	}
+	ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
+
+	if ( slapd_shutdown ) {
+		Debug( LDAP_DEBUG_ANY,
+			"listener initialization failed\n" );
+		return 1;
+	}
+
+#ifdef HAVE_SYSTEMD
+	rc = sd_notify( 1, "READY=1" );
+	if ( rc < 0 ) {
+		Debug( LDAP_DEBUG_ANY,
+			"systemd sd_notify failed (%d)\n", rc );
+	}
+#endif /* HAVE_SYSTEMD */
 
   	/* wait for the listener threads to complete */
 	for ( i=0; i<slapd_daemon_threads; i++ )

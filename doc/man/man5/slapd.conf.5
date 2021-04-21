@@ -747,8 +747,9 @@ help analyze the logs.
 Specify the maximum depth of nested filters in search requests.
 The default is 1000.
 .TP
-.B moduleload <filename>
-Specify the name of a dynamically loadable module to load. The filename
+.B moduleload <filename> [<arguments>...]
+Specify the name of a dynamically loadable module to load and any
+additional arguments if supported by the module. The filename
 may be an absolute path name or a simple filename. Non-absolute names
 are searched for in the directories specified by the
 .B modulepath
@@ -1148,7 +1149,7 @@ Specifies the file that contains certificates for all of the Certificate
 Authorities that
 .B slapd
 will recognize.  The certificate for
-the CA that signed the server certificate must be included among
+the CA that signed the server certificate must(GnuTLS)/may(OpenSSL) be included among
 these certificates. If the signing CA was not a top-level (root) CA,
 certificates for the entire sequence of CA's from the signing CA to
 the top-level CA should be present. Multiple certificates are simply
@@ -1164,6 +1165,9 @@ locations will be used.
 Specifies the file that contains the
 .B slapd
 server certificate.
+
+When using OpenSSL that file may also contain any number of intermediate
+certificates after the server certificate.
 .TP
 .B TLSCertificateKeyFile <filename>
 Specifies the file that contains the
