@@ -462,6 +462,7 @@ monitor_back_register_entry(
 	unsigned long		flags )
 {
 	monitor_info_t 	*mi;
+	int rc = 0;
 
 	if ( be_monitor == NULL ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -484,7 +485,6 @@ monitor_back_register_entry(
 		struct berval	pdn = BER_BVNULL;
 		monitor_entry_t *mp = NULL,
 				*mp_parent = NULL;
-		int		rc = 0;
 
 		if ( monitor_cache_get( mi, &e->e_nname, &e_parent ) == 0 ) {
 			/* entry exists */
@@ -615,7 +615,7 @@ done:;
 		**elpp = el;
 	}
 
-	return 0;
+	return rc;
 }
 
 int
