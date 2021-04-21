@@ -139,6 +139,9 @@ ldap_create( LDAP **ldp )
 	ld->ld_options.ldo_defludp = NULL;
 	ld->ld_options.ldo_conn_cbs = NULL;
 
+	ld->ld_options.ldo_defbase = gopts->ldo_defbase
+		? LDAP_STRDUP( gopts->ldo_defbase ) : NULL;
+
 #ifdef HAVE_CYRUS_SASL
 	ld->ld_options.ldo_def_sasl_mech = gopts->ldo_def_sasl_mech
 		? LDAP_STRDUP( gopts->ldo_def_sasl_mech ) : NULL;
