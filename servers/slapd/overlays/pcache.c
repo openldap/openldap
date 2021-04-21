@@ -87,6 +87,7 @@ typedef struct cached_query_s {
 	int						bind_refcnt;	/* number of bind operation referencing this query */
 	unsigned long			answerable_cnt; /* how many times it was answerable */
 	int						refcnt;	/* references since last refresh */
+	int						in_lru;	/* query is in LRU list */
 	ldap_pvt_thread_mutex_t		answerable_cnt_mutex;
 	struct cached_query_s  		*next;  	/* next query in the template */
 	struct cached_query_s  		*prev;  	/* previous query in the template */
@@ -1044,6 +1045,7 @@ add_query_on_top (query_manager* qm, CachedQuery* qc)
 {
 	CachedQuery* top = qm->lru_top;
 
+	qc->in_lru = 1;
 	qm->lru_top = qc;
 
 	if (top)
@@ -1065,9 +1067,10 @@ remove_query (query_manager* qm, CachedQuery* qc)
 	CachedQuery* up;
 	CachedQuery* down;
 
-	if (!qc)
+	if (!qc || !qc->in_lru)
 		return;
 
+	qc->in_lru = 0;
 	up = qc->lru_up;
 	down = qc->lru_down;
 
@@ -3515,6 +3518,7 @@ consistency_check(
 	Operation *op;
 
 	CachedQuery *query, *qprev;
+	CachedQuery *expires = NULL;
 	int return_val, pause = PCACHE_CC_PAUSED;
 	QueryTemplate *templ;
 
@@ -3548,6 +3552,9 @@ consistency_check(
 			ttl += op->o_time;
 		}
 
+		Debug( pcache_debug, "Lock CR index = %p\n",
+				(void *) templ, 0, 0 );
+		ldap_pvt_thread_rdwr_wlock(&templ->t_rwlock);
 		for ( query=templ->query_last; query; query=qprev ) {
 			qprev = query->prev;
 			if ( query->refresh_time && query->refresh_time < op->o_time ) {
@@ -3559,56 +3566,29 @@ consistency_check(
 				if ( query->refcnt )
 					query->expiry_time = op->o_time + templ->ttl;
 				if ( query->expiry_time > op->o_time ) {
-					refresh_query( op, query, on );
+					/* perform actual refresh below */
 					continue;
 				}
 			}
 
 			if (query->expiry_time < op->o_time) {
 				int rem = 0;
-				Debug( pcache_debug, "Lock CR index = %p\n",
-						(void *) templ, 0, 0 );
-				ldap_pvt_thread_rdwr_wlock(&templ->t_rwlock);
-				if ( query == templ->query_last ) {
-					rem = 1;
-					remove_from_template(query, templ);
-					Debug( pcache_debug, "TEMPLATE %p QUERIES-- %d\n",
-							(void *) templ, templ->no_of_queries, 0 );
-					Debug( pcache_debug, "Unlock CR index = %p\n",
-							(void *) templ, 0, 0 );
-				}
-				if ( !rem ) {
-					ldap_pvt_thread_rdwr_wunlock(&templ->t_rwlock);
+				if ( query != templ->query_last )
 					continue;
-				}
 				ldap_pvt_thread_mutex_lock(&qm->lru_mutex);
-				remove_query(qm, query);
-				ldap_pvt_thread_mutex_unlock(&qm->lru_mutex);
-				if ( BER_BVISNULL( &query->q_uuid ))
-					return_val = 0;
-				else
-					return_val = remove_query_data(op, &query->q_uuid);
-				Debug( pcache_debug, "STALE QUERY REMOVED, SIZE=%d\n",
-							return_val, 0, 0 );
-				ldap_pvt_thread_mutex_lock(&cm->cache_mutex);
-				cm->cur_entries -= return_val;
-				cm->num_cached_queries--;
-				Debug( pcache_debug, "STORED QUERIES = %lu\n",
-						cm->num_cached_queries, 0, 0 );
-				ldap_pvt_thread_mutex_unlock(&cm->cache_mutex);
-				Debug( pcache_debug,
-					"STALE QUERY REMOVED, CACHE ="
-					"%d entries\n",
-					cm->cur_entries, 0, 0 );
-				ldap_pvt_thread_rdwr_wlock( &query->rwlock );
-				if ( query->bind_refcnt-- ) {
-					rem = 0;
-				} else {
+				if (query->in_lru) {
+					remove_query(qm, query);
 					rem = 1;
 				}
-				ldap_pvt_thread_rdwr_wunlock( &query->rwlock );
-				if ( rem ) free_query(query);
-				ldap_pvt_thread_rdwr_wunlock(&templ->t_rwlock);
+				ldap_pvt_thread_mutex_unlock(&qm->lru_mutex);
+				if (!rem)
+					continue;
+				remove_from_template(query, templ);
+				Debug( pcache_debug, "TEMPLATE %p QUERIES-- %d\n",
+						(void *) templ, templ->no_of_queries, 0 );
+				query->prev = expires;
+				expires = query;
+				query->qtemp = NULL;
 			} else if ( !templ->ttr && query->expiry_time > ttl ) {
 				/* We don't need to check for refreshes, and this
 				 * query's expiry is too new, and all subsequent queries
@@ -3619,6 +3599,56 @@ consistency_check(
 				 */
 				break;
 			}
+		}
+		Debug( pcache_debug, "Unlock CR index = %p\n",
+				(void *) templ, 0, 0 );
+		ldap_pvt_thread_rdwr_wunlock(&templ->t_rwlock);
+		for ( query=expires; query; query=qprev ) {
+			int rem;
+			qprev = query->prev;
+			if ( BER_BVISNULL( &query->q_uuid ))
+				return_val = 0;
+			else
+				return_val = remove_query_data(op, &query->q_uuid);
+			Debug( pcache_debug, "STALE QUERY REMOVED, SIZE=%d\n",
+						return_val, 0, 0 );
+			ldap_pvt_thread_mutex_lock(&cm->cache_mutex);
+			cm->cur_entries -= return_val;
+			cm->num_cached_queries--;
+			Debug( pcache_debug, "STORED QUERIES = %lu\n",
+					cm->num_cached_queries, 0, 0 );
+			ldap_pvt_thread_mutex_unlock(&cm->cache_mutex);
+			Debug( pcache_debug,
+				"STALE QUERY REMOVED, CACHE ="
+				"%d entries\n",
+				cm->cur_entries, 0, 0 );
+			ldap_pvt_thread_rdwr_wlock( &query->rwlock );
+			if ( query->bind_refcnt-- ) {
+				rem = 0;
+			} else {
+				rem = 1;
+			}
+			ldap_pvt_thread_rdwr_wunlock( &query->rwlock );
+			if ( rem ) free_query(query);
+		}
+
+		/* handle refreshes that we skipped earlier */
+		if ( templ->ttr ) {
+			ldap_pvt_thread_rdwr_rlock(&templ->t_rwlock);
+			for ( query=templ->query_last; query; query=qprev ) {
+				qprev = query->prev;
+				if ( query->refresh_time && query->refresh_time < op->o_time ) {
+					/* A refresh will extend the expiry if the query has been
+					 * referenced, but not if it's unreferenced. If the
+					 * expiration has been hit, then skip the refresh since
+					 * we're just going to discard the result anyway.
+					 */
+					if ( query->expiry_time > op->o_time ) {
+						refresh_query( op, query, on );
+					}
+				}
+			}
+			ldap_pvt_thread_rdwr_runlock(&templ->t_rwlock);
 		}
 	}
 
