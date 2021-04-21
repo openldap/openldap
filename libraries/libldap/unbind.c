@@ -192,6 +192,11 @@ ldap_ld_free(
 	}
 #endif
 
+	if ( ld->ld_options.ldo_defbase != NULL ) {
+		LDAP_FREE( ld->ld_options.ldo_defbase );
+		ld->ld_options.ldo_defbase = NULL;
+	}
+
 #ifdef HAVE_CYRUS_SASL
 	if ( ld->ld_options.ldo_def_sasl_mech != NULL ) {
 		LDAP_FREE( ld->ld_options.ldo_def_sasl_mech );
