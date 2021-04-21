@@ -249,7 +249,19 @@ handle_one_response( LloadConnection *c )
         }
     }
     if ( op ) {
-        op->o_last_response = slap_get_time();
+        struct timeval tv, tvdiff;
+        uintptr_t diff;
+
+        gettimeofday( &tv, NULL );
+        if ( !timerisset( &op->o_last_response ) ) {
+            timersub( &tv, &op->o_start, &tvdiff );
+            diff = 1000000 * tvdiff.tv_sec + tvdiff.tv_usec;
+
+            __atomic_add_fetch( &c->c_operation_count, 1, __ATOMIC_RELAXED );
+            __atomic_add_fetch( &c->c_operation_time, diff, __ATOMIC_RELAXED );
+        }
+        op->o_last_response = tv;
+
         Debug( LDAP_DEBUG_STATS2, "handle_one_response: "
                 "upstream connid=%lu, processing response for "
                 "client connid=%lu, msgid=%d\n",

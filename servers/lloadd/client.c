@@ -147,7 +147,7 @@ request_process( LloadConnection *client, LloadOperation *op )
                 client->c_restricted_inflight == 0 &&
                 client->c_restricted_at >= 0 &&
                 client->c_restricted_at + lload_write_coherence <
-                    op->o_start ) {
+                    op->o_start.tv_sec ) {
             Debug( LDAP_DEBUG_TRACE, "request_process: "
                     "connid=%lu write coherence to backend '%s' expired\n",
                     client->c_connid, client->c_backend->b_name.bv_val );

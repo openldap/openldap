@@ -474,6 +474,9 @@ struct LloadConnection {
 
     TAvlnode *c_ops; /* Operations pending on the connection */
 
+    uintptr_t c_operation_count;
+    uintptr_t c_operation_time;
+
 #ifdef HAVE_TLS
     enum lload_tls_type c_is_tls; /* true if this LDAP over raw TLS */
 #endif
@@ -532,13 +535,13 @@ struct LloadOperation {
     LloadConnection *o_upstream;
     unsigned long o_upstream_connid;
     ber_int_t o_upstream_msgid;
-    time_t o_last_response;
+    struct timeval o_last_response;
 
     /* Protects o_client, o_upstream links */
     ldap_pvt_thread_mutex_t o_link_mutex;
 
     ber_tag_t o_tag;
-    time_t o_start;
+    struct timeval o_start;
     unsigned long o_pin_id;
 
     enum op_result o_res;

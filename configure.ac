@@ -2206,6 +2206,12 @@ fi
 dnl ----------------------------------------------------------------
 dnl Libevent
 if test $ol_enable_balancer != no ; then
+	AC_MSG_CHECKING(compiler support for atomics)
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([],
+		[[__atomic_thread_fence( __ATOMIC_ACQUIRE );]])],
+		[AC_MSG_RESULT(yes)],
+		[AC_MSG_ERROR(["Balancer requires support for atomic operations"])])
+
 	AC_CHECK_LIB(event_extra, evdns_base_new,
 		[have_libevent=yes
 		LEVENT_LIBS="$LEVENT_LIBS -levent_core -levent_extra"],

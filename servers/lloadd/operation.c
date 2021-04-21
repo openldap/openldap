@@ -146,7 +146,7 @@ operation_init( LloadConnection *c, BerElement *ber )
     op->o_client = c;
     op->o_client_connid = c->c_connid;
     op->o_ber = ber;
-    op->o_start = slap_get_time();
+    gettimeofday( &op->o_start, NULL );
 
     ldap_pvt_thread_mutex_init( &op->o_link_mutex );
 
@@ -288,15 +288,16 @@ operation_unlink_client( LloadOperation *op, LloadConnection *client )
         client->c_n_ops_executing--;
 
         if ( op->o_restricted == LLOAD_OP_RESTRICTED_WRITE ) {
-            if ( !--client->c_restricted_inflight && client->c_restricted_at >= 0 ) {
+            if ( !--client->c_restricted_inflight &&
+                    client->c_restricted_at >= 0 ) {
                 if ( lload_write_coherence < 0 ) {
                     client->c_restricted_at = -1;
-                } else if ( op->o_last_response ) {
-                    client->c_restricted_at = op->o_last_response;
+                } else if ( timerisset( &op->o_last_response ) ) {
+                    client->c_restricted_at = op->o_last_response.tv_sec;
                 } else {
                     /* We have to default to o_start just in case we abandoned an
                      * operation that the backend actually processed */
-                    client->c_restricted_at = op->o_start;
+                    client->c_restricted_at = op->o_start.tv_sec;
                 }
             }
         }
@@ -547,13 +548,13 @@ connection_timeout( LloadConnection *upstream, void *arg )
     LloadOperation *op;
     TAvlnode *ops = NULL, *node, *next;
     LloadBackend *b = upstream->c_backend;
-    time_t threshold = *(time_t *)arg;
+    struct timeval *threshold = arg;
     int rc, nops = 0;
 
     CONNECTION_LOCK(upstream);
-    for ( node = ldap_tavl_end( upstream->c_ops, TAVL_DIR_LEFT ); node &&
-            ((LloadOperation *)node->avl_data)->o_start <
-                    threshold; /* shortcut */
+    for ( node = ldap_tavl_end( upstream->c_ops, TAVL_DIR_LEFT );
+            node && timercmp( &((LloadOperation *)node->avl_data)->o_start,
+                    threshold, < ); /* shortcut */
             node = next ) {
         LloadOperation *found_op;
 
@@ -561,7 +562,8 @@ connection_timeout( LloadConnection *upstream, void *arg )
         op = node->avl_data;
 
         /* Have we received another response since? */
-        if ( op->o_last_response && op->o_last_response >= threshold ) {
+        if ( timerisset( &op->o_last_response ) &&
+                !timercmp( &op->o_last_response, threshold, < ) ) {
             continue;
         }
 
