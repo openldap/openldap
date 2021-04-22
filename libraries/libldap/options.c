@@ -418,6 +418,11 @@ ldap_get_option(
 		rc = LDAP_OPT_SUCCESS;
 		break;
 
+	case LDAP_OPT_TCP_USER_TIMEOUT:
+		* (unsigned int *) outvalue = lo->ldo_tcp_user_timeout;
+		rc = LDAP_OPT_SUCCESS;
+		break;
+
 	default:
 #ifdef HAVE_TLS
 		if ( ldap_pvt_tls_get_option( ld, option, outvalue ) == 0 ) {
@@ -842,6 +847,7 @@ ldap_set_option(
 	case LDAP_OPT_X_KEEPALIVE_IDLE:
 	case LDAP_OPT_X_KEEPALIVE_PROBES :
 	case LDAP_OPT_X_KEEPALIVE_INTERVAL :
+	case LDAP_OPT_TCP_USER_TIMEOUT:
 		if(invalue == NULL) {
 			/* no place to set from */
 			LDAP_MUTEX_UNLOCK( &lo->ldo_mutex );
@@ -960,6 +966,10 @@ ldap_set_option(
 		break;
 	case LDAP_OPT_X_KEEPALIVE_INTERVAL :
 		lo->ldo_keepalive_interval = * (const int *) invalue;
+		rc = LDAP_OPT_SUCCESS;
+		break;
+	case LDAP_OPT_TCP_USER_TIMEOUT:
+		lo->ldo_tcp_user_timeout = * (const unsigned int *) invalue;
 		rc = LDAP_OPT_SUCCESS;
 		break;
 	

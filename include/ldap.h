@@ -133,6 +133,7 @@ LDAP_BEGIN_DECL
 #define	LDAP_OPT_SESSION_REFCNT		0x5012	/* session reference count */
 #define	LDAP_OPT_KEEPCONN		0x5013	/* keep the connection on read error or NoD */
 #define	LDAP_OPT_SOCKET_BIND_ADDRESSES	0x5014	/* user configured bind IPs */
+#define	LDAP_OPT_TCP_USER_TIMEOUT	0x5015	/* set TCP_USER_TIMEOUT if the OS supports it, ignored otherwise */
 
 /* OpenLDAP TLS options */
 #define LDAP_OPT_X_TLS				0x6000

@@ -248,6 +248,12 @@ struct ldapoptions {
 	ber_int_t ldo_keepalive_probes;
 	ber_int_t ldo_keepalive_interval;
 
+	/*
+	 * Per connection tcp user timeout (Linux >= 2.6.37 only,
+	 * ignored where unsupported)
+	 */
+	ber_uint_t ldo_tcp_user_timeout;
+
 	int		ldo_refhoplimit;	/* limit on referral nesting */
 
 	/* LDAPv3 server and client controls */
@@ -267,7 +273,7 @@ struct ldapoptions {
 
 	LDAP_BOOLEANS ldo_booleans;	/* boolean options */
 
-#define LDAP_LDO_NULLARG	,0,0,0,0 ,{0},{0} ,0,0,0,0, 0,0,0,0, 0,0, 0,0,0,0,0,0, 0, 0
+#define LDAP_LDO_NULLARG	,0,0,0,0 ,{0},{0} ,0,0,0,0, 0,0,0,0,0, 0,0, 0,0,0,0,0,0, 0, 0
 
 	/* LDAP user configured bind IPs */
 	struct ldapsourceip ldo_local_ip_addrs;

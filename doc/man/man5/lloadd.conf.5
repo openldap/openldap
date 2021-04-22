@@ -598,6 +598,7 @@ option. The authentication configuration is shared between them.
 .B [secprops=<properties>]
 .B [timeout=<seconds>]
 .B [network\-timeout=<seconds>]
+.B [tcp\-user\-timeout=<milliseconds>]
 
 Specifies the bind credentials
 .B lloadd
@@ -655,6 +656,14 @@ Bind request to complete.
 
 Timeout set to 0 means no timeout is in effect and by default, no timeouts are
 in effect.
+
+The
+.B tcp\-user\-timeout
+parameter, if non-zero, corresponds to the
+.B TCP_USER_TIMEOUT
+set on the upstream connections, overriding the operating system setting.
+Only some systems support the customization of this parameter, it is
+ignored otherwise and system-wide settings are used.
 
 .SH BACKEND OPTIONS
 
@@ -830,6 +839,7 @@ default lloadd configuration file
 .BR ldap (3),
 .BR gnutls\-cli (1),
 .BR slapd.conf (5),
+.BR tcp (7),
 .BR lloadd (8),
 .BR slapd (8).
 .LP

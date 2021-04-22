@@ -67,6 +67,7 @@ enum {
 	LDAP_BACK_CFG_ONERR,
 
 	LDAP_BACK_CFG_KEEPALIVE,
+	LDAP_BACK_CFG_TCP_USER_TIMEOUT,
 
 	LDAP_BACK_CFG_OMIT_UNKNOWN_SCHEMA,
 
@@ -308,6 +309,14 @@ static ConfigTable ldapcfg[] = {
 			"DESC 'TCP keepalive' "
 			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString "
+			"SINGLE-VALUE )",
+		NULL, NULL },
+	{ "tcp-user-timeout", "milliseconds", 2, 2, 0,
+		ARG_MAGIC|ARG_UINT|LDAP_BACK_CFG_TCP_USER_TIMEOUT,
+		ldap_back_cf_gen, "( OLcfgDbAt:3.30 "
+			"NAME 'olcDbTcpUserTimeout' "
+			"DESC 'TCP User Timeout' "
+			"SYNTAX OMsInteger "
 			"SINGLE-VALUE )",
 		NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED,
@@ -1364,6 +1373,10 @@ ldap_back_cf_gen( ConfigArgs *c )
 			break;
 			}
 
+		case LDAP_BACK_CFG_TCP_USER_TIMEOUT:
+			c->value_uint = li->li_tls.sb_tcp_user_timeout;
+			break;
+
 		default:
 			/* FIXME: we need to handle all... */
 			assert( 0 );
@@ -1524,6 +1537,10 @@ ldap_back_cf_gen( ConfigArgs *c )
 			li->li_tls.sb_keepalive.sk_idle = 0;
 			li->li_tls.sb_keepalive.sk_probes = 0;
 			li->li_tls.sb_keepalive.sk_interval = 0;
+			break;
+
+		case LDAP_BACK_CFG_TCP_USER_TIMEOUT:
+			li->li_tls.sb_tcp_user_timeout = 0;
 			break;
 
 		default:
@@ -2038,7 +2055,11 @@ done_url:;
 		slap_keepalive_parse( ber_bvstrdup(c->argv[1]),
 				 &li->li_tls.sb_keepalive, 0, 0, 0);
 		break;
-		
+
+	case LDAP_BACK_CFG_TCP_USER_TIMEOUT:
+		li->li_tls.sb_tcp_user_timeout = c->value_uint;
+		break;
+
 	default:
 		/* FIXME: try to catch inconsistencies */
 		assert( 0 );
