@@ -343,9 +343,9 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 LDIF=$DATADIR/lloadd/monitor.ldif
 
 echo "Filtering ldapsearch results..."
-$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER -s e < $SEARCHOUT > $SEARCHFLT
 echo "Filtering original ldif used to create database..."
-$LDIFFILTER < $LDIF > $LDIFFLT
+$LDIFFILTER -s e < $LDIF > $LDIFFLT
 echo "Comparing filter output..."
 $CMP $SEARCHFLT $LDIFFLT > $CMPOUT
 

@@ -495,6 +495,10 @@ struct LloadConnection {
 
     TAvlnode *c_linked;
 
+#ifdef BALANCER_MODULE
+    struct berval c_monitor_dn;
+#endif /* BALANCER_MODULE */
+
     /*
      * Protected by the CIRCLEQ mutex:
      * - Client: clients_mutex
@@ -582,12 +586,6 @@ struct LloadListener {
 };
 
 typedef int (*CONNCB)( LloadConnection *c, void *arg );
-
-struct lload_monitor_conn_arg {
-    Operation *op;
-    monitor_subsys_t *ms;
-    Entry **ep;
-};
 
 /* config requires a bi_private with configuration data - dummy for now */
 struct lload_conf_info {

@@ -966,6 +966,12 @@ upstream_init( ber_socket_t s, LloadBackend *b )
     c->c_destroy = upstream_destroy;
     c->c_unlink = upstream_unlink;
 
+#ifdef BALANCER_MODULE
+    if ( b->b_monitor && lload_monitor_conn_entry_create( c, b->b_monitor ) ) {
+        goto fail;
+    }
+#endif /* BALANCER_MODULE */
+
 #ifdef HAVE_TLS
     if ( c->c_is_tls == LLOAD_CLEARTEXT ) {
 #endif /* HAVE_TLS */
@@ -1122,6 +1128,17 @@ upstream_destroy( LloadConnection *c )
 
     CONNECTION_LOCK(c);
     assert( c->c_state == LLOAD_C_DYING );
+
+#ifdef BALANCER_MODULE
+    /*
+     * Can't do this in upstream_unlink as that could be run from cn=monitor
+     * modify callback.
+     */
+    if ( !BER_BVISNULL( &c->c_monitor_dn ) ) {
+        lload_monitor_conn_unlink( c );
+    }
+#endif /* BALANCER_MODULE */
+
     c->c_state = LLOAD_C_INVALID;
 
     assert( c->c_ops == NULL );
