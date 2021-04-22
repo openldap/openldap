@@ -531,6 +531,31 @@ done:
     return rc;
 }
 
+static int
+lload_monitor_conn_modify( Operation *op, SlapReply *rs, Entry *e, void *priv )
+{
+    Modifications *m;
+    LloadConnection *c = priv;
+
+    for ( m = op->orm_modlist; m; m = m->sml_next ) {
+        struct berval closing = BER_BVC("closing");
+        int gentle = 1;
+
+        if ( m->sml_flags & SLAP_MOD_INTERNAL ) continue;
+
+        if ( m->sml_desc != ad_olmConnectionState ||
+                m->sml_op != LDAP_MOD_REPLACE || m->sml_numvals != 1 ||
+                ber_bvcmp( &m->sml_nvalues[0], &closing ) ) {
+            return LDAP_OTHER;
+        }
+
+        if ( lload_connection_close( c, &gentle ) ) {
+            return LDAP_OTHER;
+        }
+    }
+    return SLAP_CB_CONTINUE;
+}
+
 /*
  * Monitor cache is locked, the connection cannot be unlinked and freed under us.
  * That also means we need to unlock and finish as soon as possible.
@@ -701,6 +726,7 @@ lload_monitor_conn_entry_create( LloadConnection *c, monitor_subsys_t *ms )
 
     cb = ch_calloc( sizeof(monitor_callback_t), 1 );
     cb->mc_update = lload_monitor_conn_update;
+    cb->mc_modify = lload_monitor_conn_modify;
     cb->mc_private = c;
 
     attr_merge_one( e, ad_olmConnectionType, &value, NULL );
