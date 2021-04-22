@@ -608,6 +608,14 @@ client_init(
     /* We only register the write event when we have data pending */
     event_add( c->c_read_event, c->c_read_timeout );
 
+#ifdef BALANCER_MODULE
+    if ( lload_monitor_client_subsys &&
+            lload_monitor_conn_entry_create(
+                    c, lload_monitor_client_subsys ) ) {
+        goto fail;
+    }
+#endif /* BALANCER_MODULE */
+
     checked_lock( &clients_mutex );
     LDAP_CIRCLEQ_INSERT_TAIL( &clients, c, c_next );
     checked_unlock( &clients_mutex );
@@ -741,6 +749,17 @@ client_destroy( LloadConnection *c )
 
     CONNECTION_LOCK(c);
     assert( c->c_state == LLOAD_C_DYING );
+
+#ifdef BALANCER_MODULE
+    /*
+     * Can't do this in client_unlink as that could be run from cn=monitor
+     * modify callback.
+     */
+    if ( !BER_BVISNULL( &c->c_monitor_dn ) ) {
+        lload_monitor_conn_unlink( c );
+    }
+#endif /* BALANCER_MODULE */
+
     c->c_state = LLOAD_C_INVALID;
 
     assert( c->c_ops == NULL );

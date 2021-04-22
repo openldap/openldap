@@ -163,7 +163,10 @@ LDAP_SLAPD_F (void) lload_libevent_destroy( void );
 /*
  * monitor.c
  */
+LDAP_SLAPD_V (monitor_subsys_t *) lload_monitor_client_subsys;
 LDAP_SLAPD_F (int) lload_monitor_open( void );
+LDAP_SLAPD_F (int) lload_monitor_conn_entry_create( LloadConnection *c, monitor_subsys_t *ms );
+LDAP_SLAPD_F (int) lload_monitor_conn_unlink( LloadConnection *c );
 LDAP_SLAPD_F (int) lload_monitor_backend_init( BackendInfo *bi, monitor_subsys_t *ms, LloadBackend *b );
 LDAP_SLAPD_F (int) lload_monitor_tier_init( BackendInfo *bi, LloadTier *tier );
 #endif /* BALANCER_MODULE */
