@@ -16,7 +16,7 @@
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh
 
-if test $DEREF = homedirno; then
+if test $HOMEDIR = homedirno; then
 	echo "Homedir overlay not available, test skipped"
 	exit 0
 fi
