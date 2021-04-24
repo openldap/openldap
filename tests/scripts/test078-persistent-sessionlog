@@ -610,9 +610,9 @@ $LDIFFILTER -s a < $TESTDIR/server$n.out > $TESTDIR/server$n.flt
 
 echo "Checking server $n can remember which entries have been deleted even after it's been restarted..."
 $LDAPRSEARCH -b "$BASEDN" -D "$MANAGERDN" -H $URI -w $PASSWD \
-    -E "sync=ro/$cookie" 'objectclass=*' 1.1 | grep syncUUIDs | wc -l >$TESTDIR/repl.out
+    -E "sync=ro/$cookie" 'objectclass=*' 1.1 | awk '/syncUUIDs/ {count++} END {print count}' >$TESTDIR/repl.out
 $LDAPRSEARCH -b "$BASEDN" -D "$MANAGERDN" -H $URI -w $PASSWD \
-    -E "sync=ro/$cookie" 'objectclass=*' 1.1 | grep SyncDone | grep "refreshDeletes=1" | wc -l >>$TESTDIR/repl.out
+    -E "sync=ro/$cookie" 'objectclass=*' 1.1 | grep SyncDone | awk '/refreshDeletes=1/ {count++} END {print count}' >>$TESTDIR/repl.out
 
 $CMP $TESTDIR/repl.out $TESTDIR/repl.test > $CMPOUT
 
