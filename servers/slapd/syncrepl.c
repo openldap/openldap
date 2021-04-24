@@ -1901,7 +1901,7 @@ done:
 
 	if ( rc ) {
 		if ( rc == LDAP_SYNC_REFRESH_REQUIRED && si->si_logstate == SYNCLOG_LOGGING && si->si_ld )
-			return rc
+			return rc;
 		/* never reuse existing connection */
 		if ( si->si_conn ) {
 			connection_client_stop( si->si_conn );
