@@ -2027,6 +2027,7 @@ do_syncrepl(
 	if ( !si->si_schemachecking )
 		op->o_no_schema_check = 1;
 
+reload:
 	/* Establish session, do search */
 	if ( !si->si_ld ) {
 		si->si_refreshDelete = 0;
@@ -2065,6 +2066,8 @@ do_syncrepl(
 		op->o_ndn = op->o_bd->be_rootndn;
 		rc = do_syncrep2( op, si );
 		if ( rc == LDAP_SYNC_REFRESH_REQUIRED )	{
+			if ( si->si_logstate == SYNCLOG_LOGGING )
+				goto reload;
 			/* give up but schedule an immedite retry */
 			rc = SYNC_PAUSED;
 		}
