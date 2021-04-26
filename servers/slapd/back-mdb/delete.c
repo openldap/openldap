@@ -113,57 +113,58 @@ txnReturn:
 		slap_get_csn( op, &csn, 1 );
 	}
 
-	if ( !be_issuffix( op->o_bd, &op->o_req_ndn ) ) {
-		dnParent( &op->o_req_ndn, &pdn );
-	}
-
 	rs->sr_err = mdb_cursor_open( txn, mdb->mi_dn2id, &mc );
 	if ( rs->sr_err ) {
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "internal error";
 		goto return_results;
 	}
-	/* get parent */
-	rs->sr_err = mdb_dn2entry( op, txn, mc, &pdn, &p, NULL, 1 );
-	switch( rs->sr_err ) {
-	case 0:
-	case MDB_NOTFOUND:
-		break;
-	case LDAP_BUSY:
-		rs->sr_text = "ldap server busy";
-		goto return_results;
-	default:
-		rs->sr_err = LDAP_OTHER;
-		rs->sr_text = "internal error";
-		goto return_results;
-	}
-	if ( rs->sr_err == MDB_NOTFOUND ) {
-		Debug( LDAP_DEBUG_ARGS,
-			"<=- " LDAP_XSTRING(mdb_delete) ": no such object %s\n",
-			op->o_req_dn.bv_val, 0, 0);
 
-		if ( p && !BER_BVISEMPTY( &p->e_name )) {
-			rs->sr_matched = ch_strdup( p->e_name.bv_val );
-			if ( is_entry_referral( p )) {
-				BerVarray ref = get_entry_referrals( op, p );
-				rs->sr_ref = referral_rewrite( ref, &p->e_name,
-					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
-				ber_bvarray_free( ref );
+	if ( !be_issuffix( op->o_bd, &op->o_req_ndn ) ) {
+		dnParent( &op->o_req_ndn, &pdn );
+
+		/* get parent */
+		rs->sr_err = mdb_dn2entry( op, txn, mc, &pdn, &p, NULL, 1 );
+		switch( rs->sr_err ) {
+		case 0:
+		case MDB_NOTFOUND:
+			break;
+		case LDAP_BUSY:
+			rs->sr_text = "ldap server busy";
+			goto return_results;
+		default:
+			rs->sr_err = LDAP_OTHER;
+			rs->sr_text = "internal error";
+			goto return_results;
+		}
+		if ( rs->sr_err == MDB_NOTFOUND ) {
+			Debug( LDAP_DEBUG_ARGS,
+				"<=- " LDAP_XSTRING(mdb_delete) ": no such object %s\n",
+				op->o_req_dn.bv_val, 0, 0 );
+
+			if ( p && !BER_BVISEMPTY( &p->e_name )) {
+				rs->sr_matched = ch_strdup( p->e_name.bv_val );
+				if ( is_entry_referral( p )) {
+					BerVarray ref = get_entry_referrals( op, p );
+					rs->sr_ref = referral_rewrite( ref, &p->e_name,
+						&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+					ber_bvarray_free( ref );
+				} else {
+					rs->sr_ref = NULL;
+				}
 			} else {
-				rs->sr_ref = NULL;
+				rs->sr_ref = referral_rewrite( default_referral, NULL,
+						&op->o_req_dn, LDAP_SCOPE_DEFAULT );
 			}
-		} else {
-			rs->sr_ref = referral_rewrite( default_referral, NULL,
-					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
-		}
-		if ( p ) {
-			mdb_entry_return( op, p );
-			p = NULL;
-		}
+			if ( p ) {
+				mdb_entry_return( op, p );
+				p = NULL;
+			}
 
-		rs->sr_err = LDAP_REFERRAL;
-		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
-		goto return_results;
+			rs->sr_err = LDAP_REFERRAL;
+			rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
+			goto return_results;
+		}
 	}
 
 	/* get entry */
