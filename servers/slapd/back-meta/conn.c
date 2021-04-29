@@ -1867,7 +1867,7 @@ meta_back_quarantine(
 			break;
 
 		default:
-			break;
+			goto done;
 		}
 
 		mt->mt_isquarantined = LDAP_BACK_FQ_YES;
