@@ -3,11 +3,13 @@ OpenLDAP 2.5 Change Log
 OpenLDAP 2.5.5 Engineering
 	Added libldap LDAP_OPT_TCP_USER_TIMEOUT support (ITS#9502)
 	Added lloadd tcp-user-timeout support (ITS#9502)
-	Fixed slapd slap_op_time to avoid duplicates across restarts (ITS#9537)
 	Added slapd-asyncmeta tcp-user-timeout support (ITS#9502)
 	Added slapd-ldap tcp-user-timeout support (ITS#9502)
 	Added slapd-meta tcp-user-timeout support (ITS#9502)
+	Fixed libldap typo in util-int.c (ITS#9541)
 	Fixed libldap double free of LDAP_OPT_DEFBASE (ITS#9530)
+	Fixed slapd slap_op_time to avoid duplicates across restarts (ITS#9537)
+	Fixed slapd typo in daemon.c (ITS#9541)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
 
