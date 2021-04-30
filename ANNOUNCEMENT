@@ -122,38 +122,34 @@ AVAILABILITY
     an non-restrictive, "free", open-source license.  Download
     information is available at:
 
-        http://www.OpenLDAP.org/software/download/
+        https://www.OpenLDAP.org/software/download/
 
 
 SUPPORT
 
     OpenLDAP Software is user supported:
 
-        http://www.openldap.org/support/
+        https://www.openldap.org/support/
 
     The OpenLDAP Administrator's Guide, which includes quick
     start instructions, is available at:
 
-        http://www.openldap.org/doc/admin/
-
-    The project maintains a FAQ which you may find useful:
-
-        http://www.openldap.org/faq/
+        https://www.openldap.org/doc/admin/
 
     In addition, there are also a number of discussion lists
     related to OpenLDAP Software.  A list of mailing lists is
     available at:
 
-        http://www.OpenLDAP.org/lists/
+        https://www.OpenLDAP.org/lists/
 
     To report bugs, please use project's Issue Tracking System:
 
-        http://www.openldap.org/its/
+        https://bugs.openldap.org/
 
     The OpenLDAP home page containing lots of interesting information
     and online documentation is available at this URL:
 
-        http://www.OpenLDAP.org/
+        https://www.OpenLDAP.org/
 
 
 SUPPORTED PLATFORMS
