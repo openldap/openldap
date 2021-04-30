@@ -74,7 +74,7 @@ A N N O U N C E M E N T -- OpenLDAP 2.5
             - authzid implements RFC 3829 support
             - datamorph stores enumerated values and fixed
                size integers
-            - ppm adds additional password checking critera
+            - ppm adds additional password checking criteria
                to the slapo-ppolicy overlay
             - pw-radius allows bind operations to be
                passed to the specified radius server(s)
