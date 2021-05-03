@@ -6,6 +6,7 @@ OpenLDAP 2.5.5 Engineering
 	Added slapd-asyncmeta tcp-user-timeout support (ITS#9502)
 	Added slapd-ldap tcp-user-timeout support (ITS#9502)
 	Added slapd-meta tcp-user-timeout support (ITS#9502)
+	Fixed incorrect control OIDs for AuthZ Identity (ITS#9542)
 	Fixed libldap typo in util-int.c (ITS#9541)
 	Fixed libldap double free of LDAP_OPT_DEFBASE (ITS#9530)
 	Fixed slapd slap_op_time to avoid duplicates across restarts (ITS#9537)
