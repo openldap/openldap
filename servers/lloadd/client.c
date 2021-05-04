@@ -391,7 +391,6 @@ fail:
 LloadConnection *
 client_init(
         ber_socket_t s,
-        LloadListener *listener,
         const char *peername,
         struct event_base *base,
         int flags )
@@ -400,8 +399,6 @@ client_init(
     struct event *event;
     event_callback_fn read_cb = connection_read_cb,
                       write_cb = connection_write_cb;
-
-    assert( listener != NULL );
 
     if ( (c = lload_connection_init( s, peername, flags) ) == NULL ) {
         return NULL;
@@ -456,7 +453,6 @@ client_init(
     }
     c->c_write_event = event;
 
-    c->c_private = listener;
     c->c_destroy = client_destroy;
     c->c_unlink = client_unlink;
     c->c_pdu_cb = handle_one_request;

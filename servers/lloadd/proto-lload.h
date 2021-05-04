@@ -60,7 +60,7 @@ LDAP_SLAPD_F (int) request_abandon( LloadConnection *c, LloadOperation *op );
 LDAP_SLAPD_F (int) request_process( LloadConnection *c, LloadOperation *op );
 LDAP_SLAPD_F (int) handle_one_request( LloadConnection *c );
 LDAP_SLAPD_F (void) client_tls_handshake_cb( evutil_socket_t s, short what, void *arg );
-LDAP_SLAPD_F (LloadConnection *) client_init( ber_socket_t s, LloadListener *url, const char *peername, struct event_base *base, int use_tls );
+LDAP_SLAPD_F (LloadConnection *) client_init( ber_socket_t s, const char *peername, struct event_base *base, int use_tls );
 LDAP_SLAPD_F (void) client_reset( LloadConnection *c );
 LDAP_SLAPD_F (void) client_destroy( LloadConnection *c );
 LDAP_SLAPD_F (void) clients_destroy( int gentle );
