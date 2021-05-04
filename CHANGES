@@ -11,6 +11,7 @@ OpenLDAP 2.5.5 Engineering
 	Fixed libldap double free of LDAP_OPT_DEFBASE (ITS#9530)
 	Fixed slapd slap_op_time to avoid duplicates across restarts (ITS#9537)
 	Fixed slapd typo in daemon.c (ITS#9541)
+	Fixed slapd slapi compilation (ITS#9544)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
 
