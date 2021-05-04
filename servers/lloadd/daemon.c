@@ -931,7 +931,7 @@ lload_listener(
 #ifdef HAVE_TLS
     if ( sl->sl_is_tls ) cflag |= CONN_IS_TLS;
 #endif
-    c = client_init( s, sl, peername, lload_daemon[tid].base, cflag );
+    c = client_init( s, peername, lload_daemon[tid].base, cflag );
 
     if ( !c ) {
         Debug( LDAP_DEBUG_ANY, "lload_listener: "

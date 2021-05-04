@@ -410,8 +410,6 @@ struct LloadConnection {
      * - Upstream: b->b_mutex
      */
     LDAP_CIRCLEQ_ENTRY(LloadConnection) c_next;
-
-    void *c_private;
 };
 
 enum op_state {
