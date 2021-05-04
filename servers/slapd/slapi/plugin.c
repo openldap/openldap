@@ -33,6 +33,8 @@
 #include "slapi.h"
 #include "lutil.h"
 
+#include <ltdl.h>
+
 static int slapi_int_load_plugin( Slapi_PBlock *, const char *, const char *, int, 
 	SLAPI_FUNC *, lt_dlhandle * );
 
