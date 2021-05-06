@@ -293,9 +293,22 @@ tlso_ctx_cipher13( tlso_ctx *ctx, char *suites )
 	char tls13_suites[1024], *ts = tls13_suites, *te = tls13_suites + sizeof(tls13_suites);
 	char *ptr, *colon, *nptr;
 	char sname[128];
+	STACK_OF(SSL_CIPHER) *cs;
+	SSL *s = SSL_new( ctx );
 	int ret;
 
+	if ( !s )
+		return;
+
 	*ts = '\0';
+
+	/* check individual suites in a separate SSL handle before
+	 * mucking with the provided ctx. Init it to a known
+	 * mostly-empty state.
+	 */
+	SSL_set_ciphersuites( s, "" );
+	SSL_set_cipher_list( s, SSL3_TXT_RSA_NULL_SHA );
+
 	for ( ptr = suites;; ) {
 		colon = strchr( ptr, ':' );
 		if ( colon ) {
@@ -307,16 +320,26 @@ tlso_ctx_cipher13( tlso_ctx *ctx, char *suites )
 		} else {
 			nptr = ptr;
 		}
-		if ( SSL_CTX_set_ciphersuites( ctx, nptr )) {
-			if ( tls13_suites[0] )
-				ts = tlso_stecpy( ts, ":", te );
-			ts = tlso_stecpy( ts, sname, te );
+		if ( SSL_set_ciphersuites( s, nptr )) {
+			cs = SSL_get_ciphers( s );
+			if ( cs ) {
+				const char *ver = SSL_CIPHER_get_version( sk_SSL_CIPHER_value( cs, 0 ));
+				if ( !strncmp( ver, "TLSv", 4 ) && strncmp( ver+4, "1.3", 3 ) >= 0 ) {
+					if ( tls13_suites[0] )
+						ts = tlso_stecpy( ts, ":", te );
+					ts = tlso_stecpy( ts, sname, te );
+				}
+			}
 		}
 		if ( !colon || ts >= te )
 			break;
 		ptr = colon+1;
 	}
-	SSL_CTX_set_ciphersuites( ctx, tls13_suites );
+	SSL_free( s );
+
+	/* If no TLS1.3 ciphersuites were specified, leave current settings untouched. */
+	if ( tls13_suites[0] )
+		SSL_CTX_set_ciphersuites( ctx, tls13_suites );
 }
 #endif /* OpenSSL 1.1.1 TLS 1.3 */
 
