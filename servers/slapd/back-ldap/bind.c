@@ -1228,7 +1228,7 @@ ldap_back_quarantine(
 			break;
 
 		default:
-			break;
+			goto done;
 		}
 
 		li->li_isquarantined = LDAP_BACK_FQ_YES;
