@@ -22,11 +22,13 @@
 
 Avlnode *lload_exop_handlers = NULL;
 
+#ifdef HAVE_TLS
 void *lload_tls_ctx;
 LDAP *lload_tls_ld, *lload_tls_backend_ld;
 #ifdef BALANCER_MODULE
 int lload_use_slap_tls_ctx = 0;
 #endif
+#endif /* HAVE_TLS */
 
 int
 handle_starttls( LloadConnection *c, LloadOperation *op )
@@ -42,6 +44,7 @@ handle_starttls( LloadConnection *c, LloadOperation *op )
     assert( op == found );
     c->c_n_ops_executing--;
 
+#ifdef HAVE_TLS
     if ( c->c_is_tls == LLOAD_TLS_ESTABLISHED ) {
         rc = LDAP_OPERATIONS_ERROR;
         msg = "TLS layer already in effect";
@@ -55,6 +58,11 @@ handle_starttls( LloadConnection *c, LloadOperation *op )
         rc = LDAP_UNAVAILABLE;
         msg = "Could not initialize TLS";
     }
+#else /* ! HAVE_TLS */
+    rc = LDAP_UNAVAILABLE;
+    msg = "Could not initialize TLS";
+#endif /* ! HAVE_TLS */
+
     CONNECTION_UNLOCK(c);
 
     Debug( LDAP_DEBUG_STATS, "handle_starttls: "
@@ -67,6 +75,7 @@ handle_starttls( LloadConnection *c, LloadOperation *op )
         return LDAP_SUCCESS;
     }
 
+#ifdef HAVE_TLS
     event_del( c->c_read_event );
     event_del( c->c_write_event );
     /*
@@ -109,6 +118,7 @@ handle_starttls( LloadConnection *c, LloadOperation *op )
     operation_unlink( op );
 
     return -1;
+#endif /* HAVE_TLS */
 }
 
 int

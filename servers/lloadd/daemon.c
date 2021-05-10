@@ -931,7 +931,7 @@ lload_listener(
 #ifdef HAVE_TLS
     if ( sl->sl_is_tls ) cflag |= CONN_IS_TLS;
 #endif
-    c = client_init( s, sl, peername, lload_daemon[tid].base, cflag );
+    c = client_init( s, peername, lload_daemon[tid].base, cflag );
 
     if ( !c ) {
         Debug( LDAP_DEBUG_ANY, "lload_listener: "
@@ -1332,10 +1332,14 @@ lloadd_daemon( struct event_base *daemon_base )
 
     /* Mark upstream connections closing and prevent from opening new ones */
     LDAP_CIRCLEQ_FOREACH ( b, &backend, b_next ) {
+        epoch_t epoch = epoch_join();
+
         checked_lock( &b->b_mutex );
         b->b_numconns = b->b_numbindconns = 0;
         backend_reset( b, 1 );
         checked_unlock( &b->b_mutex );
+
+        epoch_leave( epoch );
     }
 
     /* Do the same for clients */
@@ -1403,13 +1407,14 @@ backend_conn_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
     LloadConnection *c = startarg;
     LloadBackend *b = arg;
 
-    if ( b == NULL || c->c_private == b ) {
+    if ( b == NULL || c->c_backend == b ) {
         CONNECTION_LOCK_DESTROY(c);
         return 1;
     }
     return 0;
 }
 
+#ifdef HAVE_TLS
 int
 client_tls_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
 {
@@ -1422,6 +1427,7 @@ client_tls_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
     }
     return 0;
 }
+#endif /* HAVE_TLS */
 
 void
 lload_handle_backend_invalidation( LloadChange *change )
@@ -1648,6 +1654,7 @@ lload_handle_global_invalidation( LloadChange *change )
         assert( !feature_diff );
     }
 
+#ifdef HAVE_TLS
     if ( change->flags.daemon & LLOAD_DAEMON_MOD_TLS ) {
         /* terminate all clients with TLS set up */
         ldap_pvt_thread_pool_walk(
@@ -1670,6 +1677,7 @@ lload_handle_global_invalidation( LloadChange *change )
             }
         }
     }
+#endif /* HAVE_TLS */
 
     if ( change->flags.daemon & LLOAD_DAEMON_MOD_BINDCONF ) {
         LloadBackend *b;
