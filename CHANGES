@@ -10,6 +10,7 @@ OpenLDAP 2.5.5 Engineering
 	Fixed libldap typo in util-int.c (ITS#9541)
 	Fixed libldap double free of LDAP_OPT_DEFBASE (ITS#9530)
 	Fixed libldap better TLS1.3 cipher suite handling (ITS#9521, ITS#9546)
+	Fixed lloadd multiple issues (ITS#8747)
 	Fixed slapd slap_op_time to avoid duplicates across restarts (ITS#9537)
 	Fixed slapd typo in daemon.c (ITS#9541)
 	Fixed slapd slapi compilation (ITS#9544)
