@@ -15,6 +15,7 @@ OpenLDAP 2.5.5 Engineering
 	Fixed slapd slapi compilation (ITS#9544)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
+	Fixed slappw-argon2 module installation (ITS#9548)
 
 OpenLDAP 2.5.4 Release (2021/04/29)
 	Initial release for "general use".
