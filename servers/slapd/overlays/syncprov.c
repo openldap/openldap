@@ -199,7 +199,7 @@ static AttributeName csn_anlist[3];
 static AttributeName uuid_anlist[2];
 
 static AttributeDescription *ad_reqType, *ad_reqResult, *ad_reqDN,
-							*ad_reqEntryUUID, *ad_minCSN;
+							*ad_reqEntryUUID, *ad_minCSN, *ad_reqNewDN;
 
 /* Build a LDAPsync intermediate state control */
 static int
@@ -1829,7 +1829,8 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 	sync_control *srs = uuid_progress->srs;
 	struct berval *bv, csn[2] = {}, uuid[2] = {},
 				  add = BER_BVC("add"),
-				  delete = BER_BVC("delete");
+				  delete = BER_BVC("delete"),
+				  modrdn = BER_BVC("modrdn");
 	int cmp, sid, i, is_delete = 0, rc;
 
 	if ( rs->sr_type != REP_SEARCH ) {
@@ -1849,6 +1850,30 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 
 	if ( bvmatch( &a->a_nvals[0], &delete ) ) {
 		is_delete = 1;
+	}
+
+	if ( bvmatch( &a->a_nvals[0], &modrdn ) ) {
+		a = attr_find( attrs, ad_reqDN );
+		if ( !a || a->a_numvals == 0 ) {
+			rs->sr_err = LDAP_CONSTRAINT_VIOLATION;
+			return rs->sr_err;
+		}
+
+		/* Was it present in the first place? If not, skip: */
+		if ( !dnIsSuffix( &a->a_nvals[0], &uuid_progress->op->o_req_ndn ) ) {
+			return rs->sr_err;
+		}
+
+		a = attr_find( attrs, ad_reqNewDN );
+		if ( !a || a->a_numvals == 0 ) {
+			rs->sr_err = LDAP_CONSTRAINT_VIOLATION;
+			return rs->sr_err;
+		}
+
+		/* Has it gone away? */
+		if ( !dnIsSuffix( &a->a_nvals[0], &uuid_progress->op->o_req_ndn ) ) {
+			is_delete = 1;
+		}
 	}
 
 	/*
@@ -2209,7 +2234,10 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 				"(entryCSN>=%s)"
 				"(entryCSN<=%s)"
 				"(reqResult=0)"
-				"(reqDN:dnSubtreeMatch:=%s)"
+				"(|"
+					"(reqDN:dnSubtreeMatch:=%s)"
+					"(reqNewDN:dnSubtreeMatch:=%s)"
+				")"
 				"(|"
 					"(objectclass=auditWriteObject)"
 					"(objectclass=auditExtended)"
@@ -2264,11 +2292,11 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 	fop.o_req_ndn = fop.o_req_dn = si->si_logbase;
 	fop.ors_filterstr.bv_val = fop.o_tmpalloc(
 			filterpattern.bv_len +
-			oldestcsn.bv_len + newestcsn.bv_len + basedn.bv_len,
+			oldestcsn.bv_len + newestcsn.bv_len + 2 * basedn.bv_len,
 			fop.o_tmpmemctx );
 	fop.ors_filterstr.bv_len = sprintf( fop.ors_filterstr.bv_val,
 			filterpattern.bv_val,
-			oldestcsn.bv_val, newestcsn.bv_val, basedn.bv_val );
+			oldestcsn.bv_val, newestcsn.bv_val, basedn.bv_val, basedn.bv_val );
 	Debug( LDAP_DEBUG_SYNC, "%s syncprov_play_accesslog: "
 			"prepared filter '%s', base='%s'\n",
 			op->o_log_prefix, fop.ors_filterstr.bv_val, si->si_logbase.bv_val );
@@ -3484,6 +3512,15 @@ syncprov_setup_accesslog(void)
 		if ( slap_str2ad( "reqEntryUUID", &ad_reqEntryUUID, &text ) ) {
 			Debug( LDAP_DEBUG_ANY, "syncprov_setup_accesslog: "
 					"couldn't get definition for attribute reqEntryUUID, "
+					"is accessslog configured?\n" );
+			return rc;
+		}
+	}
+
+	if ( !ad_reqNewDN ) {
+		if ( slap_str2ad( "reqNewDN", &ad_reqNewDN, &text ) ) {
+			Debug( LDAP_DEBUG_ANY, "syncprov_setup_accesslog: "
+					"couldn't get definition for attribute reqNewDN, "
 					"is accessslog configured?\n" );
 			return rc;
 		}
