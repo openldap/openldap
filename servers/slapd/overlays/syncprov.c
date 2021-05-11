@@ -2256,6 +2256,11 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 	}
 
 	filter_escape_value_x( &op->o_req_ndn, &basedn, fop.o_tmpmemctx );
+	/* filter_escape_value_x sets output to BVNULL if input value is empty,
+	 * supply our own copy */
+	if ( BER_BVISEMPTY( &basedn ) ) {
+		basedn.bv_val = "";
+	}
 	fop.o_req_ndn = fop.o_req_dn = si->si_logbase;
 	fop.ors_filterstr.bv_val = fop.o_tmpalloc(
 			filterpattern.bv_len +
@@ -2268,9 +2273,12 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 			"prepared filter '%s', base='%s'\n",
 			op->o_log_prefix, fop.ors_filterstr.bv_val, si->si_logbase.bv_val );
 	f = str2filter_x( &fop, fop.ors_filterstr.bv_val );
+	assert( f != NULL );
 	fop.ors_filter = f;
 
-	fop.o_tmpfree( basedn.bv_val, fop.o_tmpmemctx );
+	if ( !BER_BVISEMPTY( &basedn ) ) {
+		fop.o_tmpfree( basedn.bv_val, fop.o_tmpmemctx );
+	}
 	be_entry_release_rw( &fop, e, 0 );
 
 	/*
