@@ -1482,9 +1482,26 @@ retry_lock:;
 retry:;
 	if ( BER_BVISNULL( &lc->lc_cred ) ) {
 		tmp_dn = "";
+		/*
+		 * Bind is requested with DN but without credentials.
+		 * This can happen when connection to remote server has been
+		 * lost either due to remote server disconnecting it or due to
+		 * proxy disconnecting it by itself (idle-timeout, conn-ttl).
+		 * See comment in ldap_back_conn_prune().
+		 */
 		if ( !BER_BVISNULL( &lc->lc_bound_ndn ) && !BER_BVISEMPTY( &lc->lc_bound_ndn ) ) {
-			Debug( LDAP_DEBUG_ANY, "%s ldap_back_dobind_int: DN=\"%s\" without creds, binding anonymously",
-				op->o_log_prefix, lc->lc_bound_ndn.bv_val );
+			Debug( LDAP_DEBUG_ANY,
+			       "%s ldap_back_dobind_int: DN=\"%s\" connection "
+			       "was re-established but cannot rebind without creds\n",
+			       op->o_log_prefix, lc->lc_bound_ndn.bv_val );
+			rs->sr_text = "Proxy lost connection to remote server";
+			rs->sr_err = LDAP_UNAVAILABLE;
+			if ( sendok & LDAP_BACK_SENDERR ) {
+				send_ldap_result( op, rs );
+			}
+			rs->sr_err = SLAPD_DISCONNECT;
+			rc = 0;
+			goto done;
 		}
 
 	} else {
@@ -3074,6 +3091,22 @@ ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc) {
 	return -1;
 }
 
+/*
+ * Iterate though connections and close those that are past the expiry time.
+ * Also calculate the time for next connection to expire.
+ *
+ * Note:
+ * When the client sends a request after remote connection is pruned, a new
+ * connection is created but bind cannot be replayed even if "rebind-as-user"
+ * was set to "yes". The client credentials are stored in ldapconn_t and lost
+ * when the connection is freed.
+ *
+ * LDAP_DISCONNECT is sent to signal the client that it needs to reconnect to
+ * the proxy and rebind itself (see "Bind is requested with DN but without
+ * credentials" in ldap_back_dobind_int()). Better implementation would not
+ * free ldapconn_t but instead just close the socket. This is not implemented
+ * currently as it is considerable work for what is assumed to be a corner case.
+ */
 static void
 ldap_back_conn_prune( ldapinfo_t *li )
 {
@@ -3082,10 +3115,6 @@ ldap_back_conn_prune( ldapinfo_t *li )
 	TAvlnode	*edge;
 	int		c;
 
-	/*
-	 * Iterate though connections and close those that are pass the expiry time.
-	 * Also calculate the time for next connection to to expire.
-	 */
 	ldap_pvt_thread_mutex_lock( &li->li_conninfo.lai_mutex );
 
 	for ( c = LDAP_BACK_PCONN_FIRST; c < LDAP_BACK_PCONN_LAST; c++ ) {
