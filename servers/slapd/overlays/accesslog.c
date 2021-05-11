@@ -2255,6 +2255,10 @@ accesslog_db_destroy(
 		li->li_oldattrs = la->next;
 		ch_free( la );
 	}
+	if ( li->li_sids )
+		ch_free( li->li_sids );
+	if ( li->li_mincsn )
+		ber_bvarray_free( li->li_mincsn );
 	ldap_pvt_thread_mutex_destroy( &li->li_log_mutex );
 	ldap_pvt_thread_mutex_destroy( &li->li_op_rmutex );
 	free( li );
