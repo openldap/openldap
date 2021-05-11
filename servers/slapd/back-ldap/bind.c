@@ -3092,8 +3092,8 @@ ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc) {
 }
 
 /*
- * Iterate though connections and close those that are pass the expiry time.
- * Also calculate the time for next connection to to expire.
+ * Iterate though connections and close those that are past the expiry time.
+ * Also calculate the time for next connection to expire.
  *
  * Note:
  * When the client sends a request after remote connection is pruned, a new
