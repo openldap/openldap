@@ -201,7 +201,7 @@ static AttributeDescription *ad_reqDN, *ad_reqStart, *ad_reqEnd, *ad_reqType,
 	*ad_reqSizeLimit, *ad_reqTimeLimit, *ad_reqAttrsOnly, *ad_reqData,
 	*ad_reqId, *ad_reqMessage, *ad_reqVersion, *ad_reqDerefAliases,
 	*ad_reqReferral, *ad_reqOld, *ad_auditContext, *ad_reqEntryUUID,
-	*ad_minCSN;
+	*ad_minCSN, *ad_reqNewDN;
 
 static int
 logSchemaControlValidate(
@@ -425,6 +425,15 @@ static struct {
 		"SYNTAX 1.3.6.1.4.1.4203.666.11.2.1{64} "
 		"NO-USER-MODIFICATION "
 		"USAGE dSAOperation )", &ad_minCSN },
+
+	/*
+	 * ITS#9552
+	 */
+	{ "( " LOG_SCHEMA_AT ".33 NAME 'reqNewDN' "
+		"DESC 'New DN after rename' "
+		"EQUALITY distinguishedNameMatch "
+		"SYNTAX OMsDN "
+		"SINGLE-VALUE )", &ad_reqNewDN },
 	{ NULL, NULL }
 };
 
@@ -477,7 +486,8 @@ static struct {
 		"DESC 'ModRDN operation' "
 		"SUP auditWriteObject STRUCTURAL "
 		"MUST ( reqNewRDN $ reqDeleteOldRDN ) "
-		"MAY ( reqNewSuperior $ reqMod $ reqOld ) )", &log_ocs[LOG_EN_MODRDN] },
+		"MAY ( reqNewSuperior $ reqMod $ reqOld $ reqNewDN ) )",
+		&log_ocs[LOG_EN_MODRDN] },
 	{ "( " LOG_SCHEMA_OC ".11 NAME 'auditSearch' "
 		"DESC 'Search operation' "
 		"SUP auditReadObject STRUCTURAL "
@@ -1494,7 +1504,7 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 	slap_verbmasks *lo;
 	Entry *e = NULL, *old = NULL, *e_uuid = NULL;
 	char timebuf[LDAP_LUTIL_GENTIME_BUFSIZE+8];
-	struct berval bv;
+	struct berval bv, bv2 = BER_BVNULL;
 	char *ptr;
 	BerVarray vals;
 	Operation op2 = {0};
@@ -1774,7 +1784,13 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 			NULL );
 		if ( op->orr_newSup ) {
 			attr_merge_one( e, ad_reqNewSuperior, op->orr_newSup, op->orr_nnewSup );
+			bv2 = *op->orr_nnewSup;
+		} else {
+			dnParent( &op->o_req_ndn, &bv2 );
 		}
+		build_new_dn( &bv, &bv2, &op->orr_nnewrdn, op->o_tmpmemctx );
+		attr_merge_one( e, ad_reqNewDN, &bv, NULL );
+		op->o_tmpfree( bv.bv_val, op->o_tmpmemctx );
 		break;
 
 	case LOG_EN_COMPARE:
