@@ -2604,7 +2604,7 @@ slapd_daemon_task(
 					sock_errstr(err, ebuf, sizeof(ebuf)) );
 			ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
 			slapd_shutdown = 2;
-			ldap_pvt_thread_cond_signal( &slapd_init_cond );
+			ldap_pvt_thread_cond_broadcast( &slapd_init_cond );
 			ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 			return (void*)-1;
 		}
@@ -2615,7 +2615,7 @@ slapd_daemon_task(
 				"set nonblocking on a listening socket failed\n" );
 			ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
 			slapd_shutdown = 2;
-			ldap_pvt_thread_cond_signal( &slapd_init_cond );
+			ldap_pvt_thread_cond_broadcast( &slapd_init_cond );
 			ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 			return (void*)-1;
 		}
@@ -2625,7 +2625,7 @@ slapd_daemon_task(
 
 	ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
 	slapd_ready = 1;
-	ldap_pvt_thread_cond_signal( &slapd_init_cond );
+	ldap_pvt_thread_cond_broadcast( &slapd_init_cond );
 	ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 
 #ifdef HAVE_NT_SERVICE_MANAGER
