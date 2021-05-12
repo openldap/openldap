@@ -905,6 +905,7 @@ LDAP_SLAPD_V (SOCKET *) slapd_ws_sockets;
 
 LDAP_SLAPD_V (ldap_pvt_thread_mutex_t) slapd_init_mutex;
 LDAP_SLAPD_V (ldap_pvt_thread_cond_t) slapd_init_cond;
+LDAP_SLAPD_V (int) slapd_ready;
 
 /*
  * dn.c
