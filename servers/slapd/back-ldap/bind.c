@@ -3113,6 +3113,38 @@ ldap_back_conn_prune( ldapinfo_t *li )
 
 		while ( lc ) {
 			ldapconn_t *next = LDAP_TAILQ_NEXT( lc, lc_q );
+
+			if ( !LDAP_BACK_CONN_TAINTED( lc ) ) {
+				time_t conn_expires = ldap_back_conn_expire_time( li, lc );
+
+				if ( now >= conn_expires ) {
+					if ( lc->lc_refcnt == 0 ) {
+						Debug( LDAP_DEBUG_TRACE,
+							"ldap_back_conn_prune: closing expired connection lc=%p\n",
+							lc );
+						ldap_back_freeconn( li, lc, 0 );
+					} else {
+						Debug( LDAP_DEBUG_TRACE,
+							"ldap_back_conn_prune: tainting expired connection lc=%p\n",
+							lc );
+						LDAP_BACK_CONN_TAINTED_SET( lc );
+					}
+				} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
+					/* next_timeout was not yet initialized or current connection expires sooner */
+					next_timeout = conn_expires;
+				}
+			}
+
+			lc = next;
+		}
+	}
+
+	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
+	while ( edge ) {
+		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
+		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
+
+		if ( !LDAP_BACK_CONN_TAINTED( lc ) ) {
 			time_t conn_expires = ldap_back_conn_expire_time( li, lc );
 
 			if ( now >= conn_expires ) {
@@ -3128,34 +3160,8 @@ ldap_back_conn_prune( ldapinfo_t *li )
 					LDAP_BACK_CONN_TAINTED_SET( lc );
 				}
 			} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
-				/* next_timeout was not yet initialized or current connection expires sooner */
 				next_timeout = conn_expires;
 			}
-
-			lc = next;
-		}
-	}
-
-	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
-	while ( edge ) {
-		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
-		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
-		time_t conn_expires = ldap_back_conn_expire_time( li, lc );
-
-		if ( now >= conn_expires ) {
-			if ( lc->lc_refcnt == 0 ) {
-				Debug( LDAP_DEBUG_TRACE,
-					"ldap_back_conn_prune: closing expired connection lc=%p\n",
-					lc );
-				ldap_back_freeconn( li, lc, 0 );
-			} else {
-				Debug( LDAP_DEBUG_TRACE,
-					"ldap_back_conn_prune: tainting expired connection lc=%p\n",
-					lc );
-				LDAP_BACK_CONN_TAINTED_SET( lc );
-			}
-		} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
-			next_timeout = conn_expires;
 		}
 
 		edge = next;
