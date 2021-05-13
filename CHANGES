@@ -21,6 +21,7 @@ OpenLDAP 2.5.5 Engineering
 	Fixed slapd-ldap quarantine handling (ITS#8721)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
 	Fixed slapd-meta quarantine handling (ITS#8721)
+	Fixed slapo-accesslog to record reqNewDN for modRDN ops (ITS#9552)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
 	Fixed slappw-argon2 module installation (ITS#9548)
 
