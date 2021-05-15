@@ -1972,6 +1972,7 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 		assert( uuid_progress->ndel == uuid_progress->list_len );
 		ndel = ldap_avl_free( uuid_progress->uuids, NULL );
 		assert( ndel == uuid_progress->ndel );
+		uuid_progress->uuids = NULL;
 		uuid_progress->ndel = 0;
 	}
 
