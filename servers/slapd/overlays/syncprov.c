@@ -1901,7 +1901,7 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 	if ( cmp <= 0 ) {
 		Debug( LDAP_DEBUG_SYNC, "%s syncprov_accesslog_uuid_cb: "
 				"cmp %d, csn %s too old\n",
-				op->o_log_prefix, cmp, srs->sr_state.ctxcsn[i].bv_val );
+				op->o_log_prefix, cmp, csn[0].bv_val );
 		return rs->sr_err;
 	}
 
@@ -1918,7 +1918,7 @@ syncprov_accesslog_uuid_cb( Operation *op, SlapReply *rs )
 	if ( cmp > 0 ) {
 		Debug( LDAP_DEBUG_SYNC, "%s syncprov_accesslog_uuid_cb: "
 				"cmp %d, csn %s too new\n",
-				op->o_log_prefix, cmp, srs->sr_state.ctxcsn[i].bv_val );
+				op->o_log_prefix, cmp, csn[0].bv_val );
 		return rs->sr_err;
 	}
 
