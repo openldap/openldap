@@ -4,7 +4,7 @@ OpenLDAP 2.4.59 Engineering
 	Fixed libldap TLSv1.3 cipher suites with OpenSSL 1.1.1 (ITS#9521)
 	Fixed libldap double free of LDAP_OPT_DEFBASE (ITS#9530)
 	Fixed slapd syncrepl handling of add+delete on single value attr (ITS#9295)
-	Fixed slapd-mdb to cursor init check (ITS#9526)
+	Fixed slapd-mdb cursor init check (ITS#9526)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
 	Contrib
