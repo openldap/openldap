@@ -1177,7 +1177,7 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 
 		case LDAP_BACK_CFG_TIMEOUT:
 			for ( i = 0; i < SLAP_OP_LAST; i++ ) {
-				if ( mc->mc_timeout[ i ] != 0 ) {
+				if ( mc->mc_timeout[ i ] != META_BACK_CFG_DEFAULT_OPS_TIMEOUT ) {
 					break;
 				}
 			}
