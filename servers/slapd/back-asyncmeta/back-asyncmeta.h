@@ -326,8 +326,10 @@ typedef struct a_metatarget_t {
 #define	META_BACK_TGT_NOREFS(mt)		META_BACK_TGT_ISSET( (mt), LDAP_BACK_F_NOREFS )
 #define	META_BACK_TGT_NOUNDEFFILTER(mt)		META_BACK_TGT_ISSET( (mt), LDAP_BACK_F_NOUNDEFFILTER )
 
-#define META_BACK_CFG_MAX_PENDING_OPS          0x80
+#define META_BACK_CFG_MAX_PENDING_OPS           0x80
 #define META_BACK_CFG_MAX_TARGET_CONNS          0xFF
+#define META_BACK_CFG_DEFAULT_OPS_TIMEOUT       0x02
+
 /* the interval of the timeout checking loop in microseconds
  * possibly make this configurable? */
 #define META_BACK_CFG_MAX_TIMEOUT_LOOP          0x70000
