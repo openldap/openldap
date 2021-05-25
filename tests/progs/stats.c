@@ -6,10 +6,11 @@
 
 #include "lber_pvt.h"
 
-////#include "slapd-common.h"
+#include "ldap.h"
 
 #include <stdio.h>
 
+#include "slapd-common.h"
 
 /*
  * Compile-time constants
@@ -32,76 +33,6 @@
  * Forward declarations
  */
 typedef struct ldap LDAP;
-
-/*
- * Types
- */
-typedef enum {
-    SLAP_OP_BIND = 0,
-    SLAP_OP_UNBIND,
-    SLAP_OP_SEARCH,
-    SLAP_OP_COMPARE,
-    SLAP_OP_MODIFY,
-    SLAP_OP_MODRDN,
-    SLAP_OP_ADD,
-    SLAP_OP_DELETE,
-    SLAP_OP_ABANDON,
-    SLAP_OP_EXTENDED,
-    SLAP_OP_LAST
-} slap_op_t;
-
-struct opname {
-	struct berval rdn;
-	char *display;
-} opnames[] = {
-	{ BER_BVC("cn=Bind"),		"Bind" },
-	{ BER_BVC("cn=Unbind"),		"Unbind" },
-	{ BER_BVC("cn=Search"),		"Search" },
-	{ BER_BVC("cn=Compare"),	"Compare" },
-	{ BER_BVC("cn=Modify"),		"Modify" },
-	{ BER_BVC("cn=Modrdn"),		"ModDN" },
-	{ BER_BVC("cn=Add"),		"Add" },
-	{ BER_BVC("cn=Delete"),		"Delete" },
-	{ BER_BVC("cn=Abandon"),	"Abandon" },
-	{ BER_BVC("cn=Extended"),	"Extended" },
-	{ BER_BVNULL, NULL }
-};
-
-typedef struct counters {
-	struct timeval time;
-	unsigned long entries;
-	unsigned long ops[SLAP_OP_LAST];
-} counters;
-
-typedef struct csns {
-	struct berval *vals;
-	struct timeval *tvs;
-} csns;
-
-typedef struct activity {
-	time_t active;
-	time_t idle;
-	time_t maxlag;
-	time_t lag;
-} activity;
-
-
-
-typedef struct server {
-	char *url;
-	LDAP *ld;
-	int flags;
-	int sid;
-	struct berval monitorbase;
-	char *monitorfilter;
-	time_t late;
-	time_t down;
-	counters c_prev;
-	counters c_curr;
-	csns csn_prev;
-	csns csn_curr;
-	activity *times;
-} server;
 
 /*
  * Global variables
@@ -157,7 +88,8 @@ init_stats( const char filename[], server *server ) {
 		return NULL;
 	}
 	
-	*server = (server) { .url = NULL };
+	*server = (struct server) { .flags = HAS_ENTRIES };
+				    
 	return fopen(filename, "w");
 }
 
@@ -165,11 +97,8 @@ void
 update_stats( server *server, slap_op_t op,
 	      unsigned long entries, unsigned long nop )
 {
-	struct timeval now;
-	gettimeofday(&now, NULL);
+	gettimeofday(&server->c_curr.time, NULL);
 
-	server->c_prev = server->c_curr;
-	server->c_curr.time = now;
 	server->c_curr.entries = entries;
 	server->c_curr.ops[op] = nop;
 }
@@ -180,48 +109,54 @@ update_stats( server *server, slap_op_t op,
 #define eprintf(...) fprintf (out, __VA_ARGS__)
 
 void
-display_stats( FILE *out, const server *server, const struct timeval now ) {
-	time_t now_t = now.tv_sec;
+display_stats( FILE *out, server *server ) {
+	struct timeval tv;
+	double rate, duration;
+	long delta;
+	struct timeval now = server->c_curr.time;
 	size_t j;
 
-	eprintf("\n%s\n", server->url );
+	if( !out ) return; // no statistics requested
+	assert(server);
 
-	if ( server->flags & HAS_MONITOR ) {
-		struct timeval tv;
-		double rate, duration;
-		long delta;
-		eprintf("      ");
-		if ( server->flags & HAS_ENTRIES )
-			eprintf("  Entries  ");
-		for ( j = 0; j<SLAP_OP_LAST; j++ )
-			eprintf(" %9s ", opnames[j].display);
-		eprintf("\n");
-		eprintf("Num   ");
-		if ( server->flags & HAS_ENTRIES )
-			eprintf("%10lu ", server->c_curr.entries);
-		for ( j = 0; j<SLAP_OP_LAST; j++ )
-			eprintf("%10lu ", server->c_curr.ops[j]);
-		eprintf("\n");
-		eprintf("Num/s ");
-		tv.tv_usec = now.tv_usec - server->c_prev.time.tv_usec;
-		tv.tv_sec = now.tv_sec - server->c_prev.time.tv_sec;
-		if ( tv.tv_usec < 0 ) {
-			tv.tv_usec += 1000000;
-			tv.tv_sec--;
-		}
-		duration = tv.tv_sec + (tv.tv_usec / (double)1000000);
-		if ( server->flags & HAS_ENTRIES ) {
-			delta = server->c_curr.entries - server->c_prev.entries;
-			rate = delta / duration;
-			eprintf("%10.2f ", rate);
-		}
-		for ( j = 0; j<SLAP_OP_LAST; j++ ) {
-			delta = server->c_curr.ops[j] - server->c_prev.ops[j];
-			rate = delta / duration;
-			eprintf("%10.2f ", rate);
-		}
-		eprintf("\n");
+	eprintf("\n%s\n", server->url? server->url : "" );
+	eprintf("      ");
+
+	if ( server->flags & HAS_ENTRIES )
+		eprintf("  Entries  ");
+	for ( j = 0; j<SLAP_OP_LAST; j++ )
+		eprintf(" %9s ", opnames[j].display);
+	eprintf("\n");
+	eprintf("Num   ");
+	if ( server->flags & HAS_ENTRIES )
+		eprintf("%10lu ", server->c_curr.entries);
+	for ( j = 0; j<SLAP_OP_LAST; j++ )
+		eprintf("%10lu ", server->c_curr.ops[j]);
+	eprintf("\n");
+	eprintf("Num/s ");
+	tv.tv_usec = now.tv_usec - server->c_prev.time.tv_usec;
+	tv.tv_sec = now.tv_sec - server->c_prev.time.tv_sec;
+	if ( tv.tv_usec < 0 ) {
+		tv.tv_usec += 1000000;
+		tv.tv_sec--;
 	}
+	duration = tv.tv_sec + (tv.tv_usec / (double)1000000);
+	if ( server->flags & HAS_ENTRIES ) {
+		delta = server->c_curr.entries - server->c_prev.entries;
+		rate = delta / duration;
+		eprintf("%10.2f ", rate);
+	}
+	for ( j = 0; j<SLAP_OP_LAST; j++ ) {
+		delta = server->c_curr.ops[j] - server->c_prev.ops[j];
+		rate = delta / duration;
+		eprintf("%10.2f ", rate);
+	}
+	eprintf("\n");
+
+
+	// Set previous to current.
+	// If called again without update, delta will be zero. 
+	server->c_prev = server->c_curr;
 }
 
 #if has_base_matters
@@ -314,11 +249,6 @@ display_stats( FILE *out, const server *server, const struct timeval now ) {
 		}
 	}
 
-#endif
-
-
-
-
 void display( server *servers, int numservers, char *monfilter )
 {
 	int i, j;
@@ -339,3 +269,8 @@ void display( server *servers, int numservers, char *monfilter )
 			rotate_stats( servers + i, numservers );
 	}
 }
+#endif
+
+
+
+
