@@ -149,6 +149,10 @@ asyncmeta_back_db_init(
 	mi->mi_nretries = META_RETRY_DEFAULT;
 	mi->mi_version = LDAP_VERSION3;
 
+	for ( i = 0; i < SLAP_OP_LAST; i++ ) {
+		mi->mi_timeout[ i ] = META_BACK_CFG_DEFAULT_OPS_TIMEOUT;
+	}
+
 	for ( i = LDAP_BACK_PCONN_FIRST; i < LDAP_BACK_PCONN_LAST; i++ ) {
 		mi->mi_conn_priv[ i ].mic_num = 0;
 		LDAP_TAILQ_INIT( &mi->mi_conn_priv[ i ].mic_priv );
