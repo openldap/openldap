@@ -18,6 +18,7 @@ OpenLDAP 2.5.5 Engineering
 	Fixed slapd syncrepl searches with empty base (ITS#6467)
 	Fixed slapd syncrepl refresh on startup (ITS#9324, ITS#9534)
 	Fixed slapd-asyncmeta quarantine handling (ITS#8721)
+	Fixed slapd-asyncmeta to have a default operations timeout (ITS#9555)
 	Fixed slapd-ldap quarantine handling (ITS#8721)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
 	Fixed slapd-meta quarantine handling (ITS#8721)
