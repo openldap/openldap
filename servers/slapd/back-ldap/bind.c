@@ -3077,16 +3077,33 @@ ldap_back_conn_expire_fn( void *ctx, void *arg )
 	return NULL;
 }
 
-/* Pick which expires first: connection TTL or idle timeout */
 static time_t
-ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc) {
-	if ( li->li_conn_ttl != 0 && li->li_idle_timeout != 0 ) {
-		return ( lc->lc_create_time + li->li_conn_ttl ) < ( lc->lc_time + li->li_idle_timeout ) ?
-			( lc->lc_create_time + li->li_conn_ttl ) : ( lc->lc_time + li->li_idle_timeout );
-	} else if ( li->li_conn_ttl != 0 ) {
-		return lc->lc_create_time + li->li_conn_ttl;
-	} else if ( li->li_idle_timeout != 0 ) {
-		return lc->lc_time + li->li_idle_timeout;
+ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc ) {
+	/*
+	 * Apply connection timeout only when connection has non-zero creation
+	 * time and apply idle timeout only when connection has non-zero time
+	 * recorded for previous operation.
+         */
+	time_t conn_ttl = ( li->li_conn_ttl != 0 && lc->lc_create_time != 0 )
+		? li->li_conn_ttl : 0;
+	time_t idle_timeout =  ( li->li_idle_timeout != 0 && lc->lc_time != 0 )
+		? li->li_idle_timeout : 0;
+
+	/* Skip connections that are already tainted */
+	if ( LDAP_BACK_CONN_TAINTED( lc ) ) {
+		return -1;
+	}
+
+	/* Pick which expires first: connection TTL or idle timeout */
+	if ( conn_ttl != 0 && idle_timeout != 0 ) {
+		return ( lc->lc_create_time + conn_ttl ) <
+				( lc->lc_time + idle_timeout )
+				? ( lc->lc_create_time + conn_ttl )
+				: ( lc->lc_time + idle_timeout );
+	} else if ( conn_ttl != 0 ) {
+		return lc->lc_create_time + conn_ttl;
+	} else if ( idle_timeout != 0 ) {
+		return lc->lc_time + idle_timeout;
 	}
 	return -1;
 }
@@ -3123,7 +3140,36 @@ ldap_back_conn_prune( ldapinfo_t *li )
 		while ( lc ) {
 			ldapconn_t *next = LDAP_TAILQ_NEXT( lc, lc_q );
 			time_t conn_expires = ldap_back_conn_expire_time( li, lc );
+			if ( conn_expires != -1 ) {
+				if ( now >= conn_expires ) {
+					if ( lc->lc_refcnt == 0 ) {
+						Debug( LDAP_DEBUG_TRACE,
+							"ldap_back_conn_prune: closing expired connection lc=%p\n",
+							lc );
+						ldap_back_freeconn( li, lc, 0 );
+					} else {
+						Debug( LDAP_DEBUG_TRACE,
+							"ldap_back_conn_prune: tainting expired connection lc=%p\n",
+							lc );
+						LDAP_BACK_CONN_TAINTED_SET( lc );
+					}
+				} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
+					/* next_timeout was not yet initialized or current connection expires sooner */
+					next_timeout = conn_expires;
+				}
+			}
 
+			lc = next;
+		}
+	}
+
+	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
+	while ( edge ) {
+		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
+		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
+
+		time_t conn_expires = ldap_back_conn_expire_time( li, lc );
+		if ( conn_expires != -1 ) {
 			if ( now >= conn_expires ) {
 				if ( lc->lc_refcnt == 0 ) {
 					Debug( LDAP_DEBUG_TRACE,
@@ -3137,34 +3183,8 @@ ldap_back_conn_prune( ldapinfo_t *li )
 					LDAP_BACK_CONN_TAINTED_SET( lc );
 				}
 			} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
-				/* next_timeout was not yet initialized or current connection expires sooner */
 				next_timeout = conn_expires;
 			}
-
-			lc = next;
-		}
-	}
-
-	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
-	while ( edge ) {
-		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
-		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
-		time_t conn_expires = ldap_back_conn_expire_time( li, lc );
-
-		if ( now >= conn_expires ) {
-			if ( lc->lc_refcnt == 0 ) {
-				Debug( LDAP_DEBUG_TRACE,
-					"ldap_back_conn_prune: closing expired connection lc=%p\n",
-					lc );
-				ldap_back_freeconn( li, lc, 0 );
-			} else {
-				Debug( LDAP_DEBUG_TRACE,
-					"ldap_back_conn_prune: tainting expired connection lc=%p\n",
-					lc );
-				LDAP_BACK_CONN_TAINTED_SET( lc );
-			}
-		} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
-			next_timeout = conn_expires;
 		}
 
 		edge = next;
@@ -3218,14 +3238,17 @@ ldap_back_schedule_conn_expiry( ldapinfo_t *li, ldapconn_t *lc ) {
 	 */
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 	if ( li->li_conn_expire_task == NULL ) {
-		li->li_conn_expire_task = ldap_pvt_runqueue_insert( &slapd_rq,
-			ldap_back_conn_expire_time( li, lc ) - slap_get_time(),
-			ldap_back_conn_expire_fn, li, "ldap_back_conn_expire_fn",
-			"ldap_back_conn_expire_timer" );
-		slap_wake_listener();
-		Debug( LDAP_DEBUG_TRACE,
-			"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
-			li->li_conn_expire_task->interval.tv_sec );
+		time_t conn_expires = ldap_back_conn_expire_time( li, lc );
+		if ( conn_expires != -1 ) {
+			li->li_conn_expire_task = ldap_pvt_runqueue_insert( &slapd_rq,
+				conn_expires - slap_get_time(),
+				ldap_back_conn_expire_fn, li, "ldap_back_conn_expire_fn",
+				"ldap_back_conn_expire_timer" );
+			slap_wake_listener();
+			Debug( LDAP_DEBUG_TRACE,
+				"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
+				li->li_conn_expire_task->interval.tv_sec );
+		}
 	}
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 
