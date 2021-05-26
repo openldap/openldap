@@ -12,6 +12,16 @@
 
 #include "slapd-common.h"
 
+#include <stdbool.h>
+#include <stdint.h>
+#include <unistd.h>
+
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+
+#define COUNT_OF(x) (sizeof(x)/sizeof(x[0]))
+
 /*
  * Compile-time constants
  */
@@ -41,7 +51,6 @@ static char *clearscreen = "\033[H\033[2J";
 static struct berval base;
 static int interval = 10;
 static const char *default_monfilter = MONFILTER;
-
 
 static void timestamp(const time_t *tt)
 {
@@ -83,12 +92,13 @@ static void rotate_stats( server *sv, int numservers )
 }
 
 FILE *
-init_stats( const char filename[], server *server ) {
+init_stats( char uri[], const char filename[], server *server ) {
 	if( !filename ) {
 		return NULL;
 	}
 	
-	*server = (struct server) { .flags = HAS_ENTRIES };
+	*server = (struct server) { .url = uri, 
+				    .flags = HAS_ENTRIES };
 				    
 	return fopen(filename, "w");
 }
@@ -103,10 +113,87 @@ update_stats( server *server, slap_op_t op,
 	server->c_curr.ops[op] = nop;
 }
 
+ssize_t
+send_stats( int fd, server *server ) {
+	uint64_t size = 0;
+	if( fd < 0 ) return 0;
+	
+	assert(server);
+	struct iovec iov[] = { { &size, sizeof(size) },
+			       { &server->c_prev, sizeof(server->c_prev) },
+			       { &server->c_curr, sizeof(server->c_curr) },
+			       { &server->url,
+				 server->url? strlen(server->url) : 0 } };
+
+	for( struct iovec *p=iov; iov < iov + COUNT_OF(iov); p++ ) {
+		size += p->iov_len; // size includes size
+	}
+
+	return writev(fd, iov, COUNT_OF(iov));	
+}
+
+server *
+recv_stats( int fd ) {
+	static char url[512];
+	static server server = { .url = url };
+	uint64_t size = 0;
+	struct iovec iov[] = { { &server.c_prev, sizeof(server.c_prev) },
+			       { &server.c_curr, sizeof(server.c_curr) },
+			       { &server.url,    sizeof(url) } };
+
+	if( fd < 0 ) return 0;
+
+	ssize_t n = read(fd, &size, sizeof(size));
+	switch(n) {
+	case -1:
+		tester_perror( __func__, NULL );
+	case 0:
+		return NULL;     // normal EOF
+	}
+	
+	memset(url, '\0', sizeof(url));
+	size -= sizeof(size);
+	
+	if( (n = readv(fd, iov, COUNT_OF(iov))) == size ) {
+		return &server;  // success
+	}
+
+	do {                     // short read or error
+		switch(n) {
+		case -1:
+			tester_perror( __func__, NULL );
+		case 0:
+			fprintf(stderr, "read only %ld of %ld bytes\n",
+				(long)n, (long)size);
+			return NULL;
+		}
+		assert(n > 0 ); 
+		fprintf(stderr, "Short read! only %ld of %ld bytes\n",
+			(long)n, (long)size);
+		size -= n;
+		char discard[size];
+		n = read(fd, discard, size);
+	} while( n < size );
+
+	// ignore short read (because complicated) and try again
+	return recv_stats(fd);
+}
+
 /*
  * Display statistics for the "server" (which may be a client).
  */
 #define eprintf(...) fprintf (out, __VA_ARGS__)
+
+static bool
+is_fifo(int fd) {
+	struct stat sb;
+	
+	if( 0 != fstat(fd, &sb) ) {
+		tester_perror( __func__, NULL );
+		return false;
+	}
+	return S_ISFIFO(sb.st_mode);
+}
 
 void
 display_stats( FILE *out, server *server ) {
@@ -119,14 +206,21 @@ display_stats( FILE *out, server *server ) {
 	if( !out ) return; // no statistics requested
 	assert(server);
 
+	if( is_fifo(fileno(out)) ) {
+		send_stats(fileno(out), server);
+		return;
+	}
+
 	eprintf("\n%s\n", server->url? server->url : "" );
 	eprintf("      ");
 
 	if ( server->flags & HAS_ENTRIES )
 		eprintf("  Entries  ");
+#if 0
 	for ( j = 0; j<SLAP_OP_LAST; j++ )
 		eprintf(" %9s ", opnames[j].display);
 	eprintf("\n");
+#endif
 	eprintf("Num   ");
 	if ( server->flags & HAS_ENTRIES )
 		eprintf("%10lu ", server->c_curr.entries);

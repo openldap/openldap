@@ -473,7 +473,8 @@ tester_config_finish( struct tester_conn_args *config )
 	}
 
 	if ( config->statsfilename ) {
-		config->statsfile = init_stats(config->statsfilename,
+		config->statsfile = init_stats(config->uri,
+					       config->statsfilename, 
 					       &config->stats);
 		if ( !config->statsfile ) {
 			tester_error( "unable to open stats file" );

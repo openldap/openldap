@@ -122,6 +122,8 @@ struct tester_conn_args {
 #endif
 };
 
+#define TESTER_FIFO       "/tmp/statsfifo"
+
 #define TESTER_INIT_ONLY (1 << 0)
 #define TESTER_INIT_NOEXIT (1 << 1)
 #define TESTER_COMMON_OPTS "CD:d:H:L:l:i:O:R:U:X:Y:r:s:t:w:x"
@@ -153,7 +155,7 @@ extern int			debug;
  */
 
 FILE *
-init_stats( const char filename[], struct server *server );
+init_stats( char uri[], const char filename[], server *server );
 
 void
 update_stats( struct server *server, slap_op_t op,
@@ -161,5 +163,8 @@ update_stats( struct server *server, slap_op_t op,
 
 void
 display_stats( FILE *out, struct server *server );
+
+server *
+recv_stats( int fd );
 
 #endif /* SLAPD_COMMON_H */
