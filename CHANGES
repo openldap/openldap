@@ -29,7 +29,7 @@ OpenLDAP 2.5.5 Engineering
 		Update ldapc++/ldaptcl to use configure.ac (ITS#9554)
 	Documentation
 		ldap_first_attribute(3) - Document ldap_get_attribute_ber (ITS#8820)
-
+        ldap_modify(3) - Delete non-existent mod_next parameter (ITS#9559)
 
 OpenLDAP 2.5.4 Release (2021/04/29)
 	Initial release for "general use".
