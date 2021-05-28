@@ -37,6 +37,7 @@ sdf-src: \
 	guide.sdf \
 	install.sdf \
 	intro.sdf \
+	loadbalancer.sdf \
 	maintenance.sdf \
 	master.sdf \
 	monitoringslapd.sdf \
@@ -69,6 +70,7 @@ sdf-img: \
 	intro_tree.png \
 	ldap-sync-refreshandpersist.png \
 	ldap-sync-refreshonly.png \
+	load-balancer-scenario.png \
 	n-way-multi-provider.png \
 	push-based-complete.png \
 	push-based-standalone.png \
