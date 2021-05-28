@@ -8,7 +8,7 @@ OpenLDAP 2.4.59 Engineering
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
 	Contrib
-		Fixed slapo-autogroup to not thrash thead context (ITS#9494)
+		Fixed slapo-autogroup to not thrash thread context (ITS#9494)
 	Documentation
 		ldap_modify(3) - Delete non-existent mod_next parameter (ITS#9559)
 
