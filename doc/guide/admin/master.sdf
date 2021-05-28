@@ -84,6 +84,9 @@ PB:
 !include "monitoringslapd.sdf"; chapter
 PB:
 
+!include "loadbalancer.sdf"; chapter
+PB:
+
 !include "tuning.sdf"; chapter
 PB:
 
