@@ -2334,6 +2334,7 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 
 	rc = fop.o_bd->be_search( &fop, &frs );
 
+	ldap_avl_free( uuid_progress.uuids, NULL );
 	fop.o_tmpfree( uuid_progress.uuid_buf, fop.o_tmpmemctx );
 	fop.o_tmpfree( uuid_progress.uuid_list, fop.o_tmpmemctx );
 	fop.o_tmpfree( fop.ors_filterstr.bv_val, fop.o_tmpmemctx );
