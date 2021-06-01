@@ -21,6 +21,7 @@ OpenLDAP 2.5.5 Engineering
 	Fixed slapd-asyncmeta to have a default operations timeout (ITS#9555)
 	Fixed slapd-ldap quarantine handling (ITS#8721)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
+	Fixed slapd-mdb off-by-one affecting search scope (ITS#9557)
 	Fixed slapd-meta quarantine handling (ITS#8721)
 	Fixed slapo-accesslog to record reqNewDN for modRDN ops (ITS#9552)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
