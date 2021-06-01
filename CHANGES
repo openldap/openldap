@@ -6,6 +6,7 @@ OpenLDAP 2.4.59 Engineering
 	Fixed slapd syncrepl handling of add+delete on single value attr (ITS#9295)
 	Fixed slapd-mdb cursor init check (ITS#9526)
 	Fixed slapd-mdb deletion of context entry (ITS#9531)
+	Fixed slapd-mdb off-by-one affecting search scope (ITS#9557)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
 	Contrib
 		Fixed slapo-autogroup to not thrash thread context (ITS#9494)
