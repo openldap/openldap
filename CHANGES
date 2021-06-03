@@ -1,5 +1,7 @@
 OpenLDAP 2.5 Change Log
 
+OpenLDAP 2.5.6 Engineering
+
 OpenLDAP 2.5.5 Release (2021/06/03)
 	Added libldap LDAP_OPT_TCP_USER_TIMEOUT support (ITS#9502)
 	Added lloadd tcp-user-timeout support (ITS#9502)
