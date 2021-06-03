@@ -1,5 +1,7 @@
 OpenLDAP 2.4 Change Log
 
+OpenLDAP 2.4.60 Engineering
+
 OpenLDAP 2.4.59 Release (2021/06/03)
 	Fixed libldap TLSv1.3 cipher suites with OpenSSL 1.1.1 (ITS#9521)
 	Fixed libldap double free of LDAP_OPT_DEFBASE (ITS#9530)
