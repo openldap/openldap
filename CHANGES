@@ -28,7 +28,8 @@ OpenLDAP 2.5.5 Release (2021/06/03)
 	Fixed slapd-meta quarantine handling (ITS#8721)
 	Fixed slapo-accesslog to record reqNewDN for modRDN ops (ITS#9552)
 	Fixed slapo-pcache locking during expiration (ITS#9529)
-	Fixed slappw-argon2 module installation (ITS#9548)
+	Build
+		Fixed slappw-argon2 module installation (ITS#9548)
 	Contrib
 		Update ldapc++/ldaptcl to use configure.ac (ITS#9554)
 	Documentation
