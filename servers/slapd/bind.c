@@ -437,7 +437,8 @@ fe_op_lastbind( Operation *op )
 		 * TODO: If the recorded bind time is within configurable precision,
 		 * it doesn't need to be updated (save a write for nothing)
 		 */
-		if ( bindtime != (time_t)-1 && op->o_time <= bindtime ) {
+		if ( bindtime != (time_t)-1 &&
+				op->o_time <= bindtime + op->o_bd->be_lastbind_precision ) {
 			be_entry_release_r( op, e );
 			return LDAP_SUCCESS;
 		}

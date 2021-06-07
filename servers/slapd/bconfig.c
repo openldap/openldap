@@ -177,6 +177,7 @@ enum {
 	CFG_MODPATH,
 	CFG_LASTMOD,
 	CFG_LASTBIND,
+	CFG_LASTBIND_PRECISION,
 	CFG_AZPOLICY,
 	CFG_AZREGEXP,
 	CFG_AZDUC,
@@ -450,6 +451,13 @@ static ConfigTable config_back_cf_table[] = {
 		&config_generic, "( OLcfgDbAt:0.22 NAME 'olcLastBind' "
 			"EQUALITY booleanMatch "
 			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
+	{ "lastbind-precision", "seconds difference", 2, 2, 0,
+		ARG_DB|ARG_MAGIC|ARG_UINT|CFG_LASTBIND_PRECISION,
+		&config_generic, "( OLcfgDbAt:0.23 NAME 'olcLastBindPrecision' "
+			"EQUALITY integerMatch "
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = 0 }
+	},
 	{ "ldapsyntax",	"syntax", 2, 0, 0,
 		ARG_PAREN|ARG_MAGIC|CFG_SYNTAX,
 		&config_generic, "( OLcfgGlAt:85 NAME 'olcLdapSyntaxes' "
@@ -1009,8 +1017,8 @@ static ConfigOCs cf_ocs[] = {
 		"SUP olcConfig STRUCTURAL "
 		"MUST olcDatabase "
 		"MAY ( olcDisabled $ olcHidden $ olcSuffix $ olcSubordinate $ olcAccess $ "
-		 "olcAddContentAcl $ olcLastMod $ olcLastBind $ olcLimits $ "
-		 "olcMaxDerefDepth $ olcPlugin $ olcReadOnly $ olcReplica $ "
+		 "olcAddContentAcl $ olcLastMod $ olcLastBind $ olcLastBindPrecision $ "
+		 "olcLimits $ olcMaxDerefDepth $ olcPlugin $ olcReadOnly $ olcReplica $ "
 		 "olcReplicaArgsFile $ olcReplicaPidFile $ olcReplicationInterval $ "
 		 "olcReplogFile $ olcRequires $ olcRestrict $ olcRootDN $ olcRootPW $ "
 		 "olcSchemaDN $ olcSecurity $ olcSizeLimit $ olcSyncUseSubentry $ olcSyncrepl $ "
@@ -1379,6 +1387,9 @@ config_generic(ConfigArgs *c) {
 		case CFG_LASTBIND:
 			c->value_int = (SLAP_NOLASTMOD(c->be) == 0);
 			break;
+		case CFG_LASTBIND_PRECISION:
+			c->value_uint = c->be->be_lastbind_precision;
+			break;
 		case CFG_SYNC_SUBENTRY:
 			c->value_int = (SLAP_SYNC_SUBENTRY(c->be) != 0);
 			break;
@@ -1530,6 +1541,10 @@ config_generic(ConfigArgs *c) {
 
 		case CFG_SYNC_SUBENTRY:
 			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_SYNC_SUBENTRY;
+			break;
+
+		case CFG_LASTBIND_PRECISION:
+			c->be->be_lastbind_precision = 0;
 			break;
 
 		case CFG_RO:
@@ -2404,6 +2419,10 @@ sortval_reject:
 				SLAP_DBFLAGS(c->be) |= SLAP_DBFLAG_LASTBIND;
 			else
 				SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_LASTBIND;
+			break;
+
+		case CFG_LASTBIND_PRECISION:
+			c->be->be_lastbind_precision = c->value_uint;
 			break;
 
 		case CFG_MULTIPROVIDER:

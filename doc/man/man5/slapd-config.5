@@ -1482,6 +1482,12 @@ Controls whether
 will automatically maintain the pwdLastSuccess attribute for
 entries. By default, olcLastBind is FALSE.
 .TP
+.B olcLastBindPrecision: <number>
+If olcLastBind is enabled, a new value is written only if the
+current one is more than
+.B number
+seconds in the past.
+.TP
 .B olcLimits: <selector> <limit> [<limit> [...]]
 Specify time and size limits based on the operation's initiator or
 base DN.
