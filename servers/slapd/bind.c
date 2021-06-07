@@ -429,7 +429,7 @@ fe_op_lastbind( Operation *op )
 			lutil_tm2time( &tm, &tt );
 			bindtime = tt.tt_sec;
 		}
-		Debug( LDAP_DEBUG_ANY, "fe_op_lastbind: "
+		Debug( LDAP_DEBUG_TRACE, "fe_op_lastbind: "
 				"old pwdLastSuccess value=%s %lds ago\n",
 				a->a_nvals[0].bv_val, bindtime == (time_t)-1 ? -1 : op->o_time - bindtime );
 
