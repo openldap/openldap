@@ -1477,7 +1477,7 @@ config_generic(ConfigArgs *c) {
 			break;
 
 		case CFG_DEPTH:
-			c->be->be_max_deref_depth = SLAPD_DEFAULT_MAXDEREFDEPTH;
+			c->be->be_max_deref_depth = c->ca_desc->arg_default.v_int;
 			break;
 
 		case CFG_LASTMOD:
@@ -1499,11 +1499,11 @@ config_generic(ConfigArgs *c) {
 			break;
 
 		case CFG_SSTR_IF_MAX:
-			index_substr_if_maxlen = SLAP_INDEX_SUBSTR_IF_MAXLEN_DEFAULT;
+			index_substr_if_maxlen = c->ca_desc->arg_default.v_uint;
 			break;
 
 		case CFG_SSTR_IF_MIN:
-			index_substr_if_minlen = SLAP_INDEX_SUBSTR_IF_MINLEN_DEFAULT;
+			index_substr_if_minlen = c->ca_desc->arg_default.v_uint;
 			break;
 
 		case CFG_ACL_ADD:
