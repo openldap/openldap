@@ -5835,6 +5835,7 @@ done:
 		} else if ( coptr->co_type == Cft_Schema ) {
 			schema_destroy_one( ca, colst, nocs, last );
 		} else if ( ca->num_cleanups ) {
+			ca->reply.err = rc;
 			config_run_cleanup( ca );
 		}
 	}
@@ -6327,6 +6328,11 @@ config_modify_internal( CfEntryInfo *ce, Operation *op, SlapReply *rs,
 		}
 	}
 
+	/* Apply pending changes */
+	if ( rc == LDAP_SUCCESS && ca->num_cleanups ) {
+		rc = config_run_cleanup( ca );
+	}
+
 out:
 	/* Undo for a failed operation */
 	if ( rc != LDAP_SUCCESS ) {
@@ -6371,13 +6377,11 @@ out:
 				}
 			}
 		}
+		if ( ca->num_cleanups ) {
+			ca->reply.err = rc;
+			config_run_cleanup( ca );
+		}
 		ca->reply = msg;
-	}
-
-	if ( ca->num_cleanups ) {
-		i = config_run_cleanup( ca );
-		if (rc == LDAP_SUCCESS)
-			rc = i;
 	}
 out_noop:
 	if ( rc == LDAP_SUCCESS ) {
