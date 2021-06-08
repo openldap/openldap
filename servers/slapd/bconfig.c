@@ -1081,6 +1081,20 @@ config_resize_lthreads(ConfigArgs *c)
 	return slapd_daemon_resize( new_daemon_threads );
 }
 
+static int
+config_substr_if_check( ConfigArgs *c )
+{
+	if ( index_substr_if_maxlen < index_substr_if_minlen ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"attempted to set olcIndexSubstrIfMaxLen shorter than "
+				"olcIndexSubstrIfMinLen: %u < %u",
+				index_substr_if_maxlen, index_substr_if_minlen );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+		return 1;
+	}
+	return LDAP_SUCCESS;
+}
+
 #define	GOT_CONFIG	1
 #define	GOT_FRONTEND	2
 static int
@@ -1500,10 +1514,14 @@ config_generic(ConfigArgs *c) {
 
 		case CFG_SSTR_IF_MAX:
 			index_substr_if_maxlen = c->ca_desc->arg_default.v_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
 			break;
 
 		case CFG_SSTR_IF_MIN:
 			index_substr_if_minlen = c->ca_desc->arg_default.v_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
 			break;
 
 		case CFG_ACL_ADD:
@@ -2450,23 +2468,15 @@ sortval_reject:
 			break;
 
 		case CFG_SSTR_IF_MAX:
-			if (c->value_uint < index_substr_if_minlen) {
-				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> invalid value", c->argv[0] );
-				Debug(LDAP_DEBUG_ANY, "%s: %s (%d)\n",
-					c->log, c->cr_msg, c->value_int );
-				return(1);
-			}
 			index_substr_if_maxlen = c->value_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
 			break;
 
 		case CFG_SSTR_IF_MIN:
-			if (c->value_uint > index_substr_if_maxlen) {
-				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> invalid value", c->argv[0] );
-				Debug(LDAP_DEBUG_ANY, "%s: %s (%d)\n",
-					c->log, c->cr_msg, c->value_int );
-				return(1);
-			}
 			index_substr_if_minlen = c->value_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
 			break;
 
 #ifdef SLAPD_MODULES
