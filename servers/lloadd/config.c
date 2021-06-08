@@ -626,7 +626,8 @@ static ConfigTable config_back_cf_table[] = {
             "EQUALITY integerMatch "
             "SYNTAX OMsInteger "
             "SINGLE-VALUE )",
-        NULL, NULL
+        NULL,
+        { .v_uint = 0 }
     },
 
     /* cn=config only options */
@@ -747,6 +748,7 @@ static ConfigOCs lloadocs[] = {
             "$ olcBkLloadTLSProtocolMin "
             "$ olcBkLloadTLSCRLFile "
             "$ olcBkLloadTLSShareSlapdCTX "
+            "$ olcBkLloadClientMaxPending "
         ") )",
         Cft_Backend, config_back_cf_table,
         NULL,
