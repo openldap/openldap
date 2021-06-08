@@ -419,11 +419,15 @@ static ConfigTable config_back_cf_table[] = {
 	{ "index_substr_if_minlen", "min", 2, 2, 0, ARG_UINT|ARG_NONZERO|ARG_MAGIC|CFG_SSTR_IF_MIN,
 		&config_generic, "( OLcfgGlAt:20 NAME 'olcIndexSubstrIfMinLen' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = SLAP_INDEX_SUBSTR_IF_MINLEN_DEFAULT }
+	},
 	{ "index_substr_if_maxlen", "max", 2, 2, 0, ARG_UINT|ARG_NONZERO|ARG_MAGIC|CFG_SSTR_IF_MAX,
 		&config_generic, "( OLcfgGlAt:21 NAME 'olcIndexSubstrIfMaxLen' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = SLAP_INDEX_SUBSTR_IF_MAXLEN_DEFAULT }
+	},
 	{ "index_substr_any_len", "len", 2, 2, 0, ARG_UINT|ARG_NONZERO,
 		&index_substr_any_len, "( OLcfgGlAt:22 NAME 'olcIndexSubstrAnyLen' "
 			"EQUALITY integerMatch "
@@ -462,7 +466,9 @@ static ConfigTable config_back_cf_table[] = {
 		ARG_UINT|ARG_MAGIC|CFG_LTHREADS, &config_generic,
 		"( OLcfgGlAt:93 NAME 'olcListenerThreads' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = 1 }
+	},
 	{ "localSSF", "ssf", 2, 2, 0, ARG_INT,
 		&local_ssf, "( OLcfgGlAt:26 NAME 'olcLocalSSF' "
 			"EQUALITY integerMatch "
@@ -479,11 +485,15 @@ static ConfigTable config_back_cf_table[] = {
 	{ "maxDerefDepth", "depth", 2, 2, 0, ARG_DB|ARG_INT|ARG_MAGIC|CFG_DEPTH,
 		&config_generic, "( OLcfgDbAt:0.6 NAME 'olcMaxDerefDepth' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = SLAPD_DEFAULT_MAXDEREFDEPTH }
+	},
 	{ "maxFilterDepth", "depth", 2, 2, 0, ARG_INT,
 		&slap_max_filter_depth, "( OLcfgGlAt:101 NAME 'olcMaxFilterDepth' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = SLAP_MAX_FILTER_DEPTH_DEFAULT }
+	},
 	{ "multiprovider", "on|off", 2, 2, 0, ARG_DB|ARG_ON_OFF|ARG_MAGIC|CFG_MULTIPROVIDER,
 		&config_generic, "( OLcfgDbAt:0.16 NAME ( 'olcMultiProvider' 'olcMirrorMode' ) "
 			"EQUALITY booleanMatch "
@@ -739,12 +749,16 @@ static ConfigTable config_back_cf_table[] = {
 		ARG_INT|ARG_MAGIC|CFG_THREADS, &config_generic,
 		"( OLcfgGlAt:66 NAME 'olcThreads' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = SLAP_MAX_WORKER_THREADS }
+	},
 	{ "threadqueues", "count", 2, 2, 0,
 		ARG_INT|ARG_MAGIC|CFG_THREADQS, &config_generic,
 		"( OLcfgGlAt:95 NAME 'olcThreadQueues' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = 1 }
+	},
 	{ "timelimit", "limit", 2, 0, 0, ARG_MAY_DB|ARG_MAGIC,
 		&config_timelimit, "( OLcfgGlAt:67 NAME 'olcTimeLimit' "
 			"EQUALITY caseExactMatch "
@@ -890,7 +904,9 @@ static ConfigTable config_back_cf_table[] = {
 	{ "tool-threads", "count", 2, 2, 0, ARG_INT|ARG_MAGIC|CFG_TTHREADS,
 		&config_generic, "( OLcfgGlAt:80 NAME 'olcToolThreads' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = 1 }
+	},
 	{ "ucdata-path", "path", 2, 2, 0, ARG_IGNORED,
 		NULL, NULL, NULL, NULL },
 	{ "updatedn", "dn", 2, 2, 0, ARG_DB|ARG_DN|ARG_QUOTE|ARG_MAGIC,
@@ -1429,22 +1445,73 @@ config_generic(ConfigArgs *c) {
 	} else if ( c->op == LDAP_MOD_DELETE ) {
 		int rc = 0;
 		switch(c->type) {
-		/* single-valued attrs, no-ops */
+		/* single-valued attrs */
 		case CFG_CONCUR:
+			/* FIXME: There is currently no way to retrieve the default? */
+			break;
+
 		case CFG_THREADS:
+			if ( slapMode & SLAP_SERVER_MODE )
+				ldap_pvt_thread_pool_maxthreads(&connection_pool,
+						SLAP_MAX_WORKER_THREADS);
+			connection_pool_max = SLAP_MAX_WORKER_THREADS;	/* save for reference */
+			break;
+
 		case CFG_THREADQS:
+			if ( slapMode & SLAP_SERVER_MODE )
+				ldap_pvt_thread_pool_queues(&connection_pool, 1);
+			connection_pool_queues = 1;	/* save for reference */
+			break;
+
 		case CFG_TTHREADS:
+			slap_tool_thread_max = 1;
+			break;
+
 		case CFG_LTHREADS:
+			new_daemon_threads = 1;
+			config_push_cleanup( c, config_resize_lthreads );
+			break;
+
 		case CFG_AZPOLICY:
+			slap_sasl_setpolicy( "none" );
+			break;
+
 		case CFG_DEPTH:
+			c->be->be_max_deref_depth = SLAPD_DEFAULT_MAXDEREFDEPTH;
+			break;
+
 		case CFG_LASTMOD:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_NOLASTMOD;
+			break;
+
 		case CFG_LASTBIND:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_LASTBIND;
+			break;
+
 		case CFG_MONITORING:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_MONITORING;
+			break;
+
 		case CFG_SASLSECP:
+#ifdef HAVE_CYRUS_SASL
+			slap_sasl_secprops( "" );
+#endif
+			break;
+
 		case CFG_SSTR_IF_MAX:
+			index_substr_if_maxlen = SLAP_INDEX_SUBSTR_IF_MAXLEN_DEFAULT;
+			break;
+
 		case CFG_SSTR_IF_MIN:
+			index_substr_if_minlen = SLAP_INDEX_SUBSTR_IF_MINLEN_DEFAULT;
+			break;
+
 		case CFG_ACL_ADD:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_ACL_ADD;
+			break;
+
 		case CFG_SYNC_SUBENTRY:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_SYNC_SUBENTRY;
 			break;
 
 		case CFG_RO:

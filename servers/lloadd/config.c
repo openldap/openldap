@@ -302,7 +302,8 @@ static ConfigTable config_back_cf_table[] = {
             "EQUALITY integerMatch "
             "SYNTAX OMsInteger "
             "SINGLE-VALUE )",
-        NULL, NULL
+        NULL,
+        { .v_ber_t = LLOAD_SB_MAX_INCOMING_CLIENT }
     },
     { "sockbuf_max_incoming_upstream", "max", 2, 2, 0,
         ARG_BER_LEN_T|ARG_MAGIC|CFG_MAXBUF_UPSTREAM,
@@ -313,7 +314,8 @@ static ConfigTable config_back_cf_table[] = {
             "EQUALITY integerMatch "
             "SYNTAX OMsInteger "
             "SINGLE-VALUE )",
-        NULL, NULL
+        NULL,
+        { .v_ber_t = LLOAD_SB_MAX_INCOMING_UPSTREAM }
     },
     { "tcp-buffer", "[listener=<listener>] [{read|write}=]size", 0, 0, 0,
 #ifdef LDAP_TCP_BUFFER
