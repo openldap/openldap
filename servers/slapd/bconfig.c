@@ -4822,6 +4822,7 @@ config_find_table( ConfigOCs **colst, int nocs, AttributeDescription *ad,
 		for (i=0; colst[j]->co_table[i].name; i++)
 			if ( colst[j]->co_table[i].ad == ad ) {
 				ca->table = colst[j]->co_type;
+				ca->ca_desc = colst[j]->co_table+i;
 				return &colst[j]->co_table[i];
 			}
 	}

@@ -2121,7 +2121,8 @@ lload_config_find_keyword( ConfigTable *Conf, ConfigArgs *c )
         }
         c->line = c->tline;
     }
-    return Conf + i;
+    c->ca_desc = Conf + i;
+    return c->ca_desc;
 }
 
 int
