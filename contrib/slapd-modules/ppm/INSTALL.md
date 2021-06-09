@@ -13,9 +13,11 @@ Build
 Enter contrib/slapd-modules/ppm directory
 
 You can optionally customize some variables if you don't want the default ones:
-- prefix: prefix of the path where ppm is to be installed (default to /usr/local)
-- libdir: where the ppm library is to be deployed (default to /lib under prefix)
-- etcdir: where the ppm example policy is to be deployed (default to /etc/openldap under prefix)
+- prefix: prefix of the path where ppm is to be installed (defaults to /usr/local)
+- ldap_subdir: OpenLDAP specific subdirectory for modules and configurations (defaults to  openldap )
+- moduledir: where the ppm module is to be deployed (defaults to $prefix/$libexecdir/$ldap_subdir)
+- etcdir: used to compose default sysconfdir location (defaults to $prefix/etc)
+- sysconfdir: where the ppm example policy is to be deployed (defaults to $prefix/$etcdir/$ldap_subdir)
 - LDAP_SRC: path to OpenLDAP source directory
 - Options in OPTS variable:
     CONFIG_FILE: (DEPRECATED) path to a ppm configuration file (see PPM_READ_FILE in ppm.h)

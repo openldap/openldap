@@ -33,7 +33,7 @@ CRACKLIB=$(CRACKLIB_$(CRACK))
 
 DEFS = -DDEBUG $(CRACKDEF)
 # Define if using a config file:
-# -DCONFIG_FILE="\"$(etcdir)/$(EXAMPLE)\""
+# -DCONFIG_FILE="\"$(sysconfdir)/$(EXAMPLE)\""
 
 INCS = $(LDAP_INC)
 LIBS = $(LDAP_LIB)
@@ -52,7 +52,8 @@ libexecdir=$(exec_prefix)/libexec
 moduledir = $(libexecdir)$(ldap_subdir)
 mandir = $(exec_prefix)/share/man
 man5dir = $(mandir)/man5
-etcdir = $(exec_prefix)/etc$(ldap_subdir)
+etcdir = $(exec_prefix)/etc
+sysconfdir = $(prefix)/$(etcdir)$(ldap_subdir)
 
 TEST=ppm_test
 EXAMPLE=ppm.example
@@ -74,7 +75,7 @@ install: ppm
 	for p in $(PROGRAMS); do \
 		$(LIBTOOL) --mode=install cp $$p $(DESTDIR)/$(moduledir) ; \
 	done
-	$(INSTALL) -m 644 $(EXAMPLE) $(DESTDIR)$(etcdir)/
+	$(INSTALL) -m 644 $(EXAMPLE) $(DESTDIR)$(sysconfdir)/
 #	$(INSTALL) -m 755 $(TEST) $(libdir)
 
 .PHONY: clean
