@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.6 Engineering
+	Fixed libldap buffer overflow (ITS#9578)
 
 OpenLDAP 2.5.5 Release (2021/06/03)
 	Added libldap LDAP_OPT_TCP_USER_TIMEOUT support (ITS#9502)
