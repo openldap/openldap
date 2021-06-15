@@ -94,7 +94,7 @@ main( int argc, char **argv )
 	/* by default, tolerate referrals and no such object */
 	tester_ignore_str2errlist( "REFERRAL,NO_SUCH_OBJECT" );
 
-	while ( (i = getopt( argc, argv, TESTER_COMMON_OPTS "Ae:Ff:NST:" )) != EOF ) {
+	while ( (i = getopt( argc, argv, TESTER_COMMON_OPTS "Ae:Ff:NST:%:" )) != EOF ) {
 		switch ( i ) {
 		case 'A':
 			noattrs++;
@@ -162,6 +162,8 @@ main( int argc, char **argv )
 		}
 	}
 
+	display_stats( config->statsfile, &config->stats );
+
 	exit( EXIT_SUCCESS );
 }
 
@@ -194,6 +196,7 @@ do_random( struct tester_conn_args *config, char *sbase, char *filter,
 	case LDAP_TIMELIMIT_EXCEEDED:
 	case LDAP_SUCCESS:
 		nvalues = ldap_count_entries( ld, res );
+		update_stats( &config->stats, SLAP_OP_SEARCH, nvalues, 1);
 		if ( nvalues == 0 ) {
 			if ( rc ) {
 				tester_ldap_error( ld, "ldap_search_ext_s", NULL );
@@ -240,6 +243,8 @@ do_random( struct tester_conn_args *config, char *sbase, char *filter,
 
 	if ( ld != NULL ) {
 		ldap_unbind_ext( ld, NULL, NULL );
+		update_stats( &config->stats, SLAP_OP_UNBIND,
+			      ++config->stats.c_curr.entries, 1);
 	}
 }
 
@@ -291,6 +296,9 @@ retry:;
 #endif
 				i++;
 
+				update_stats( &config->stats, SLAP_OP_SEARCH,
+					      ++config->stats.c_curr.entries, i);
+
 				if ( rc ) {
 					char buf[BUFSIZ];
 					int first = tester_ignore_err( rc );
@@ -310,6 +318,8 @@ retry:;
 						ldap_unbind_ext( ld, NULL, NULL );
 						ld = NULL;
 						do_retry--;
+						update_stats( &config->stats, SLAP_OP_UNBIND,
+							      ++config->stats.c_curr.entries, i);
 						goto retry;
 					}
 					break;
@@ -387,6 +397,8 @@ retry:;
 				rc = ldap_search_ext( ld, entry, LDAP_SCOPE_BASE,
 						NULL, attrs, noattrs, NULL, NULL,
 						NULL, LDAP_NO_LIMIT, &msgid );
+				update_stats( &config->stats, SLAP_OP_SEARCH,
+					      ++config->stats.c_curr.entries, i);
 				if ( rc == LDAP_SUCCESS ) continue;
 				else break;
 			}
@@ -394,6 +406,8 @@ retry:;
 			rc = ldap_search_ext_s( ld, entry, LDAP_SCOPE_BASE,
 					NULL, attrs, noattrs, NULL, NULL, NULL,
 					LDAP_NO_LIMIT, &res );
+			update_stats( &config->stats, SLAP_OP_SEARCH,
+				      ++config->stats.c_curr.entries, i);
 			if ( res != NULL ) {
 				ldap_msgfree( res );
 			}
@@ -419,6 +433,8 @@ retry:;
 					ldap_unbind_ext( ld, NULL, NULL );
 					ld = NULL;
 					do_retry--;
+					update_stats( &config->stats, SLAP_OP_UNBIND,
+						      ++config->stats.c_curr.entries, i);
 					goto retry;
 				}
 				break;
@@ -439,6 +455,8 @@ cleanup:;
 
 		if ( ld != NULL ) {
 			ldap_unbind_ext( ld, NULL, NULL );
+			update_stats( &config->stats, SLAP_OP_UNBIND,
+				      ++config->stats.c_curr.entries, i);
 		}
 	}
 }

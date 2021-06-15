@@ -126,7 +126,7 @@ struct tester_conn_args {
 
 #define TESTER_INIT_ONLY (1 << 0)
 #define TESTER_INIT_NOEXIT (1 << 1)
-#define TESTER_COMMON_OPTS "CD:d:H:L:l:i:O:R:U:X:Y:r:s:t:w:x"
+#define TESTER_COMMON_OPTS "CD:d:H:L:l:i:O:R:U:X:Y:r:t:w:x%:"
 #define TESTER_COMMON_HELP \
 	"[-C] " \
 	"[-D <dn> [-w <passwd>]] " \
@@ -136,12 +136,12 @@ struct tester_conn_args {
 	"[-l <loops>] " \
 	"[-L <outerloops>] " \
 	"[-r <maxretries>] " \
-	"[-s <statsfile>] " \
 	"[-t <delay>] " \
 	"[-O <SASL secprops>] " \
 	"[-R <SASL realm>] " \
 	"[-U <SASL authcid> [-X <SASL authzid>]] " \
-	"[-x | -Y <SASL mech>] "
+	"[-x | -Y <SASL mech>] " \
+	"[-%% <statsfile>] " 
 
 extern int tester_config_opt( struct tester_conn_args *config, char opt, char *optarg );
 extern void tester_config_finish( struct tester_conn_args *config );

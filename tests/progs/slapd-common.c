@@ -427,10 +427,6 @@ tester_config_opt( struct tester_conn_args *config, char opt, char *optarg )
 			}
 			break;
 
-		case 's':
-			config->statsfilename = optarg;
-			break;
-
 		case 't':
 			if ( lutil_atoi( &config->delay, optarg ) != 0 ) {
 				return -1;
@@ -448,6 +444,10 @@ tester_config_opt( struct tester_conn_args *config, char opt, char *optarg )
 				return -1;
 			}
 			config->authmethod = LDAP_AUTH_SIMPLE;
+			break;
+
+		case '%':
+			config->statsfilename = optarg;
 			break;
 
 		default:

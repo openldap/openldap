@@ -186,6 +186,8 @@ retry:;
 				goto done;
 			}
 		}
+		update_stats( &config->stats, SLAP_OP_MODIFY,
+			      ++config->stats.c_curr.entries, i);
 		
 		mod.mod_op = LDAP_MOD_DELETE;
 		rc = ldap_modify_ext_s( ld, entry, mods, NULL, NULL );
@@ -213,6 +215,8 @@ retry:;
 				goto done;
 			}
 		}
+		update_stats( &config->stats, SLAP_OP_MODIFY,
+			      ++config->stats.c_curr.entries, i);
 
 	}
 
@@ -220,6 +224,10 @@ done:;
 	fprintf( stderr, "  PID=%ld - Modify done (%d).\n", (long) pid, rc );
 
 	ldap_unbind_ext( ld, NULL, NULL );
+	
+	update_stats( &config->stats, SLAP_OP_UNBIND,
+		      ++config->stats.c_curr.entries, 1);
+	display_stats( config->statsfile, &config->stats );
 }
 
 

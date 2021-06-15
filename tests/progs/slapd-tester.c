@@ -128,7 +128,7 @@ read_fifo( const char statsfilename[] ) {
 static int
 add_stats_opt( const char filename[], char *args[], int narg ) {
 	if( filename ) {
-		args[narg++] = "-s";
+		args[narg++] = "-%";
 		args[narg++] = TESTER_FIFO;
 	}
 
@@ -269,7 +269,7 @@ main( int argc, char **argv )
 	mloops[0] = '\0';
 	bloops[0] = '\0';
 
-	while ( ( i = getopt( argc, argv, "AB:CD:d:FH:h:Ii:j:L:l:NP:p:r:Ss:t:Ww:y:" ) ) != EOF )
+	while ( ( i = getopt( argc, argv, "AB:CD:d:FH:h:Ii:j:L:l:NP:p:r:S:t:Ww:y:%:" ) ) != EOF )
 	{
 		switch ( i ) {
 		case 'A':
@@ -392,10 +392,6 @@ main( int argc, char **argv )
 			swamp++;
 			break;
 
-		case 's':
-			statsfilename = optarg;
-			break;
-
 		case 't':		/* the delay in seconds between each retry */
 			delay = optarg;
 			break;
@@ -411,6 +407,10 @@ main( int argc, char **argv )
 
 		case 'y':
 			pw_file = optarg;
+			break;
+
+		case '%':
+			statsfilename = optarg;
 			break;
 
 		default:

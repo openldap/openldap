@@ -191,6 +191,10 @@ retry:;
 				goto done;
 			}
 		}
+
+		update_stats( &config->stats, SLAP_OP_MODRDN,
+		      ++config->stats.c_curr.entries, i);
+
 		rc = ldap_rename_s( ld, DNs[1], rdns[1], NULL, 1, NULL, NULL );
 		if ( rc != LDAP_SUCCESS ) {
 			tester_ldap_error( ld, "ldap_rename_s", NULL );
@@ -216,12 +220,18 @@ retry:;
 				goto done;
 			}
 		}
+		update_stats( &config->stats, SLAP_OP_MODRDN,
+		      ++config->stats.c_curr.entries, i);
 	}
 
 done:;
 	fprintf( stderr, "  PID=%ld - Modrdn done (%d).\n", (long) pid, rc );
 
 	ldap_unbind_ext( ld, NULL, NULL );
+
+	update_stats( &config->stats, SLAP_OP_UNBIND,
+		      ++config->stats.c_curr.entries, 1);
+	display_stats( config->statsfile, &config->stats );
 
 	free( DNs[1] );
 	free( rdns[0] );

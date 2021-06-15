@@ -303,7 +303,7 @@ done:;
 
 	update_stats( &config->stats, SLAP_OP_UNBIND,
 		      ++config->stats.c_curr.entries, 1);
-	display_stats(config->statsfile, &config->stats);
+	display_stats( config->statsfile, &config->stats );
 }
 
 

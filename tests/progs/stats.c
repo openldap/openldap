@@ -122,14 +122,37 @@ send_stats( int fd, server *server ) {
 	struct iovec iov[] = { { &size, sizeof(size) },
 			       { &server->c_prev, sizeof(server->c_prev) },
 			       { &server->c_curr, sizeof(server->c_curr) },
-			       { &server->url,
-				 server->url? strlen(server->url) : 0 } };
+			       {  server->url,
+				  server->url? 1+strlen(server->url) : 0 } };
 
-	for( struct iovec *p=iov; iov < iov + COUNT_OF(iov); p++ ) {
-		size += p->iov_len; // size includes size
+	for( struct iovec *p=iov + 1; p < iov + COUNT_OF(iov); p++ ) {
+		size += p->iov_len; // size excludes size
 	}
 
 	return writev(fd, iov, COUNT_OF(iov));	
+}
+
+/*
+ * Having read nbyte of the vector iov, point to the 1st element
+ * remaining to be read, and the position within it. 
+ */
+static struct iovec *
+adjust_iovec( size_t nbyte, struct iovec *iov, size_t niov ) {
+
+	for( struct iovec *p = iov; p < iov + niov; p++ ) {
+		if( nbyte < p->iov_len ) {
+			p->iov_len -= nbyte;
+			return p;
+		}
+		nbyte -= p->iov_len;
+	}
+	assert(false);
+	/*
+	 * nbyte is bytes *remaining* to be read for iov. 
+	 * To arrive here means the sum of iov_len's in iov
+	 * is greater than nbyte. 
+	 */
+	return NULL;
 }
 
 server *
@@ -139,7 +162,9 @@ recv_stats( int fd ) {
 	uint64_t size = 0;
 	struct iovec iov[] = { { &server.c_prev, sizeof(server.c_prev) },
 			       { &server.c_curr, sizeof(server.c_curr) },
-			       { &server.url,    sizeof(url) } };
+			       {  server.url,    sizeof(url) } },
+		*piov = iov,
+		*eiov = iov + COUNT_OF(iov);
 
 	if( fd < 0 ) return 0;
 
@@ -152,31 +177,21 @@ recv_stats( int fd ) {
 	}
 	
 	memset(url, '\0', sizeof(url));
-	size -= sizeof(size);
 	
-	if( (n = readv(fd, iov, COUNT_OF(iov))) == size ) {
-		return &server;  // success
-	}
-
-	do {                     // short read or error
+	while( (n = readv(fd, piov, eiov - piov)) < size ) {
 		switch(n) {
 		case -1:
 			tester_perror( __func__, NULL );
 		case 0:
-			fprintf(stderr, "read only %ld of %ld bytes\n",
-				(long)n, (long)size);
+			fprintf(stderr, "EOF in the middle of %s\n",
+				__func__);
 			return NULL;
 		}
 		assert(n > 0 ); 
-		fprintf(stderr, "Short read! only %ld of %ld bytes\n",
-			(long)n, (long)size);
 		size -= n;
-		char discard[size];
-		n = read(fd, discard, size);
-	} while( n < size );
-
-	// ignore short read (because complicated) and try again
-	return recv_stats(fd);
+		piov = adjust_iovec( n, piov, eiov - piov );
+	}
+	return &server;  // success
 }
 
 /*
