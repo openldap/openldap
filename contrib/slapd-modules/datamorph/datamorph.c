@@ -1399,9 +1399,6 @@ datamorph_set_attribute( ConfigArgs *ca )
 	}
 
 done:
-	if ( rc ) {
-		ca->reply.err = rc;
-	}
 	return rc;
 }
 
@@ -1432,8 +1429,7 @@ datamorph_set_size( ConfigArgs *ca )
 		snprintf( ca->cr_msg, sizeof(ca->cr_msg), "invalid size %d",
 				ca->value_int );
 		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
-		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-		return ca->reply.err;
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 	info->ti_int.size = ca->value_int;
 
@@ -1544,8 +1540,7 @@ datamorph_set_bounds( ConfigArgs *ca )
 				"failed to parse '%s' as integer",
 				ca->value_bv.bv_val );
 		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
-		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-		return ca->reply.err;
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 	ch_free( ca->value_bv.bv_val );
 
@@ -1611,8 +1606,7 @@ datamorph_set_bounds( ConfigArgs *ca )
 			snprintf( ca->cr_msg, sizeof(ca->cr_msg),
 					"datamorph_size has to be set first!" );
 			Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
-			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-			return ca->reply.err;
+			return LDAP_CONSTRAINT_VIOLATION;
 	}
 	if ( info->ti_int.flags & DATAMORPH_FLAG_SIGNED ) {
 		bound->i = signed_bound;
@@ -1645,8 +1639,7 @@ datamorph_set_value( ConfigArgs *ca )
 		ber_len_t len;
 		s = memchr( s, '}', ca->value_bv.bv_len );
 		if ( !s ) {
-			ca->reply.err = LDAP_UNDEFINED_TYPE;
-			return ca->reply.err;
+			return LDAP_UNDEFINED_TYPE;
 		}
 		s += 1;
 
@@ -1675,14 +1668,12 @@ datamorph_set_index( ConfigArgs *ca )
 	}
 
 	if ( ca->value_int < 0 || ca->value_int >= 256 ) {
-		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-		return ca->reply.err;
+		return LDAP_CONSTRAINT_VIOLATION;
 	} else if ( !BER_BVISNULL( &from_db[ca->value_int] ) ) {
 		snprintf( ca->cr_msg, sizeof(ca->cr_msg), "duplicate index %d",
 				ca->value_int );
 		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
-		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-		return ca->reply.err;
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 	mapping->db_value = ca->value_int;
 	from_db[ca->value_int] = mapping->wire_value;
@@ -1718,8 +1709,7 @@ datamorph_add_transformation( ConfigArgs *ca )
 		snprintf( ca->cr_msg, sizeof(ca->cr_msg),
 				"unknown transformation type '%s'", ca->argv[1] );
 		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
-		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-		return ca->reply.err;
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 
 	ca->value_string = strdup( ca->argv[2] );
@@ -1770,9 +1760,6 @@ done:
 		rc = ldap_avl_insert( &info->ti_enum.to_db, mapping,
 				transformation_mapping_cmp, ldap_avl_dup_error );
 	}
-	if ( rc ) {
-		ca->reply.err = rc;
-	}
 
 	return rc;
 }
@@ -1785,15 +1772,13 @@ datamorph_ldadd_info_cleanup( ConfigArgs *ca )
 	transformation_info *info = ca->ca_private;
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
-		/* Not reached since cleanup is only called on success */
-fail:
-		ch_free( info );
 		return LDAP_SUCCESS;
 	}
 
 	if ( ldap_avl_insert( &ov->transformations, info, transformation_info_cmp,
 			ldap_avl_dup_error ) ) {
-		goto fail;
+		ch_free( info );
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 	return LDAP_SUCCESS;
 }
@@ -1843,15 +1828,13 @@ datamorph_ldadd_mapping_cleanup( ConfigArgs *ca )
 	transformation_info *info = mapping->transformation;
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
-		/* Not reached since cleanup is only called on success */
-fail:
-		datamorph_mapping_free( mapping );
 		return LDAP_SUCCESS;
 	}
 
 	if ( ldap_avl_insert( &info->ti_enum.to_db, mapping, transformation_mapping_cmp,
 			ldap_avl_dup_error ) ) {
-		goto fail;
+		datamorph_mapping_free( mapping );
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 	info->ti_enum.from_db[mapping->db_value] = mapping->wire_value;
 

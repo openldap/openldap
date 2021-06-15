@@ -868,8 +868,7 @@ variant_set_dn( ConfigArgs *ca )
 
 		dnMatch( &diff, 0, NULL, NULL, &vei->dn, &vei2->dn );
 		if ( !diff ) {
-			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-			return ca->reply.err;
+			return LDAP_CONSTRAINT_VIOLATION;
 		}
 	}
 
@@ -912,16 +911,14 @@ variant_set_regex( ConfigArgs *ca )
 		if ( !ber_bvcmp( &ca->value_bv, &vei2->dn ) ) {
 			ch_free( vei );
 			ca->ca_private = NULL;
-			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-			return ca->reply.err;
+			return LDAP_CONSTRAINT_VIOLATION;
 		}
 	}
 
 	vei->regex = ch_calloc( 1, sizeof(regex_t) );
 	if ( regcomp( vei->regex, vei->dn.bv_val, REG_EXTENDED ) ) {
 		ch_free( vei->regex );
-		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-		return ca->reply.err;
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 
 	return LDAP_SUCCESS;
@@ -972,8 +969,7 @@ variant_set_alt_pattern( ConfigArgs *ca )
 			Debug( LDAP_DEBUG_ANY, "variant_set_alt_pattern: "
 					"invalid replacement pattern supplied '%s'\n",
 					ca->value_bv.bv_val );
-			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-			return ca->reply.err;
+			return LDAP_CONSTRAINT_VIOLATION;
 		}
 	}
 
@@ -1008,8 +1004,7 @@ variant_set_attribute( ConfigArgs *ca )
 	if ( *s == '{' ) {
 		s = strchr( s, '}' );
 		if ( !s ) {
-			ca->reply.err = LDAP_UNDEFINED_TYPE;
-			return ca->reply.err;
+			return LDAP_UNDEFINED_TYPE;
 		}
 		s += 1;
 	}
@@ -1024,8 +1019,7 @@ variant_set_attribute( ConfigArgs *ca )
 	if ( vai->attr && vai->alternative &&
 			vai->attr->ad_type->sat_syntax !=
 					vai->alternative->ad_type->sat_syntax ) {
-		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-		return ca->reply.err;
+		return LDAP_CONSTRAINT_VIOLATION;
 	}
 
 	if ( ca->type == VARIANT_ATTR ) {
@@ -1033,8 +1027,7 @@ variant_set_attribute( ConfigArgs *ca )
 		LDAP_SLIST_FOREACH( vai2, &vai->variant->attributes, next ) {
 			if ( vai == vai2 ) continue;
 			if ( vai->attr == vai2->attr ) {
-				ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
-				return ca->reply.err;
+				return LDAP_CONSTRAINT_VIOLATION;
 			}
 		}
 	}
@@ -1091,8 +1084,6 @@ variant_add_alt_attr( ConfigArgs *ca )
 done:
 	if ( rc == LDAP_SUCCESS ) {
 		LDAP_SLIST_INSERT_HEAD( &vei->attributes, vai, next );
-	} else {
-		ca->reply.err = rc;
 	}
 
 	return rc;
@@ -1137,8 +1128,6 @@ variant_add_alt_attr_regex( ConfigArgs *ca )
 done:
 	if ( rc == LDAP_SUCCESS ) {
 		LDAP_SLIST_INSERT_HEAD( &vei->attributes, vai, next );
-	} else {
-		ca->reply.err = rc;
 	}
 
 	return rc;
