@@ -61,12 +61,12 @@ LDAP_LUTIL_F(char*)(lutil_getpass) LDAP_P((const char *getpass));
 /*
  * Windows: although sleep() will be resolved by both MSVC and Mingw GCC
  * linkers, the function is not declared in header files. This is
- * because Windows' version of the function is called _sleep(), and it
- * is declared in stdlib.h
+ * because Windows' version of the function is called Sleep(), and it
+ * is declared in windows.h
  */
 
 #ifdef _WIN32
-#define sleep _sleep
+#define sleep(x)	Sleep((x) * 1000)
 #endif
 
 #endif /* _AC_UNISTD_H */
