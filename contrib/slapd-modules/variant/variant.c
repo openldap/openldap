@@ -918,6 +918,7 @@ variant_set_regex( ConfigArgs *ca )
 	vei->regex = ch_calloc( 1, sizeof(regex_t) );
 	if ( regcomp( vei->regex, vei->dn.bv_val, REG_EXTENDED ) ) {
 		ch_free( vei->regex );
+		ch_free( vei->dn.bv_val );
 		return LDAP_CONSTRAINT_VIOLATION;
 	}
 
@@ -1142,6 +1143,7 @@ variant_ldadd_cleanup( ConfigArgs *ca )
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
 		assert( LDAP_SLIST_EMPTY(&vei->attributes) );
+		ch_free( vei->dn.bv_val );
 		ch_free( vei );
 		return LDAP_SUCCESS;
 	}
@@ -1222,6 +1224,7 @@ variant_attr_ldadd_cleanup( ConfigArgs *ca )
 	variantEntry_info *vei = vai->variant;
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
+		ch_free( vai->dn.bv_val );
 		ch_free( vai );
 		return LDAP_SUCCESS;
 	}
@@ -1372,6 +1375,8 @@ variant_db_destroy( BackendDB *be, ConfigReply *cr )
 				ch_free( vai );
 			}
 			ber_memfree( vei->dn.bv_val );
+			regfree( vei->regex );
+			ch_free( vei->regex );
 			ch_free( vei );
 		}
 		ch_free( ov );
