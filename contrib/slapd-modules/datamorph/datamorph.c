@@ -1772,12 +1772,12 @@ datamorph_ldadd_info_cleanup( ConfigArgs *ca )
 	transformation_info *info = ca->ca_private;
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
+		ch_free( info );
 		return LDAP_SUCCESS;
 	}
 
 	if ( ldap_avl_insert( &ov->transformations, info, transformation_info_cmp,
 			ldap_avl_dup_error ) ) {
-		ch_free( info );
 		return LDAP_CONSTRAINT_VIOLATION;
 	}
 	return LDAP_SUCCESS;
@@ -1828,12 +1828,14 @@ datamorph_ldadd_mapping_cleanup( ConfigArgs *ca )
 	transformation_info *info = mapping->transformation;
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
+		if ( mapping ) {
+			datamorph_mapping_free( mapping );
+		}
 		return LDAP_SUCCESS;
 	}
 
 	if ( ldap_avl_insert( &info->ti_enum.to_db, mapping, transformation_mapping_cmp,
 			ldap_avl_dup_error ) ) {
-		datamorph_mapping_free( mapping );
 		return LDAP_CONSTRAINT_VIOLATION;
 	}
 	info->ti_enum.from_db[mapping->db_value] = mapping->wire_value;
