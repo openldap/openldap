@@ -2590,6 +2590,13 @@ config_passwd_hash(ConfigArgs *c) {
 		}
 		return 0;
 	}
+	if ( c->table == Cft_Global ) {
+		Debug( LDAP_DEBUG_ANY, "%s: setting password scheme in the global "
+				"entry is deprecated. The server may refuse to start if "
+				"it is provided by a loadable module, please move it to "
+				"the frontend database instead\n",
+				c->log );
+	}
 	for(i = 1; i < c->argc; i++) {
 		if(!lutil_passwd_scheme(c->argv[i])) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> scheme not available", c->argv[0] );
