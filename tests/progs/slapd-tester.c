@@ -123,6 +123,8 @@ read_fifo( const char statsfilename[] ) {
 	while( (server = recv_stats(fifo)) != NULL ) {
 		display_stats(out, server);
 	}
+
+	fclose(out);
 }
 
 static int
