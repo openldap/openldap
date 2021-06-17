@@ -298,11 +298,10 @@ ldap_pvt_clock_gettime( int clk_id, struct timespec *tv )
 /* emulate POSIX gettimeofday */
 int
 ldap_pvt_gettimeofday( struct timeval *tv, void *unused )
-int
 {
 	struct timespec ts;
 	ldap_pvt_clock_gettime( 0, &ts );
-	tv->tv_sec = ts.tv_spec;
+	tv->tv_sec = ts.tv_sec;
 	tv->tv_usec = ts.tv_nsec / 1000;
 	return 0;
 }

@@ -89,7 +89,7 @@ slap_init( int mode, const char *name )
 
 	slap_op_init();
 
-	ldap_pvt_thread_mutex_init( &slapd_init_cond );
+	ldap_pvt_thread_mutex_init( &slapd_init_mutex );
 	ldap_pvt_thread_cond_init( &slapd_init_cond );
 
 #ifdef SLAPD_MODULES
@@ -279,7 +279,7 @@ int slap_destroy(void)
 
 	}
 
-	ldap_pvt_thread_mutex_destroy( &slapd_init_cond );
+	ldap_pvt_thread_mutex_destroy( &slapd_init_mutex );
 	ldap_pvt_thread_cond_destroy( &slapd_init_cond );
 
 	slap_op_destroy();

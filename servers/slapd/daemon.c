@@ -1484,7 +1484,7 @@ slap_get_listener_addresses(
 		sap = *sal = ch_malloc((n+1) * sizeof(void *));
 
 		for ( i = 0; i<n; i++ ) {
-			sap[i] = ch_calloc(sizeof(struct sockaddr_in));
+			sap[i] = ch_calloc(1, sizeof(struct sockaddr_in));
 			sap[i]->sa_family = AF_INET;
 			((struct sockaddr_in *)sap[i])->sin_port = htons(port);
 			AC_MEMCPY( &((struct sockaddr_in *)sap[i])->sin_addr,

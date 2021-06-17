@@ -197,8 +197,12 @@ This directive defines the maximum size of the privileged connections pool.
 
 .TP
 .B conn\-ttl <time>
-This directive causes a cached connection to be dropped and recreated
-after a given ttl, regardless of being idle or not.
+This directive causes a cached connection to be dropped after a given ttl,
+regardless of being idle or not.  If a client connection outlives the remote
+connection, the client will receive
+.IR LDAP_UNAVAILABLE
+when it executes the next operation.
+
 
 .TP
 .B idassert\-authzFrom <authz-regexp>
@@ -420,8 +424,11 @@ for details on the syntax of this field.
 
 .TP
 .B idle\-timeout <time>
-This directive causes a cached connection to be dropped an recreated
-after it has been idle for the specified time.
+This directive causes a cached connection to be dropped after it has been idle
+for the specified time.  If a client connection outlives the remote connection,
+the client will receive
+.IR LDAP_UNAVAILABLE
+when it executes the next operation.
 
 .TP
 .B keepalive  <idle>:<probes>:<interval>
@@ -536,6 +543,11 @@ or when chasing a referral, if
 .B chase\-referrals
 is set to
 .IR yes .
+Note, however, that connection is not re-established automatically after it
+was dropped due to
+.B idle\-timeout
+or
+.B conn\-ttl .
 
 .TP
 .B session\-tracking\-request {NO|yes}

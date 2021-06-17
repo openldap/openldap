@@ -43,7 +43,11 @@ static int last_incr;
 
 void slap_op_init(void)
 {
+	struct timeval tv;
 	ldap_pvt_thread_mutex_init( &slap_op_mutex );
+	gettimeofday( &tv, NULL );
+	last_time = tv.tv_sec;
+	last_incr = tv.tv_usec;
 }
 
 void slap_op_destroy(void)

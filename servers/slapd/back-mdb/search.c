@@ -406,7 +406,7 @@ mdb_waitfixup( Operation *op, ww_ctx *ww, MDB_cursor *mci, MDB_cursor *mcd, IdSc
 		ww->data.mv_data = NULL;
 	} else if ( isc->scopes[0].mid > 1 ) {	/* candidate-based search */
 		int i;
-		for ( i=1; i<isc->scopes[0].mid; i++ ) {
+		for ( i=1; i<=isc->scopes[0].mid; i++ ) {
 			if ( !isc->scopes[i].mval.mv_data )
 				continue;
 			key.mv_data = &isc->scopes[i].mid;

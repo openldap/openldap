@@ -829,6 +829,7 @@ ldif_read_record(
 		/* Squash \r\n to \n */
 		if ( len > 1 && line[len-2] == '\r' ) {
 			len--;
+			line[len]   = '\0';
 			line[len-1] = '\n';
 		}
 

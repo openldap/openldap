@@ -111,7 +111,7 @@ request_process( LloadConnection *client, LloadOperation *op )
     /* Was it unlinked in the meantime? No need to send a response since the
      * client is dead */
     if ( !IS_ALIVE( op, o_refcnt ) ) {
-        LloadBackend *b = upstream->c_private;
+        LloadBackend *b = upstream->c_backend;
 
         upstream->c_n_ops_executing--;
         checked_unlock( &upstream->c_io_mutex );
@@ -132,7 +132,7 @@ request_process( LloadConnection *client, LloadOperation *op )
 
     output = upstream->c_pendingber;
     if ( output == NULL && (output = ber_alloc()) == NULL ) {
-        LloadBackend *b = upstream->c_private;
+        LloadBackend *b = upstream->c_backend;
 
         upstream->c_n_ops_executing--;
         CONNECTION_UNLOCK(upstream);
@@ -288,6 +288,7 @@ handle_one_request( LloadConnection *c )
     return handler( c, op );
 }
 
+#ifdef HAVE_TLS
 /*
  * The connection has a token assigned to it when the callback is set up.
  */
@@ -385,11 +386,11 @@ fail:
     CONNECTION_LOCK_DESTROY(c);
     epoch_leave( epoch );
 }
+#endif /* HAVE_TLS */
 
 LloadConnection *
 client_init(
         ber_socket_t s,
-        LloadListener *listener,
         const char *peername,
         struct event_base *base,
         int flags )
@@ -398,8 +399,6 @@ client_init(
     struct event *event;
     event_callback_fn read_cb = connection_read_cb,
                       write_cb = connection_write_cb;
-
-    assert( listener != NULL );
 
     if ( (c = lload_connection_init( s, peername, flags) ) == NULL ) {
         return NULL;
@@ -413,6 +412,7 @@ client_init(
     c->c_state = LLOAD_C_READY;
 
     if ( flags & CONN_IS_TLS ) {
+#ifdef HAVE_TLS
         int rc;
 
         c->c_is_tls = LLOAD_LDAPS;
@@ -430,6 +430,9 @@ client_init(
             c->c_read_timeout = lload_timeout_net;
             read_cb = write_cb = client_tls_handshake_cb;
         }
+#else /* ! HAVE_TLS */
+        assert(0);
+#endif /* ! HAVE_TLS */
     }
 
     event = event_new( base, s, EV_READ|EV_PERSIST, read_cb, c );
@@ -450,7 +453,6 @@ client_init(
     }
     c->c_write_event = event;
 
-    c->c_private = listener;
     c->c_destroy = client_destroy;
     c->c_unlink = client_unlink;
     c->c_pdu_cb = handle_one_request;

@@ -1247,6 +1247,13 @@ do_syncrep2(
 
 	slap_dup_sync_cookie( &syncCookie_req, &si->si_syncCookie );
 
+	if ( abs(si->si_type) == LDAP_SYNC_REFRESH_AND_PERSIST && si->si_refreshDone ) {
+		tout.tv_sec = 0;
+	} else {
+		/* Give some time for refresh response to arrive */
+		tout.tv_sec = si->si_bindconf.sb_timeout_api;
+	}
+
 	while ( ( rc = ldap_result( si->si_ld, si->si_msgid, LDAP_MSG_ONE,
 		&tout, &msg ) ) > 0 )
 	{

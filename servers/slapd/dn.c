@@ -839,7 +839,9 @@ dnRelativeMatch(
 			match = memcmp( value->bv_val, asserted->bv_val, 
 				value->bv_len );
 		} else {
-			if( DN_SEPARATOR(
+			if ( BER_BVISEMPTY( asserted ) ) {
+				match = 0;
+			} else if ( DN_SEPARATOR(
 				value->bv_val[value->bv_len - asserted->bv_len - 1] ))
 			{
 				match = memcmp(
@@ -865,7 +867,9 @@ dnRelativeMatch(
 		if( asserted->bv_len >= value->bv_len ) {
 			match = -1;
 		} else {
-			if( DN_SEPARATOR(
+			if ( BER_BVISEMPTY( asserted ) ) {
+				match = 0;
+			} else if ( DN_SEPARATOR(
 				value->bv_val[value->bv_len - asserted->bv_len - 1] ))
 			{
 				match = memcmp(
