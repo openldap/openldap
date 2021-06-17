@@ -16,6 +16,10 @@
 #include <stdint.h>
 #include <unistd.h>
 
+// for getprogname and basename
+#include <bsd/stdlib.h>
+#include <libgen.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
@@ -117,11 +121,18 @@ ssize_t
 send_stats( int fd, server *server ) {
 	uint64_t size = 0;
 	if( fd < 0 ) return 0;
+
+	char *progname = strdup(getprogname());
+	char client_proc[80] = {};
+	(void)snprintf(client_proc, sizeof(client_proc), "%s (%d)",
+		       basename(progname), getpid());
+	free(progname);
 	
 	assert(server);
 	struct iovec iov[] = { { &size, sizeof(size) },
 			       { &server->c_prev, sizeof(server->c_prev) },
 			       { &server->c_curr, sizeof(server->c_curr) },
+			       { client_proc, sizeof(client_proc) },
 			       {  server->url,
 				  server->url? 1+strlen(server->url) : 0 } };
 
@@ -157,11 +168,14 @@ adjust_iovec( size_t nbyte, struct iovec *iov, size_t niov ) {
 
 server *
 recv_stats( int fd ) {
-	static char url[512];
-	static server server = { .url = url };
+	static char url[512], client_proc[80];
+	// Hijack server::monitorfilter, which isn't used, to hold client name.
+	static server server = { .url = url, .monitorfilter = client_proc };
+	
 	uint64_t size = 0;
 	struct iovec iov[] = { { &server.c_prev, sizeof(server.c_prev) },
 			       { &server.c_curr, sizeof(server.c_curr) },
+			       { client_proc,    sizeof(client_proc) },
 			       {  server.url,    sizeof(url) } },
 		*piov = iov,
 		*eiov = iov + COUNT_OF(iov);
@@ -226,7 +240,9 @@ display_stats( FILE *out, server *server ) {
 		return;
 	}
 
-	eprintf("\n%s\n", server->url? server->url : "" );
+	// server::monitorfilter is overloaded to hold client name.
+	eprintf("\n%s\n", server->monitorfilter? server->monitorfilter : "" );
+	eprintf(  "%s\n", server->url? server->url : "" );
 	eprintf("      ");
 
 	if ( server->flags & HAS_ENTRIES )
