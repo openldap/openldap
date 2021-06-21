@@ -419,11 +419,15 @@ static ConfigTable config_back_cf_table[] = {
 	{ "index_substr_if_minlen", "min", 2, 2, 0, ARG_UINT|ARG_NONZERO|ARG_MAGIC|CFG_SSTR_IF_MIN,
 		&config_generic, "( OLcfgGlAt:20 NAME 'olcIndexSubstrIfMinLen' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = SLAP_INDEX_SUBSTR_IF_MINLEN_DEFAULT }
+	},
 	{ "index_substr_if_maxlen", "max", 2, 2, 0, ARG_UINT|ARG_NONZERO|ARG_MAGIC|CFG_SSTR_IF_MAX,
 		&config_generic, "( OLcfgGlAt:21 NAME 'olcIndexSubstrIfMaxLen' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = SLAP_INDEX_SUBSTR_IF_MAXLEN_DEFAULT }
+	},
 	{ "index_substr_any_len", "len", 2, 2, 0, ARG_UINT|ARG_NONZERO,
 		&index_substr_any_len, "( OLcfgGlAt:22 NAME 'olcIndexSubstrAnyLen' "
 			"EQUALITY integerMatch "
@@ -462,7 +466,9 @@ static ConfigTable config_back_cf_table[] = {
 		ARG_UINT|ARG_MAGIC|CFG_LTHREADS, &config_generic,
 		"( OLcfgGlAt:93 NAME 'olcListenerThreads' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = 1 }
+	},
 	{ "localSSF", "ssf", 2, 2, 0, ARG_INT,
 		&local_ssf, "( OLcfgGlAt:26 NAME 'olcLocalSSF' "
 			"EQUALITY integerMatch "
@@ -479,11 +485,15 @@ static ConfigTable config_back_cf_table[] = {
 	{ "maxDerefDepth", "depth", 2, 2, 0, ARG_DB|ARG_INT|ARG_MAGIC|CFG_DEPTH,
 		&config_generic, "( OLcfgDbAt:0.6 NAME 'olcMaxDerefDepth' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = SLAPD_DEFAULT_MAXDEREFDEPTH }
+	},
 	{ "maxFilterDepth", "depth", 2, 2, 0, ARG_INT,
 		&slap_max_filter_depth, "( OLcfgGlAt:101 NAME 'olcMaxFilterDepth' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = SLAP_MAX_FILTER_DEPTH_DEFAULT }
+	},
 	{ "multiprovider", "on|off", 2, 2, 0, ARG_DB|ARG_ON_OFF|ARG_MAGIC|CFG_MULTIPROVIDER,
 		&config_generic, "( OLcfgDbAt:0.16 NAME ( 'olcMultiProvider' 'olcMirrorMode' ) "
 			"EQUALITY booleanMatch "
@@ -739,12 +749,16 @@ static ConfigTable config_back_cf_table[] = {
 		ARG_INT|ARG_MAGIC|CFG_THREADS, &config_generic,
 		"( OLcfgGlAt:66 NAME 'olcThreads' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = SLAP_MAX_WORKER_THREADS }
+	},
 	{ "threadqueues", "count", 2, 2, 0,
 		ARG_INT|ARG_MAGIC|CFG_THREADQS, &config_generic,
 		"( OLcfgGlAt:95 NAME 'olcThreadQueues' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = 1 }
+	},
 	{ "timelimit", "limit", 2, 0, 0, ARG_MAY_DB|ARG_MAGIC,
 		&config_timelimit, "( OLcfgGlAt:67 NAME 'olcTimeLimit' "
 			"EQUALITY caseExactMatch "
@@ -890,7 +904,9 @@ static ConfigTable config_back_cf_table[] = {
 	{ "tool-threads", "count", 2, 2, 0, ARG_INT|ARG_MAGIC|CFG_TTHREADS,
 		&config_generic, "( OLcfgGlAt:80 NAME 'olcToolThreads' "
 			"EQUALITY integerMatch "
-			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_int = 1 }
+	},
 	{ "ucdata-path", "path", 2, 2, 0, ARG_IGNORED,
 		NULL, NULL, NULL, NULL },
 	{ "updatedn", "dn", 2, 2, 0, ARG_DB|ARG_DN|ARG_QUOTE|ARG_MAGIC,
@@ -1063,6 +1079,20 @@ static int
 config_resize_lthreads(ConfigArgs *c)
 {
 	return slapd_daemon_resize( new_daemon_threads );
+}
+
+static int
+config_substr_if_check( ConfigArgs *c )
+{
+	if ( index_substr_if_maxlen < index_substr_if_minlen ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"attempted to set olcIndexSubstrIfMaxLen shorter than "
+				"olcIndexSubstrIfMinLen: %u < %u",
+				index_substr_if_maxlen, index_substr_if_minlen );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+		return 1;
+	}
+	return LDAP_SUCCESS;
 }
 
 #define	GOT_CONFIG	1
@@ -1429,22 +1459,77 @@ config_generic(ConfigArgs *c) {
 	} else if ( c->op == LDAP_MOD_DELETE ) {
 		int rc = 0;
 		switch(c->type) {
-		/* single-valued attrs, no-ops */
+		/* single-valued attrs */
 		case CFG_CONCUR:
+			/* FIXME: There is currently no way to retrieve the default? */
+			break;
+
 		case CFG_THREADS:
+			if ( slapMode & SLAP_SERVER_MODE )
+				ldap_pvt_thread_pool_maxthreads(&connection_pool,
+						SLAP_MAX_WORKER_THREADS);
+			connection_pool_max = SLAP_MAX_WORKER_THREADS;	/* save for reference */
+			break;
+
 		case CFG_THREADQS:
+			if ( slapMode & SLAP_SERVER_MODE )
+				ldap_pvt_thread_pool_queues(&connection_pool, 1);
+			connection_pool_queues = 1;	/* save for reference */
+			break;
+
 		case CFG_TTHREADS:
+			slap_tool_thread_max = 1;
+			break;
+
 		case CFG_LTHREADS:
+			new_daemon_threads = 1;
+			config_push_cleanup( c, config_resize_lthreads );
+			break;
+
 		case CFG_AZPOLICY:
+			slap_sasl_setpolicy( "none" );
+			break;
+
 		case CFG_DEPTH:
+			c->be->be_max_deref_depth = c->ca_desc->arg_default.v_int;
+			break;
+
 		case CFG_LASTMOD:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_NOLASTMOD;
+			break;
+
 		case CFG_LASTBIND:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_LASTBIND;
+			break;
+
 		case CFG_MONITORING:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_MONITORING;
+			break;
+
 		case CFG_SASLSECP:
+#ifdef HAVE_CYRUS_SASL
+			slap_sasl_secprops( "" );
+#endif
+			break;
+
 		case CFG_SSTR_IF_MAX:
+			index_substr_if_maxlen = c->ca_desc->arg_default.v_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
+			break;
+
 		case CFG_SSTR_IF_MIN:
+			index_substr_if_minlen = c->ca_desc->arg_default.v_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
+			break;
+
 		case CFG_ACL_ADD:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_ACL_ADD;
+			break;
+
 		case CFG_SYNC_SUBENTRY:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_SYNC_SUBENTRY;
 			break;
 
 		case CFG_RO:
@@ -2383,23 +2468,15 @@ sortval_reject:
 			break;
 
 		case CFG_SSTR_IF_MAX:
-			if (c->value_uint < index_substr_if_minlen) {
-				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> invalid value", c->argv[0] );
-				Debug(LDAP_DEBUG_ANY, "%s: %s (%d)\n",
-					c->log, c->cr_msg, c->value_int );
-				return(1);
-			}
 			index_substr_if_maxlen = c->value_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
 			break;
 
 		case CFG_SSTR_IF_MIN:
-			if (c->value_uint > index_substr_if_maxlen) {
-				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> invalid value", c->argv[0] );
-				Debug(LDAP_DEBUG_ANY, "%s: %s (%d)\n",
-					c->log, c->cr_msg, c->value_int );
-				return(1);
-			}
 			index_substr_if_minlen = c->value_uint;
+			/* ITS#7215 Postpone range check until the entire modify is finished */
+			config_push_cleanup( c, config_substr_if_check );
 			break;
 
 #ifdef SLAPD_MODULES
@@ -4755,6 +4832,7 @@ config_find_table( ConfigOCs **colst, int nocs, AttributeDescription *ad,
 		for (i=0; colst[j]->co_table[i].name; i++)
 			if ( colst[j]->co_table[i].ad == ad ) {
 				ca->table = colst[j]->co_type;
+				ca->ca_desc = colst[j]->co_table+i;
 				return &colst[j]->co_table[i];
 			}
 	}
@@ -5757,6 +5835,7 @@ done:
 		} else if ( coptr->co_type == Cft_Schema ) {
 			schema_destroy_one( ca, colst, nocs, last );
 		} else if ( ca->num_cleanups ) {
+			ca->reply.err = rc;
 			config_run_cleanup( ca );
 		}
 	}
@@ -6249,6 +6328,11 @@ config_modify_internal( CfEntryInfo *ce, Operation *op, SlapReply *rs,
 		}
 	}
 
+	/* Apply pending changes */
+	if ( rc == LDAP_SUCCESS && ca->num_cleanups ) {
+		rc = config_run_cleanup( ca );
+	}
+
 out:
 	/* Undo for a failed operation */
 	if ( rc != LDAP_SUCCESS ) {
@@ -6293,13 +6377,11 @@ out:
 				}
 			}
 		}
+		if ( ca->num_cleanups ) {
+			ca->reply.err = rc;
+			config_run_cleanup( ca );
+		}
 		ca->reply = msg;
-	}
-
-	if ( ca->num_cleanups ) {
-		i = config_run_cleanup( ca );
-		if (rc == LDAP_SUCCESS)
-			rc = i;
 	}
 out_noop:
 	if ( rc == LDAP_SUCCESS ) {
