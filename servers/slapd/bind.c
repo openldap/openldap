@@ -429,7 +429,7 @@ fe_op_lastbind( Operation *op )
 			lutil_tm2time( &tm, &tt );
 			bindtime = tt.tt_sec;
 		}
-		Debug( LDAP_DEBUG_ANY, "fe_op_lastbind: "
+		Debug( LDAP_DEBUG_TRACE, "fe_op_lastbind: "
 				"old pwdLastSuccess value=%s %lds ago\n",
 				a->a_nvals[0].bv_val, bindtime == (time_t)-1 ? -1 : op->o_time - bindtime );
 
@@ -437,7 +437,8 @@ fe_op_lastbind( Operation *op )
 		 * TODO: If the recorded bind time is within configurable precision,
 		 * it doesn't need to be updated (save a write for nothing)
 		 */
-		if ( bindtime != (time_t)-1 && op->o_time <= bindtime ) {
+		if ( bindtime != (time_t)-1 &&
+				op->o_time <= bindtime + op->o_bd->be_lastbind_precision ) {
 			be_entry_release_r( op, e );
 			return LDAP_SUCCESS;
 		}
