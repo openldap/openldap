@@ -212,7 +212,7 @@ int connections_timeout_idle(time_t now)
 		/* Don't timeout a slow-running request or a persistent
 		 * outbound connection.
 		 */
-		if(( c->c_n_ops_executing && !c->c_writewaiter)
+		if((( c->c_n_ops_executing || c->c_n_ops_async ) && !c->c_writewaiter)
 			|| c->c_conn_state == SLAP_C_CLIENT ) {
 			continue;
 		}
@@ -244,7 +244,7 @@ void connections_drop()
 		/* Don't close a slow-running request or a persistent
 		 * outbound connection.
 		 */
-		if(( c->c_n_ops_executing && !c->c_writewaiter)
+		if((( c->c_n_ops_executing || c->c_n_ops_async ) && !c->c_writewaiter)
 			|| c->c_conn_state == SLAP_C_CLIENT ) {
 			continue;
 		}
@@ -428,6 +428,7 @@ Connection * connection_init(
 	c->c_n_ops_executing = 0;
 	c->c_n_ops_pending = 0;
 	c->c_n_ops_completed = 0;
+	c->c_n_ops_async = 0;
 
 	c->c_n_get = 0;
 	c->c_n_read = 0;
@@ -1004,7 +1005,7 @@ connection_op_finish( Operation *op, int lock )
 
 	LDAP_STAILQ_REMOVE( &conn->c_ops, op, Operation, o_next);
 	LDAP_STAILQ_NEXT(op, o_next) = NULL;
-	conn->c_n_ops_executing--;
+	conn->c_n_ops_async--;
 	conn->c_n_ops_completed++;
 	connection_resched( conn );
 	if ( lock )
@@ -1122,6 +1123,8 @@ operations_error:
 		 */
 		slap_sl_mem_setctx( ctx, NULL );
 		ldap_pvt_thread_mutex_lock( &conn->c_mutex );
+		conn->c_n_ops_executing--;
+		conn->c_n_ops_async++;
 		connection_resched( conn );
 		ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
 		return NULL;

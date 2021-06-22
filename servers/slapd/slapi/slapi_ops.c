@@ -233,6 +233,7 @@ slapi_int_connection_init_pb( Slapi_PBlock *pb, ber_tag_t tag )
 	conn->c_n_ops_executing = 0;
 	conn->c_n_ops_pending = 0;
 	conn->c_n_ops_completed = 0;
+	conn->c_n_ops_async = 0;
 
 	conn->c_n_get = 0;
 	conn->c_n_read = 0;

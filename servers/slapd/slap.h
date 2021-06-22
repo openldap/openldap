@@ -2975,6 +2975,7 @@ struct Connection {
 	long	c_n_ops_executing;	/* num of ops currently executing */
 	long	c_n_ops_pending;	/* num of ops pending execution */
 	long	c_n_ops_completed;	/* num of ops completed */
+	long	c_n_ops_async;		/* mum of ops currently executing asynchronously */
 
 	long	c_n_get;		/* num of get calls */
 	long	c_n_read;		/* num of read calls */
