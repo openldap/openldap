@@ -369,6 +369,9 @@ conn_create(
 	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_completed );
 	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsCompleted, &bv, NULL );
 
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_async );
+	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsAsync, &bv, NULL );
+
 	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_get );
 	attr_merge_one( e, mi->mi_ad_monitorConnectionGet, &bv, NULL );
 

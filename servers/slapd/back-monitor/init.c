@@ -1951,6 +1951,13 @@ monitor_back_initialize(
 			"NO-USER-MODIFICATION "
 			"USAGE dSAOperation )", SLAP_AT_FINAL|SLAP_AT_HIDE,
 			offsetof(monitor_info_t, mi_ad_monitorSuperiorDN) },
+		{ "( 1.3.6.1.4.1.4203.666.1.55.31 "
+			"NAME 'monitorConnectionOpsAsync' "
+			"DESC 'monitor number of asynchronous operations in execution within the connection' "
+			"SUP monitorCounter "
+			"NO-USER-MODIFICATION "
+			"USAGE dSAOperation )", SLAP_AT_FINAL|SLAP_AT_HIDE,
+			offsetof(monitor_info_t, mi_ad_monitorConnectionOpsAsync) },
 		{ NULL, 0, -1 }
 	};
 
