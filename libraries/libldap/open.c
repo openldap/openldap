@@ -350,6 +350,7 @@ ldap_init_fd(
 	/* Attach the passed socket as the LDAP's connection */
 	conn = ldap_new_connection( ld, NULL, 1, 0, NULL, 0, 0 );
 	if( conn == NULL ) {
+		LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		ldap_unbind_ext( ld, NULL, NULL );
 		return( LDAP_NO_MEMORY );
 	}
