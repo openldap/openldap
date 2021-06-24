@@ -3131,13 +3131,18 @@ fi
 
 OL_VERSIONED_SYMBOLS=""
 if test $ol_enable_versioning != no; then
-	LDVS=`$LD --help < /dev/null 2>/dev/null | grep version-script`
+	LDVS=`$LD --help < /dev/null 2>/dev/null | grep gnu-version-script`
 	if test -z "$LDVS"; then
-		if test $ol_enable_versioning = "yes" ; then
-			AC_MSG_ERROR([Library symbol versioning requested but not supported])
+		LDVS=`$LD --help < /dev/null 2>/dev/null | version-script`
+		if test -z "$LDVS"; then
+			if test $ol_enable_versioning = "yes" ; then
+				AC_MSG_ERROR([Library symbol versioning requested but not supported])
+			fi
+		else
+			OL_VERSIONED_SYMBOLS="-Wl,--version-script="
 		fi
 	else
-		OL_VERSIONED_SYMBOLS="-Wl,--version-script="
+		OL_VERSIONED_SYMBOLS="-z gnu-version-script="
 	fi
 fi
 
