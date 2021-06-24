@@ -23011,7 +23011,7 @@ fi
 ol_link_fetch=no
 if test $ol_with_fetch != no ; then
 	ol_LIBS=$LIBS
-LIBS="-lfetch -lcom_err $LIBS"
+LIBS="-lfetch $LIBS"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking fetch(3) library" >&5
 $as_echo_n "checking fetch(3) library... " >&6; }
 if ${ol_cv_lib_fetch+:} false; then :
@@ -23046,7 +23046,7 @@ fi
 $as_echo "$ol_cv_lib_fetch" >&6; }
 LIBS=$ol_LIBS
 if test $ol_cv_lib_fetch != no ; then
-	ol_link_fetch="-lfetch -lcom_err"
+	ol_link_fetch="-lfetch"
 
 $as_echo "#define HAVE_FETCH 1" >>confdefs.h
 
