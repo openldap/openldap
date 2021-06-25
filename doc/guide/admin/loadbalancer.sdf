@@ -34,6 +34,7 @@ More considerations:
  - The sequence of operations isn't important.  For example, read after update isn't required by the client.
  - If your client can handle both connection pooling and load distribution then it's preferable to lloadd.
  - Clients that require a consistent session (e.g. do writes), the best practice is to let them set up a direct session to one of the providers.  The read-only clients are still free to use lloadd.
+ - 2.6 release of lloadd will include sticky sessions (coherency).
 
 H2: Runtime configurations
 
