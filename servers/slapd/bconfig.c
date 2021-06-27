@@ -5945,6 +5945,12 @@ config_back_add( Operation *op, SlapReply *rs )
 	int renumber, dopause = 1;
 	ConfigArgs ca;
 
+	LDAPControl **postread_ctrl = NULL;
+	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
+	int num_ctrls = 0;
+
+	ctrls[num_ctrls] = NULL;
+
 	if ( !access_allowed( op, op->ora_e, slap_schema.si_ad_entry,
 		NULL, ACL_WADD, NULL )) {
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
@@ -6031,6 +6037,22 @@ config_back_add( Operation *op, SlapReply *rs )
 		op->o_callback = scp;
 		op->o_dn = dn;
 		op->o_ndn = ndn;
+	} else if ( op->o_postread ) {
+		if ( postread_ctrl == NULL ) {
+			postread_ctrl = &ctrls[num_ctrls++];
+			ctrls[num_ctrls] = NULL;
+		}
+		if ( slap_read_controls( op, rs, op->ora_e,
+			&slap_post_read_bv, postread_ctrl ) )
+		{
+			Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
+				"post-read failed \"%s\"\n",
+				op->ora_e->e_name.bv_val );
+			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+				/* FIXME: is it correct to abort
+					* operation if control fails? */
+			}
+		}
 	}
 
 out2:;
@@ -6433,6 +6455,13 @@ config_back_modify( Operation *op, SlapReply *rs )
 	AttributeDescription *rad = NULL;
 	int do_pause = 1;
 
+	LDAPControl **preread_ctrl = NULL;
+	LDAPControl **postread_ctrl = NULL;
+	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
+	int num_ctrls = 0;
+
+	ctrls[num_ctrls] = NULL;
+
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
 	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
@@ -6474,6 +6503,26 @@ config_back_modify( Operation *op, SlapReply *rs )
 
 	slap_mods_opattrs( op, &op->orm_modlist, 1 );
 
+	/* If we have a backend, it will handle the control */
+	if ( !cfb->cb_use_ldif && op->o_preread ) {
+		if ( preread_ctrl == NULL ) {
+			preread_ctrl = &ctrls[num_ctrls++];
+			ctrls[num_ctrls] = NULL;
+		}
+		if ( slap_read_controls( op, rs, ce->ce_entry,
+					&slap_pre_read_bv, preread_ctrl ) )
+		{
+			Debug( LDAP_DEBUG_ANY, "config_back_modify: "
+					"pre-read failed \"%s\"\n",
+					ce->ce_entry->e_name.bv_val );
+			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+				/* FIXME: is it correct to abort
+				 * operation if control fails? */
+				goto out;
+			}
+		}
+	}
+
 	if ( do_pause ) {
 		if ( op->o_abandon ) {
 			rs->sr_err = SLAPD_ABANDON;
@@ -6511,11 +6560,24 @@ config_back_modify( Operation *op, SlapReply *rs )
 		op->o_callback = scp;
 		op->o_dn = dn;
 		op->o_ndn = ndn;
+	} else if ( op->o_postread ) {
+		if ( postread_ctrl == NULL ) {
+			postread_ctrl = &ctrls[num_ctrls++];
+			ctrls[num_ctrls] = NULL;
+		}
+		if ( slap_read_controls( op, rs, ce->ce_entry,
+			&slap_post_read_bv, postread_ctrl ) )
+		{
+			Debug( LDAP_DEBUG_ANY, "config_back_modify: "
+				"post-read failed \"%s\"\n",
+				ce->ce_entry->e_name.bv_val );
+		}
 	}
 
 	if ( do_pause )
 		slap_unpause_server();
 out:
+	if ( num_ctrls ) rs->sr_ctrls = ctrls;
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
 	return rs->sr_err;
@@ -6528,6 +6590,13 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 	CfEntryInfo *ce, *last;
 	struct berval rdn;
 	int ixold, ixnew, dopause = 1;
+
+	LDAPControl **preread_ctrl = NULL;
+	LDAPControl **postread_ctrl = NULL;
+	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
+	int num_ctrls = 0;
+
+	ctrls[num_ctrls] = NULL;
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
@@ -6645,6 +6714,26 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		goto out;
 	}
 
+	/* If we have a backend, it will handle the control */
+	if ( !cfb->cb_use_ldif && op->o_preread ) {
+		if ( preread_ctrl == NULL ) {
+			preread_ctrl = &ctrls[num_ctrls++];
+			ctrls[num_ctrls] = NULL;
+		}
+		if ( slap_read_controls( op, rs, ce->ce_entry,
+					&slap_pre_read_bv, preread_ctrl ) )
+		{
+			Debug( LDAP_DEBUG_ANY, "config_back_modrdn: "
+					"pre-read failed \"%s\"\n",
+					ce->ce_entry->e_name.bv_val );
+			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+				/* FIXME: is it correct to abort
+				 * operation if control fails? */
+				goto out;
+			}
+		}
+	}
+
 	if ( op->o_abandon ) {
 		rs->sr_err = SLAPD_ABANDON;
 		goto out;
@@ -6719,6 +6808,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 	if ( dopause )
 		slap_unpause_server();
 out:
+	if ( num_ctrls ) rs->sr_ctrls = ctrls;
 	send_ldap_result( op, rs );
 	return rs->sr_err;
 }
@@ -6731,7 +6821,33 @@ config_back_delete( Operation *op, SlapReply *rs )
 	CfEntryInfo *ce, *last, *ce2;
 	int dopause = 1;
 
+	LDAPControl **preread_ctrl = NULL;
+	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
+	int num_ctrls = 0;
+
+	ctrls[num_ctrls] = NULL;
+
 	cfb = (CfBackInfo *)op->o_bd->be_private;
+
+	/* If we have a backend, it will handle the control */
+	if ( ce && !cfb->cb_use_ldif && op->o_preread ) {
+		if ( preread_ctrl == NULL ) {
+			preread_ctrl = &ctrls[num_ctrls++];
+			ctrls[num_ctrls] = NULL;
+		}
+		if ( slap_read_controls( op, rs, ce->ce_entry,
+					&slap_pre_read_bv, preread_ctrl ) )
+		{
+			Debug( LDAP_DEBUG_ANY, "config_back_delete: "
+					"pre-read failed \"%s\"\n",
+					ce->ce_entry->e_name.bv_val );
+			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+				/* FIXME: is it correct to abort
+				 * operation if control fails? */
+				goto out;
+			}
+		}
+	}
 
 	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
 	if ( !ce ) {
@@ -6863,6 +6979,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 	}
 out:
+	if ( num_ctrls ) rs->sr_ctrls = ctrls;
 #else
 	rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 #endif /* SLAP_CONFIG_DELETE */
@@ -8022,6 +8139,8 @@ config_back_initialize( BackendInfo *bi )
 	const char		*text;
 	static char		*controls[] = {
 		LDAP_CONTROL_MANAGEDSAIT,
+		LDAP_CONTROL_PRE_READ,
+		LDAP_CONTROL_POST_READ,
 		NULL
 	};
 

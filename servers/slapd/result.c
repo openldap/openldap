@@ -1806,7 +1806,7 @@ int slap_read_controls(
 	LDAPControl c;
 	Operation myop;
 
-	Debug( LDAP_DEBUG_ANY, "%s slap_read_controls: (%s) %s\n",
+	Debug( LDAP_DEBUG_STATS, "%s slap_read_controls: (%s) %s\n",
 		op->o_log_prefix, oid->bv_val, e->e_dn );
 
 	rs->sr_entry = e;
