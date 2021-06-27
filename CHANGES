@@ -5,6 +5,8 @@ OpenLDAP 2.5.6 Engineering
 	Fixed libldap missing mutex unlock on connection alloc failure (ITS#9590)
 	Fixed lloadd cn=config olcBkLloadClientMaxPending setting (ITS#8747)
 	Fixed slapd multiple config defaults (ITS#9363)
+	Build
+		Fixed library symbol versioning on Solaris (ITS#9591)
 
 OpenLDAP 2.5.5 Release (2021/06/03)
 	Added libldap LDAP_OPT_TCP_USER_TIMEOUT support (ITS#9502)
