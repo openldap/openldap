@@ -490,8 +490,9 @@ upstream_bind_cb( LloadConnection *c )
             c->c_type = LLOAD_C_OPEN;
             c->c_read_timeout = NULL;
             Debug( LDAP_DEBUG_CONNS, "upstream_bind_cb: "
-                    "connid=%lu finished binding, now active\n",
-                    c->c_connid );
+                    "connection connid=%lu for backend server '%s' is ready "
+                    "for use\n",
+                    c->c_connid, b->b_name.bv_val );
             CONNECTION_UNLOCK(c);
             checked_lock( &b->b_mutex );
             LDAP_CIRCLEQ_REMOVE( &b->b_preparing, c, c_next );
