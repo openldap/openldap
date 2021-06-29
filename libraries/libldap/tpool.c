@@ -734,6 +734,8 @@ ldap_pvt_thread_pool_query(
 					case LDAP_PVT_THREAD_POOL_PARAM_BACKLOAD:
 						count += pq->ltp_pending_count + pq->ltp_active_count;
 						break;
+					default:
+						break;
 				}
 				ldap_pvt_thread_mutex_unlock(&pq->ltp_mutex);
 			}
