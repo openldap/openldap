@@ -435,7 +435,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 	} else {
 		X509 *cert = NULL;
 		if ( lo->ldo_tls_cacert.bv_val ) {
-			const unsigned char *pp = lo->ldo_tls_cacert.bv_val;
+			const unsigned char *pp = (const unsigned char *) (lo->ldo_tls_cacert.bv_val);
 			cert = d2i_X509( NULL, &pp, lo->ldo_tls_cacert.bv_len );
 			X509_STORE *store = SSL_CTX_get_cert_store( ctx );
 			if ( !X509_STORE_add_cert( store, cert )) {
@@ -477,7 +477,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 
 	if ( lo->ldo_tls_cert.bv_val )
 	{
-		const unsigned char *pp = lo->ldo_tls_cert.bv_val;
+		const unsigned char *pp = (const unsigned char *) (lo->ldo_tls_cert.bv_val);
 		X509 *cert = d2i_X509( NULL, &pp, lo->ldo_tls_cert.bv_len );
 		if ( !SSL_CTX_use_certificate( ctx, cert )) {
 			Debug0( LDAP_DEBUG_ANY,
@@ -500,7 +500,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 	/* Key validity is checked automatically if cert has already been set */
 	if ( lo->ldo_tls_key.bv_val )
 	{
-		const unsigned char *pp = lo->ldo_tls_key.bv_val;
+		const unsigned char *pp = (const unsigned char *) (lo->ldo_tls_key.bv_val);
 		EVP_PKEY *pkey = d2i_AutoPrivateKey( NULL, &pp, lo->ldo_tls_key.bv_len );
 		if ( !SSL_CTX_use_PrivateKey( ctx, pkey ))
 		{
@@ -1031,7 +1031,7 @@ tlso_session_endpoint( tls_session *sess, struct berval *buf, int is_server )
 	     md == EVP_sha1() )
 		md = EVP_sha256();
 
-	if ( !X509_digest( cert, md, buf->bv_val, &md_len ))
+	if ( !X509_digest( cert, md, (unsigned char *) (buf->bv_val), &md_len ))
 		return 0;
 
 	buf->bv_len = md_len;
@@ -1063,7 +1063,7 @@ tlso_session_peercert( tls_session *sess, struct berval *der )
 	der->bv_val = LDAP_MALLOC(der->bv_len);
 	if ( !der->bv_val )
 		return -1;
-	ptr = der->bv_val;
+	ptr = (unsigned char *) (der->bv_val);
 	i2d_X509(x, &ptr);
 	return 0;
 }
@@ -1074,13 +1074,15 @@ tlso_session_pinning( LDAP *ld, tls_session *sess, char *hashalg, struct berval 
 	tlso_session *s = (tlso_session *)sess;
 	unsigned char *tmp, digest[EVP_MAX_MD_SIZE];
 	struct berval key,
-				  keyhash = { sizeof(digest), digest };
+				  keyhash = { sizeof(digest), (char *) digest };
 	X509 *cert = SSL_get_peer_certificate(s);
 	int len, rc = LDAP_SUCCESS;
 
 	len = i2d_X509_PUBKEY( X509_get_X509_PUBKEY(cert), NULL );
 
-	key.bv_val = tmp = LDAP_MALLOC( len );
+	tmp = LDAP_MALLOC( len );
+	key.bv_val = (char *) tmp;
+
 	if ( !key.bv_val ) {
 		return -1;
 	}
