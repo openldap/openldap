@@ -525,7 +525,21 @@ lload_connection_close( LloadConnection *c, void *arg )
     /* We were approached from the connection list */
     assert( IS_ALIVE( c, c_refcnt ) );
 
+    /* Need to acquire this first, even if we won't need it */
+    checked_lock( &c->c_io_mutex );
     CONNECTION_LOCK(c);
+
+    if ( c->c_state == LLOAD_C_OPEN ) {
+        BerElement *output = c->c_pendingber;
+        if ( output != NULL || (output = ber_alloc()) != NULL ) {
+            ber_printf( c->c_pendingber, "t{tit{esss}}", LDAP_TAG_MESSAGE,
+                    LDAP_TAG_MSGID, LDAP_RES_UNSOLICITED,
+                    LDAP_RES_EXTENDED, LDAP_UNAVAILABLE, "", "connection closing",
+                    LDAP_NOTICE_OF_DISCONNECTION );
+        }
+    }
+    checked_unlock( &c->c_io_mutex );
+
     if ( !gentle || !c->c_ops ) {
         CONNECTION_DESTROY(c);
         return LDAP_SUCCESS;

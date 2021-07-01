@@ -295,6 +295,23 @@ enum sc_io_state {
                                      * sent */
 };
 
+/* Tracking whether an operation might cause a client to restrict which
+ * upstreams are eligible */
+enum op_restriction {
+    LLOAD_OP_NOT_RESTRICTED, /* no restrictions in place */
+    LLOAD_OP_RESTRICTED_WRITE, /* client is restricted to a certain backend with
+                                * a timeout attached */
+    LLOAD_OP_RESTRICTED_BACKEND, /* client is restricted to a certain backend,
+                                  * without a timeout */
+    LLOAD_OP_RESTRICTED_UPSTREAM, /* client is restricted to a certain upstream */
+    LLOAD_OP_RESTRICTED_ISOLATE, /* TODO: client is restricted to a certain
+                                  * upstream and removes the upstream from the
+                                  * pool */
+    LLOAD_OP_RESTRICTED_REJECT, /* operation should not be forwarded to any
+                                 * backend, either it is processed internally
+                                 * or rejected */
+};
+
 /*
  * represents a connection from an ldap client/to ldap server
  */
@@ -402,7 +419,13 @@ struct LloadConnection {
     long c_n_ops_completed;      /* num of ops completed */
     lload_counters_t c_counters; /* per connection operation counters */
 
+    enum op_restriction c_restricted;
+    uintptr_t c_restricted_inflight;
+    time_t c_restricted_at;
     LloadBackend *c_backend;
+    LloadConnection *c_linked_upstream;
+
+    TAvlnode *c_linked;
 
     /*
      * Protected by the CIRCLEQ mutex:
@@ -441,6 +464,7 @@ struct LloadOperation {
     unsigned long o_client_connid;
     ber_int_t o_client_msgid;
     ber_int_t o_saved_msgid;
+    enum op_restriction o_restricted;
 
     LloadConnection *o_upstream;
     unsigned long o_upstream_connid;
@@ -457,6 +481,11 @@ struct LloadOperation {
     enum op_result o_res;
     BerElement *o_ber;
     BerValue o_request, o_ctrls;
+};
+
+struct restriction_entry {
+    struct berval oid;
+    enum op_restriction action;
 };
 
 /*

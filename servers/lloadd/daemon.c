@@ -1429,6 +1429,41 @@ client_tls_cb( ldap_pvt_thread_start_t *start, void *startarg, void *arg )
 }
 #endif /* HAVE_TLS */
 
+static int
+detach_linked_backend_cb( LloadConnection *client, LloadBackend *b )
+{
+    int rc = LDAP_SUCCESS;
+
+    if ( client->c_backend != b ) {
+        return rc;
+    }
+
+    Debug( LDAP_DEBUG_CONNS, "detach_linked_backend_cb: "
+            "detaching backend '%s' from connid=%lu%s\n",
+            b->b_name.bv_val, client->c_connid,
+            client->c_restricted == LLOAD_OP_RESTRICTED_BACKEND ?
+                " and closing the connection" :
+                "" );
+
+    /* We were approached from the connection list */
+    assert( IS_ALIVE( client, c_refcnt ) );
+
+    assert( client->c_restricted == LLOAD_OP_RESTRICTED_WRITE ||
+            client->c_restricted == LLOAD_OP_RESTRICTED_BACKEND );
+    if ( client->c_restricted == LLOAD_OP_RESTRICTED_BACKEND ) {
+        int gentle = 1;
+        CONNECTION_LOCK(client);
+        rc = lload_connection_close( client, &gentle );
+        CONNECTION_UNLOCK(client);
+    }
+
+    client->c_restricted = LLOAD_OP_NOT_RESTRICTED;
+    client->c_restricted_at = 0;
+    client->c_restricted_inflight = 0;
+
+    return rc;
+}
+
 void
 lload_handle_backend_invalidation( LloadChange *change )
 {
@@ -1458,6 +1493,13 @@ lload_handle_backend_invalidation( LloadChange *change )
                 &connection_pool, handle_pdus, backend_conn_cb, b );
         ldap_pvt_thread_pool_walk(
                 &connection_pool, upstream_bind, backend_conn_cb, b );
+
+        checked_lock( &clients_mutex );
+        connections_walk(
+                &clients_mutex, &clients,
+                (CONNCB)detach_linked_backend_cb, b );
+        checked_unlock( &clients_mutex );
+
         lload_backend_destroy( b );
         return;
     }

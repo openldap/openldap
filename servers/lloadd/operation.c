@@ -21,6 +21,10 @@
 ldap_pvt_thread_mutex_t lload_pin_mutex;
 unsigned long lload_next_pin = 1;
 
+TAvlnode *lload_control_actions = NULL;
+TAvlnode *lload_exop_actions = NULL;
+enum op_restriction lload_default_exop_action = LLOAD_OP_NOT_RESTRICTED;
+
 ber_tag_t
 slap_req2res( ber_tag_t tag )
 {
@@ -82,6 +86,13 @@ lload_msgtype2str( ber_tag_t tag )
         case LDAP_RES_SEARCH_RESULT: return "search result";
     }
     return "unknown message";
+}
+
+int
+lload_restriction_cmp( const void *left, const void *right )
+{
+    const struct restriction_entry *l = left, *r = right;
+    return ber_bvcmp( &l->oid, &r->oid );
 }
 
 int
@@ -275,6 +286,20 @@ operation_unlink_client( LloadOperation *op, LloadConnection *client )
 
         assert( op == removed );
         client->c_n_ops_executing--;
+
+        if ( op->o_restricted == LLOAD_OP_RESTRICTED_WRITE ) {
+            if ( !--client->c_restricted_inflight && client->c_restricted_at >= 0 ) {
+                if ( lload_write_coherence < 0 ) {
+                    client->c_restricted_at = -1;
+                } else if ( op->o_last_response ) {
+                    client->c_restricted_at = op->o_last_response;
+                } else {
+                    /* We have to default to o_start just in case we abandoned an
+                     * operation that the backend actually processed */
+                    client->c_restricted_at = op->o_start;
+                }
+            }
+        }
 
         if ( client->c_state == LLOAD_C_BINDING ) {
             client->c_state = LLOAD_C_READY;

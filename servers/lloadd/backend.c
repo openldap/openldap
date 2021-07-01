@@ -284,10 +284,116 @@ fail:
     epoch_leave( epoch );
 }
 
-LloadConnection *
-backend_select( LloadOperation *op, int *res )
+int
+try_upstream(
+    LloadBackend *b,
+    lload_c_head *head,
+    LloadOperation *op,
+    LloadConnection *c,
+    int *res,
+    char **message )
+{
+    assert_locked( &b->b_mutex );
+
+    checked_lock( &c->c_io_mutex );
+    CONNECTION_LOCK(c);
+    if ( c->c_state == LLOAD_C_READY && !c->c_pendingber &&
+            ( b->b_max_conn_pending == 0 ||
+                    c->c_n_ops_executing < b->b_max_conn_pending ) ) {
+        Debug( LDAP_DEBUG_CONNS, "try_upstream: "
+                "selected connection connid=%lu for client "
+                "connid=%lu msgid=%d\n",
+                c->c_connid, op->o_client_connid, op->o_client_msgid );
+
+        /* c_state is DYING if we're about to be unlinked */
+        assert( IS_ALIVE( c, c_live ) );
+
+        if ( head ) {
+            /*
+             * Round-robin step:
+             * Rotate the queue to put this connection at the end.
+             */
+            LDAP_CIRCLEQ_MAKE_TAIL( head, c, c_next );
+        }
+
+        b->b_n_ops_executing++;
+        if ( op->o_tag == LDAP_REQ_BIND ) {
+            b->b_counters[LLOAD_STATS_OPS_BIND].lc_ops_received++;
+        } else {
+            b->b_counters[LLOAD_STATS_OPS_OTHER].lc_ops_received++;
+        }
+        c->c_n_ops_executing++;
+        c->c_counters.lc_ops_received++;
+
+        *res = LDAP_SUCCESS;
+        CONNECTION_ASSERT_LOCKED(c);
+        assert_locked( &c->c_io_mutex );
+        return 1;
+    }
+    CONNECTION_UNLOCK(c);
+    checked_unlock( &c->c_io_mutex );
+    return 0;
+}
+
+int
+backend_select(
+        LloadBackend *b,
+        LloadOperation *op,
+        LloadConnection **cp,
+        int *res,
+        char **message )
+{
+    lload_c_head *head;
+    LloadConnection *c;
+
+    assert_locked( &b->b_mutex );
+    if ( b->b_max_pending && b->b_n_ops_executing >= b->b_max_pending ) {
+        Debug( LDAP_DEBUG_CONNS, "backend_select: "
+                "backend %s too busy\n",
+                b->b_uri.bv_val );
+        *res = LDAP_BUSY;
+        *message = "server busy";
+        return 1;
+    }
+
+    if ( op->o_tag == LDAP_REQ_BIND
+#ifdef LDAP_API_FEATURE_VERIFY_CREDENTIALS
+            && !(lload_features & LLOAD_FEATURE_VC)
+#endif /* LDAP_API_FEATURE_VERIFY_CREDENTIALS */
+            ) {
+        head = &b->b_bindconns;
+    } else {
+        head = &b->b_conns;
+    }
+
+    if ( LDAP_CIRCLEQ_EMPTY( head ) ) {
+        return 0;
+    }
+
+    *res = LDAP_BUSY;
+    *message = "server busy";
+
+    LDAP_CIRCLEQ_FOREACH( c, head, c_next ) {
+        if ( try_upstream( b, head, op, c, res, message ) ) {
+            *cp = c;
+            CONNECTION_ASSERT_LOCKED(c);
+            assert_locked( &c->c_io_mutex );
+            return 1;
+        }
+    }
+
+    return 1;
+}
+
+int
+upstream_select(
+        LloadOperation *op,
+        LloadConnection **cp,
+        int *res,
+        char **message )
 {
     LloadBackend *b, *first, *next;
+    int rc = 0;
 
     checked_lock( &backend_mutex );
     first = b = current_backend;
@@ -302,84 +408,28 @@ backend_select( LloadOperation *op, int *res )
     /* TODO: Two runs, one with trylock, then one actually locked if we don't
      * find anything? */
     do {
-        lload_c_head *head;
-        LloadConnection *c;
-
         checked_lock( &b->b_mutex );
         next = LDAP_CIRCLEQ_LOOP_NEXT( &backend, b, b_next );
 
-        if ( b->b_max_pending && b->b_n_ops_executing >= b->b_max_pending ) {
-            Debug( LDAP_DEBUG_CONNS, "backend_select: "
-                    "backend %s too busy\n",
-                    b->b_uri.bv_val );
-            checked_unlock( &b->b_mutex );
-            b = next;
-            *res = LDAP_BUSY;
-            continue;
-        }
-
-        if ( op->o_tag == LDAP_REQ_BIND
-#ifdef LDAP_API_FEATURE_VERIFY_CREDENTIALS
-                && !(lload_features & LLOAD_FEATURE_VC)
-#endif /* LDAP_API_FEATURE_VERIFY_CREDENTIALS */
-        ) {
-            head = &b->b_bindconns;
-        } else {
-            head = &b->b_conns;
-        }
-        if ( !LDAP_CIRCLEQ_EMPTY( head ) ) {
-            *res = LDAP_BUSY;
-        }
-
-        LDAP_CIRCLEQ_FOREACH ( c, head, c_next ) {
-            checked_lock( &c->c_io_mutex );
-            CONNECTION_LOCK(c);
-            if ( c->c_state == LLOAD_C_READY && !c->c_pendingber &&
-                    ( b->b_max_conn_pending == 0 ||
-                            c->c_n_ops_executing < b->b_max_conn_pending ) ) {
-                Debug( LDAP_DEBUG_CONNS, "backend_select: "
-                        "selected connection connid=%lu for client "
-                        "connid=%lu msgid=%d\n",
-                        c->c_connid, op->o_client_connid, op->o_client_msgid );
-
-                /* c_state is DYING if we're about to be unlinked */
-                assert( IS_ALIVE( c, c_live ) );
-
-                /*
-                 * Round-robin step:
-                 * Rotate the queue to put this connection at the end, same for
-                 * the backend.
-                 */
-                LDAP_CIRCLEQ_MAKE_TAIL( head, c, c_next );
-
-                checked_lock( &backend_mutex );
-                current_backend = next;
-                checked_unlock( &backend_mutex );
-
-                b->b_n_ops_executing++;
-                if ( op->o_tag == LDAP_REQ_BIND ) {
-                    b->b_counters[LLOAD_STATS_OPS_BIND].lc_ops_received++;
-                } else {
-                    b->b_counters[LLOAD_STATS_OPS_OTHER].lc_ops_received++;
-                }
-                c->c_n_ops_executing++;
-                c->c_counters.lc_ops_received++;
-
-                checked_unlock( &b->b_mutex );
-                *res = LDAP_SUCCESS;
-                CONNECTION_ASSERT_LOCKED(c);
-                assert_locked( &c->c_io_mutex );
-                return c;
-            }
-            CONNECTION_UNLOCK(c);
-            checked_unlock( &c->c_io_mutex );
-        }
+        rc = backend_select( b, op, cp, res, message );
         checked_unlock( &b->b_mutex );
+
+        if ( rc && *cp ) {
+            /*
+             * Round-robin step:
+             * Rotate the queue to put this backend at the end. The race here
+             * is acceptable.
+             */
+            checked_lock( &backend_mutex );
+            current_backend = next;
+            checked_unlock( &backend_mutex );
+            return rc;
+        }
 
         b = next;
     } while ( b != first );
 
-    return NULL;
+    return rc;
 }
 
 /*
