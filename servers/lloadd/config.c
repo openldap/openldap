@@ -80,6 +80,7 @@ static struct timeval timeout_api_tv, timeout_net_tv,
         timeout_write_tv = { 10, 0 };
 
 lload_features_t lload_features;
+int lload_write_coherence = 0;
 
 ber_len_t sockbuf_max_incoming_client = LLOAD_SB_MAX_INCOMING_CLIENT;
 ber_len_t sockbuf_max_incoming_upstream = LLOAD_SB_MAX_INCOMING_UPSTREAM;
@@ -112,8 +113,10 @@ static ConfigFile *cfn;
 
 static ConfigDriver config_fname;
 static ConfigDriver config_generic;
+static ConfigDriver config_tier;
 static ConfigDriver config_backend;
 static ConfigDriver config_bindconf;
+static ConfigDriver config_restrict_oid;
 #ifdef LDAP_TCP_BUFFER
 static ConfigDriver config_tcp_buffer;
 #endif /* LDAP_TCP_BUFFER */
@@ -129,10 +132,6 @@ static ConfigDriver config_tls_config;
 static ConfigDriver config_share_tls_ctx;
 static ConfigDriver backend_cf_gen;
 #endif /* BALANCER_MODULE */
-
-lload_b_head backend = LDAP_CIRCLEQ_HEAD_INITIALIZER(backend);
-ldap_pvt_thread_mutex_t backend_mutex;
-LloadBackend *current_backend = NULL;
 
 struct slap_bindconf bindconf = {};
 struct berval lloadd_identity = BER_BVNULL;
@@ -178,6 +177,10 @@ enum {
     CFG_MAX_PENDING_CONNS,
     CFG_STARTTLS,
     CFG_CLIENT_PENDING,
+    CFG_RESTRICT_EXOP,
+    CFG_RESTRICT_CONTROL,
+    CFG_TIER,
+    CFG_WEIGHT,
 
     CFG_LAST
 };
@@ -200,6 +203,17 @@ static ConfigTable config_back_cf_table[] = {
         ARG_UINT|ARG_MAGIC|CFG_CONCUR,
         &config_generic,
         NULL, NULL, NULL
+    },
+    { "tier", "name", 2, 2, 0,
+        ARG_MAGIC|ARG_STRING|CFG_TIER,
+        &config_tier,
+        "( OLcfgBkAt:13.39 "
+            "NAME 'olcBkLloadTierType' "
+            "DESC 'Tier type' "
+            "EQUALITY caseIgnoreMatch "
+            "SYNTAX OMsDirectoryString "
+            "SINGLE-VALUE )",
+        NULL, NULL
     },
     /* conf-file only option */
     { "backend-server", "backend options", 2, 0, 0,
@@ -631,6 +645,38 @@ static ConfigTable config_back_cf_table[] = {
         NULL,
         { .v_uint = 0 }
     },
+    { "write_coherence", "seconds", 2, 2, 0,
+        ARG_INT,
+        &lload_write_coherence,
+        "( OLcfgBkAt:13.36 "
+            "NAME 'olcBkLloadWriteCoherence' "
+            "DESC 'Keep operations to the same backend after a write' "
+            "EQUALITY integerMatch "
+            "SYNTAX OMsInteger "
+            "SINGLE-VALUE )",
+        NULL,
+        { .v_int = 0 }
+    },
+    { "restrict_exop", "OID> <action", 3, 3, 0,
+        ARG_MAGIC|CFG_RESTRICT_EXOP,
+        &config_restrict_oid,
+        "( OLcfgBkAt:13.37 "
+            "NAME 'olcBkLloadRestrictExop' "
+            "DESC 'Restrict upstream selection after forwarding an extended operation' "
+            "EQUALITY caseIgnoreMatch "
+            "SYNTAX OMsDirectoryString )",
+        NULL, NULL
+    },
+    { "restrict_control", "OID> <action", 3, 3, 0,
+        ARG_MAGIC|CFG_RESTRICT_CONTROL,
+        &config_restrict_oid,
+        "( OLcfgBkAt:13.38 "
+            "NAME 'olcBkLloadRestrictControl' "
+            "DESC 'Restrict upstream selection after forwarding a control' "
+            "EQUALITY caseIgnoreMatch "
+            "SYNTAX OMsDirectoryString )",
+        NULL, NULL
+    },
 
     /* cn=config only options */
 #ifdef BALANCER_MODULE
@@ -711,6 +757,17 @@ static ConfigTable config_back_cf_table[] = {
             "SINGLE-VALUE )",
         NULL, NULL
     },
+    { "", NULL, 2, 2, 0,
+        ARG_MAGIC|ARG_UINT|CFG_WEIGHT,
+        &backend_cf_gen,
+        "( OLcfgBkAt:13.40 "
+            "NAME 'olcBkLloadWeight' "
+            "DESC 'Backend weight' "
+            "SYNTAX OMsInteger "
+            "SINGLE-VALUE )",
+        NULL,
+        { .v_uint = 0 },
+    },
 #endif /* BALANCER_MODULE */
 
     { NULL, NULL, 0, 0, 0, ARG_IGNORED, NULL }
@@ -718,9 +775,13 @@ static ConfigTable config_back_cf_table[] = {
 
 #ifdef BALANCER_MODULE
 static ConfigCfAdd lload_cfadd;
+
 static ConfigLDAPadd lload_backend_ldadd;
+static ConfigLDAPadd lload_tier_ldadd;
+
 #ifdef SLAP_CONFIG_DELETE
 static ConfigLDAPdel lload_backend_lddel;
+static ConfigLDAPdel lload_tier_lddel;
 #endif /* SLAP_CONFIG_DELETE */
 
 static ConfigOCs lloadocs[] = {
@@ -751,6 +812,9 @@ static ConfigOCs lloadocs[] = {
             "$ olcBkLloadTLSCRLFile "
             "$ olcBkLloadTLSShareSlapdCTX "
             "$ olcBkLloadClientMaxPending "
+            "$ olcBkLloadWriteCoherence "
+            "$ olcBkLloadRestrictExop "
+            "$ olcBkLloadRestrictControl "
         ") )",
         Cft_Backend, config_back_cf_table,
         NULL,
@@ -768,12 +832,27 @@ static ConfigOCs lloadocs[] = {
             "$ olcBkLloadMaxPendingOps "
             "$ olcBkLloadMaxPendingConns ) "
         "MAY ( olcBkLloadStartTLS "
+            "$ olcBkLloadWeight ) "
         ") )",
         Cft_Misc, config_back_cf_table,
         lload_backend_ldadd,
         NULL,
 #ifdef SLAP_CONFIG_DELETE
         lload_backend_lddel,
+#endif /* SLAP_CONFIG_DELETE */
+    },
+    { "( OLcfgBkOc:13.3 "
+        "NAME 'olcBkLloadTierConfig' "
+        "DESC 'Lload tier configuration' "
+        "SUP olcConfig STRUCTURAL "
+        "MUST ( cn "
+            "$ olcBkLloadTierType "
+        ") )",
+        Cft_Misc, config_back_cf_table,
+        lload_tier_ldadd,
+        NULL,
+#ifdef SLAP_CONFIG_DELETE
+        lload_tier_lddel,
 #endif /* SLAP_CONFIG_DELETE */
     },
     { NULL, 0, NULL }
@@ -1034,6 +1113,26 @@ lload_backend_finish( ConfigArgs *ca )
         b->b_retry_event = event;
     }
 
+    if ( BER_BVISEMPTY( &b->b_name ) ) {
+        struct berval bv;
+        LloadBackend *b2;
+        int i = 1;
+
+        LDAP_CIRCLEQ_FOREACH ( b2, &b->b_tier->t_backends, b_next ) {
+            i++;
+        }
+
+        bv.bv_val = ca->cr_msg;
+        bv.bv_len =
+                snprintf( ca->cr_msg, sizeof(ca->cr_msg), "server %d", i );
+
+        ber_dupbv( &b->b_name, &bv );
+    }
+
+    if ( b->b_tier->t_type.tier_add_backend( b->b_tier, b ) ) {
+        goto fail;
+    }
+
     return LDAP_SUCCESS;
 
 fail:
@@ -1044,28 +1143,6 @@ fail:
 
     lload_backend_destroy( b );
     return -1;
-}
-
-static LloadBackend *
-backend_alloc( void )
-{
-    LloadBackend *b;
-
-    b = ch_calloc( 1, sizeof(LloadBackend) );
-
-    LDAP_CIRCLEQ_INIT( &b->b_conns );
-    LDAP_CIRCLEQ_INIT( &b->b_bindconns );
-    LDAP_CIRCLEQ_INIT( &b->b_preparing );
-
-    b->b_numconns = 1;
-    b->b_numbindconns = 1;
-
-    b->b_retry_timeout = 5000;
-
-    ldap_pvt_thread_mutex_init( &b->b_mutex );
-
-    LDAP_CIRCLEQ_INSERT_TAIL( &backend, b, b_next );
-    return b;
 }
 
 static int
@@ -1144,16 +1221,29 @@ static int
 config_backend( ConfigArgs *c )
 {
     LloadBackend *b;
+    LloadTier *tier;
     int i, rc = 0;
 
-    b = backend_alloc();
+    tier = LDAP_STAILQ_LAST( &tiers, LloadTier, t_next );
+    if ( !tier ) {
+        Debug( LDAP_DEBUG_ANY, "config_backend: "
+                "no tier configured yet\n" );
+        return -1;
+    }
+
+    /* FIXME: maybe tier_add_backend could allocate it? */
+    b = lload_backend_new();
+    b->b_tier = tier;
 
     for ( i = 1; i < c->argc; i++ ) {
         if ( lload_backend_parse( c->argv[i], b ) ) {
-            Debug( LDAP_DEBUG_ANY, "config_backend: "
-                    "error parsing backend configuration item '%s'\n",
-                    c->argv[i] );
-            return -1;
+            if ( !tier->t_type.tier_backend_config ||
+                    tier->t_type.tier_backend_config( tier, b, c->argv[i] ) ) {
+                Debug( LDAP_DEBUG_ANY, "config_backend: "
+                        "error parsing backend configuration item '%s'\n",
+                        c->argv[i] );
+                return -1;
+            }
         }
     }
 
@@ -1268,6 +1358,234 @@ config_bindconf( ConfigArgs *c )
     }
 #endif /* HAVE_TLS */
     return 0;
+}
+
+#ifndef BALANCER_MODULE
+char *
+oidm_find( char *oid )
+{
+    if ( OID_LEADCHAR( *oid ) ) {
+        return oid;
+    }
+    Debug( LDAP_DEBUG_ANY, "oidm_find: "
+            "full OID parsing only available when compiled as a module\n" );
+    return NULL;
+}
+#endif /* !BALANCER_MODULE */
+
+static struct {
+    const char *name;
+    enum op_restriction action;
+} restrictopts[] = {
+    { "ignore", LLOAD_OP_NOT_RESTRICTED },
+    { "write", LLOAD_OP_RESTRICTED_WRITE },
+    { "backend", LLOAD_OP_RESTRICTED_BACKEND },
+    { "connection", LLOAD_OP_RESTRICTED_UPSTREAM },
+    { "isolate", LLOAD_OP_RESTRICTED_ISOLATE },
+    { "reject", LLOAD_OP_RESTRICTED_REJECT },
+    { NULL }
+};
+
+static void
+restriction_free( struct restriction_entry *restriction )
+{
+    ch_free( restriction->oid.bv_val );
+    ch_free( restriction );
+}
+
+static int
+config_restrict_oid( ConfigArgs *c )
+{
+    TAvlnode *node = NULL, **root = ( c->type == CFG_RESTRICT_EXOP ) ?
+            &lload_exop_actions :
+            &lload_control_actions;
+    struct restriction_entry *entry = NULL;
+    char *parsed_oid;
+    int i, rc = -1;
+
+    if ( c->op == SLAP_CONFIG_EMIT ) {
+        struct berval bv = { .bv_val = c->cr_msg };
+
+        if ( c->type == CFG_RESTRICT_EXOP && lload_default_exop_action ) {
+            bv.bv_len = snprintf( bv.bv_val, sizeof(c->cr_msg), "1.1 %s",
+                    restrictopts[lload_default_exop_action].name );
+            value_add_one( &c->rvalue_vals, &bv );
+        }
+        for ( node = ldap_tavl_end( *root, TAVL_DIR_LEFT );
+                node;
+                node = ldap_tavl_next( node, TAVL_DIR_RIGHT ) ) {
+            entry = node->avl_data;
+
+            bv.bv_len = snprintf( bv.bv_val, sizeof(c->cr_msg), "%s %s",
+                    entry->oid.bv_val, restrictopts[entry->action].name );
+            value_add_one( &c->rvalue_vals, &bv );
+        }
+
+        return LDAP_SUCCESS;
+
+    } else if ( c->op == LDAP_MOD_DELETE ) {
+        if ( !c->line ) {
+            ldap_tavl_free( *root, (AVL_FREE)restriction_free );
+            *root = NULL;
+            if ( c->type == CFG_RESTRICT_EXOP ) {
+                lload_default_exop_action = LLOAD_OP_NOT_RESTRICTED;
+            }
+            rc = LDAP_SUCCESS;
+        } else {
+            struct restriction_entry needle;
+
+            parsed_oid = strchr( c->line, ' ' );
+            if ( !parsed_oid ) {
+                return rc;
+            }
+
+            memcpy( c->cr_msg, c->line, parsed_oid - c->line );
+            c->cr_msg[parsed_oid - c->line] = '\0';
+
+            needle.oid.bv_val = oidm_find( c->cr_msg );
+            needle.oid.bv_len = strlen( needle.oid.bv_val );
+
+            if ( !needle.oid.bv_val ) {
+                return rc;
+            } else if ( c->type == CFG_RESTRICT_EXOP &&
+                    !strcmp( needle.oid.bv_val, "1.1" ) ) {
+                lload_default_exop_action = LLOAD_OP_NOT_RESTRICTED;
+            } else {
+                /* back-config should have checked we have this value */
+                entry = ldap_tavl_delete( root, &needle,
+                        lload_restriction_cmp );
+                assert( entry != NULL );
+            }
+            rc = LDAP_SUCCESS;
+        }
+        return rc;
+    }
+
+    parsed_oid = oidm_find( c->argv[1] );
+    if ( !parsed_oid ) {
+        snprintf( c->cr_msg, sizeof(c->cr_msg), "Could not parse oid %s",
+                c->argv[1] );
+        goto done;
+    }
+
+    for ( i = 0; restrictopts[i].name; i++ ) {
+        if ( !strcasecmp( c->argv[2], restrictopts[i].name ) ) {
+            break;
+        }
+    }
+
+    if ( !restrictopts[i].name ) {
+        snprintf( c->cr_msg, sizeof(c->cr_msg), "Could not parse action %s",
+                c->argv[2] );
+        goto done;
+    }
+
+    if ( !strcmp( parsed_oid, "1.1" ) ) {
+        if ( lload_default_exop_action ) {
+            snprintf( c->cr_msg, sizeof(c->cr_msg), "Default already set" );
+            goto done;
+        } else {
+            lload_default_exop_action = i;
+        }
+    }
+
+    entry = ch_malloc( sizeof(struct restriction_entry) );
+    /* Copy only if a reference to argv[1] was returned */
+    ber_str2bv( parsed_oid, 0, parsed_oid == c->argv[1], &entry->oid );
+    entry->action = i;
+
+    if ( ldap_tavl_insert( root, entry, lload_restriction_cmp,
+                ldap_avl_dup_error ) ) {
+        snprintf( c->cr_msg, sizeof(c->cr_msg),
+                "%s with OID %s already restricted",
+                c->type == CFG_RESTRICT_EXOP ? "Extended operation" : "Control",
+                c->argv[1] );
+        goto done;
+    }
+
+    rc = LDAP_SUCCESS;
+done:
+    if ( rc ) {
+        Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+        if ( parsed_oid ) ch_free( parsed_oid );
+        if ( entry ) ch_free( entry );
+    }
+
+    return rc;
+}
+
+static int
+config_tier( ConfigArgs *c )
+{
+    int rc = LDAP_SUCCESS;
+    struct lload_tier_type *tier_impl;
+    LloadTier *tier = c->ca_private;
+    struct berval bv;
+    int i = 1;
+
+    if ( c->op == SLAP_CONFIG_EMIT ) {
+        switch ( c->type ) {
+            case CFG_TIER:
+                c->value_string = ch_strdup( tier->t_type.tier_name );
+                break;
+            default:
+                goto fail;
+                break;
+        }
+        return rc;
+
+    } else if ( c->op == LDAP_MOD_DELETE ) {
+        if ( lload_change.type != LLOAD_CHANGE_DEL ) {
+            /*
+             * TODO: Shouldn't really happen while this attribute is in the
+             * RDN, but we don't enforce it yet.
+             *
+             * How would we go about changing the backend type if we ever supported that?
+             */
+            goto fail;
+        }
+        return rc;
+    }
+
+    if ( CONFIG_ONLINE_ADD( c ) ) {
+        assert( tier );
+        lload_change.target = tier;
+        return rc;
+    }
+
+    tier_impl = lload_tier_find( c->value_string );
+    if ( !tier_impl ) {
+        goto fail;
+    }
+    tier = tier_impl->tier_init();
+    if ( !tier ) {
+        goto fail;
+    }
+
+    lload_change.target = tier;
+
+    if ( LDAP_STAILQ_EMPTY( &tiers ) ) {
+        LDAP_STAILQ_INSERT_HEAD( &tiers, tier, t_next );
+    } else {
+        LloadTier *tier2;
+        LDAP_STAILQ_FOREACH ( tier2, &tiers, t_next ) {
+            i++;
+        }
+        LDAP_STAILQ_INSERT_TAIL( &tiers, tier, t_next );
+    }
+
+    bv.bv_val = c->cr_msg;
+    bv.bv_len = snprintf( c->cr_msg, sizeof(c->cr_msg), "tier %d", i );
+    ber_dupbv( &tier->t_name, &bv );
+
+    return rc;
+
+fail:
+    if ( lload_change.type == LLOAD_CHANGE_ADD ) {
+        /* Abort the ADD */
+        lload_change.type = LLOAD_CHANGE_DEL;
+    }
+    return 1;
 }
 
 static int
@@ -2764,6 +3082,9 @@ static slap_cf_aux_table backendkey[] = {
     { BER_BVC("max-pending-ops="), offsetof(LloadBackend, b_max_pending), 'i', 0, NULL },
     { BER_BVC("conn-max-pending="), offsetof(LloadBackend, b_max_conn_pending), 'i', 0, NULL },
     { BER_BVC("starttls="), offsetof(LloadBackend, b_tls_conf), 'i', 0, tlskey },
+
+    { BER_BVC("weight="), offsetof(LloadBackend, b_weight), 'i', 0, NULL },
+
     { BER_BVNULL, 0, 0, 0, NULL }
 };
 
@@ -3610,6 +3931,9 @@ backend_cf_gen( ConfigArgs *c )
             case CFG_STARTTLS:
                 enum_to_verb( tlskey, b->b_tls_conf, &c->value_bv );
                 break;
+            case CFG_WEIGHT:
+                c->value_uint = b->b_weight;
+                break;
             default:
                 rc = 1;
                 break;
@@ -3691,6 +4015,9 @@ backend_cf_gen( ConfigArgs *c )
 #endif /* ! HAVE_TLS */
             b->b_tls_conf = tlskey[i].mask;
         } break;
+        case CFG_WEIGHT:
+            b->b_weight = c->value_uint;
+            break;
         default:
             rc = 1;
             break;
@@ -3730,17 +4057,18 @@ lload_back_init_cf( BackendInfo *bi )
 }
 
 static int
-lload_backend_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
+lload_tier_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 {
-    LloadBackend *b;
+    LloadTier *tier;
     Attribute *a;
     AttributeDescription *ad = NULL;
+    struct lload_tier_type *tier_impl;
     struct berval bv, type, rdn;
     const char *text;
     char *name;
 
-    Debug( LDAP_DEBUG_TRACE, "lload_backend_ldadd: "
-            "a new backend-server is being added\n" );
+    Debug( LDAP_DEBUG_TRACE, "lload_tier_ldadd: "
+            "a new tier is being added\n" );
 
     if ( p->ce_type != Cft_Backend || !p->ce_bi ||
             p->ce_bi->bi_cf_ocs != lloadocs )
@@ -3764,8 +4092,81 @@ lload_backend_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
         bv.bv_val = name;
     }
 
-    b = backend_alloc();
+    ad = NULL;
+    slap_str2ad( "olcBkLloadTierType", &ad, &text );
+    assert( ad != NULL );
+
+    a = attr_find( e->e_attrs, ad );
+    if ( !a || a->a_numvals != 1 ) return LDAP_OBJECT_CLASS_VIOLATION;
+
+    tier_impl = lload_tier_find( a->a_vals[0].bv_val );
+    if ( !tier_impl ) {
+        Debug( LDAP_DEBUG_ANY, "lload_tier_ldadd: "
+                "tier type %s not recongnised\n",
+                bv.bv_val );
+        return LDAP_OTHER;
+    }
+
+    tier = tier_impl->tier_init();
+    if ( !tier ) {
+        return LDAP_OTHER;
+    }
+
+    ber_dupbv( &tier->t_name, &bv );
+
+    ca->bi = p->ce_bi;
+    ca->ca_private = tier;
+
+    /* ca cleanups are only run in the case of online config but we use it to
+     * save the new config when done with the entry */
+    ca->lineno = 0;
+
+    lload_change.type = LLOAD_CHANGE_ADD;
+    lload_change.object = LLOAD_TIER;
+    lload_change.target = tier;
+
+    return LDAP_SUCCESS;
+}
+
+static int
+lload_backend_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
+{
+    LloadTier *tier = p->ce_private;
+    LloadBackend *b;
+    Attribute *a;
+    AttributeDescription *ad = NULL;
+    struct berval bv, type, rdn;
+    const char *text;
+    char *name;
+
+    Debug( LDAP_DEBUG_TRACE, "lload_backend_ldadd: "
+            "a new backend-server is being added\n" );
+
+    if ( p->ce_type != Cft_Misc || !p->ce_bi ||
+            p->ce_bi->bi_cf_ocs != lloadocs )
+        return LDAP_CONSTRAINT_VIOLATION;
+
+    dnRdn( &e->e_name, &rdn );
+    type.bv_len = strchr( rdn.bv_val, '=' ) - rdn.bv_val;
+    type.bv_val = rdn.bv_val;
+
+    /* Find attr */
+    slap_bv2ad( &type, &ad, &text );
+    if ( ad != slap_schema.si_ad_cn ) return LDAP_NAMING_VIOLATION;
+
+    a = attr_find( e->e_attrs, ad );
+    if ( !a || a->a_numvals != 1 ) return LDAP_NAMING_VIOLATION;
+    bv = a->a_vals[0];
+
+    if ( bv.bv_val[0] == '{' && ( name = strchr( bv.bv_val, '}' ) ) ) {
+        name++;
+        bv.bv_len -= name - bv.bv_val;
+        bv.bv_val = name;
+    }
+
+    b = lload_backend_new();
     ber_dupbv( &b->b_name, &bv );
+    b->b_tier = tier;
 
     ca->bi = p->ce_bi;
     ca->ca_private = b;
@@ -3794,29 +4195,74 @@ lload_backend_lddel( CfEntryInfo *ce, Operation *op )
 
     return LDAP_SUCCESS;
 }
+
+static int
+lload_tier_lddel( CfEntryInfo *ce, Operation *op )
+{
+    LloadTier *tier = ce->ce_private;
+
+    lload_change.type = LLOAD_CHANGE_DEL;
+    lload_change.object = LLOAD_TIER;
+    lload_change.target = tier;
+
+    return LDAP_SUCCESS;
+}
 #endif /* SLAP_CONFIG_DELETE */
 
 static int
 lload_cfadd( Operation *op, SlapReply *rs, Entry *p, ConfigArgs *c )
 {
     struct berval bv;
-    LloadBackend *b;
+    LloadTier *tier;
     int i = 0;
 
     bv.bv_val = c->cr_msg;
-    LDAP_CIRCLEQ_FOREACH ( b, &backend, b_next ) {
-        char buf[STRLENOF( "server 4294967295" ) + 1] = { 0 };
+    LDAP_STAILQ_FOREACH ( tier, &tiers, t_next ) {
+        LloadBackend *b;
+        ConfigOCs *coc;
+        Entry *e;
+        int j = 0;
 
         bv.bv_len = snprintf( c->cr_msg, sizeof(c->cr_msg),
-                "cn=" SLAP_X_ORDERED_FMT "server %d", i, i + 1 );
+                "cn=" SLAP_X_ORDERED_FMT "%s", i, tier->t_name.bv_val );
 
-        snprintf( buf, sizeof(buf), "server %d", i + 1 );
-        ber_str2bv( buf, 0, 1, &b->b_name );
-
-        c->ca_private = b;
+        c->ca_private = tier;
         c->valx = i;
 
-        config_build_entry( op, rs, p->e_private, c, &bv, &lloadocs[1], NULL );
+        for ( coc = lloadocs; coc->co_type; coc++ ) {
+            if ( !ber_bvcmp( coc->co_name, &tier->t_type.tier_oc ) ) {
+                break;
+            }
+        }
+        assert( coc->co_type );
+
+        e = config_build_entry( op, rs, p->e_private, c, &bv, coc, NULL );
+        if ( !e ) {
+            return 1;
+        }
+
+        LDAP_CIRCLEQ_FOREACH ( b, &tier->t_backends, b_next ) {
+            bv.bv_len = snprintf( c->cr_msg, sizeof(c->cr_msg),
+                    "cn=" SLAP_X_ORDERED_FMT "%s", j, b->b_name.bv_val );
+
+            for ( coc = lloadocs; coc->co_type; coc++ ) {
+                if ( !ber_bvcmp(
+                             coc->co_name, &tier->t_type.tier_backend_oc ) ) {
+                    break;
+                }
+            }
+            assert( coc->co_type );
+
+            c->ca_private = b;
+            c->valx = j;
+
+            if ( !config_build_entry(
+                         op, rs, e->e_private, c, &bv, coc, NULL ) ) {
+                return 1;
+            }
+
+            j++;
+        }
 
         i++;
     }

@@ -21,6 +21,10 @@
 ldap_pvt_thread_mutex_t lload_pin_mutex;
 unsigned long lload_next_pin = 1;
 
+TAvlnode *lload_control_actions = NULL;
+TAvlnode *lload_exop_actions = NULL;
+enum op_restriction lload_default_exop_action = LLOAD_OP_NOT_RESTRICTED;
+
 ber_tag_t
 slap_req2res( ber_tag_t tag )
 {
@@ -85,6 +89,13 @@ lload_msgtype2str( ber_tag_t tag )
 }
 
 int
+lload_restriction_cmp( const void *left, const void *right )
+{
+    const struct restriction_entry *l = left, *r = right;
+    return ber_bvcmp( &l->oid, &r->oid );
+}
+
+int
 operation_client_cmp( const void *left, const void *right )
 {
     const LloadOperation *l = left, *r = right;
@@ -135,7 +146,7 @@ operation_init( LloadConnection *c, BerElement *ber )
     op->o_client = c;
     op->o_client_connid = c->c_connid;
     op->o_ber = ber;
-    op->o_start = slap_get_time();
+    gettimeofday( &op->o_start, NULL );
 
     ldap_pvt_thread_mutex_init( &op->o_link_mutex );
 
@@ -275,6 +286,21 @@ operation_unlink_client( LloadOperation *op, LloadConnection *client )
 
         assert( op == removed );
         client->c_n_ops_executing--;
+
+        if ( op->o_restricted == LLOAD_OP_RESTRICTED_WRITE ) {
+            if ( !--client->c_restricted_inflight &&
+                    client->c_restricted_at >= 0 ) {
+                if ( lload_write_coherence < 0 ) {
+                    client->c_restricted_at = -1;
+                } else if ( timerisset( &op->o_last_response ) ) {
+                    client->c_restricted_at = op->o_last_response.tv_sec;
+                } else {
+                    /* We have to default to o_start just in case we abandoned an
+                     * operation that the backend actually processed */
+                    client->c_restricted_at = op->o_start.tv_sec;
+                }
+            }
+        }
 
         if ( client->c_state == LLOAD_C_BINDING ) {
             client->c_state = LLOAD_C_READY;
@@ -521,13 +547,13 @@ connection_timeout( LloadConnection *upstream, void *arg )
     LloadOperation *op;
     TAvlnode *ops = NULL, *node, *next;
     LloadBackend *b = upstream->c_backend;
-    time_t threshold = *(time_t *)arg;
+    struct timeval *threshold = arg;
     int rc, nops = 0;
 
     CONNECTION_LOCK(upstream);
-    for ( node = ldap_tavl_end( upstream->c_ops, TAVL_DIR_LEFT ); node &&
-            ((LloadOperation *)node->avl_data)->o_start <
-                    threshold; /* shortcut */
+    for ( node = ldap_tavl_end( upstream->c_ops, TAVL_DIR_LEFT );
+            node && timercmp( &((LloadOperation *)node->avl_data)->o_start,
+                    threshold, < ); /* shortcut */
             node = next ) {
         LloadOperation *found_op;
 
@@ -535,7 +561,8 @@ connection_timeout( LloadConnection *upstream, void *arg )
         op = node->avl_data;
 
         /* Have we received another response since? */
-        if ( op->o_last_response && op->o_last_response >= threshold ) {
+        if ( timerisset( &op->o_last_response ) &&
+                !timercmp( &op->o_last_response, threshold, < ) ) {
             continue;
         }
 
@@ -615,7 +642,7 @@ void
 operations_timeout( evutil_socket_t s, short what, void *arg )
 {
     struct event *self = arg;
-    LloadBackend *b;
+    LloadTier *tier;
     time_t threshold;
 
     Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
@@ -624,31 +651,35 @@ operations_timeout( evutil_socket_t s, short what, void *arg )
 
     threshold = slap_get_time() - lload_timeout_api->tv_sec;
 
-    LDAP_CIRCLEQ_FOREACH ( b, &backend, b_next ) {
-        epoch_t epoch;
+    LDAP_STAILQ_FOREACH ( tier, &tiers, t_next ) {
+        LloadBackend *b;
 
-        checked_lock( &b->b_mutex );
-        if ( b->b_n_ops_executing == 0 ) {
+        LDAP_CIRCLEQ_FOREACH ( b, &tier->t_backends, b_next ) {
+            epoch_t epoch;
+
+            checked_lock( &b->b_mutex );
+            if ( b->b_n_ops_executing == 0 ) {
+                checked_unlock( &b->b_mutex );
+                continue;
+            }
+
+            epoch = epoch_join();
+
+            Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
+                    "timing out binds for backend uri=%s\n",
+                    b->b_uri.bv_val );
+            connections_walk_last( &b->b_mutex, &b->b_bindconns,
+                    b->b_last_bindconn, connection_timeout, &threshold );
+
+            Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
+                    "timing out other operations for backend uri=%s\n",
+                    b->b_uri.bv_val );
+            connections_walk_last( &b->b_mutex, &b->b_conns, b->b_last_conn,
+                    connection_timeout, &threshold );
+
+            epoch_leave( epoch );
             checked_unlock( &b->b_mutex );
-            continue;
         }
-
-        epoch = epoch_join();
-
-        Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
-                "timing out binds for backend uri=%s\n",
-                b->b_uri.bv_val );
-        connections_walk_last( &b->b_mutex, &b->b_bindconns, b->b_last_bindconn,
-                connection_timeout, &threshold );
-
-        Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
-                "timing out other operations for backend uri=%s\n",
-                b->b_uri.bv_val );
-        connections_walk_last( &b->b_mutex, &b->b_conns, b->b_last_conn,
-                connection_timeout, &threshold );
-
-        epoch_leave( epoch );
-        checked_unlock( &b->b_mutex );
     }
 done:
     Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
