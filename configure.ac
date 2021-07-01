@@ -3324,6 +3324,8 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [servers/lloadd/Makefile.module:servers/lloadd/Makefile_module.in:build/mod.mk]
 [tests/Makefile:build/top.mk:tests/Makefile.in:build/dir.mk]
 [tests/run]
+[tests/modules/Makefile:build/top.mk:tests/modules/Makefile.in:build/dir.mk]
+[tests/modules/mod-harness/Makefile:build/top.mk:tests/modules/mod-harness/Makefile.in:build/mod.mk]
 [tests/progs/Makefile:build/top.mk:tests/progs/Makefile.in:build/rules.mk])
 
 AC_CONFIG_COMMANDS([default],[[
