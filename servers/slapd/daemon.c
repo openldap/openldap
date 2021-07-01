@@ -2317,7 +2317,12 @@ slap_listener(
 			int rc;
 			char *peeraddr, *paend;
 			peeraddr = peerbv.bv_val + 3;
-			paend = strrchr( peeraddr, ':' );
+			if ( *peeraddr == '[' ) {
+				peeraddr++;
+				paend = strrchr( peeraddr, ']' );
+			} else {
+				paend = strrchr( peeraddr, ':' );
+			}
 			if ( paend )
 				*paend = '\0';
 			ldap_pvt_thread_mutex_lock( &sd_tcpd_mutex );
@@ -2336,8 +2341,12 @@ slap_listener(
 				slapd_close(sfd);
 				return 0;
 			}
-			if ( paend )
-				*paend = ':';
+			if ( paend ) {
+				if ( peeraddr[-1] == '[' )
+					*paend = ']';
+				else
+					*paend = ':';
+			}
 		}
 #endif /* HAVE_TCPD */
 	}
