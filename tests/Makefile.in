@@ -20,11 +20,13 @@ BUILD_MDB=@BUILD_MDB@
 BUILD_SQL=@BUILD_SQL@
 BUILD_SLAPD=@BUILD_SLAPD@
 BUILD_BALANCER=@BUILD_BALANCER@
+BUILD_WT=@BUILD_WT@
 
 # test primary backends (default)
 test tests:
 	@$(MAKE) mdb
 	@$(MAKE) lloadd
+	@$(MAKE) wt
 
 # test all backends
 alltests: tests
@@ -50,6 +52,13 @@ sql-yes sql-mod:	FORCE
 ldif test-ldif: FORCE
 	@echo "Initiating LDAP tests for LDIF..."
 	@$(RUN) -b ldif all
+
+wt test-wt:	wt-$(BUILD_WT)
+wt-no:
+	@echo "run configure with --enable-wt to run back-wt tests"
+
+wt-yes wt-mod: FORCE
+	@$(RUN) -b wt all
 
 lloadd test-lloadd: lloadd-$(BUILD_BALANCER)
 lloadd-no:

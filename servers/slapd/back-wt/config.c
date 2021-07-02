@@ -35,6 +35,8 @@ enum {
 	WT_DIRECTORY = 1,
 	WT_CONFIG,
 	WT_INDEX,
+	WT_MODE,
+	WT_IDLCACHE,
 };
 
 static ConfigTable wtcfg[] = {
@@ -43,27 +45,35 @@ static ConfigTable wtcfg[] = {
 	  "DESC 'Directory for database content' "
 	  "EQUALITY caseIgnoreMatch "
 	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
-    { "wtconfig", "config", 2, 2, 0, ARG_STRING|ARG_MAGIC|WT_CONFIG,
-	  wt_cf_gen, "( OLcfgDbAt:13.1 NAME 'olcWtConfig' "
-	  "DESC 'Configuration for WiredTiger' "
-	  "EQUALITY caseIgnoreMatch "
-	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
 	{ "index", "attr> <[pres,eq,approx,sub]", 2, 3, 0, ARG_MAGIC|WT_INDEX,
 	  wt_cf_gen, "( OLcfgDbAt:0.2 NAME 'olcDbIndex' "
 	  "DESC 'Attribute index parameters' "
 	  "EQUALITY caseIgnoreMatch "
 	  "SYNTAX OMsDirectoryString )", NULL, NULL },
+	{ "mode", "mode", 2, 2, 0, ARG_MAGIC|WT_MODE,
+	  wt_cf_gen, "( OLcfgDbAt:0.3 NAME 'olcDbMode' "
+	  "DESC 'Unix permissions of database files' "
+	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "wtconfig", "config", 2, 2, 0, ARG_STRING|ARG_MAGIC|WT_CONFIG,
+	  wt_cf_gen, "( OLcfgDbAt:13.1 NAME 'olcWtConfig' "
+	  "DESC 'Configuration for WiredTiger' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "idlcache", NULL, 1, 2, 0, ARG_ON_OFF|ARG_MAGIC|WT_IDLCACHE,
+	  wt_cf_gen, "( OLcfgDbAt:13.2 NAME 'olcIDLcache' "
+	  "DESC 'enable IDL cache' "
+	  "SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED,
 		NULL, NULL, NULL, NULL }
 };
 
 static ConfigOCs wtocs[] = {
-	{ "( OLcfgDbOc:9.1 "
+	{ "( OLcfgDbOc:13.1 "
 	  "NAME 'olcWtConfig' "
 	  "DESC 'Wt backend configuration' "
 	  "SUP olcDatabaseConfig "
 	  "MUST olcDbDirectory "
-	  "MAY ( olcWtConfig $ olcDbIndex ) )",
+	  "MAY ( olcWtConfig $ olcDbIndex $ olcDbMode $ olcIDLcache) )",
 	  Cft_Database, wtcfg },
 	{ NULL, 0, NULL }
 };
@@ -73,6 +83,7 @@ static void *
 wt_online_index( void *ctx, void *arg )
 {
 	// Not implement yet
+	return NULL;
 }
 
 /* Cleanup loose ends after Modify completes */
@@ -89,20 +100,47 @@ wt_cf_gen( ConfigArgs *c )
 	struct wt_info *wi = (struct wt_info *) c->be->be_private;
 	int rc;
 
-	if(c->op == SLAP_CONFIG_EMIT) {
+	if( c->op == SLAP_CONFIG_EMIT ) {
 		rc = 0;
-		// not implement yet
+		switch( c->type ) {
+		case WT_DIRECTORY:
+			if ( wi->wi_home ) {
+				c->value_string = ch_strdup( wi->wi_home );
+			} else {
+				rc = 1;
+			}
+			break;
+		case WT_INDEX:
+			wt_attr_index_unparse( wi, &c->rvalue_vals );
+			if ( !c->rvalue_vals ) rc = 1;
+			break;
+		case WT_IDLCACHE:
+			if ( wi->wi_flags & WT_USE_IDLCACHE) {
+				c->value_int = 1;
+			}
+			break;
+		}
+		return rc;
+	} else if ( c->op == LDAP_MOD_DELETE ) {
+		rc = 0;
 		return rc;
 	}
 
 	switch( c->type ) {
 	case WT_DIRECTORY:
-		ch_free( wi->wi_dbenv_home );
-		wi->wi_dbenv_home = c->value_string;
+		ch_free( wi->wi_home );
+		wi->wi_home = c->value_string;
 		break;
 	case WT_CONFIG:
-		ch_free( wi->wi_dbenv_config );
-		wi->wi_dbenv_config = c->value_string;
+		if(strlen(wi->wi_config) + 1 + strlen(c->value_string) > WT_CONFIG_MAX){
+			fprintf( stderr, "%s: "
+					 "\"wtconfig\" are too long. Increase WT_CONFIG_MAX or you may realloc the buffer.\n",
+					 c->log );
+			return 1;
+		}
+		/* size of wi->wi_config is WT_CONFIG_MAX + 1, it's guaranteed with NUL-terminate. */
+		strcat(wi->wi_config, ",");
+		strcat(wi->wi_config, c->value_string);
 		break;
 
 	case WT_INDEX:
@@ -135,6 +173,19 @@ wt_cf_gen( ConfigArgs *c )
 		}
 		break;
 
+	case WT_MODE:
+		fprintf( stderr, "%s: "
+				 "back-wt does not support \"mode\" option. use umask instead.\n",
+				 c->log );
+		return 1;
+
+	case WT_IDLCACHE:
+		if ( c->value_int ) {
+			wi->wi_flags |= WT_USE_IDLCACHE;
+		} else {
+			wi->wi_flags &= ~WT_USE_IDLCACHE;
+		}
+		break;
 	}
 	return LDAP_SUCCESS;
 }
