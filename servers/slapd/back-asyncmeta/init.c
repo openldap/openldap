@@ -241,23 +241,20 @@ asyncmeta_back_db_open(
 	int		i;
 
 	if ( mi->mi_ntargets == 0 ) {
-		/* Dynamically added, nothing to check here until
-		 * some targets get added
-		 */
-		if ( slapMode & SLAP_SERVER_RUNNING )
-			return 0;
 
 		Debug( LDAP_DEBUG_ANY,
 			"asyncmeta_back_db_open: no targets defined\n" );
-		return 1;
 	}
+
 	mi->mi_num_conns = 0;
 	for ( i = 0; i < mi->mi_ntargets; i++ ) {
 		a_metatarget_t	*mt = mi->mi_targets[ i ];
 		if ( asyncmeta_target_finish( mi, mt,
-			"asyncmeta_back_db_open", msg, sizeof( msg )))
+					      "asyncmeta_back_db_open", msg, sizeof( msg ))) {
 			return 1;
+		}
 	}
+
 	mi->mi_num_conns = (mi->mi_max_target_conns == 0) ? META_BACK_CFG_MAX_TARGET_CONNS : mi->mi_max_target_conns;
 	assert(mi->mi_num_conns > 0);
 	mi->mi_conns = ch_calloc( mi->mi_num_conns, sizeof( a_metaconn_t ));
@@ -265,15 +262,25 @@ asyncmeta_back_db_open(
 		a_metaconn_t *mc = &mi->mi_conns[i];
 		ldap_pvt_thread_mutex_init( &mc->mc_om_mutex);
 		mc->mc_authz_target = META_BOUND_NONE;
-		mc->mc_conns = ch_calloc( mi->mi_ntargets, sizeof( a_metasingleconn_t ));
+
+		if ( mi->mi_ntargets > 0 ) {
+			mc->mc_conns = ch_calloc( mi->mi_ntargets, sizeof( a_metasingleconn_t ));
+		} else {
+			mc->mc_conns = NULL;
+		}
+
 		mc->mc_info = mi;
 		LDAP_STAILQ_INIT( &mc->mc_om_list );
 	}
-	mi->mi_suffix = be->be_suffix[0];
-	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-	mi->mi_task = ldap_pvt_runqueue_insert( &slapd_rq, 1,
-		asyncmeta_timeout_loop, mi, "asyncmeta_timeout_loop", mi->mi_suffix.bv_val );
-	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+	
+	ber_dupbv ( &mi->mi_suffix, &be->be_suffix[0] );
+
+	if ( mi->mi_ntargets > 0 ) {
+		ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
+		mi->mi_task = ldap_pvt_runqueue_insert( &slapd_rq, 1,
+							asyncmeta_timeout_loop, mi, "asyncmeta_timeout_loop", mi->mi_suffix.bv_val );
+		ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+	}
 	return 0;
 }
 
