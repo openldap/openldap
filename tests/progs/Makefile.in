@@ -19,16 +19,16 @@ PROGRAMS = slapd-tester slapd-search slapd-read slapd-addel slapd-modrdn \
 SRCS     = slapd-common.c \
 		slapd-tester.c slapd-search.c slapd-read.c slapd-addel.c \
 		slapd-modrdn.c slapd-modify.c slapd-bind.c slapd-mtread.c \
-		ldif-filter.c slapd-watcher.c
+		ldif-filter.c slapd-watcher.c stats.c
 
 LDAP_INCDIR= ../../include
 LDAP_LIBDIR= ../../libraries
 
-XLIBS    = $(LDAP_LIBLDAP_LA) $(LDAP_LIBLUTIL_A) $(LDAP_LIBLDAP_LA) $(LDAP_LIBLBER_LA)
+XLIBS    = $(LDAP_LIBLDAP_LA) $(LDAP_LIBLUTIL_A) $(LDAP_LIBLDAP_LA) $(LDAP_LIBLBER_LA) -lbsd
 XXLIBS	 = $(SECURITY_LIBS) $(LUTIL_LIBS)
 XXXLIBS  = $(LTHREAD_LIBS)
 
-OBJS     = slapd-common.o
+OBJS     = slapd-common.o stats.o
 
 # build-tools: FORCE
 # $(MAKE) $(MFLAGS) load-tools

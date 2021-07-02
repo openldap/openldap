@@ -182,6 +182,9 @@ main( int argc, char **argv )
 		}
 	}
 
+
+	display_stats( config->statsfile, &config->stats );
+
 	exit( EXIT_SUCCESS );
 }
 
@@ -210,6 +213,8 @@ do_random( struct tester_conn_args *config,
 	case LDAP_SIZELIMIT_EXCEEDED:
 	case LDAP_TIMELIMIT_EXCEEDED:
 	case LDAP_SUCCESS:
+		update_stats( &config->stats, SLAP_OP_SEARCH,
+			      ++config->stats.c_curr.entries, 1);
 		if ( ldap_count_entries( ld, res ) == 0 ) {
 			if ( rc ) {
 				tester_ldap_error( ld, "ldap_search_ext_s", NULL );
@@ -284,6 +289,8 @@ do_random( struct tester_conn_args *config,
 
 	if ( ld != NULL ) {
 		ldap_unbind_ext( ld, NULL, NULL );
+		update_stats( &config->stats, SLAP_OP_UNBIND,
+			      ++config->stats.c_curr.entries, 1);
 	}
 }
 
@@ -339,6 +346,8 @@ retry:;
 					(long) pid, innerloop, i, active, msgids[i],
 					sbase, ldap_pvt_scope2str( scope ), filter );
 #endif
+				update_stats( &config->stats, SLAP_OP_SEARCH,
+					      ++config->stats.c_curr.entries, i);
 				i++;
 
 				if ( rc ) {
@@ -361,6 +370,8 @@ retry:;
 						ldap_unbind_ext( ld, NULL, NULL );
 						ld = NULL;
 						do_retry--;
+						update_stats( &config->stats, SLAP_OP_UNBIND,
+							      ++config->stats.c_curr.entries, 1);
 						goto retry;
 					}
 					break;
@@ -435,6 +446,8 @@ retry:;
 				rc = ldap_search_ext( ld, sbase, scope,
 						filter, NULL, noattrs, NULL, NULL,
 						NULL, LDAP_NO_LIMIT, &msgid );
+				update_stats( &config->stats, SLAP_OP_SEARCH,
+					      ++config->stats.c_curr.entries, i);
 				if ( rc == LDAP_SUCCESS ) continue;
 				else break;
 			}
@@ -442,6 +455,8 @@ retry:;
 			rc = ldap_search_ext_s( ld, sbase, scope,
 					filter, attrs, noattrs, NULL, NULL,
 					NULL, LDAP_NO_LIMIT, &res );
+			update_stats( &config->stats, SLAP_OP_SEARCH,
+				      ++config->stats.c_curr.entries, i);
 			if ( res != NULL ) {
 				ldap_msgfree( res );
 			}
@@ -466,6 +481,8 @@ retry:;
 					ldap_unbind_ext( ld, NULL, NULL );
 					ld = NULL;
 					do_retry--;
+					update_stats( &config->stats, SLAP_OP_UNBIND,
+						      ++config->stats.c_curr.entries, 1);
 					goto retry;
 				}
 				break;
@@ -486,6 +503,8 @@ cleanup:;
 
 		if ( ld != NULL ) {
 			ldap_unbind_ext( ld, NULL, NULL );
+			update_stats( &config->stats, SLAP_OP_UNBIND,
+				      ++config->stats.c_curr.entries, 1);
 		}
 	}
 }

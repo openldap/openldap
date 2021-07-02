@@ -189,6 +189,9 @@ main( int argc, char **argv )
 			rc = do_bind( config, config->binddn,
 				config->loops, force, noinit, NULL, &config->pass, -1, NULL );
 		}
+
+		display_stats( config->statsfile, &config->stats );
+
 		if ( rc == LDAP_SERVER_DOWN )
 			break;
 	}
@@ -332,6 +335,8 @@ do_bind( struct tester_conn_args *config, char *dn, int maxloop, int force,
 				ludp->lud_filter, ludp->lud_attrs, 0,
 				NULL, NULL, tvp, sizelimit, &res );
 			ldap_msgfree( res );
+			update_stats( &config->stats, SLAP_OP_SEARCH,
+				      ++config->stats.c_curr.entries, i);
 			} break;
 
 		default:
@@ -342,6 +347,8 @@ do_bind( struct tester_conn_args *config, char *dn, int maxloop, int force,
 		if ( !noinit ) {
 			ldap_unbind_ext( ld, NULL, NULL );
 			ld = NULL;
+			update_stats( &config->stats, SLAP_OP_UNBIND,
+				      ++config->stats.c_curr.entries, i);
 		}
 
 		if ( rc != LDAP_SUCCESS ) {
@@ -357,7 +364,9 @@ do_bind( struct tester_conn_args *config, char *dn, int maxloop, int force,
 		*ldp = ld;
 
 	} else if ( ld != NULL ) {
-		ldap_unbind_ext( ld, NULL, NULL );
+	  ldap_unbind_ext( ld, NULL, NULL );
+	  update_stats( &config->stats, SLAP_OP_UNBIND,
+			++config->stats.c_curr.entries, i);
 	}
 
 	return rc;
@@ -398,6 +407,8 @@ do_base( struct tester_conn_args *config, char *dn, char *base, char *filter, ch
 		tester_ldap_error( ld, "ldap_search_ext", NULL );
 		exit( EXIT_FAILURE );
 	}
+	update_stats( &config->stats, SLAP_OP_SEARCH,
+		      ++config->stats.c_curr.entries, 1);
 
 	while ( ( rc = ldap_result( ld, LDAP_RES_ANY, LDAP_MSG_ONE, NULL, &res ) ) > 0 )
 	{
@@ -479,6 +490,8 @@ novals:;
 		tester_error( "No DNs" );
 		if ( ld != NULL ) {
 			ldap_unbind_ext( ld, NULL, NULL );
+			update_stats( &config->stats, SLAP_OP_UNBIND,
+				      ++config->stats.c_curr.entries, 1);
 		}
 		return 1;
 	}
@@ -510,6 +523,8 @@ novals:;
 	if ( ld != NULL ) {
 		ldap_unbind_ext( ld, NULL, NULL );
 		ld = NULL;
+		update_stats( &config->stats, SLAP_OP_UNBIND,
+			      ++config->stats.c_curr.entries, 1);
 	}
 
 #ifdef _WIN32

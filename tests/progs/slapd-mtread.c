@@ -295,6 +295,8 @@ main( int argc, char **argv )
 	for(i = 0; i < noconns; i++) {
 		if ( lds[i] != NULL ) {
 			ldap_unbind_ext( lds[i], NULL, NULL );
+			update_stats( &config->stats, SLAP_OP_UNBIND,
+				      ++config->stats.c_curr.entries, i);
 		}
 	}
 	free( lds );
@@ -321,6 +323,8 @@ main( int argc, char **argv )
 	}
 	snprintf(outstr, BUFSIZ, "MT Test complete" );
 	tester_error(outstr);
+
+	display_stats( config->statsfile, &config->stats );
 
 	if (testfail)
 		exit( EXIT_FAILURE );
@@ -467,9 +471,16 @@ do_onerwthread( void *arg )
 			ret = ldap_add_ext_s(ld, dn, &attrp[0], NULL, NULL);
 			if (ret == LDAP_SUCCESS) {
 				adds++;
+				update_stats(&config->stats, SLAP_OP_ADD,
+					     ++config->stats.c_curr.entries,
+					     adds);
 				ret = ldap_delete_ext_s(ld, dn, NULL, NULL);
 				if (ret == LDAP_SUCCESS) {
 					dels++;
+					update_stats(&config->stats,
+						     SLAP_OP_DELETE,
+						     ++config->stats.c_curr.entries,
+						     dels);
 					rt_pass[idx]++;
 				} else {
 					thread_output(idx, ldap_err2string(ret));
@@ -524,6 +535,7 @@ do_random( LDAP *ld,
 	case LDAP_TIMELIMIT_EXCEEDED:
 	case LDAP_SUCCESS:
 		nvalues = ldap_count_entries( ld, res );
+		update_stats( &config->stats, SLAP_OP_SEARCH, nvalues, 1);
 		if ( nvalues == 0 ) {
 			if ( rc ) {
 				tester_ldap_error( ld, "ldap_search_ext_s", NULL );
@@ -618,6 +630,8 @@ do_random2( LDAP *ld,
 		}
 		if ( rc == 0 ) {
 			rt_pass[idx]++;
+			update_stats( &config->stats, SLAP_OP_SEARCH,
+				      ++config->stats.c_curr.entries, i);
 		} else {
 			int		first = tester_ignore_err( rc );
 			char		buf[ BUFSIZ ];
@@ -680,6 +694,8 @@ retry:;
 
 		if ( rc == 0 ) {
 			rt_pass[idx]++;
+			update_stats( &config->stats, SLAP_OP_SEARCH,
+				      ++config->stats.c_curr.entries, i);
 		} else {
 			int		first = tester_ignore_err( rc );
 			char		buf[ BUFSIZ ];

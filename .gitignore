@@ -32,6 +32,9 @@ resource.rc
 *.orig
 *.rej
 *.swp
+TAGS
+cscope.*
+
 
 # For OpenLDAP
 *.tmp

@@ -62,7 +62,7 @@ int
 main( int argc, char **argv )
 {
 	int		i;
-	char *filename = NULL, *buf = NULL;
+        char *filename = NULL, *buf = NULL;
 	int		friendly = 0;
 	struct LDIFFP *fp;
 	LDIFRecord	record = {};
@@ -128,7 +128,7 @@ main( int argc, char **argv )
 	}
 
 	tester_config_finish( config );
-
+	
 	for ( i = 0; i < config->outerloops; i++ ) {
 		do_addel( config, &record, friendly );
 	}
@@ -258,7 +258,8 @@ retry:;
 				goto done;
 			}
 		}
-
+		update_stats( &config->stats, SLAP_OP_ADD,
+			      ++config->stats.c_curr.entries, i);
 #if 0
 		/* wait a second for the add to really complete */
 		/* This masks some race conditions though. */
@@ -291,12 +292,18 @@ retry:;
 				goto done;
 			}
 		}
+		update_stats( &config->stats, SLAP_OP_DELETE,
+			      ++config->stats.c_curr.entries, i);
 	}
 
 done:;
 	fprintf( stderr, "  PID=%ld - Add/Delete done (%d).\n", (long) pid, rc );
 
 	ldap_unbind_ext( ld, NULL, NULL );
+
+	update_stats( &config->stats, SLAP_OP_UNBIND,
+		      ++config->stats.c_curr.entries, 1);
+	display_stats( config->statsfile, &config->stats );
 }
 
 

@@ -41,6 +41,20 @@ int debug;
 static char progname[ BUFSIZ ];
 tester_t progtype;
 
+const struct opname opnames[] = {
+	{ BER_BVC("cn=Bind"),		"Bind" },
+	{ BER_BVC("cn=Unbind"),		"Unbind" },
+	{ BER_BVC("cn=Search"),		"Search" },
+	{ BER_BVC("cn=Compare"),	"Compare" },
+	{ BER_BVC("cn=Modify"),		"Modify" },
+	{ BER_BVC("cn=Modrdn"),		"ModDN" },
+	{ BER_BVC("cn=Add"),		"Add" },
+	{ BER_BVC("cn=Delete"),		"Delete" },
+	{ BER_BVC("cn=Abandon"),	"Abandon" },
+	{ BER_BVC("cn=Extended"),	"Extended" },
+	{ BER_BVNULL, NULL }
+};
+
 /*
  * ignore_count[] is indexed by result code:
  * negative for OpenLDAP client-side errors, positive for protocol codes.
@@ -432,6 +446,10 @@ tester_config_opt( struct tester_conn_args *config, char opt, char *optarg )
 			config->authmethod = LDAP_AUTH_SIMPLE;
 			break;
 
+		case '%':
+			config->statsfilename = optarg;
+			break;
+
 		default:
 			return -1;
 	}
@@ -452,6 +470,17 @@ tester_config_finish( struct tester_conn_args *config )
 #else
 		config->authmethod = LDAP_AUTH_SIMPLE;
 #endif
+	}
+
+	if ( config->statsfilename ) {
+		config->statsfile = init_stats(config->uri,
+					       config->statsfilename, 
+					       &config->stats);
+		if ( !config->statsfile ) {
+			tester_error( "unable to open stats file" );
+			exit( EXIT_FAILURE );
+		}
+		
 	}
 
 #ifdef HAVE_CYRUS_SASL

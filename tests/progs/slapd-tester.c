@@ -40,6 +40,12 @@
 #include "lber_pvt.h"
 #include "slapd-common.h"
 
+#include <errno.h>
+#include <fcntl.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+
 #ifdef _WIN32
 #define EXE		".exe"
 #else
@@ -82,6 +88,55 @@ static char argbuf[BUFSIZ];
 #define	ArgDup(x) strdup(x)
 #endif
 
+/*
+ * read_fifo executes on a child process.  If it fails, other
+ * processes writing to the fifo may fill it, causing them to block,
+ * and thus prevent slapd-tester from terminating.  To address that
+ * eventuality "correctly" requires tracking all children, noticing
+ * the reader process failed, and killing all outstanding child
+ * processes. Other tricks include having the read-child kill its
+ * parent, or having all writers use non-blocking I/O. 
+ *
+ * On the theory that Worse is Better, we don't do any of that. The
+ * only exit condition is if the fifo can't be opened (in which case
+ * it can't be read, either) which shouldn't happen because, to get
+ * this far, the parent succeeded in creating it. If it does, the
+ * program shrugs, prints a message, and leaves cleanup to the user.
+ */
+
+static void
+read_fifo( const char statsfilename[] ) {
+	static const int flags = O_RDONLY;
+	int fifo;
+	FILE* out;
+	
+	if( (fifo = open(TESTER_FIFO, flags)) == -1 ) {
+		tester_perror(__func__, TESTER_FIFO);
+		_exit(EXIT_FAILURE);
+	}
+
+	if( (out = fopen(statsfilename, "w")) == NULL ) {
+		tester_perror("fopen", statsfilename);
+	}
+
+	server *server;
+	while( (server = recv_stats(fifo)) != NULL ) {
+		display_stats(out, server);
+	}
+
+	fclose(out);
+}
+
+static int
+add_stats_opt( const char filename[], char *args[], int narg ) {
+	if( filename ) {
+		args[narg++] = "-%";
+		args[narg++] = TESTER_FIFO;
+	}
+
+	return narg;
+}
+	
 static void
 usage( char *name, char opt )
 {
@@ -120,6 +175,7 @@ main( int argc, char **argv )
 	char		*passwd = NULL;
 	char		*dirname = NULL;
 	char		*progdir = NULL;
+	char            *statsfilename = NULL;
 	int		loops = LOOPS;
 	char		*outerloops = OUTERLOOPS;
 	char		*retries = RETRIES;
@@ -215,7 +271,7 @@ main( int argc, char **argv )
 	mloops[0] = '\0';
 	bloops[0] = '\0';
 
-	while ( ( i = getopt( argc, argv, "AB:CD:d:FH:h:Ii:j:L:l:NP:p:r:St:Ww:y:" ) ) != EOF )
+	while ( ( i = getopt( argc, argv, "AB:CD:d:FH:h:Ii:j:L:l:NP:p:r:S:t:Ww:y:%:" ) ) != EOF )
 	{
 		switch ( i ) {
 		case 'A':
@@ -353,6 +409,10 @@ main( int argc, char **argv )
 
 		case 'y':
 			pw_file = optarg;
+			break;
+
+		case '%':
+			statsfilename = optarg;
 			break;
 
 		default:
@@ -510,6 +570,34 @@ main( int argc, char **argv )
 	if ( bloops[0] == '\0' ) snprintf( bloops, sizeof( bloops ), "%d", 20 * loops );
 
 	/*
+	 * Set up stats file and fifo if requested.
+	 */
+	if( statsfilename ) {
+		static const int mode = S_IRUSR | S_IWUSR;
+		if( mkfifo(TESTER_FIFO, mode) == -1 && errno != EEXIST ) {
+			tester_perror(__func__, TESTER_FIFO);
+		}
+		void remove_fifo(void) {
+			(void)unlink(TESTER_FIFO);
+		}
+		if( 0 != atexit(remove_fifo) ) {
+			tester_perror("atexit", TESTER_FIFO);
+		}
+		
+		int statpid = fork();
+		switch(statpid) {
+		case -1:
+			tester_perror( "fork", NULL );
+			exit( EXIT_FAILURE );
+			break;
+		case 0: // child
+			read_fifo( statsfilename );
+			_exit(EXIT_SUCCESS);
+			break;
+		}
+	}
+
+	/*
 	 * generate the search clients
 	 */
 
@@ -517,6 +605,7 @@ main( int argc, char **argv )
 	snprintf( scmd, sizeof scmd, "%s" LDAP_DIRSEP SEARCHCMD,
 		progdir );
 	sargs[sanum++] = scmd;
+	sanum = add_stats_opt(statsfilename, sargs, sanum);
 	sargs[sanum++] = "-H";
 	sargs[sanum++] = uri;
 	sargs[sanum++] = "-D";
@@ -571,6 +660,7 @@ main( int argc, char **argv )
 	snprintf( rcmd, sizeof rcmd, "%s" LDAP_DIRSEP READCMD,
 		progdir );
 	rargs[ranum++] = rcmd;
+	ranum = add_stats_opt(statsfilename, rargs, ranum);
 	rargs[ranum++] = "-H";
 	rargs[ranum++] = uri;
 	rargs[ranum++] = "-D";
@@ -618,6 +708,7 @@ main( int argc, char **argv )
 	snprintf( ncmd, sizeof ncmd, "%s" LDAP_DIRSEP MODRDNCMD,
 		progdir );
 	nargs[nanum++] = ncmd;
+	nanum = add_stats_opt(statsfilename, nargs, nanum);
 	nargs[nanum++] = "-H";
 	nargs[nanum++] = uri;
 	nargs[nanum++] = "-D";
@@ -654,6 +745,7 @@ main( int argc, char **argv )
 	snprintf( mcmd, sizeof mcmd, "%s" LDAP_DIRSEP MODIFYCMD,
 		progdir );
 	margs[manum++] = mcmd;
+	manum = add_stats_opt(statsfilename, margs, manum);
 	margs[manum++] = "-H";
 	margs[manum++] = uri;
 	margs[manum++] = "-D";
@@ -692,6 +784,7 @@ main( int argc, char **argv )
 	snprintf( acmd, sizeof acmd, "%s" LDAP_DIRSEP ADDCMD,
 		progdir );
 	aargs[aanum++] = acmd;
+	aanum = add_stats_opt(statsfilename, aargs, aanum);
 	aargs[aanum++] = "-H";
 	aargs[aanum++] = uri;
 	aargs[aanum++] = "-D";
@@ -728,6 +821,7 @@ main( int argc, char **argv )
 	snprintf( bcmd, sizeof bcmd, "%s" LDAP_DIRSEP BINDCMD,
 		progdir );
 	bargs[banum++] = bcmd;
+	banum = add_stats_opt(statsfilename, bargs, banum);
 	if ( !noinit ) {
 		bargs[banum++] = "-I";	/* init on each bind */
 	}
