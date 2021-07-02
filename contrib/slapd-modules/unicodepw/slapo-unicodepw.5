@@ -1,0 +1,292 @@
+.TH UNICODEPW 5 "RELEASEDATE" "OpenLDAP LDVERSION"
+.\" Copyright 2021 The OpenLDAP Foundation, All Rights Reserved.
+.\" Copying restrictions apply.  See the COPYRIGHT file.
+.\" $OpenLDAP$
+.SH NAME
+unicodepw \- Overlay for openlap
+.SH SYNOPSIS
+The overlay 
+.B unicodepw
+restricts all LDAP modification requests, so that only 
+password changes for MS unicodePwd are possible.
+All other LDAP requests will not be observed.
+.SH DESCRIPTION
+Some remote access technologies for company networks (e.g. VPN gateways)
+require a MS Active Directory Service (ADS) in the backend to log in with the
+personal ADS account. In some cases (e.g. home office workers/max. password age),
+it must be possible to allow password changes from remote.
+But this requires "write access" (modify) from the gateway to the ADS.
+
+A direct access from the gateway to the ADS is a bad idea, so using 
+OpenLDAP as proxy
+.B (slapd-ldap)
+in the DMZ can mitigate the security risks. 
+All LDAP search results, initiated by the gateway can be restricted by ACLs. 
+That will happen in the response from ADS. LDAP requests that only modify 
+(write, modify, ..) cannot be protecte with ACLs, because slapd-ldap does not 
+support restricting incoming request.
+
+The backend slapd-ldap itself cannot be set to read-only, because changing the password requires "write" access.
+The overlay
+.B denyop 
+can only restrict LDAP requests, but it does not look
+inside the request. Using overlay denyop would only restrict the access by 
+allowing ALL modifications to ADS, so that other manipulation are possible too.
+That was the reason to write the extra overlay 
+.B unicodepw. 
+
+The
+.B unicodepw 
+overlay to
+.BR slapd (8)
+services is checking the modification requests, if the modification request
+is a password change for MS ADS. All other modifications are denied.
+.LP
+The conditions for changing the password in MS ADS are described in 
+https://msdn.microsoft.com/en-us/library/cc223248 and KB269190.
+Microsoft stores the password in the attribute unicodePwd. It is not readable, 
+but writeable. The sequence requires ONE LDAP modification with TWO operations to
+change the password:
+
+.RS
+.nf
+dn: <userdn>
+changetype: modify
+delete: UnicodePwd
+UnicodePwd::<old password>
+-
+add: UnicodePwd
+UnicodePwd::<new password>
+.fi
+.RE
+
+The old password is required, no matter what rights the changing context 
+(bind dn) in the ADS has.
+
+The 
+.B unicodepw
+checks
+.RS
+.nf
+- The number of the operations: only TWO are allowed
+- The type of operations: only DELETE and ADD are allowed
+- The order of the operations: first DELETE, second ADD
+- The attribute which is modified (configurable)
+- The parent dn of the user who is changed (configurable)
+.fi
+.RE
+If one of these checks fails, the overlay will deny the request BEFORE sending 
+the request to the ADS!
+.SH CONFIGURATION
+.LP
+The 
+.B unicodepw
+is configured in the ETCDIR/slapd.conf.
+At the moment NO dynamic config support is available for the overlay unicodepw.
+.TP
+.B moduleload unicodepw
+Load the module in the slapd context. Don't forget to set the 
+.B modulepath
+option.
+.TP
+.B overlay unicodepw
+This directive adds the unicodepw overlay to the current backend.
+.TP
+.B unicodepw pwattr <password attribute>
+This directive configures the attribute which is checked in the modification. Usually "unicodePwd" should be
+used here.
+.TP
+.B unicodepw userbase <DN, where the users in the ADS are located>
+This directive configures the distinguished name of the user base. 
+With the userbase directive you can restrict password changes to a dedicated location in the 
+ADS. This location then should contain only users who use remote access.
+For all other users in the ADS a password change is NOT possible from the VPN gateway (outside).
+.TP
+.B unicodepw subtree <yes|no>
+If this directive is set to yes, password changes are allowed for all users under "userbase" and 
+all DNs below (subtree)
+.TP
+.B unicodepw logactivity <yes|no>
+Enable the additional logging for all operations, checks and results from the unicodepw module.
+The global parameter "log level" MUST be set to stats)!
+This Parameter was intoduced to prevent the noise from the module during normal operation
+of slapd (the default log level is already stats).
+Since the module implements a security function, the admin likes to know and log, who is changing the password
+and with witch result. Then set logactivity to "yes"!
+
+.SH CONFIGURATION HINTS
+
+Since the unicodepw only restricts the modify request, the module 
+.B denyop 
+must used too, to restrict all other unwanted LDAP requests.
+
+Additionally, to configure slapd-ldap to proxy unicodePwd changes, at least the 
+unicodePwd must be defined in a private schema (see EXAMPLES).
+
+All other LDAP operations comming from the access gateway should restict with ACLs!
+
+For your own security, the connection between LDAP client (e.g. VPN gateway)
+and OpenLDAP should be protected by SSL/TLS.
+
+The connection between OpenLDAP and Microsoft ADS MUST be encrypted via SSL/TLS.
+Microsoft does not allow password changes on a unencrypted session!
+
+.SH EXAMPLES
+
+Only the important parts for the slapd configuration:
+
+.RS
+.nf
+#################################
+# including private schema
+#################################
+include         /etc/openldap/schema/myADschema.schema
+
+#################################
+# overlay configuration
+#################################
+modulepath      /usr/lib/openldap/modules
+moduleload      back_ldap
+moduleload      denyop
+moduleload      unicodepw
+
+overlay         denyop
+# possible denyops add,bind,compare,delete,
+# extended,modify,modrdn,search,unbind
+denyop          add,compare,delete,modrdn
+
+overlay         unicodepw
+unicodepw       pwattr "UnicodePwd"
+unicodepw       userbase "ou=remoteUsers,dc=company,dc=com"
+unicodepw       logactivity "yes"
+
+#################################
+# proxy configuration
+#################################
+database        ldap
+rebind-as-user  yes
+suffix          "dc=company,dc=com"
+uri             "ldap://ads1.company.com/ ldap://ads2.company.com"
+chase-referrals         no
+protocol-version        3
+.fi
+.RE
+
+Please don't forget to configure the ACLs in the proxy backend and the TLS configuration for slapd!
+Parameters like:
+.B TLSCACertificateFile, TLSCertificateFile, TLSCertificateKeyFile, TLSVerifyClient, TLSCipherSuite 
+should configured globally and 
+.B security, tls, access
+in the database section! 
+
+For testing purposes, it can be useful to create the encoded MS unicode password.
+The  following commands should do it:
+.TP
+.nf
+.B echo <password> | perl -ne 'chomp;print pack   \*(lqv*\*(rq, unpack \*(lqC*\*(rq,\*(lq\e\*(rq$_\e\*(rq\*(rq' | base64
+.fi
+The output can be included in the modify request in the attribute unicodePwd.
+Example:
+.TP
+.nf
+.B echo password123_ | perl -ne 'chomp;print pack   \*(lqv*\*(rq, unpack \*(lqC*\*(rq,\*(lq\e\*(rq$_\e\*(rq\*(rq' | base64
+the resulting attribute is:
+unicodePwd::IgBwAGEAcwBzAHcAbwByAGQAMQAyADMAXwAiAA==
+.fi
+.RE
+
+
+In the section CONFIGURATION HINTS, we talked about a private schema. Here is an example for it:
+.RS
+.nf
+
+attributetype ( 1.2.840.113556.1.4.750 NAME 'groupType'
+   SYNTAX '1.3.6.1.4.1.1466.115.121.1.27' SINGLE-VALUE )
+
+attributetype ( 1.3.114.7.4.2.0.33 NAME 'memberOf'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.26' )
+
+attributetype ( 1.2.840.113556.1.4.656 NAME 'userPrincipalName'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' )
+
+attributetype ( 1.2.840.113556.1.4.52 NAME 'lastLogon'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.38' )
+
+attributetype ( 1.2.840.113556.1.4.159 NAME 'accountExpires'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.38' )
+
+attributetype ( 1.2.840.113556.1.4.96 NAME 'pwdLastSet'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.38' )
+
+attributetype ( 1.2.840.113556.1.4.221 NAME 'sAMAccountName'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.15' )
+
+attributetype ( 1.2.840.113556.1.4.8 NAME 'userAccountControl'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.27' )
+
+attributetype ( 1.2.840.113556.1.4.90 NAME 'unicodePwd'
+    SYNTAX '1.3.6.1.4.1.1466.115.121.1.40' )
+
+objectclass ( 1.2.840.113556.1.5.9 NAME 'user'
+        DESC 'a user'
+        SUP inetOrgPerson STRUCTURAL
+        MUST ( cn )
+        MAY ( userPassword $ memberOf $ userPrincipalName $ 
+    	      distinguishedName $ lastLogon $ accountExpires $
+    	      pwdLastSet $ sAMAccountName $ userAccountControl $ 
+    	      unicodePwd ) )
+
+objectclass ( 1.2.840.113556.1.5.8 NAME 'group'
+        DESC 'a group of users'
+        SUP top STRUCTURAL
+        MUST ( groupType $ cn )
+        MAY ( member ) )
+.fi
+.RE
+
+.SH LOGGING/DEBUG
+If "stats" is enabled, each password change request and all checks are logged and if they fail, the reasons are logged too!
+For informations about the values during modification, please refer to the log before unicodepw. Grep for the same 
+connection id and operation number (conn= and op=)!
+
+.B Example for a logging output, every thing is ok:
+.nf
+conn=1005 op=2 unicodepw: INFO => configured UsersBase nDN => <ou=remoteUsers,dc=company,dc=com>
+conn=1005 op=2 unicodepw: INFO => configured pwattr => <UnicodePwd>
+conn=1005 op=2 unicodepw: INFO => configured logactivity => <1>
+conn=1005 op=2 unicodepw: INFO => Parent DN from user, who is changed => <ou=remoteUsers,dc=company,dc=com>
+conn=1005 op=2 unicodepw: INFO => User, who is changed  <cn=remoteuser1,ou=remoteUsers,dc=company,dc=com>
+conn=1005 op=2 unicodepw: OK => Attribute in Modification (DEL) is the configured pwattr!
+conn=1005 op=2 unicodepw: OK => Attribute in Modification (ADD) is the configured pwattr!
+conn=1005 op=2 unicodepw: ACCEPT => UnicodePwd changing is permitted!
+.fi
+
+
+.B Example for a logging output, user DN is wrong:
+.nf
+conn=1006 op=2 unicodepw: INFO => configured UsersBase nDN => <ou=remoteUsers,dc=company,dc=com>
+conn=1006 op=2 unicodepw: INFO => configured pwattr => <UnicodePwd>
+conn=1006 op=2 unicodepw: INFO => configured logactivity => <1>
+conn=1006 op=2 unicodepw: INFO => Parent DN from user, who is changed => <ou=Users,dc=company,dc=com>
+conn=1006 op=2 unicodepw: INFO => User, who is changed  <cn=normaluser,ou=Users,dc=company,dc=com>
+conn=1006 op=2 unicodepw: DENY => UserBase from <cn=normaluser,ou=Users,dc=company,dc=com> is not in configured UserBase!
+conn=1006 op=2 unicodepw: OK => Attribute in Modification (DEL) is the configured pwattr!
+conn=1006 op=2 unicodepw: OK => Attribute in Modification (ADD) is the configured pwattr!
+.fi
+
+
+
+.SH FILES
+.TP
+ETCDIR/slapd.conf
+default slapd configuration file
+.SH SEE ALSO
+.BR slapd.conf (5),
+.BR slapd\-config (5),
+.BR slapd\-ldap (5),
+.BR slapd (8),
+overlay 
+.BR denyop
+and https://msdn.microsoft.com/en-us/library/cc223248 and KB269190 for description of password change.
+.SH AUTHOR
+This module is written in 2016-2020 by Ingo Voss (ingo.voss@gmail.com)
