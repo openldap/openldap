@@ -125,6 +125,7 @@ int
 request_extended( LloadConnection *c, LloadOperation *op )
 {
     ExopHandler *handler, needle = {};
+    struct restriction_entry *restriction, rneedle = {};
     BerElement *copy;
     struct berval bv;
     ber_tag_t tag;
@@ -162,6 +163,16 @@ request_extended( LloadConnection *c, LloadOperation *op )
         operation_send_reject( op, LDAP_PROTOCOL_ERROR, "bind in progress", 0 );
         return LDAP_SUCCESS;
     }
+
+    rneedle.oid = bv;
+    restriction = ldap_tavl_find( lload_exop_actions, &rneedle,
+            lload_restriction_cmp );
+    if ( restriction ) {
+        op->o_restricted = restriction->action;
+    } else {
+        op->o_restricted = lload_default_exop_action;
+    }
+
     return request_process( c, op );
 }
 

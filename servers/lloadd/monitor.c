@@ -57,11 +57,10 @@
 #define LLOAD_MONITOR_OPERATIONS_DN \
     LLOAD_MONITOR_OPERATIONS_RDN "," LLOAD_MONITOR_BALANCER_DN
 
-#define LLOAD_MONITOR_BACKENDS_NAME "Backend Servers"
-#define LLOAD_MONITOR_BACKENDS_RDN \
-    SLAPD_MONITOR_AT "=" LLOAD_MONITOR_BACKENDS_NAME
-#define LLOAD_MONITOR_BACKENDS_DN \
-    LLOAD_MONITOR_BACKENDS_RDN "," LLOAD_MONITOR_BALANCER_DN
+#define LLOAD_MONITOR_TIERS_NAME "Backend Tiers"
+#define LLOAD_MONITOR_TIERS_RDN SLAPD_MONITOR_AT "=" LLOAD_MONITOR_TIERS_NAME
+#define LLOAD_MONITOR_TIERS_DN \
+    LLOAD_MONITOR_TIERS_RDN "," LLOAD_MONITOR_BALANCER_DN
 
 struct lload_monitor_ops_t {
     struct berval rdn;
@@ -289,6 +288,25 @@ lload_monitor_backend_destroy( BackendDB *be, monitor_subsys_t *ms )
     }
 
     return rc;
+}
+
+static int
+lload_monitor_tier_destroy( BackendDB *be, monitor_subsys_t *ms )
+{
+    LloadTier *tier = ms->mss_private;
+    monitor_extra_t *mbe;
+
+    mbe = (monitor_extra_t *)be->bd_info->bi_extra;
+    if ( tier->t_monitor ) {
+        ms->mss_destroy = lload_monitor_subsystem_destroy;
+
+        assert( tier->t_monitor == ms );
+        tier->t_monitor = NULL;
+
+        return mbe->unregister_entry( &ms->mss_ndn );
+    }
+
+    return LDAP_SUCCESS;
 }
 
 static void
@@ -782,22 +800,21 @@ lload_monitor_backend_open( BackendDB *be, monitor_subsys_t *ms )
     monitor_extra_t *mbe;
     monitor_callback_t *cb;
     LloadBackend *b = ms->mss_private;
+    LloadTier *tier = b->b_tier;
     int rc;
 
     assert( be != NULL );
     mbe = (monitor_extra_t *)be->bd_info->bi_extra;
 
-    dnNormalize( 0, NULL, NULL, &ms->mss_dn, &ms->mss_ndn, NULL );
-    e = mbe->entry_stub( &ms->mss_dn, &ms->mss_ndn, &ms->mss_rdn,
-            oc_olmBalancerServer, NULL, NULL );
+    e = mbe->entry_stub( &tier->t_monitor->mss_dn, &tier->t_monitor->mss_ndn,
+            &ms->mss_rdn, oc_olmBalancerServer, NULL, NULL );
     if ( e == NULL ) {
         Debug( LDAP_DEBUG_ANY, "lload_monitor_backend_open: "
                 "unable to create entry \"%s,%s\"\n",
-                ms->mss_rdn.bv_val, ms->mss_ndn.bv_val );
+                ms->mss_rdn.bv_val, tier->t_monitor->mss_dn.bv_val );
         return -1;
     }
 
-    ch_free( ms->mss_ndn.bv_val );
     ber_dupbv( &ms->mss_dn, &e->e_name );
     ber_dupbv( &ms->mss_ndn, &e->e_nname );
 
@@ -833,12 +850,13 @@ done:
 }
 
 int
-lload_monitor_backend_init( BackendInfo *bi, LloadBackend *b )
+lload_monitor_backend_init(
+        BackendInfo *bi,
+        monitor_subsys_t *ms,
+        LloadBackend *b )
 {
-    monitor_extra_t *mbe;
+    monitor_extra_t *mbe = bi->bi_extra;
     monitor_subsys_t *bk_mss;
-
-    mbe = (monitor_extra_t *)bi->bi_extra;
 
     /* FIXME: With back-monitor as it works now, there is no way to know when
      * this can be safely freed so we leak it on shutdown */
@@ -848,7 +866,6 @@ lload_monitor_backend_init( BackendInfo *bi, LloadBackend *b )
     bk_mss->mss_rdn.bv_len = snprintf( bk_mss->mss_rdn.bv_val,
             bk_mss->mss_rdn.bv_len, "cn=%s", b->b_name.bv_val );
 
-    ber_str2bv( LLOAD_MONITOR_BACKENDS_DN, 0, 0, &bk_mss->mss_dn );
     bk_mss->mss_name = b->b_name.bv_val;
     bk_mss->mss_flags = MONITOR_F_VOLATILE_CH;
     bk_mss->mss_open = lload_monitor_backend_open;
@@ -866,13 +883,93 @@ lload_monitor_backend_init( BackendInfo *bi, LloadBackend *b )
     return LDAP_SUCCESS;
 }
 
+static int
+lload_monitor_tier_open( BackendDB *be, monitor_subsys_t *ms )
+{
+    Entry *e;
+    monitor_extra_t *mbe;
+    LloadTier *tier = ms->mss_private;
+    int rc;
+
+    assert( be != NULL );
+    mbe = (monitor_extra_t *)be->bd_info->bi_extra;
+
+    dnNormalize( 0, NULL, NULL, &ms->mss_dn, &ms->mss_ndn, NULL );
+    e = mbe->entry_stub( &ms->mss_dn, &ms->mss_ndn, &ms->mss_rdn,
+            oc_monitorContainer, NULL, NULL );
+    if ( e == NULL ) {
+        Debug( LDAP_DEBUG_ANY, "lload_monitor_tier_open: "
+                "unable to create entry \"%s,%s\"\n",
+                ms->mss_rdn.bv_val, ms->mss_ndn.bv_val );
+        return -1;
+    }
+
+    ch_free( ms->mss_ndn.bv_val );
+    ber_dupbv( &ms->mss_dn, &e->e_name );
+    ber_dupbv( &ms->mss_ndn, &e->e_nname );
+
+    rc = mbe->register_entry( e, NULL, ms, MONITOR_F_PERSISTENT_CH );
+
+    if ( rc != LDAP_SUCCESS ) {
+        Debug( LDAP_DEBUG_ANY, "lload_monitor_tier_open: "
+                "unable to register entry \"%s\" for monitoring\n",
+                e->e_name.bv_val );
+        goto done;
+    }
+
+    tier->t_monitor = ms;
+    ms->mss_destroy = lload_monitor_tier_destroy;
+
+done:
+    entry_free( e );
+    return rc;
+}
+
 int
-lload_monitor_backends_init( BackendDB *be, monitor_subsys_t *ms )
+lload_monitor_tier_init( BackendInfo *bi, LloadTier *tier )
 {
     monitor_extra_t *mbe;
+    monitor_subsys_t *mss;
+    LloadBackend *b;
+
+    mbe = (monitor_extra_t *)bi->bi_extra;
+
+    mss = ch_calloc( 1, sizeof(monitor_subsys_t) );
+    mss->mss_rdn.bv_len = sizeof("cn=") + tier->t_name.bv_len;
+    mss->mss_rdn.bv_val = ch_malloc( mss->mss_rdn.bv_len );
+    mss->mss_rdn.bv_len = snprintf( mss->mss_rdn.bv_val, mss->mss_rdn.bv_len,
+            "cn=%s", tier->t_name.bv_val );
+
+    ber_str2bv( LLOAD_MONITOR_TIERS_DN, 0, 0, &mss->mss_dn );
+    mss->mss_name = tier->t_name.bv_val;
+    mss->mss_open = lload_monitor_tier_open;
+    mss->mss_destroy = lload_monitor_subsystem_destroy;
+    mss->mss_update = NULL;
+    mss->mss_private = tier;
+
+    if ( mbe->register_subsys_late( mss ) ) {
+        Debug( LDAP_DEBUG_ANY, "lload_monitor_tier_init: "
+                "failed to register backend %s\n",
+                mss->mss_name );
+        return -1;
+    }
+
+    LDAP_CIRCLEQ_FOREACH ( b, &tier->t_backends, b_next ) {
+        if ( lload_monitor_backend_init( bi, mss, b ) ) {
+            return -1;
+        }
+    }
+
+    return LDAP_SUCCESS;
+}
+
+int
+lload_monitor_tiers_init( BackendDB *be, monitor_subsys_t *ms )
+{
+    monitor_extra_t *mbe;
+    LloadTier *tier;
     Entry *e;
     int rc;
-    LloadBackend *b;
 
     assert( be != NULL );
     mbe = (monitor_extra_t *)be->bd_info->bi_extra;
@@ -882,7 +979,7 @@ lload_monitor_backends_init( BackendDB *be, monitor_subsys_t *ms )
     e = mbe->entry_stub( &ms->mss_dn, &ms->mss_ndn, &ms->mss_rdn,
             oc_monitorContainer, NULL, NULL );
     if ( e == NULL ) {
-        Debug( LDAP_DEBUG_ANY, "lload_monitor_incoming_conn_init: "
+        Debug( LDAP_DEBUG_ANY, "lload_monitor_tiers_init: "
                 "unable to create entry \"%s,%s\"\n",
                 ms->mss_rdn.bv_val, ms->mss_ndn.bv_val );
         return -1;
@@ -894,14 +991,14 @@ lload_monitor_backends_init( BackendDB *be, monitor_subsys_t *ms )
     rc = mbe->register_entry( e, NULL, ms, MONITOR_F_PERSISTENT_CH );
 
     if ( rc != LDAP_SUCCESS ) {
-        Debug( LDAP_DEBUG_ANY, "lload_monitor_backends_init: "
+        Debug( LDAP_DEBUG_ANY, "lload_monitor_tiers_init: "
                 "unable to register entry \"%s\" for monitoring\n",
                 e->e_name.bv_val );
         goto done;
     }
 
-    LDAP_CIRCLEQ_FOREACH ( b, &backend, b_next ) {
-        if ( (rc = lload_monitor_backend_init( be->bd_info, b )) ) {
+    LDAP_STAILQ_FOREACH ( tier, &tiers, t_next ) {
+        if ( (rc = lload_monitor_tier_init( be->bd_info, tier )) ) {
             break;
         }
     }
@@ -928,7 +1025,7 @@ lload_monitor_update_global_stats( void *ctx, void *arg )
 {
     struct re_s *rtask = arg;
     lload_global_stats_t tmp_stats = {};
-    LloadBackend *b;
+    LloadTier *tier;
     int i;
 
     Debug( LDAP_DEBUG_TRACE, "lload_monitor_update_global_stats: "
@@ -940,18 +1037,22 @@ lload_monitor_update_global_stats( void *ctx, void *arg )
             &tmp_stats );
     checked_unlock( &clients_mutex );
 
-    LDAP_CIRCLEQ_FOREACH ( b, &backend, b_next ) {
-        checked_lock( &b->b_mutex );
-        tmp_stats.global_outgoing += b->b_active + b->b_bindavail;
+    LDAP_STAILQ_FOREACH ( tier, &tiers, t_next ) {
+        LloadBackend *b;
 
-        /* merge completed and failed stats */
-        for ( i = 0; i < LLOAD_STATS_OPS_LAST; i++ ) {
-            tmp_stats.counters[i].lc_ops_completed +=
-                    b->b_counters[i].lc_ops_completed;
-            tmp_stats.counters[i].lc_ops_failed +=
-                    b->b_counters[i].lc_ops_failed;
+        LDAP_CIRCLEQ_FOREACH ( b, &tier->t_backends, b_next ) {
+            checked_lock( &b->b_mutex );
+            tmp_stats.global_outgoing += b->b_active + b->b_bindavail;
+
+            /* merge completed and failed stats */
+            for ( i = 0; i < LLOAD_STATS_OPS_LAST; i++ ) {
+                tmp_stats.counters[i].lc_ops_completed +=
+                        b->b_counters[i].lc_ops_completed;
+                tmp_stats.counters[i].lc_ops_failed +=
+                        b->b_counters[i].lc_ops_failed;
+            }
+            checked_unlock( &b->b_mutex );
         }
-        checked_unlock( &b->b_mutex );
     }
 
     /* update lload_stats */
@@ -975,7 +1076,7 @@ static char *lload_subsys_rdn[] = {
     LLOAD_MONITOR_BALANCER_RDN,
     LLOAD_MONITOR_INCOMING_RDN,
     LLOAD_MONITOR_OPERATIONS_RDN,
-    LLOAD_MONITOR_BACKENDS_RDN,
+    LLOAD_MONITOR_TIERS_RDN,
     NULL
 };
 
@@ -1023,14 +1124,14 @@ static struct monitor_subsys_t balancer_subsys[] = {
         NULL    /* modify */
     },
     {
-        LLOAD_MONITOR_BACKENDS_NAME,
+        LLOAD_MONITOR_TIERS_NAME,
         BER_BVNULL,
         BER_BVC(LLOAD_MONITOR_BALANCER_DN),
         BER_BVNULL,
         { BER_BVC("Load Balancer Backends information"),
           BER_BVNULL },
         MONITOR_F_PERSISTENT_CH,
-        lload_monitor_backends_init,
+        lload_monitor_tiers_init,
         lload_monitor_subsystem_destroy, /* destroy */
         NULL,   /* update */
         NULL,   /* create */
