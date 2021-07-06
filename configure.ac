@@ -91,7 +91,7 @@ AC_SUBST(OPENLDAP_LIBVERSION)dnl
 OPENLDAP_RELEASE_DATE="$OL_RELEASE_DATE"
 AC_SUBST(OPENLDAP_RELEASE_DATE)dnl
 
-AC_PREREQ(2.69)dnl Required Autoconf version
+AC_PREREQ([2.69])dnl Required Autoconf version
 
 AH_TOP([
 /* begin of portable.h.pre */
@@ -142,6 +142,8 @@ AH_TOP([
 ])
 AH_BOTTOM([
 /* begin of portable.h.post */
+
+#define RETSIGTYPE void
 
 #ifdef _WIN32
 	/* don't suck in all of the win32 api */
@@ -725,10 +727,8 @@ if test -z "${STRIP}"; then
 fi
 
 
-AC_LIBTOOL_WIN32_DLL
-AC_LIBTOOL_DLOPEN
 AC_PROG_MAKE_SET
-AC_PROG_LIBTOOL
+LT_INIT(dlopen, win32-dll)
 
 dnl ----------------------------------------------------------------
 dnl Perl
@@ -1375,9 +1375,7 @@ case $ol_with_threads in auto | yes | posix)
 			AC_RUN_IFELSE([OL_PTHREAD_TEST_PROGRAM],
 				[ol_cv_pthread_create=yes],
 				[ol_cv_pthread_create=no],
-				[AC_TRY_LINK(OL_PTHREAD_TEST_INCLUDES,OL_PTHREAD_TEST_FUNCTION,
-					[ol_cv_pthread_create=yes],
-					[ol_cv_pthread_create=no])])])
+				[AC_LINK_IFELSE([AC_LANG_PROGRAM([[OL_PTHREAD_TEST_INCLUDES]], [[OL_PTHREAD_TEST_FUNCTION]])],[ol_cv_pthread_create=yes],[ol_cv_pthread_create=no])])])
 
 		if test $ol_cv_pthread_create != no ; then
 			ol_link_threads=posix
@@ -1858,15 +1856,15 @@ hosts_access(req)
 		LIBS="$save_LIBS"],[
 		dnl try with -lnsl
 		LIBS="$LIBS -lnsl"
-		AC_TRY_LINK([
+		AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #include <tcpd.h>
 int allow_severity = 0;
 int deny_severity  = 0;
 
 struct request_info *req;
-		],[
+		]], [[
 hosts_access(req)
-		],[AC_MSG_RESULT([-lwrap -lnsl])
+		]])],[AC_MSG_RESULT([-lwrap -lnsl])
 		have_wrappers=yes
 		LIBS="$save_LIBS -lnsl"],[
 		AC_MSG_RESULT(no)
@@ -2278,8 +2276,6 @@ if test "$ac_cv_type_socklen_t" != yes; then
 fi
 
 
-AC_TYPE_SIGNAL
-
 AC_CHECK_TYPE([sig_atomic_t],,
 	[AC_DEFINE_UNQUOTED([sig_atomic_t], [int],
 		[Define to `int' if <signal.h> does not define.])],
@@ -2289,7 +2285,7 @@ AC_CHECK_TYPE([sig_atomic_t],,
 
 AC_TYPE_UID_T
 
-AC_HEADER_TIME
+AC_CHECK_HEADERS_ONCE([sys/time.h])
 AC_STRUCT_TM
 AC_CHECK_MEMBERS([struct stat.st_blksize])
 AC_CHECK_MEMBERS([struct passwd.pw_gecos],,,[$ac_includes_default
