@@ -13,16 +13,12 @@
 #ifndef _AC_TIME_H
 #define _AC_TIME_H
 
-#ifdef TIME_WITH_SYS_TIME
-# include <sys/time.h>
-# include <time.h>
-#elif defined HAVE_SYS_TIME_H
+#if defined HAVE_SYS_TIME_H
 # include <sys/time.h>
 # ifdef HAVE_SYS_TIMEB_H
 #  include <sys/timeb.h>
 # endif
-#else
-# include <time.h>
 #endif
+# include <time.h>
 
 #endif /* _AC_TIME_H */
