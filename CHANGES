@@ -5,6 +5,7 @@ OpenLDAP 2.5.6 Engineering
 	Fixed libldap missing mutex unlock on connection alloc failure (ITS#9590)
 	Fixed lloadd cn=config olcBkLloadClientMaxPending setting (ITS#8747)
 	Fixed slapd multiple config defaults (ITS#9363)
+	Fixed slapd ipv6 addresses to work with tcp wrappers (ITS#9603)
 	Build
 		Fixed library symbol versioning on Solaris (ITS#9591)
 		Fixed compile warning in libldap/tpool.c (ITS#9601)
