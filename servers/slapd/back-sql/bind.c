@@ -107,6 +107,7 @@ error_return:;
 		send_ldap_result( op, rs );
 	}
 	
+	SQLTransact( SQL_NULL_HENV, dbh, SQL_ROLLBACK );
 	Debug( LDAP_DEBUG_TRACE,"<==backsql_bind()\n" );
 
 	return rs->sr_err;
