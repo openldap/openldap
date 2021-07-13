@@ -3658,7 +3658,8 @@ sp_cf_gen(ConfigArgs *c)
 			si->si_chktime = 0;
 			break;
 		case SP_SESSL:
-			si->si_logs->sl_size = 0;
+			if ( si->si_logs )
+				si->si_logs->sl_size = 0;
 			break;
 		case SP_NOPRES:
 			si->si_nopres = 0;
