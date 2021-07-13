@@ -2551,6 +2551,7 @@ done:;
 		op->ors_scope = LDAP_SCOPE_BASE;
 	}
 
+	SQLTransact( SQL_NULL_HENV, dbh, SQL_ROLLBACK );
 	Debug( LDAP_DEBUG_TRACE, "<==backsql_search()\n" );
 
 	return rs->sr_err;
