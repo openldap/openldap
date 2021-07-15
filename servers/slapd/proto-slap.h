@@ -1254,6 +1254,16 @@ LDAP_SLAPD_F (int)
 parse_debug_unknowns LDAP_P(( char **unknowns, int *levelp ));
 LDAP_SLAPD_F (void)
 slap_check_unknown_level LDAP_P(( char *levelstr, int level ));
+LDAP_SLAPD_F (int)
+logfile_open LDAP_P(( const char *path ));
+LDAP_SLAPD_F (void)
+logfile_close LDAP_P(( void ));
+LDAP_SLAPD_F (const char *)
+logfile_name LDAP_P(( void ));
+LDAP_SLAPD_V(int)  logfile_age;
+LDAP_SLAPD_V(int)  logfile_only;
+LDAP_SLAPD_V(int)  logfile_max;
+LDAP_SLAPD_V(long)	logfile_fslimit;
 
 /*
  * matchedValues.c

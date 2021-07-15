@@ -567,9 +567,22 @@ option description.  The default is 71.
 Specify a file for recording slapd debug messages. By default these messages
 only go to stderr, are not recorded anywhere else, and are unrelated to
 messages exposed by the
-.B loglevel
+.B olcLogLevel
 configuration parameter. Specifying a logfile copies messages to both stderr
 and the logfile.
+.TP
+.B olcLogFileOnly: TRUE | FALSE
+Specify that debug messages should only go to the configured logfile, and
+not to stderr.
+.TP
+.B olcLogFileRotate: <max> <Mbytes> <hours>
+Specify automatic rotation for the configured logfile as the maximum
+number of old logfiles to retain, a maximum size in megabytes to allow a
+logfile to grow before rotation, and a maximum age in hours for a logfile
+to be used before rotation. The maximum number must be in the range 1-99.
+Setting Mbytes or hours to zero disables the size or age check, respectively.
+At least one of Mbytes or hours must be non-zero. By default no automatic
+rotation will be performed.
 .TP
 .B olcLogLevel: <integer> [...]
 Specify the level at which debugging statements and operation 

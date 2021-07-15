@@ -80,8 +80,6 @@ typedef struct {
 static CfBackInfo cfBackInfo;
 
 static char	*passwd_salt;
-static FILE *logfile;
-static char	*logfileName;
 static AccessControl *defacl_parsed = NULL;
 
 static struct berval cfdir;
@@ -203,6 +201,7 @@ enum {
 	CFG_TLS_CACERT,
 	CFG_TLS_CERT,
 	CFG_TLS_KEY,
+	CFG_LOGFILE_ROTATE,
 
 	CFG_LAST
 };
@@ -485,6 +484,14 @@ static ConfigTable config_back_cf_table[] = {
 	{ "logfile", "file", 2, 2, 0, ARG_STRING|ARG_MAGIC|CFG_LOGFILE,
 		&config_generic, "( OLcfgGlAt:27 NAME 'olcLogFile' "
 			"EQUALITY caseExactMatch "
+			"SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "logfile-only", "on|off", 2, 2, 0, ARG_ON_OFF,
+		&logfile_only, "( OLcfgGlAt:102 NAME 'olcLogFileOnly' "
+			"EQUALITY booleanMatch "
+			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
+	{ "logfile-rotate", "max> <Mbyte> <hours", 4, 4, 0, ARG_MAGIC|CFG_LOGFILE_ROTATE,
+		&config_generic, "( OLcfgGlAt:103 NAME 'olcLogFileRotate' "
+			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
 	{ "loglevel", "level", 2, 0, 0, ARG_MAGIC,
 		&config_loglevel, "( OLcfgGlAt:28 NAME 'olcLogLevel' "
@@ -980,7 +987,7 @@ static ConfigOCs cf_ocs[] = {
 		 "olcIndexSubstrAnyLen $ olcIndexSubstrAnyStep $ olcIndexHash64 $ "
 		 "olcIndexIntLen $ "
 		 "olcListenerThreads $ olcLocalSSF $ olcLogFile $ olcLogLevel $ "
-		 "olcMaxFilterDepth $ "
+		 "olcLogFileOnly $ olcLogFileRotate $ olcMaxFilterDepth $ "
 		 "olcPasswordCryptSaltFormat $ olcPasswordHash $ olcPidFile $ "
 		 "olcPluginLogFile $ olcReadOnly $ olcReferral $ "
 		 "olcReplogFile $ olcRequires $ olcRestrict $ olcReverseLookup $ "
@@ -1373,11 +1380,27 @@ config_generic(ConfigArgs *c) {
 				rc = 1;
 			}
 			break;
-		case CFG_LOGFILE:
-			if ( logfileName )
+		case CFG_LOGFILE: {
+			const char *logfileName = logfile_name();
+			if ( logfileName && *logfileName )
 				c->value_string = ch_strdup( logfileName );
 			else
 				rc = 1;
+			}
+			break;
+		case CFG_LOGFILE_ROTATE:
+			rc = 1;
+			if ( logfile_max ) {
+				char buf[64];
+				struct berval bv;
+				bv.bv_len = snprintf( buf, sizeof(buf), "%d %ld %ld", logfile_max,
+					(long) logfile_fslimit / 1048576, (long) logfile_age / 3600 );
+				if ( bv.bv_len > 0 && bv.bv_len < sizeof(buf) ) {
+					bv.bv_val = buf;
+					value_add_one( &c->rvalue_vals, &bv );
+					rc = 0;
+				}
+			}
 			break;
 		case CFG_LASTMOD:
 			c->value_int = (SLAP_NOLASTMOD(c->be) == 0);
@@ -1610,12 +1633,11 @@ config_generic(ConfigArgs *c) {
 			break;
 
 		case CFG_LOGFILE:
-			ch_free( logfileName );
-			logfileName = NULL;
-			if ( logfile ) {
-				fclose( logfile );
-				logfile = NULL;
-			}
+			logfile_close();
+			break;
+
+		case CFG_LOGFILE_ROTATE:
+			logfile_max = logfile_fslimit = logfile_age = 0;
 			break;
 
 		case CFG_SERVERID: {
@@ -2392,11 +2414,44 @@ sortval_reject:
 			}
 			break;
 		case CFG_LOGFILE: {
-				if ( logfileName ) ch_free( logfileName );
-				logfileName = c->value_string;
-				logfile = fopen(logfileName, "w");
-				if(logfile) lutil_debug_file(logfile);
-			} break;
+				int rc = logfile_open( c->value_string );
+				ch_free( c->value_string );
+				return rc;
+			}
+			break;
+
+		case CFG_LOGFILE_ROTATE: {
+			unsigned lf_max, lf_mbyte, lf_hour;
+			if ( lutil_atoux( &lf_max, c->argv[1], 0 ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+					"invalid max value \"%s\"", c->argv[0], c->argv[1] );
+				return 1;
+			}
+			if ( !lf_max || lf_max > 99 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+					"invalid max value \"%s\" must be 1-99", c->argv[0], c->argv[1] );
+				return 1;
+			}
+			if ( lutil_atoux( &lf_mbyte, c->argv[2], 0 ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+					"invalid Mbyte value \"%s\"", c->argv[0], c->argv[1] );
+				return 1;
+			}
+			if ( lutil_atoux( &lf_hour, c->argv[3], 0 ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+					"invalid hours value \"%s\"", c->argv[0], c->argv[2] );
+				return 1;
+			}
+			if ( !lf_mbyte && !lf_hour ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+					"Mbyte and hours cannot both be zero", c->argv[0] );
+				return 1;
+			}
+			logfile_max = lf_max;
+			logfile_fslimit = lf_mbyte * 1048576;	/* Megabytes to bytes */
+			logfile_age = lf_hour * 3600;			/* hours to seconds */
+			}
+			break;
 
 		case CFG_LASTMOD:
 			if(SLAP_NOLASTMODCMD(c->be)) {
