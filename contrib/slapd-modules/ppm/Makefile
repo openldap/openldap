@@ -53,7 +53,7 @@ moduledir = $(libexecdir)$(ldap_subdir)
 mandir = $(exec_prefix)/share/man
 man5dir = $(mandir)/man5
 etcdir = $(exec_prefix)/etc
-sysconfdir = $(prefix)/$(etcdir)$(ldap_subdir)
+sysconfdir = $(etcdir)$(ldap_subdir)
 
 TEST=ppm_test
 EXAMPLE=ppm.example
