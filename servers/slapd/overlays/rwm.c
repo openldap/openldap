@@ -867,6 +867,8 @@ rwm_entry_release_rw( Operation *op, Entry *e, int rw )
 	return SLAP_CB_CONTINUE;
 }
 
+static struct berval *passwd_oid;
+
 static int
 rwm_entry_get_rw( Operation *op, struct berval *ndn,
 	ObjectClass *oc, AttributeDescription *at, int rw, Entry **ep )
@@ -881,6 +883,11 @@ rwm_entry_get_rw( Operation *op, struct berval *ndn,
 	struct berval		mndn = BER_BVNULL;
 
 	if ( ((BackendInfo *)on->on_info->oi_orig)->bi_entry_get_rw == NULL ) {
+		return SLAP_CB_CONTINUE;
+	}
+
+	/* If we're fetching the target of a password mod, must let real DNs thru */
+	if ( op->o_tag == LDAP_REQ_EXTENDED && bvmatch( passwd_oid, &op->oq_extended.rs_reqoid ) ) {
 		return SLAP_CB_CONTINUE;
 	}
 
@@ -1115,6 +1122,8 @@ static struct exop {
 	{ BER_BVC(LDAP_EXOP_MODIFY_PASSWD),	rwm_exop_passwd },
 	{ BER_BVNULL, NULL }
 };
+
+static struct berval *passwd_oid = &exop_table[0].oid;
 
 static int
 rwm_extended( Operation *op, SlapReply *rs )
