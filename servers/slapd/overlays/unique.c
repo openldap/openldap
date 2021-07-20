@@ -996,6 +996,7 @@ unique_search(
 	nop->ors_tlimit	= SLAP_NO_LIMIT;
 	nop->ors_attrs	= slap_anlist_no_attrs;
 	nop->ors_attrsonly = 1;
+	memset( nop->o_ctrlflag, 0, sizeof( nop->o_ctrlflag ));
 
 	uq.ndn = &op->o_req_ndn;
 
