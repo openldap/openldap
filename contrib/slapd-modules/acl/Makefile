@@ -13,7 +13,7 @@ DEFS =
 INCS = $(LDAP_INC)
 LIBS = $(LDAP_LIB)
 
-PROGRAMS = posixgroup.la gssacl.la
+PROGRAMS = posixgroup.la gssacl.la now.la
 LTVER = 0:0:0
 
 prefix=/usr/local
@@ -36,6 +36,10 @@ posixgroup.la: posixgroup.lo
 	-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
 gssacl.la: gssacl.lo
+	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
+	-rpath $(moduledir) -module -o $@ $? $(LIBS)
+
+now.la: now.lo
 	$(LIBTOOL) --mode=link $(CC) $(LDFLAGS) -version-info $(LTVER) \
 	-rpath $(moduledir) -module -o $@ $? $(LIBS)
 
