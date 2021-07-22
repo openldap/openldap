@@ -12,6 +12,10 @@ of course still be followed prior to doing any of this.
 
 H2: {{B:cn=config}} olc* attributes
 
+The {{olcMirrorMode}} attribute has been renamed to {{olcMultiProvider}}.  Existing configurations
+will continue to work with the old parameter name, but it is advised to update to the new name as a
+part of the upgrade process.
+
 H2: ppolicy overlay
 
 The overlay now implements version 10 of the ppolicy draft in full. This includes the notion of a password
