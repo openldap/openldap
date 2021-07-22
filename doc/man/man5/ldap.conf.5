@@ -333,8 +333,9 @@ Specifies the file that contains certificates for all of the Certificate
 Authorities the client will recognize.
 .TP
 .B TLS_CACERTDIR <path>
-Specifies the path of a directory that contains Certificate Authority
-certificates in separate individual files. The
+Specifies the path of directories that contain Certificate Authority
+certificates in separate individual files. Multiple directories may
+be specified, separated by a semi-colon.  The
 .B TLS_CACERT
 is always used before
 .B TLS_CACERTDIR.

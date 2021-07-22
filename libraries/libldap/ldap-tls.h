@@ -22,6 +22,8 @@ struct tls_impl;
 struct tls_ctx;
 struct tls_session;
 
+#define CERTPATHSEP	";"
+
 typedef struct tls_ctx tls_ctx;
 typedef struct tls_session tls_session;
 

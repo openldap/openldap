@@ -926,10 +926,11 @@ the top-level CA should be present. Multiple certificates are simply
 appended to the file; the order is not significant.
 .TP
 .B olcTLSCACertificatePath: <path>
-Specifies the path of a directory that contains Certificate Authority
+Specifies the path of directories that contain Certificate Authority
 certificates in separate individual files. Usually only one of this
 or the olcTLSCACertificateFile is defined. If both are specified, both
-locations will be used.
+locations will be used. Multiple directories may be specified,
+separated by a semi-colon.
 .TP
 .B olcTLSCertificateFile: <filename>
 Specifies the file that contains the

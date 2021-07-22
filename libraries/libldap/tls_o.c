@@ -170,21 +170,24 @@ tlso_ca_list( char * bundle, char * dir, X509 *cert )
 	if ( bundle ) {
 		ca_list = SSL_load_client_CA_file( bundle );
 	}
-#if defined(HAVE_DIRENT_H) || defined(dirent)
 	if ( dir ) {
-		int freeit = 0;
+		char **dirs = ldap_str2charray( dir, CERTPATHSEP );
+		int freeit = 0, i;
 
 		if ( !ca_list ) {
 			ca_list = sk_X509_NAME_new_null();
 			freeit = 1;
 		}
-		if ( !SSL_add_dir_cert_subjects_to_stack( ca_list, dir ) &&
-			freeit ) {
-			sk_X509_NAME_free( ca_list );
-			ca_list = NULL;
+		for ( i=0; dirs[i]; i++ ) {
+			if ( !SSL_add_dir_cert_subjects_to_stack( ca_list, dir ) &&
+				freeit ) {
+				sk_X509_NAME_free( ca_list );
+				ca_list = NULL;
+				break;
+			}
 		}
+		ldap_charray_free( dirs );
 	}
-#endif
 	if ( cert ) {
 		X509_NAME *xn = X509_get_subject_name( cert );
 		xn = X509_NAME_dup( xn );
@@ -445,15 +448,37 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 				return -1;
 			}
 		}
-		if (( lt->lt_cacertfile || lt->lt_cacertdir ) && !SSL_CTX_load_verify_locations( ctx,
-				lt->lt_cacertfile, lt->lt_cacertdir ) )
-		{
-			Debug2( LDAP_DEBUG_ANY, "TLS: "
-				"could not load verify locations (file:`%s',dir:`%s').\n",
-				lo->ldo_tls_cacertfile ? lo->ldo_tls_cacertfile : "",
-				lo->ldo_tls_cacertdir ? lo->ldo_tls_cacertdir : "" );
-			tlso_report_error( errmsg );
-			return -1;
+		if ( lt->lt_cacertfile || lt->lt_cacertdir ) {
+			char **dirs, *dummy = NULL;
+			if ( lt->lt_cacertdir ) {
+				dirs = ldap_str2charray( lt->lt_cacertdir, CERTPATHSEP );
+			} else {
+				dirs = &dummy;
+			}
+			/* Start with the first dir in path */
+			if ( !SSL_CTX_load_verify_locations( ctx,
+				lt->lt_cacertfile, dirs[0] ) )
+			{
+				Debug2( LDAP_DEBUG_ANY, "TLS: "
+					"could not load verify locations (file:`%s',dir:`%s').\n",
+					lo->ldo_tls_cacertfile ? lo->ldo_tls_cacertfile : "",
+					dirs[0] ? dirs[0] : "" );
+				tlso_report_error( errmsg );
+				if ( dirs != &dummy )
+					ldap_charray_free( dirs );
+				return -1;
+			}
+			/* Then additional dirs, if any */
+			if ( dirs != &dummy ) {
+				if ( dirs[1] ) {
+					int i;
+					X509_STORE *store = SSL_CTX_get_cert_store( ctx );
+					X509_LOOKUP *lookup = X509_STORE_add_lookup( store, X509_LOOKUP_hash_dir() );
+					for ( i=1; dirs[i]; i++ )
+						X509_LOOKUP_add_dir( lookup, dirs[i], X509_FILETYPE_PEM );
+				}
+				ldap_charray_free( dirs );
+			}
 		}
 
 		if ( is_server ) {

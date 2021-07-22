@@ -642,7 +642,8 @@ The TLS options are OpenLDAP specific.
 .\"Sets/gets the TLS mode.
 .TP
 .B LDAP_OPT_X_TLS_CACERTDIR
-Sets/gets the path of the directory containing CA certificates.
+Sets/gets the path of the directories containing CA certificates.
+Multiple directories may be specified, separated by a semi-colon.
 .BR invalue
 must be
 .BR "const char *" ;

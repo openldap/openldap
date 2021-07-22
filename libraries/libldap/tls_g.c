@@ -195,21 +195,26 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
  	}
 
 	if (lo->ldo_tls_cacertdir != NULL) {
-		rc = gnutls_certificate_set_x509_trust_dir(
-			ctx->cred,
-			lt->lt_cacertdir,
-			GNUTLS_X509_FMT_PEM );
-		if ( rc > 0 ) {
-			Debug2( LDAP_DEBUG_TRACE,
-				"TLS: loaded %d CA certificates from directory `%s'.\n",
-				rc, lt->lt_cacertdir );
-		} else {
-			Debug1( LDAP_DEBUG_ANY,
-				"TLS: warning: no certificate found in CA certificate directory `%s'.\n",
-				lt->lt_cacertdir );
-			/* only warn, no return */
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
+		char **dirs = ldap_str2charray( lt->lt_cacertdir, CERTPATHSEP );
+		int i;
+		for ( i=0; dirs[i]; i++ ) {
+			rc = gnutls_certificate_set_x509_trust_dir(
+				ctx->cred,
+				dirs[i],
+				GNUTLS_X509_FMT_PEM );
+			if ( rc > 0 ) {
+				Debug2( LDAP_DEBUG_TRACE,
+					"TLS: loaded %d CA certificates from directory `%s'.\n",
+					rc, dirs[i] );
+			} else {
+				Debug1( LDAP_DEBUG_ANY,
+					"TLS: warning: no certificate found in CA certificate directory `%s'.\n",
+					dirs[i] );
+				/* only warn, no return */
+				strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
+			}
 		}
+		ldap_charray_free( dirs );
 	}
 
 	if (lo->ldo_tls_cacertfile != NULL) {
