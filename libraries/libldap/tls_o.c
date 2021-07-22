@@ -172,19 +172,18 @@ tlso_ca_list( char * bundle, char * dir, X509 *cert )
 	}
 	if ( dir ) {
 		char **dirs = ldap_str2charray( dir, CERTPATHSEP );
-		int freeit = 0, i;
+		int freeit = 0, i, success = 0;
 
 		if ( !ca_list ) {
 			ca_list = sk_X509_NAME_new_null();
 			freeit = 1;
 		}
 		for ( i=0; dirs[i]; i++ ) {
-			if ( !SSL_add_dir_cert_subjects_to_stack( ca_list, dir ) &&
-				freeit ) {
-				sk_X509_NAME_free( ca_list );
-				ca_list = NULL;
-				break;
-			}
+			success += SSL_add_dir_cert_subjects_to_stack( ca_list, dir );
+		}
+		if ( !success && freeit ) {
+			sk_X509_NAME_free( ca_list );
+			ca_list = NULL;
 		}
 		ldap_charray_free( dirs );
 	}
