@@ -928,9 +928,12 @@ unhandled_option:;
 			ldap_pvt_tls_get_option( slap_tls_ld, LDAP_OPT_X_TLS_CTX, &slap_tls_ctx );
 			load_extop( &slap_EXOP_START_TLS, 0, starttls_extop );
 		} else if ( rc != LDAP_NOT_SUPPORTED ) {
+			char *errmsg = NULL;
+			ldap_get_option( slap_tls_ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, &errmsg );
 			Debug( LDAP_DEBUG_ANY,
-			    "main: TLS init def ctx failed: %d\n",
-			    rc );
+			    "main: TLS init def ctx failed: %d %s\n",
+			    rc, errmsg ? errmsg : "" );
+			ldap_memfree( errmsg );
 			rc = 1;
 			SERVICE_EXIT( ERROR_SERVICE_SPECIFIC_ERROR, 20 );
 			goto destroy;

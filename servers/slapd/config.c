@@ -2160,10 +2160,13 @@ slap_client_connect( LDAP **ldp, slap_bindconf *sb )
 #ifdef HAVE_TLS
 	rc = bindconf_tls_set( sb, ld );
 	if ( rc ) {
+		char *errmsg = NULL;
+		ldap_get_option( ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, &errmsg );
 		Debug( LDAP_DEBUG_ANY,
 			"slap_client_connect: "
-			"URI=%s TLS context initialization failed (%d)\n",
-			sb->sb_uri.bv_val, rc );
+			"URI=%s TLS context initialization failed (%d) %s\n",
+			sb->sb_uri.bv_val, rc, errmsg ? errmsg : "" );
+		ldap_memfree( errmsg );
 		goto done;
 	}
 #endif

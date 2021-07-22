@@ -199,7 +199,7 @@ ldap_pvt_tls_init( int do_threads )
  * initialize a new TLS context
  */
 static int
-ldap_int_tls_init_ctx( struct ldapoptions *lo, int is_server )
+ldap_int_tls_init_ctx( struct ldapoptions *lo, int is_server, char *errmsg )
 {
 	int rc = 0;
 	tls_impl *ti = tls_imp;
@@ -261,7 +261,7 @@ ldap_int_tls_init_ctx( struct ldapoptions *lo, int is_server )
 		goto error_exit;
 	}
 
-	rc = ti->ti_ctx_init( lo, &lts, is_server );
+	rc = ti->ti_ctx_init( lo, &lts, is_server, errmsg );
 
 error_exit:
 	if ( rc < 0 && lo->ldo_tls_ctx != NULL ) {
@@ -288,10 +288,15 @@ int
 ldap_pvt_tls_init_def_ctx( int is_server )
 {
 	struct ldapoptions *lo = LDAP_INT_GLOBAL_OPT();   
+	char errmsg[ERRBUFSIZE];
 	int rc;
+	errmsg[0] = 0;
 	LDAP_MUTEX_LOCK( &tls_def_ctx_mutex );
-	rc = ldap_int_tls_init_ctx( lo, is_server );
+	rc = ldap_int_tls_init_ctx( lo, is_server, errmsg );
 	LDAP_MUTEX_UNLOCK( &tls_def_ctx_mutex );
+	if ( rc ) {
+		Debug1( LDAP_DEBUG_ANY,"TLS: init_def_ctx: %s.\n", errmsg );
+	}
 	return rc;
 }
 
@@ -975,12 +980,22 @@ ldap_pvt_tls_set_option( LDAP *ld, int option, void *arg )
 		if ( lo->ldo_tls_randfile ) LDAP_FREE (lo->ldo_tls_randfile );
 		lo->ldo_tls_randfile = (arg && *(char *)arg) ? LDAP_STRDUP( (char *) arg ) : NULL;
 		break;
-	case LDAP_OPT_X_TLS_NEWCTX:
+	case LDAP_OPT_X_TLS_NEWCTX: {
+		int rc;
+		char errmsg[ERRBUFSIZE];
 		if ( !arg ) return -1;
 		if ( lo->ldo_tls_ctx )
 			ldap_pvt_tls_ctx_free( lo->ldo_tls_ctx );
 		lo->ldo_tls_ctx = NULL;
-		return ldap_int_tls_init_ctx( lo, *(int *)arg );
+		errmsg[0] = 0;
+		rc = ldap_int_tls_init_ctx( lo, *(int *)arg, errmsg );
+		if ( rc && errmsg[0] ) {
+			if ( ld->ld_error )
+				LDAP_FREE( ld->ld_error );
+			ld->ld_error = LDAP_STRDUP( errmsg );
+		}
+		return rc;
+		}
 	case LDAP_OPT_X_TLS_CACERT:
 		if ( lo->ldo_tls_cacert.bv_val )
 			LDAP_FREE( lo->ldo_tls_cacert.bv_val );

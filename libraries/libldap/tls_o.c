@@ -60,7 +60,7 @@ static BIO_METHOD * tlso_bio_setup( void );
 
 static int  tlso_opt_trace = 1;
 
-static void tlso_report_error( void );
+static void tlso_report_error( char *errmsg );
 
 static void tlso_info_cb( const SSL *ssl, int where, int ret );
 static int tlso_verify_cb( int ok, X509_STORE_CTX *ctx );
@@ -349,7 +349,7 @@ tlso_ctx_cipher13( tlso_ctx *ctx, char *suites )
  * initialize a new TLS context
  */
 static int
-tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
+tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *errmsg )
 {
 	tlso_ctx *ctx = (tlso_ctx *)lo->ldo_tls_ctx;
 	int i;
@@ -419,7 +419,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			Debug1( LDAP_DEBUG_ANY,
 				   "TLS: could not set cipher list %s.\n",
 				   lo->ldo_tls_ciphersuite );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			return -1;
 		}
 	}
@@ -429,7 +429,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		if ( !SSL_CTX_set_default_verify_paths( ctx ) ) {
 			Debug0( LDAP_DEBUG_ANY, "TLS: "
 				"could not use default certificate paths" );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			return -1;
 		}
 	} else {
@@ -441,7 +441,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			if ( !X509_STORE_add_cert( store, cert )) {
 				Debug0( LDAP_DEBUG_ANY, "TLS: "
 					"could not use CA certificate" );
-				tlso_report_error();
+				tlso_report_error( errmsg );
 				return -1;
 			}
 		}
@@ -452,7 +452,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 				"could not load verify locations (file:`%s',dir:`%s').\n",
 				lo->ldo_tls_cacertfile ? lo->ldo_tls_cacertfile : "",
 				lo->ldo_tls_cacertdir ? lo->ldo_tls_cacertdir : "" );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			return -1;
 		}
 
@@ -465,7 +465,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 					"could not load client CA list (file:`%s',dir:`%s').\n",
 					lo->ldo_tls_cacertfile ? lo->ldo_tls_cacertfile : "",
 					lo->ldo_tls_cacertdir ? lo->ldo_tls_cacertdir : "" );
-				tlso_report_error();
+				tlso_report_error( errmsg );
 				return -1;
 			}
 
@@ -482,7 +482,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		if ( !SSL_CTX_use_certificate( ctx, cert )) {
 			Debug0( LDAP_DEBUG_ANY,
 				"TLS: could not use certificate.\n" );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			return -1;
 		}
 		X509_free( cert );
@@ -493,7 +493,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		Debug1( LDAP_DEBUG_ANY,
 			"TLS: could not use certificate file `%s'.\n",
 			lo->ldo_tls_certfile );
-		tlso_report_error();
+		tlso_report_error( errmsg );
 		return -1;
 	}
 
@@ -506,7 +506,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		{
 			Debug0( LDAP_DEBUG_ANY,
 				"TLS: could not use private key.\n" );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			return -1;
 		}
 		EVP_PKEY_free( pkey );
@@ -518,7 +518,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 		Debug1( LDAP_DEBUG_ANY,
 			"TLS: could not use key file `%s'.\n",
 			lo->ldo_tls_keyfile );
-		tlso_report_error();
+		tlso_report_error( errmsg );
 		return -1;
 	}
 
@@ -530,14 +530,14 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			Debug1( LDAP_DEBUG_ANY,
 				"TLS: could not use DH parameters file `%s'.\n",
 				lo->ldo_tls_dhfile );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			return -1;
 		}
 		if (!( dh=PEM_read_bio_DHparams( bio, NULL, NULL, NULL ))) {
 			Debug1( LDAP_DEBUG_ANY,
 				"TLS: could not read DH parameters file `%s'.\n",
 				lo->ldo_tls_dhfile );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			BIO_free( bio );
 			return -1;
 		}
@@ -557,7 +557,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			Debug1( LDAP_DEBUG_ANY,
 				"TLS: could not set EC name `%s'.\n",
 				lo->ldo_tls_ecname );
-			tlso_report_error();
+			tlso_report_error( errmsg );
 			return -1;
 		}
 	/*
@@ -1531,15 +1531,17 @@ tlso_verify_ok( int ok, X509_STORE_CTX *ctx )
 
 /* Inspired by ERR_print_errors in OpenSSL */
 static void
-tlso_report_error( void )
+tlso_report_error( char *errmsg )
 {
 	unsigned long l;
-	char buf[200];
+	char buf[ERRBUFSIZE];
 	const char *file;
 	int line;
 
 	while ( ( l = ERR_get_error_line( &file, &line ) ) != 0 ) {
-		ERR_error_string_n( l, buf, sizeof( buf ) );
+		ERR_error_string_n( l, buf, ERRBUFSIZE );
+		if ( !*errmsg )
+			strcpy(errmsg, buf );
 #ifdef HAVE_EBCDIC
 		if ( file ) {
 			file = LDAP_STRDUP( file );
