@@ -79,8 +79,8 @@ Typically the first child in this subtree will be
 .B olcBackend
 entries are for storing settings specific to a single
 backend type (and thus global to all database instances of that type).
-At present there are no backends that implement settings of this
-nature, so usually there will not be any olcBackend entries.
+At present, only back-mdb implements any options of this type, so this
+setting is not needed for any other backends.
 
 .B olcDatabase
 entries store settings specific to a single database
