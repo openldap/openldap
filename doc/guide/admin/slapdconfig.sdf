@@ -261,23 +261,32 @@ supported backend types listed in Table 6.2.
 !block table; align=Center; coltags="EX,N"; \
 	title="Table 6.2: Database Backends"
 Types	Description
+asyncmeta	Asynchronous Metadirectory backend
+config	Slapd configuration backend
 dnssrv	DNS SRV backend
 ldap	Lightweight Directory Access Protocol (Proxy) backend
+ldif	Lightweight Data Interchange Format backend
 mdb	Memory-Mapped DB backend
-meta	Meta Directory backend
+meta	Metadirectory backend
 monitor	Monitor backend
+ndb	MySQL NDB backend
+null	Null backend
 passwd	Provides read-only access to {{passwd}}(5)
 perl	Perl Programmable backend
-shell	Shell (extern program) backend
+relay	Relay backend
+sock	Socket backend
 sql	SQL Programmable backend
+wt	WiredTiger backend
 !endblock
 
 \Example:
 
 >	backend mdb
+>	idlexp 16
 
 This marks the beginning of a new {{TERM:MDB}} backend
-definition.
+definition. At present, only back-mdb implements any options
+of this type, so this setting is not needed for any other backends.
 
 
 H3: General Database Directives
@@ -575,6 +584,33 @@ If specified multiple times, each {{TERM:URL}} is provided.
 >	updateref	ldap://provider.example.net
 
 
+H3: MDB Backend Directives
+
+Directives in this category only apply to the {{TERM:MDB}}
+database backend. They will apply to all "database mdb"
+instances in the configuration. For a complete reference
+of MDB backend configuration directives, see {{slapd-mdb}}(5).
+
+H4: idlexp <exponent>
+
+Specify a power of 2 for the maximum size of an index slot.
+The default is 16, yielding a maximum slot size of 2^16 or 65536.
+The specified value must be in the range of 16-31.
+
+This setting helps with the case where certain search filters are
+slow to return results due to an index slot having collapsed to a
+range value.  This occurs when the number of candidate entries that
+match the filter for the index slot exceed the configured slot size.
+
+If this setting is decreased on a server with existing {{TERM:MDB}}
+databases, each db will immediately need its indicies to be rebuilt
+while slapd is offline with the "slapindex -q -t" command.
+
+If this setting is increased on a server with existing {{TERM:MDB}}
+databases, each db will need its indices rebuilt to take advantage
+of the change for indices that have already been converted to ranges.
+
+
 H3: MDB Database Directives
 
 Directives in this category only apply to the {{TERM:MDB}}
@@ -582,7 +618,6 @@ database backend.
 That is, they must follow a "database mdb" line
 and come before any subsequent "backend" or "database" lines.
 For a complete reference of MDB configuration directives, see {{slapd-mdb}}(5).
-
 
 H4: directory <directory>
 
@@ -697,6 +732,13 @@ normal use of the directory. Most applications don't use presence
 searches, so usually presence indexing is not very useful.
 
 
+H4: maxentrysize: <bytes>
+
+Specify the maximum size of an entry in bytes. Attempts to store
+an entry larger than this size will be rejected with the error
+LDAP_ADMINLIMIT_EXCEEDED. The default is 0, which is unlimited.
+
+
 H4: maxreaders: <integer>
 
 This directive specifies the maximum number of threads that may have
@@ -726,6 +768,28 @@ created database index files should have. This can be in the form
 \Default:
 
 >   mode: 0600
+
+
+H4: multival: { <attrlist> | default } <integer> hi,<integer> lo
+
+Specify the number of values for which a multivalued attribute is
+stored in a separate table. Normally entries are stored as a single
+blob inside the database. When an entry gets very large or contains
+attributes with a very large number of values, modifications on that
+entry may get very slow. Splitting the large attributes out to a separate
+table can improve the performance of modification operations.
+The threshold is specified as a pair of integers. If the number of
+values exceeds the hi threshold the values will be split out. If
+a modification deletes enough values to bring an attribute below
+the lo threshold the values will be removed from the separate
+table and merged back into the main entry blob.
+The threshold can be set for a specific list of attributes, or
+the default can be configured for all other attributes.
+The default value for both hi and lo thresholds is UINT_MAX, which keeps
+all attributes in the main blob.
+
+In addition to increasing write performance of operations the use of
+multival can also decrease fragmentation of the primary {{TERM:MDB}} database.
 
 
 H4: rtxnsize: <entries>
