@@ -31,7 +31,6 @@
 
 #define DEFAULT_QUALITY                   3
 #define MEMORY_MARGIN                     50
-#define MEM_INIT_SZ                       64
 #define DN_MAX_LEN                        512
 
 #define CONF_MAX_SIZE                      50
@@ -111,7 +110,7 @@ int min(char *str1, char *str2);
 #ifdef PPM_READ_FILE
   static void read_config_file(conf * fileConf, int *numParam, char *ppm_config_file);
 #endif
-int check_password(char *pPasswd, char **ppErrStr, Entry *e, void *pArg);
+int check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg);
 int maxConsPerClass(char *password, char *charClass);
 void storeEntry(char *param, char *value, valueType valType, 
            char *min, char *minForPoint, conf * fileConf, int *numParam);

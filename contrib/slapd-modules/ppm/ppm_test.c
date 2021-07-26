@@ -19,7 +19,8 @@ int main(int argc, char *argv[])
           );
 
     /* format user entry */
-    char *errmsg = NULL;
+    char errbuf[256];
+    struct berval errmsg = { sizeof(errbuf)-1, errbuf };
     Entry pEntry;
     pEntry.e_nname.bv_val=argv[1];
     pEntry.e_name.bv_val=argv[1];
@@ -51,10 +52,11 @@ int main(int argc, char *argv[])
     }
     else
     {
-      printf("Password failed checks : %s\n", errmsg);
+      printf("Password failed checks : %s\n", errmsg.bv_val);
     }
 
-    ber_memfree(errmsg);
+    if (errmsg.bv_val != errbuf)
+        ber_memfree(errmsg.bv_val);
     return ret;
 
   }
