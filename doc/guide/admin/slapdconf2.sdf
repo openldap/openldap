@@ -748,7 +748,7 @@ range value.  This occurs when the number of candidate entries that
 match the filter for the index slot exceed the configured slot size.
 
 If this setting is decreased on a server with existing {{TERM:MDB}}
-databases, each db will immediately need its indicies to be rebuilt
+databases, each db will immediately need its indices to be rebuilt
 while slapd is offline with the "slapindex -q -t" command.
 
 If this setting is increased on a server with existing {{TERM:MDB}}
