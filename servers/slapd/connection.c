@@ -985,7 +985,7 @@ conn_counter_init( Operation *op, void *ctx )
 }
 
 void
-connection_op_finish( Operation *op )
+connection_op_finish( Operation *op, int lock )
 {
 	Connection *conn = op->o_conn;
 	void *memctx_null = NULL;
@@ -994,7 +994,8 @@ connection_op_finish( Operation *op )
 
 	INCR_OP_COMPLETED( opidx );
 
-	ldap_pvt_thread_mutex_lock( &conn->c_mutex );
+	if ( lock )
+		ldap_pvt_thread_mutex_lock( &conn->c_mutex );
 
 	if ( op->o_tag == LDAP_REQ_BIND && conn->c_conn_state == SLAP_C_BINDING )
 		conn->c_conn_state = SLAP_C_ACTIVE;
@@ -1006,7 +1007,8 @@ connection_op_finish( Operation *op )
 	conn->c_n_ops_executing--;
 	conn->c_n_ops_completed++;
 	connection_resched( conn );
-	ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
+	if ( lock )
+		ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
 }
 
 static void *

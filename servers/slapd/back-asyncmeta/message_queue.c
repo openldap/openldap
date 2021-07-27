@@ -141,7 +141,7 @@ void asyncmeta_free_op(Operation *op)
 		Debug( LDAP_DEBUG_TRACE, "==> asyncmeta_free_op : other message type" );
 	}
 
-	connection_op_finish( op );
+	connection_op_finish( op, 1 );
 	slap_op_free( op, op->o_threadctx );
 }
 

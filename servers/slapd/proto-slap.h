@@ -812,7 +812,7 @@ LDAP_SLAPD_F (int) connection_write LDAP_P((ber_socket_t s));
 LDAP_SLAPD_F (void) connection_write_resume LDAP_P((Connection *c));
 
 LDAP_SLAPD_F (void) connection_op_finish LDAP_P((
-	Operation *op ));
+	Operation *op, int lock ));
 
 LDAP_SLAPD_F (unsigned long) connections_nextid(void);
 
