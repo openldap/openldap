@@ -85,6 +85,9 @@ typedef struct cookie_state {
 	struct berval *cs_pvals;
 	int *cs_psids;
 	int	cs_pnum;
+
+	/* serialize multi-consumer refreshes */
+	ldap_pvt_thread_mutex_t	cs_refresh_mutex;
 } cookie_state;
 
 #define	SYNCDATA_DEFAULT	0	/* entries are plain LDAP entries */
@@ -915,6 +918,12 @@ check_syncprov(
 	return changed;
 }
 
+#define SYNC_TIMEOUT	0
+#define SYNC_SHUTDOWN	-100
+#define SYNC_ERROR		-101
+#define SYNC_REPOLL		-102
+#define SYNC_PAUSED		-103
+
 static int
 do_syncrep1(
 	Operation *op,
@@ -927,6 +936,13 @@ do_syncrep1(
 #ifdef HAVE_TLS
 	void	*ssl;
 #endif
+
+	while ( ldap_pvt_thread_mutex_trylock( &si->si_cookieState->cs_refresh_mutex )) {
+		if ( slapd_shutdown )
+			return SYNC_SHUTDOWN;
+		if ( !ldap_pvt_thread_pool_pausecheck( &connection_pool ))
+			ldap_pvt_thread_yield();
+	}
 
 	si->si_lastconnect = slap_get_time();
 	si->si_refreshDone = 0;
@@ -1104,6 +1120,7 @@ done:
 			ldap_unbind_ext( si->si_ld, NULL, NULL );
 			si->si_ld = NULL;
 		}
+		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_refresh_mutex );
 	}
 
 	return rc;
@@ -1184,12 +1201,6 @@ check_csn_age(
 	return rc;
 }
 
-#define SYNC_TIMEOUT	0
-#define SYNC_SHUTDOWN	-100
-#define SYNC_ERROR		-101
-#define SYNC_REPOLL		-102
-#define SYNC_PAUSED		-103
-
 static int
 get_pmutex(
 	syncinfo_t *si
@@ -1233,6 +1244,7 @@ do_syncrep2(
 	struct timeval tout = { 0, 0 };
 
 	int		refreshDeletes = 0;
+	int		refreshEnded = 0;
 	char empty[6] = "empty";
 
 	if ( slapd_shutdown ) {
@@ -1524,6 +1536,7 @@ logerr:
 			Debug( LDAP_DEBUG_SYNC,
 				"do_syncrep2: %s LDAP_RES_SEARCH_RESULT\n",
 				si->si_ridtxt );
+			refreshEnded = 1;
 			err = LDAP_OTHER; /* FIXME check parse result properly */
 			ldap_parse_result( si->si_ld, msg, &err, NULL, NULL, NULL,
 				&rctrls, 0 );
@@ -1752,8 +1765,9 @@ logerr:
 					}
 					ber_scanf( ber, /*"{"*/ "}" );
 					if ( si->si_refreshDone ) {
-						Debug( LDAP_DEBUG_SYNC, "do_syncrep1: %s finished refresh\n",
+						Debug( LDAP_DEBUG_SYNC, "do_syncrep2: %s finished refresh\n",
 							si->si_ridtxt );
+						refreshEnded = 1;
 					}
 					break;
 				case LDAP_TAG_SYNC_ID_SET:
@@ -1900,6 +1914,8 @@ done:
 			"do_syncrep2: %s (%d) %s\n",
 			si->si_ridtxt, err, ldap_err2string( err ) );
 	}
+	if ( refreshEnded || ( rc && !si->si_refreshDone ))
+		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_refresh_mutex );
 
 	slap_sync_cookie_free( &syncCookie, 0 );
 	slap_sync_cookie_free( &syncCookie_req, 0 );
@@ -5936,6 +5952,7 @@ syncinfo_free( syncinfo_t *sie, int free_all )
 				ch_free( sie->si_cookieState->cs_psids );
 				ber_bvarray_free( sie->si_cookieState->cs_pvals );
 				ldap_pvt_thread_mutex_destroy( &sie->si_cookieState->cs_pmutex );
+				ldap_pvt_thread_mutex_destroy( &sie->si_cookieState->cs_refresh_mutex );
 				ch_free( sie->si_cookieState );
 			}
 		}
@@ -7147,6 +7164,7 @@ add_syncrepl(
 			si->si_cookieState = ch_calloc( 1, sizeof( cookie_state ));
 			ldap_pvt_thread_mutex_init( &si->si_cookieState->cs_mutex );
 			ldap_pvt_thread_mutex_init( &si->si_cookieState->cs_pmutex );
+			ldap_pvt_thread_mutex_init( &si->si_cookieState->cs_refresh_mutex );
 			ldap_pvt_thread_cond_init( &si->si_cookieState->cs_cond );
 
 			c->be->be_syncinfo = si;
