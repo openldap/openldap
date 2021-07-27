@@ -1213,8 +1213,6 @@ nochange:
 		send_ldap_result( op, rs );
 	}
 
-	rs->sr_err = LDAP_SUCCESS;
-
 done:
 	if ( cb.sc_private ) {
 		/* remove our writewait callback */
