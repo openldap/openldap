@@ -2890,9 +2890,6 @@ syncprov_detach_op( Operation *op, syncops *so, slap_overinst *on )
 	op->o_conn->c_n_ops_completed--;
 	LDAP_STAILQ_INSERT_TAIL( &op->o_conn->c_ops, op2, o_next );
 	so->s_flags |= PS_IS_DETACHED;
-
-	/* Prevent anyone else from trying to send a result for this op */
-	op->o_abandon = 1;
 }
 
 static int
@@ -3032,9 +3029,8 @@ syncprov_search_response( Operation *op, SlapReply *rs )
 				if ( ss->ss_so->s_res )
 					syncprov_qstart( ss->ss_so );
 				ldap_pvt_thread_mutex_unlock( &ss->ss_so->s_mutex );
+				return SLAPD_NO_REPLY;
 			}
-
-			return LDAP_SUCCESS;
 		}
 	}
 

@@ -159,6 +159,9 @@ LDAP_BEGIN_DECL
 /* pseudo error code indicating async operation */
 #define SLAPD_ASYNCOP (-1027)
 
+/* pseudo error code to suppress frontend response */
+#define SLAPD_NO_REPLY (-1028)
+
 /* We assume "C" locale, that is US-ASCII */
 #define ASCII_SPACE(c)	( (c) == ' ' )
 #define ASCII_LOWER(c)	( (c) >= 'a' && (c) <= 'z' )
