@@ -102,10 +102,8 @@ do_abandon( Operation *op, SlapReply *rs )
 			|| o->o_tag == LDAP_REQ_ABANDON ) {
 		msg = "cannot be abandoned";
 
-#if 0 /* Would break o_abandon used as "suppress response" flag, ITS#6138 */
 	} else if ( o->o_abandon ) {
 		msg = "already being abandoned";
-#endif
 
 	} else {
 		msg = "found";
