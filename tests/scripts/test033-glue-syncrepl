@@ -95,7 +95,7 @@ case $RC in
 0)
 	echo "ldapadd should have failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit -1
+	exit 1
 	;;
 10|68)
 	# Fine if we get alreadyExists or referrals
@@ -116,7 +116,7 @@ case $RC in
 0)
 	echo "ldapadd should have failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit -1
+	exit 1
 	;;
 10|68)
 	# Fine if we get alreadyExists or referrals
@@ -177,7 +177,7 @@ RC=$?
 if test $RC = 0 && test $BACKEND != null ; then
 	echo "ldapsearch should have failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit -1
+	exit 1
 fi
 
 test $KILLSERVERS != no && kill -HUP $KILLPIDS

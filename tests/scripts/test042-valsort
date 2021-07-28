@@ -194,7 +194,7 @@ RC=$?
 if test $RC != 19 ; then
 	echo "valsort check failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit -1
+	exit 1
 fi
 
 $LDAPSEARCH -b "$VALSORTBASEDN" -H $URI1 \

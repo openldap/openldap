@@ -81,7 +81,7 @@ if test $RC != 32 ; then
 	echo "ldapsearch should have failed with noSuchObject ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	if test $RC = 0 ; then
-		exit -1
+		exit 1
 	fi
 	exit $RC
 fi
@@ -95,7 +95,7 @@ RC=$?
 if test $RC = 0 ; then
 	echo "ldapwhoami should have failed!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit -1
+	exit 1
 fi
 
 # Populate ACIs

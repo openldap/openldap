@@ -82,7 +82,7 @@ case $RC in
 0)
 	echo "	ldapmodify should have failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit -1
+	exit 1
 	;;
 *)
 	echo "	ldapmodify failed ($RC)!"
