@@ -1049,14 +1049,12 @@ static ConfigOCs cf_ocs[] = {
 		"AUXILIARY "
 		"MAY ( olcDefaultSearchBase $ olcPasswordHash $ olcSortVals ) )",
 		Cft_Database, NULL, NULL },
-#ifdef SLAPD_MODULES
 	{ "( OLcfgGlOc:8 "
 		"NAME 'olcModuleList' "
 		"DESC 'OpenLDAP dynamic module info' "
 		"SUP olcConfig STRUCTURAL "
 		"MAY ( cn $ olcModulePath $ olcModuleLoad ) )",
 		Cft_Module, NULL, cfAddModule },
-#endif
 	{ NULL, 0, NULL }
 };
 
