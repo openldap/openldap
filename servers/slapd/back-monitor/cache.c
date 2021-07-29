@@ -90,10 +90,10 @@ monitor_cache_add(
 	mc = ( monitor_cache_t * )ch_malloc( sizeof( monitor_cache_t ) );
 	mc->mc_ndn = e->e_nname;
 	mc->mc_e = e;
-	ldap_pvt_thread_mutex_lock( &mi->mi_cache_mutex );
+	ldap_pvt_thread_rdwr_wlock( &mi->mi_cache_rwlock );
 	rc = ldap_avl_insert( &mi->mi_cache, ( caddr_t )mc,
 			monitor_cache_cmp, monitor_cache_dup );
-	ldap_pvt_thread_mutex_unlock( &mi->mi_cache_mutex );
+	ldap_pvt_thread_rdwr_wunlock( &mi->mi_cache_rwlock );
 
 	return rc;
 }
@@ -152,21 +152,21 @@ monitor_cache_get(
 
 	tmp_mc.mc_ndn = *ndn;
 retry:;
-	ldap_pvt_thread_mutex_lock( &mi->mi_cache_mutex );
+	ldap_pvt_thread_rdwr_rlock( &mi->mi_cache_rwlock );
 	mc = ( monitor_cache_t * )ldap_avl_find( mi->mi_cache,
 			( caddr_t )&tmp_mc, monitor_cache_cmp );
 
 	if ( mc != NULL ) {
 		/* entry is returned with mutex locked */
 		if ( monitor_cache_trylock( mc->mc_e ) ) {
-			ldap_pvt_thread_mutex_unlock( &mi->mi_cache_mutex );
+			ldap_pvt_thread_rdwr_runlock( &mi->mi_cache_rwlock );
 			ldap_pvt_thread_yield();
 			goto retry;
 		}
 		*ep = mc->mc_e;
 	}
 
-	ldap_pvt_thread_mutex_unlock( &mi->mi_cache_mutex );
+	ldap_pvt_thread_rdwr_runlock( &mi->mi_cache_rwlock );
 
 	return ( *ep == NULL ? -1 : 0 );
 }
@@ -193,7 +193,7 @@ monitor_cache_remove(
 	dnParent( ndn, &pndn );
 
 retry:;
-	ldap_pvt_thread_mutex_lock( &mi->mi_cache_mutex );
+	ldap_pvt_thread_rdwr_wlock( &mi->mi_cache_rwlock );
 
 	tmp_mc.mc_ndn = *ndn;
 	mc = ( monitor_cache_t * )ldap_avl_find( mi->mi_cache,
@@ -203,7 +203,7 @@ retry:;
 		monitor_cache_t *pmc;
 
 		if ( monitor_cache_trylock( mc->mc_e ) ) {
-			ldap_pvt_thread_mutex_unlock( &mi->mi_cache_mutex );
+			ldap_pvt_thread_rdwr_wunlock( &mi->mi_cache_rwlock );
 			goto retry;
 		}
 
@@ -217,7 +217,7 @@ retry:;
 
 			if ( monitor_cache_trylock( pmc->mc_e ) ) {
 				monitor_cache_release( mi, mc->mc_e );
-				ldap_pvt_thread_mutex_unlock( &mi->mi_cache_mutex );
+				ldap_pvt_thread_rdwr_wunlock( &mi->mi_cache_rwlock );
 				goto retry;
 			}
 
@@ -272,7 +272,7 @@ retry:;
 		}
 	}
 
-	ldap_pvt_thread_mutex_unlock( &mi->mi_cache_mutex );
+	ldap_pvt_thread_rdwr_wunlock( &mi->mi_cache_rwlock );
 
 	return ( *ep == NULL ? -1 : 0 );
 }

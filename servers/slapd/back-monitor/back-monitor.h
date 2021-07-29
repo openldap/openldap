@@ -83,7 +83,7 @@ typedef struct monitor_info_t {
 	 * Internal data
 	 */
 	Avlnode			*mi_cache;
-	ldap_pvt_thread_mutex_t	mi_cache_mutex;
+	ldap_pvt_thread_rdwr_t	mi_cache_rwlock;
 
 	/*
 	 * Config parameters

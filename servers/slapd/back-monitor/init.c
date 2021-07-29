@@ -2155,7 +2155,7 @@ monitor_back_db_init(
 
 	/* NOTE: only one monitor database is allowed,
 	 * so we use static storage */
-	ldap_pvt_thread_mutex_init( &monitor_info.mi_cache_mutex );
+	ldap_pvt_thread_rdwr_init( &monitor_info.mi_cache_rwlock );
 
 	be->be_private = &monitor_info;
 
@@ -2558,7 +2558,7 @@ monitor_back_db_destroy(
 		}
 	}
 	
-	ldap_pvt_thread_mutex_destroy( &monitor_info.mi_cache_mutex );
+	ldap_pvt_thread_rdwr_destroy( &monitor_info.mi_cache_rwlock );
 
 	be->be_private = NULL;
 
