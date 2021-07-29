@@ -923,6 +923,7 @@ check_syncprov(
 #define SYNC_ERROR		-101
 #define SYNC_REPOLL		-102
 #define SYNC_PAUSED		-103
+#define SYNC_BUSY		-104
 
 static int
 do_syncrep1(
@@ -937,12 +938,8 @@ do_syncrep1(
 	void	*ssl;
 #endif
 
-	while ( ldap_pvt_thread_mutex_trylock( &si->si_cookieState->cs_refresh_mutex )) {
-		if ( slapd_shutdown )
-			return SYNC_SHUTDOWN;
-		if ( !ldap_pvt_thread_pool_pausecheck( &connection_pool ))
-			ldap_pvt_thread_yield();
-	}
+	if ( ldap_pvt_thread_mutex_trylock( &si->si_cookieState->cs_refresh_mutex ))
+		return SYNC_BUSY;
 
 	si->si_lastconnect = slap_get_time();
 	si->si_refreshDone = 0;
