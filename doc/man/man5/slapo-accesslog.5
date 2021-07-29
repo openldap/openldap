@@ -346,7 +346,7 @@ filter.
     NAME 'auditModify'
     DESC 'Modify operation'
     SUP auditWriteObject STRUCTURAL
-    MAY reqOld MUST reqMod )
+    MAY ( reqOld $ reqMod ) )
 .RE
 .P
 The
