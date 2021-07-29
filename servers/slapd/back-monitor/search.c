@@ -215,6 +215,9 @@ monitor_back_search( Operation *op, SlapReply *rs )
 		return rs->sr_err;
 	}
 
+	/* Freeze the cache while we're using it */
+	ldap_pvt_thread_rdwr_rlock( &mi->mi_cache_rwlock );
+
 	rs->sr_attrs = op->oq_search.rs_attrs;
 	switch ( op->oq_search.rs_scope ) {
 	case LDAP_SCOPE_BASE:
@@ -259,6 +262,8 @@ monitor_back_search( Operation *op, SlapReply *rs )
 		rc = LDAP_UNWILLING_TO_PERFORM;
 		monitor_cache_release( mi, e );
 	}
+
+	ldap_pvt_thread_rdwr_runlock( &mi->mi_cache_rwlock );
 
 	rs->sr_attrs = NULL;
 	rs->sr_err = rc;
