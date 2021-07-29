@@ -362,18 +362,6 @@ monitor_cache_release(
 	mp = ( monitor_entry_t * )e->e_private;
 
 	if ( mp->mp_flags & MONITOR_F_VOLATILE ) {
-		monitor_cache_t	*mc, tmp_mc;
-
-		/* volatile entries do not return to cache */
-		ldap_pvt_thread_mutex_lock( &mi->mi_cache_mutex );
-		tmp_mc.mc_ndn = e->e_nname;
-		mc = ldap_avl_delete( &mi->mi_cache,
-				( caddr_t )&tmp_mc, monitor_cache_cmp );
-		ldap_pvt_thread_mutex_unlock( &mi->mi_cache_mutex );
-		if ( mc != NULL ) {
-			ch_free( mc );
-		}
-		
 		ldap_pvt_thread_mutex_unlock( &mp->mp_mutex );
 		ldap_pvt_thread_mutex_destroy( &mp->mp_mutex );
 		ch_free( mp );
