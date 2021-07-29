@@ -454,7 +454,7 @@ static struct {
 	{ "( " LOG_SCHEMA_OC ".9 NAME 'auditModify' "
 		"DESC 'Modify operation' "
 		"SUP auditWriteObject STRUCTURAL "
-		"MAY reqOld MUST reqMod )", &log_ocs[LOG_EN_MODIFY] },
+		"MAY ( reqOld $ reqMod ) )", &log_ocs[LOG_EN_MODIFY] },
 	{ "( " LOG_SCHEMA_OC ".10 NAME 'auditModRDN' "
 		"DESC 'ModRDN operation' "
 		"SUP auditWriteObject STRUCTURAL "
