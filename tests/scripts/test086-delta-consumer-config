@@ -233,7 +233,7 @@ fi
 # will also be a consumer for the real cn=schema,cn=config tree.
 # It has multi-provider enabled so that it can be written directly
 # while being a consumer of the main schema.
-echo "Configuring consumer config DB on provider..."
+echo "Configuring accesslog config DB on provider..."
 $LDAPMODIFY -D cn=config -H $URI1 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
 dn: cn=config
 changetype: modify
@@ -266,7 +266,20 @@ olcAccessLogDB: cn=consumer-accesslog
 olcAccessLogOps: writes
 olcAccessLogPurge: 07+00:00 01+00:00
 olcAccessLogSuccess: TRUE
+EOF
 
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed for consumer DB config ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Waiting 3 seconds for syncrepl to make root accesslog entry..."
+sleep 3
+
+echo "Configuring consumer config DB on provider..."
+$LDAPMODIFY -D cn=config -H $URI1 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
 dn: cn=config,cn=consumer
 changetype: add
 objectClass: olcGlobal
