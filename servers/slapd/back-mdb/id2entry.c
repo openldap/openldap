@@ -86,7 +86,7 @@ mdb_id2v_dupsort(
 	bv1.bv_val = usrkey[1].mv_data;
 	bv1.bv_len = usrkey[1].mv_size;
 
-	if (ad) {
+	if (ad && ad->ad_type->sat_equality) {
 		MatchingRule *mr = ad->ad_type->sat_equality;
 		rc = mr->smr_match(&match, SLAP_MR_EQUALITY
 		| SLAP_MR_VALUE_OF_ASSERTION_SYNTAX
