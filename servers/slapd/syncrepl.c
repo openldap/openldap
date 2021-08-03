@@ -2030,15 +2030,21 @@ do_syncrepl(
 	 * contextCSN updates should only go to the local DB.
 	 */
 	if ( !si->si_wbe ) {
-		if ( SLAP_GLUE_SUBORDINATE( be ) && !overlay_is_inst( be, "syncprov" )) {
-			BackendDB * top_be = select_backend( &be->be_nsuffix[0], 1 );
-			if ( overlay_is_inst( top_be, "syncprov" ))
-				si->si_wbe = top_be;
-			else
-				si->si_wbe = be;
-		} else {
-			si->si_wbe = be;
+		if ( SLAP_GLUE_SUBORDINATE( be )) {
+			BackendDB *b0 = be;
+			struct berval ndn = be->be_nsuffix[0];
+			while ( !overlay_is_inst( be, "syncprov" )) {
+				/* If we got all the way to the primary without any
+				 * syncprov, just use original backend */
+				if ( SLAP_GLUE_INSTANCE( be )) {
+					be = b0;
+					break;
+				}
+				dnParent( &ndn, &ndn );
+				be = select_backend( &ndn, 0 );
+			}
 		}
+		si->si_wbe = be;
 		if ( SLAP_SYNC_SUBENTRY( si->si_wbe )) {
 			build_new_dn( &si->si_contextdn, &si->si_wbe->be_nsuffix[0],
 				(struct berval *)&slap_ldapsync_cn_bv, NULL );
