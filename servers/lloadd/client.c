@@ -215,6 +215,8 @@ handle_one_request( LloadConnection *c )
     LloadOperation *op = NULL;
     RequestHandler handler = NULL;
     int over_limit = 0;
+    enum sc_state state;
+    enum sc_io_state io_state;
 
     ber = c->c_currentber;
     c->c_currentber = NULL;
@@ -233,6 +235,15 @@ handle_one_request( LloadConnection *c )
             c->c_n_ops_executing >= lload_client_max_pending ) {
         over_limit = 1;
     }
+
+    /*
+     * Remember the current state so we don't have to lock again,
+     * we're only screening whether we can keep going, e.g. noone can change
+     * state to LLOAD_C_BINDING from under us (would imply a new operation was
+     * received but that's us), but the opposite is possible - a Bind response
+     * could be received and processed in the meantime.
+     */
+    state = c->c_state;
     CONNECTION_UNLOCK(c);
 
     switch ( op->o_tag ) {
@@ -255,7 +266,7 @@ handle_one_request( LloadConnection *c )
             return request_abandon( c, op );
         case LDAP_REQ_EXTENDED:
         default:
-            if ( c->c_state == LLOAD_C_BINDING ) {
+            if ( state == LLOAD_C_BINDING ) {
                 operation_send_reject(
                         op, LDAP_PROTOCOL_ERROR, "bind in progress", 0 );
                 return LDAP_SUCCESS;
@@ -266,11 +277,16 @@ handle_one_request( LloadConnection *c )
                         0 );
                 return LDAP_SUCCESS;
             }
-            if ( c->c_io_state & LLOAD_C_READ_PAUSE ) {
+
+            checked_lock( &c->c_io_mutex );
+            io_state = c->c_io_state;
+            checked_unlock( &c->c_io_mutex );
+            if ( io_state & LLOAD_C_READ_PAUSE ) {
                 operation_send_reject( op, LDAP_BUSY,
                         "writing side backlogged, please keep reading", 0 );
                 return LDAP_SUCCESS;
             }
+
             if ( op->o_tag == LDAP_REQ_EXTENDED ) {
                 handler = request_extended;
             } else {
@@ -279,7 +295,7 @@ handle_one_request( LloadConnection *c )
             break;
     }
 
-    if ( c->c_state == LLOAD_C_CLOSING ) {
+    if ( state == LLOAD_C_CLOSING ) {
         operation_send_reject(
                 op, LDAP_UNAVAILABLE, "connection is shutting down", 0 );
         return LDAP_SUCCESS;
