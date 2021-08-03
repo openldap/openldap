@@ -276,7 +276,8 @@ operation_unlink_client( LloadOperation *op, LloadConnection *client )
         assert( op == removed );
         client->c_n_ops_executing--;
 
-        if ( client->c_state == LLOAD_C_BINDING ) {
+        if ( op->o_tag == LDAP_REQ_BIND &&
+                client->c_state == LLOAD_C_BINDING ) {
             client->c_state = LLOAD_C_READY;
             if ( !BER_BVISNULL( &client->c_auth ) ) {
                 ber_memfree( client->c_auth.bv_val );
