@@ -158,10 +158,6 @@ request_extended( LloadConnection *c, LloadOperation *op )
     }
     ber_free( copy, 0 );
 
-    if ( c->c_state == LLOAD_C_BINDING ) {
-        operation_send_reject( op, LDAP_PROTOCOL_ERROR, "bind in progress", 0 );
-        return LDAP_SUCCESS;
-    }
     return request_process( c, op );
 }
 
