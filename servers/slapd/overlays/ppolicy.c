@@ -1747,8 +1747,13 @@ check_expiring_password:
 		 * If the password has expired, and we're in the grace period, then
 		 * we don't need to do this bit. Similarly, if we don't have password
 		 * aging, then there's no need to do this bit either.
+		 *
+		 * If pwdtime is -1 there is no password Change Time attribute on the
+		 * entry so we skip the expiry check.
+		 *
 		 */
-		if ((ppb->pp.pwdMaxAge < 1) || (pwExpired) || (ppb->pp.pwdExpireWarning < 1))
+		if ((ppb->pp.pwdMaxAge < 1) || (pwExpired) || (ppb->pp.pwdExpireWarning < 1) ||
+			(pwtime == -1))
 			goto done;
 
 		age = (int)(now - pwtime);
@@ -1767,7 +1772,7 @@ check_expiring_password:
 			warn = ppb->pp.pwdMaxAge - age; /* seconds left until expiry */
 			if (warn < 0) warn = 0; /* something weird here - why is pwExpired not set? */
 			
-			Debug( LDAP_DEBUG_ANY,
+			Debug( LDAP_DEBUG_TRACE,
 				"ppolicy_bind: Setting warning for password expiry for %s = %d seconds\n",
 				op->o_req_dn.bv_val, warn );
 		}
