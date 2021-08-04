@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.7 Engineering
+	Fixed lloadd client state tracking (ITS#9624)
 	Fixed slapd-mdb multival crash when attribute is missing an equality matchingrule (ITS#9621)
 	Documentation
 		Updated guide to document multiprovider as replacement for mirrormode (ITS#9200)
