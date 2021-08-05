@@ -2723,7 +2723,7 @@ retry:
 				if ( slapd_shutdown )
 					return SLAPD_ABANDON;
 
-				if ( !ldap_pvt_thread_pool_pausecheck( &connection_pool ))
+				if ( !ldap_pvt_thread_pool_pausewait( &connection_pool ))
 					ldap_pvt_thread_yield();
 				ldap_pvt_thread_mutex_lock( &mt->mt_mutex );
 
@@ -3112,7 +3112,7 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 				ch_free( sop );
 				return SLAPD_ABANDON;
 			}
-			if ( !ldap_pvt_thread_pool_pausecheck( &connection_pool ))
+			if ( !ldap_pvt_thread_pool_pausewait( &connection_pool ))
 				ldap_pvt_thread_yield();
 			ldap_pvt_thread_mutex_lock( &si->si_ops_mutex );
 		}
