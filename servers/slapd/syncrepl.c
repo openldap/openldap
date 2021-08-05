@@ -1202,7 +1202,7 @@ get_pmutex(
 		while ( ldap_pvt_thread_mutex_trylock( &si->si_cookieState->cs_pmutex )) {
 			if ( slapd_shutdown )
 				return SYNC_SHUTDOWN;
-			if ( !ldap_pvt_thread_pool_pausecheck( &connection_pool ))
+			if ( !ldap_pvt_thread_pool_pausewait( &connection_pool ))
 				ldap_pvt_thread_yield();
 		}
 	}
@@ -1959,7 +1959,7 @@ do_syncrepl(
 	while ( ldap_pvt_thread_mutex_trylock( &si->si_mutex )) {
 		if ( slapd_shutdown )
 			return NULL;
-		if ( !ldap_pvt_thread_pool_pausecheck( &connection_pool ))
+		if ( !ldap_pvt_thread_pool_pausewait( &connection_pool ))
 			ldap_pvt_thread_yield();
 	}
 

@@ -765,7 +765,7 @@ accesslog_purge( void *ctx, void *arg )
 			}
 			ch_free( pd.ndn[i].bv_val );
 			ch_free( pd.dn[i].bv_val );
-			ldap_pvt_thread_pool_pausecheck( &connection_pool );
+			ldap_pvt_thread_pool_pausewait( &connection_pool );
 		}
 		ch_free( pd.ndn );
 		ch_free( pd.dn );

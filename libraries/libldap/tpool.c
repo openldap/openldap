@@ -1236,9 +1236,24 @@ ldap_pvt_thread_pool_unidle( ldap_pvt_thread_pool_t *tpool )
  * Return 1 if we waited, 0 if not, -1 at parameter error.
  */
 int
-ldap_pvt_thread_pool_pausecheck( ldap_pvt_thread_pool_t *tpool )
+ldap_pvt_thread_pool_pausewait( ldap_pvt_thread_pool_t *tpool )
 {
 	return handle_pause(tpool, PAUSE_ARG(CHECK_PAUSE));
+}
+
+/* Return 1 if a pause has been requested */
+int
+ldap_pvt_thread_pool_pausequery( ldap_pvt_thread_pool_t *tpool )
+{
+	struct ldap_int_thread_pool_s *pool;
+	if ( !tpool )
+		return -1;
+
+	pool = *tpool;
+	if ( !pool )
+		return 0;
+
+	return pool->ltp_pause != 0;
 }
 
 /*
