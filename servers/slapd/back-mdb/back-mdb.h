@@ -33,7 +33,8 @@ LDAP_BEGIN_DECL
 #define MDB_DN2ID		1
 #define MDB_ID2ENTRY	2
 #define MDB_ID2VAL		3
-#define MDB_NDB			4
+#define MDB_IDXCKP		4
+#define MDB_NDB			5
 
 /* The default search IDL stack cache depth */
 #define DEFAULT_SEARCH_STACK_DEPTH	16
@@ -122,6 +123,7 @@ struct mdb_info {
 #define mi_dn2id	mi_dbis[MDB_DN2ID]
 #define mi_ad2id	mi_dbis[MDB_AD2ID]
 #define mi_id2val	mi_dbis[MDB_ID2VAL]
+#define mi_idxckp	mi_dbis[MDB_IDXCKP]
 
 typedef struct mdb_op_info {
 	OpExtra		moi_oe;
