@@ -67,3 +67,8 @@ It is advised to determine if the new {{slapd-mdb}}(5) idlexp backend directive 
 the multival database directive should be added to the OpenLDAP 2.5 configuration as well as the exising global
 sortvals directive. Configuring any of these items requires that existing databases be reloaded for them to take full
 effect. This can be done separately from the overall upgrade from OpenLDAP 2.4 to OpenLDAP 2.5 if desired.
+
+H2: Client utility changes
+
+The deprecated "-h" (host) and "-p" (port) options for the ldap client utilities have been removed. It is required to
+use a properly formatted LDAP URI with the "-H" option in OpenLDAP 2.5 and later.
