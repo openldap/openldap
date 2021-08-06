@@ -5685,7 +5685,16 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 	}
 	ca->ca_op = op;
 
-	co.co_name = &soc_at->a_nvals[0];
+	{
+		ObjectClass *soc = oc_bvfind( &soc_at->a_nvals[0] );
+		if ( !soc ) {
+			Debug( LDAP_DEBUG_TRACE, "%s: config_add_internal: "
+				"DN=\"%s\" invalid structural objectClass %s\n",
+				log_prefix, e->e_name.bv_val, soc_at->a_vals[0].bv_val );
+			return LDAP_OBJECT_CLASS_VIOLATION;
+		}
+		co.co_name = &soc->soc_cname;
+	}
 	coptr = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 	if ( coptr == NULL ) {
 		Debug( LDAP_DEBUG_TRACE, "%s: config_add_internal: "
