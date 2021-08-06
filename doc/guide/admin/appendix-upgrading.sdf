@@ -63,7 +63,7 @@ of these backends must migrate their configurations to use {{slapd-mdb}}(5) prio
 
 H2: mdb backend
 
-Due to database format changes between OpenLDAP 2.4 and OpenLDAP 2.5 it is mandatory for existing {{slapd-mdb}}(5) databases
-to be exported via an OpenLDAP 2.4 slapcat prior to upgrade. They must then be reloaded via an OpenLDAP 2.5 slapadd after
-the binaries are updated. It is also advised to determine if the new {{slapd-mdb}}(5) idlexp backend directive and/or
-the multival database directive should be added to the OpenLDAP 2.5 configuration prior to import.
+It is advised to determine if the new {{slapd-mdb}}(5) idlexp backend directive and/or
+the multival database directive should be added to the OpenLDAP 2.5 configuration as well as the exising global
+sortvals directive. Configuring any of these items requires that existing databases be reloaded for them to take full
+effect. This can be done separately from the overall upgrade from OpenLDAP 2.4 to OpenLDAP 2.5 if desired.
