@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.7 Engineering
 	Fixed lloadd client state tracking (ITS#9624)
+	Fixed slapd bconfig to canonicalize structuralObjectclass (ITS#9611)
 	Fixed slapd-mdb multival crash when attribute is missing an equality matchingrule (ITS#9621)
 	Fixed slapo-ppolicy logging when pwdChangedTime attribute is not present (ITS#9625)
 	Documentation
