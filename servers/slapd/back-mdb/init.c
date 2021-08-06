@@ -215,15 +215,18 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 			&mdb->mi_dbis[i] );
 
 		if ( rc != 0 ) {
-			snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
-				"mdb_dbi_open(%s/%s) failed: %s (%d).", 
-				be->be_suffix[0].bv_val, 
-				mdb->mi_dbenv_home, mdmi_databases[i].bv_val,
-				mdb_strerror(rc), rc );
-			Debug( LDAP_DEBUG_ANY,
-				LDAP_XSTRING(mdb_db_open) ": %s\n",
-				cr->msg );
-			goto fail;
+			/* when read-only, it's ok for ID2VAL or IDXCKP to not exist */
+			if (( flags & MDB_CREATE ) || ( i < MDB_ID2VAL )) {
+				snprintf( cr->msg, sizeof(cr->msg), "database \"%s\": "
+					"mdb_dbi_open(%s/%s) failed: %s (%d).",
+					be->be_suffix[0].bv_val,
+					mdb->mi_dbenv_home, mdmi_databases[i].bv_val,
+					mdb_strerror(rc), rc );
+				Debug( LDAP_DEBUG_ANY,
+					LDAP_XSTRING(mdb_db_open) ": %s\n",
+					cr->msg );
+				goto fail;
+			}
 		}
 
 		if ( i == MDB_ID2ENTRY )
