@@ -1736,8 +1736,7 @@ static int
 ldif_back_modrdn( Operation *op, SlapReply *rs )
 {
 	struct ldif_info *li = (struct ldif_info *) op->o_bd->be_private;
-	struct berval new_dn = BER_BVNULL, new_ndn = BER_BVNULL;
-	struct berval p_dn, old_path;
+	struct berval old_path;
 	Entry *entry;
 	char textbuf[SLAP_TEXT_BUFLEN];
 	int rc, same_ndn;
@@ -1748,19 +1747,9 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 
 	rc = get_entry( op, &entry, &old_path, &rs->sr_text );
 	if ( rc == LDAP_SUCCESS ) {
-		/* build new dn, and new ndn for the entry */
-		if ( op->oq_modrdn.rs_newSup != NULL ) {
-			p_dn = *op->oq_modrdn.rs_newSup;
-		} else {
-			dnParent( &entry->e_name, &p_dn );
-		}
-		build_new_dn( &new_dn, &p_dn, &op->oq_modrdn.rs_newrdn, NULL );
-		dnNormalize( 0, NULL, NULL, &new_dn, &new_ndn, NULL );
-		same_ndn = !ber_bvcmp( &entry->e_nname, &new_ndn );
-		ber_memfree_x( entry->e_name.bv_val, NULL );
-		ber_memfree_x( entry->e_nname.bv_val, NULL );
-		entry->e_name = new_dn;
-		entry->e_nname = new_ndn;
+		same_ndn = !ber_bvcmp( &entry->e_nname, &op->orr_nnewDN );
+		ber_bvreplace( &entry->e_name, &op->orr_newDN );
+		ber_bvreplace( &entry->e_nname, &op->orr_nnewDN );
 
 		/* perform the modifications */
 		rc = apply_modify_to_entry( entry, op->orr_modlist, op, rs, textbuf );

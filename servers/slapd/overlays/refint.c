@@ -937,7 +937,6 @@ refint_response(
 	refint_pre *rp;
 	slap_overinst *on;
 	refint_data *id;
-	BerValue pdn;
 	refint_q *rq;
 	refint_attrs *ip;
 	int ac;
@@ -959,18 +958,8 @@ refint_response(
 	rq->do_sub = rp->do_sub;
 
 	if ( op->o_tag == LDAP_REQ_MODRDN ) {
-		if ( op->oq_modrdn.rs_newSup ) {
-			pdn = *op->oq_modrdn.rs_newSup;
-		} else {
-			dnParent( &op->o_req_dn, &pdn );
-		}
-		build_new_dn( &rq->newdn, &pdn, &op->orr_newrdn, NULL );
-		if ( op->oq_modrdn.rs_nnewSup ) {
-			pdn = *op->oq_modrdn.rs_nnewSup;
-		} else {
-			dnParent( &op->o_req_ndn, &pdn );
-		}
-		build_new_dn( &rq->newndn, &pdn, &op->orr_nnewrdn, NULL );
+		ber_dupbv( &rq->newdn, &op->orr_newDN );
+		ber_dupbv( &rq->newndn, &op->orr_nnewDN );
 	}
 
 	ldap_pvt_thread_mutex_lock( &id->qmutex );

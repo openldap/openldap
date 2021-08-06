@@ -2070,6 +2070,8 @@ typedef struct req_modrdn_s {
 	struct berval rs_nnewrdn;
 	struct berval *rs_newSup;
 	struct berval *rs_nnewSup;
+	struct berval rs_newDN;
+	struct berval rs_nnewDN;
 } req_modrdn_s;
 
 typedef struct req_add_s {
@@ -2692,6 +2694,8 @@ struct Operation {
 #define orr_nnewrdn oq_modrdn.rs_nnewrdn
 #define orr_newSup oq_modrdn.rs_newSup
 #define orr_nnewSup oq_modrdn.rs_nnewSup
+#define orr_newDN oq_modrdn.rs_newDN
+#define orr_nnewDN oq_modrdn.rs_nnewDN
 
 #define orc_ava oq_compare.rs_ava
 

@@ -1292,10 +1292,7 @@ syncprov_matchops( Operation *op, opcookie *opc, int saveit )
 	fc.fdn = &op->o_req_ndn;
 	/* compute new DN */
 	if ( op->o_tag == LDAP_REQ_MODRDN && !saveit ) {
-		struct berval pdn;
-		if ( op->orr_nnewSup ) pdn = *op->orr_nnewSup;
-		else dnParent( fc.fdn, &pdn );
-		build_new_dn( &newdn, &pdn, &op->orr_nnewrdn, op->o_tmpmemctx );
+		ber_dupbv_x( &newdn, &op->orr_nnewDN, op->o_tmpmemctx );
 		fc.fdn = &newdn;
 		freefdn = 1;
 	}

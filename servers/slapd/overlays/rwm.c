@@ -122,6 +122,12 @@ rwm_op_rollback( Operation *op, SlapReply *rs, rwm_op_state *ros )
 			op->orr_newrdn = ros->orr_newrdn;
 			op->orr_nnewrdn = ros->orr_nnewrdn;
 		}
+		if ( op->orr_newDN.bv_val != ros->orr_newDN.bv_val ) {
+			ch_free( op->orr_newDN.bv_val );
+			ch_free( op->orr_nnewDN.bv_val );
+			op->orr_newDN = ros->orr_newDN;
+			op->orr_nnewDN = ros->orr_nnewDN;
+		}
 		break;
 	case LDAP_REQ_SEARCH:
 		op->o_tmpfree( ros->mapped_attrs, op->o_tmpmemctx );
@@ -725,7 +731,7 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 	struct ldaprwmap	*rwmap = 
 			(struct ldaprwmap *)on->on_bi.bi_private;
 	
-	int			rc;
+	int			rc, changedNewDN = 0;
 	dncookie		dc;
 
 	rwm_op_cb		*roc = rwm_callback_get( op );
@@ -751,6 +757,7 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 		}
 
 		if ( op->orr_newSup->bv_val != newSup.bv_val ) {
+			changedNewDN = 1;
 			op->orr_newSup = op->o_tmpalloc( sizeof( struct berval ),
 				op->o_tmpmemctx );
 			op->orr_nnewSup = op->o_tmpalloc( sizeof( struct berval ),
@@ -781,9 +788,27 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 		}
 
 		if ( op->orr_newrdn.bv_val != newrdn.bv_val ) {
+			changedNewDN = 1;
 			op->orr_newrdn = newrdn;
 			op->orr_nnewrdn = nnewrdn;
 		}
+	}
+
+	/*
+	 * Update the new DN if changed
+	 */
+	if ( changedNewDN ) {
+		struct berval pdn, pndn;
+
+		if ( op->orr_newSup ) {
+			pdn = *op->orr_newSup;
+			pndn = *op->orr_nnewSup;
+		} else {
+			dnParent( &op->o_req_dn, &pdn );
+			dnParent( &op->o_req_ndn, &pndn );
+		}
+		build_new_dn( &op->orr_newDN, &pdn, &op->orr_newrdn, op->o_tmpmemctx );
+		build_new_dn( &op->orr_nnewDN, &pndn, &op->orr_nnewrdn, op->o_tmpmemctx );
 	}
 
 	/*
@@ -816,6 +841,13 @@ err:;
 			ch_free( op->orr_nnewrdn.bv_val );
 			op->orr_newrdn = roc->ros.orr_newrdn;
 			op->orr_nnewrdn = roc->ros.orr_nnewrdn;
+		}
+
+		if ( op->orr_newDN.bv_val != roc->ros.orr_newDN.bv_val ) {
+			op->o_tmpfree( op->orr_newDN.bv_val, op->o_tmpmemctx );
+			op->o_tmpfree( op->orr_nnewDN.bv_val, op->o_tmpmemctx );
+			op->orr_newDN = roc->ros.orr_newDN;
+			op->orr_nnewDN = roc->ros.orr_nnewDN;
 		}
 	}
 

@@ -31,7 +31,6 @@ ndb_back_modrdn( Operation *op, SlapReply *rs )
 	struct ndb_info *ni = (struct ndb_info *) op->o_bd->be_private;
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
-	struct berval	new_dn = BER_BVNULL, new_ndn = BER_BVNULL;
 	Entry		e = {0};
 	Entry		e2 = {0};
 	char textbuf[SLAP_TEXT_BUFLEN];
@@ -340,23 +339,15 @@ retry:	/* transaction retry */
 			(long) e2.e_id, 0, 0 );
 	}
 
-	/* Build target dn and make sure target entry doesn't exist already. */
-	if (!new_dn.bv_val) {
-		build_new_dn( &new_dn, &e2.e_name, &op->oq_modrdn.rs_newrdn, NULL ); 
-	}
-
-	if (!new_ndn.bv_val) {
-		build_new_dn( &new_ndn, &e2.e_nname, &op->oq_modrdn.rs_nnewrdn, NULL ); 
-	}
-
+	/* Make sure target entry doesn't exist already. */
 	Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(ndb_back_modrdn) ": new ndn=%s\n",
-		new_ndn.bv_val, 0, 0 );
+		op->orr_nnewDN.bv_val, 0, 0 );
 
 	/* Allow rename to same DN */
-	if ( !bvmatch ( &new_ndn, &e.e_nname )) {
+	if ( !bvmatch ( &op->orr_nnewDN, &e.e_nname )) {
 		rdn2.nr_num = 0;
-		e2.e_name = new_dn;
-		e2.e_nname = new_ndn;
+		e2.e_name = op->orr_newDN;
+		e2.e_nname = op->orr_nnewDN;
 		NA2.ocs = &matched;
 		rs->sr_err = ndb_entry_get_info( op, &NA2, 1, NULL );
 		NA2.ocs = NULL;
@@ -540,9 +531,6 @@ return_results:
 
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
-
-	if( new_dn.bv_val != NULL ) free( new_dn.bv_val );
-	if( new_ndn.bv_val != NULL ) free( new_ndn.bv_val );
 
 	if( preread_ctrl != NULL && (*preread_ctrl) != NULL ) {
 		slap_sl_free( (*preread_ctrl)->ldctl_value.bv_val, op->o_tmpmemctx );

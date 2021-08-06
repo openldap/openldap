@@ -5133,6 +5133,8 @@ config_rename_one( Operation *op, SlapReply *rs, Entry *e,
 		op->orr_nnewrdn = *nnewrdn;
 		op->orr_newSup = NULL;
 		op->orr_nnewSup = NULL;
+		op->orr_newDN = e->e_name;
+		op->orr_nnewDN = e->e_nname;
 		op->orr_deleteoldrdn = 1;
 		op->orr_modlist = NULL;
 		slap_modrdn2mods( op, rs );

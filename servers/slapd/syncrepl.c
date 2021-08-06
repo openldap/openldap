@@ -3149,9 +3149,18 @@ syncrepl_message_to_op(
 		} else {
 			op->orr_newSup = NULL;
 			op->orr_nnewSup = NULL;
+			dnParent( &op->o_req_dn, &psup );
+			dnParent( &op->o_req_ndn, &nsup );
 		}
 		op->orr_newrdn = prdn;
 		op->orr_nnewrdn = nrdn;
+		build_new_dn( &op->orr_newDN, &psup, &op->orr_newrdn, op->o_tmpmemctx );
+		build_new_dn( &op->orr_nnewDN, &nsup, &op->orr_nnewrdn, op->o_tmpmemctx );
+		if ( BER_BVISNULL( &sup ) ) {
+			BER_BVZERO( &psup );
+			BER_BVZERO( &nsup );
+		}
+
 		op->orr_deleteoldrdn = deleteOldRdn;
 		op->orr_modlist = NULL;
 		if ( slap_modrdn2mods( op, &rs ) ) {
@@ -3212,6 +3221,10 @@ done:
 		if ( !BER_BVISNULL( &prdn ) ) {
 			ch_free( prdn.bv_val );
 		}
+	}
+	if ( op->o_tag == LDAP_REQ_MODRDN ) {
+		op->o_tmpfree( op->orr_newDN.bv_val, op->o_tmpmemctx );
+		op->o_tmpfree( op->orr_nnewDN.bv_val, op->o_tmpmemctx );
 	}
 	if ( freeReqDn ) {
 		ch_free( op->o_req_ndn.bv_val );
@@ -4221,6 +4234,8 @@ retry_add:;
 				op->orr_newSup = NULL;
 				op->orr_nnewSup = NULL;
 			}
+			op->orr_newDN = entry->e_name;
+			op->orr_nnewDN = entry->e_nname;
 			op->orr_deleteoldrdn = dni.delOldRDN;
 			op->orr_modlist = NULL;
 #ifdef LDAP_CONTROL_X_DIRSYNC

@@ -341,6 +341,10 @@ slapi_int_connection_done_pb( Slapi_PBlock *pb )
 			op->o_tmpfree( op->orr_nnewSup->bv_val, op->o_tmpmemctx );
 			op->o_tmpfree( op->orr_nnewSup, op->o_tmpmemctx );
 		}
+		if ( !BER_BVISNULL( &op->orr_newDN ))
+			op->o_tmpfree( op->orr_newDN.bv_val, op->o_tmpmemctx );
+		if ( !BER_BVISNULL( &op->orr_nnewDN ))
+			op->o_tmpfree( op->orr_nnewDN.bv_val, op->o_tmpmemctx );
 		slap_mods_free( op->orr_modlist, 1 );
 		break;
 	case LDAP_REQ_ADD:

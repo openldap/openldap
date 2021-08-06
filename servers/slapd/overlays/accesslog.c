@@ -1784,13 +1784,8 @@ static int accesslog_response(Operation *op, SlapReply *rs) {
 			NULL );
 		if ( op->orr_newSup ) {
 			attr_merge_one( e, ad_reqNewSuperior, op->orr_newSup, op->orr_nnewSup );
-			bv2 = *op->orr_nnewSup;
-		} else {
-			dnParent( &op->o_req_ndn, &bv2 );
 		}
-		build_new_dn( &bv, &bv2, &op->orr_nnewrdn, op->o_tmpmemctx );
-		attr_merge_one( e, ad_reqNewDN, &bv, NULL );
-		op->o_tmpfree( bv.bv_val, op->o_tmpmemctx );
+		attr_merge_one( e, ad_reqNewDN, &op->orr_newDN, &op->orr_nnewDN );
 		break;
 
 	case LOG_EN_COMPARE:
