@@ -51,7 +51,7 @@ wt_ctx_init(struct wt_info *wi)
 	rc = wi->wi_cache->open_session(wi->wi_cache, NULL, NULL, &wc->idlcache_session);
 	if( rc ) {
 		Debug( LDAP_DEBUG_ANY,
-			   "wt_ctx_init: cannnot open idlcache session %s(%d)\n",
+			   "wt_ctx_init: cannot open idlcache session %s(%d)\n",
 			   wiredtiger_strerror(rc), rc );
 		return NULL;
 	}
