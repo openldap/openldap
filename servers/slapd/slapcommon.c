@@ -554,6 +554,7 @@ slap_tool_init(
 
 		case 'u':	/* dry run */
 			dryrun++;
+			mode |= SLAP_TOOL_DRYRUN;
 			break;
 
 		case 'v':	/* turn on verbose */

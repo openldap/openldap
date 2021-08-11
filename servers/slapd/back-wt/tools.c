@@ -49,6 +49,9 @@ wt_tool_entry_open( BackendDB *be, int mode )
     struct wt_info *wi = (struct wt_info *) be->be_private;
 	int rc;
 
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
+
 	wc = wt_ctx_init(wi);
     if( !wc ){
 		Debug( LDAP_DEBUG_ANY,
@@ -71,6 +74,9 @@ wt_tool_entry_open( BackendDB *be, int mode )
 int
 wt_tool_entry_close( BackendDB *be )
 {
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
+
 	if( reader ) {
 		reader->close(reader);
 		reader = NULL;
@@ -299,6 +305,9 @@ wt_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
     int rc;
 	Operation op = {0};
 	Opheader ohdr = {0};
+
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
 
 	assert( slapMode & SLAP_TOOL_MODE );
 	assert( text != NULL );

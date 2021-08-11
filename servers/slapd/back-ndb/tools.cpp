@@ -62,6 +62,9 @@ int ndb_tool_entry_open(
 {
 	struct ndb_info *ni = (struct ndb_info *) be->be_private;
 
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
+
 	myNdb = new Ndb( ni->ni_cluster[0], ni->ni_dbname );
 	return myNdb->init(1024);
 }
@@ -70,6 +73,9 @@ extern "C"
 int ndb_tool_entry_close(
 	BackendDB *be )
 {
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
+
 	if ( myPutTxn ) {
 		int rc = myPutTxn->execute(NdbTransaction::Commit);
 		if( rc != 0 ) {
@@ -407,6 +413,9 @@ ID ndb_tool_entry_put(
 	assert( text != NULL );
 	assert( text->bv_val != NULL );
 	assert( text->bv_val[0] == '\0' );	/* overconservative? */
+
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
 
 	Debug( LDAP_DEBUG_TRACE, "=> " LDAP_XSTRING(ndb_tool_entry_put)
 		"( %ld, \"%s\" )\n", (long) e->e_id, e->e_dn, 0 );

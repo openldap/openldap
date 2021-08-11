@@ -1836,6 +1836,9 @@ ldif_tool_entry_open( BackendDB *be, int mode )
 {
 	struct ldif_tool *tl = &((struct ldif_info *) be->be_private)->li_tool;
 
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
+
 	tl->ecurrent = 0;
 	return 0;
 }
@@ -1846,6 +1849,9 @@ ldif_tool_entry_close( BackendDB *be )
 	struct ldif_tool *tl = &((struct ldif_info *) be->be_private)->li_tool;
 	Entry **entries = tl->entries;
 	ID i;
+
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
 
 	for ( i = tl->ecount; i--; )
 		if ( entries[i] )
@@ -1946,6 +1952,9 @@ ldif_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 	struct berval path;
 	char *parentdir;
 	Operation op = {0};
+
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
 
 	op.o_bd = be;
 	rc = ldif_prepare_create( &op, e, &path, &parentdir, &errmsg );

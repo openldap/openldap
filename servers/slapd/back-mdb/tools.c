@@ -101,6 +101,9 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep );
 int mdb_tool_entry_open(
 	BackendDB *be, int mode )
 {
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
+
 	/* In Quick mode, commit once per 500 entries */
 	mdb_writes = 0;
 	if ( slapMode & SLAP_TOOL_QUICK )
@@ -147,6 +150,9 @@ int mdb_tool_entry_open(
 int mdb_tool_entry_close(
 	BackendDB *be )
 {
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
+
 #ifdef MDB_TOOL_IDL_CACHING
 	if ( mdb_tool_info ) {
 		int i;
@@ -651,6 +657,9 @@ ID mdb_tool_entry_put(
 	struct mdb_info *mdb;
 	Operation op = {0};
 	Opheader ohdr = {0};
+
+	if ( slapMode & SLAP_TOOL_DRYRUN )
+		return 0;
 
 	assert( be != NULL );
 	assert( slapMode & SLAP_TOOL_MODE );
