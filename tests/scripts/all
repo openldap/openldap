@@ -50,16 +50,26 @@ for CMD in $SRCDIR/scripts/test*; do
 
 	BCMD=`basename $CMD`
 	if [ -x "$CMD" ]; then
-		echo ">>>>> Starting ${TB}$BCMD${TN} for $BACKEND..."
+		MSG=">>>>> Starting ${TB}$BCMD${TN} for $BACKEND..."
+		[ -n "$TESTINST" ] && echo "$MSG" >&2
+		echo "$MSG"
 		START=`date +%s`
-		$CMD
+		if [ -n "$TESTINST" ]; then
+			$CMD 2>&1
+		else
+			$CMD
+		fi
 		RC=$?
 		END=`date +%s`
 
 		if test $RC -eq 0 ; then
-			echo ">>>>> $BCMD completed ${TB}OK${TN} for $BACKEND after $(( $END - $START )) seconds."
+			MSG=">>>>> Finished $BCMD for $BACKEND after $(( $END - $START )) seconds."
+			[ -n "$TESTINST" ] && echo "$MSG" >&2
+			echo "$MSG"
 		else
-			echo ">>>>> $BCMD ${TB}failed${TN} for $BACKEND after $(( $END - $START )) seconds"
+			MSG=">>>>> Failed   $BCMD for $BACKEND after $(( $END - $START )) seconds"
+			[ -n "$TESTINST" ] && echo "$MSG" >&2
+			echo "$MSG"
 			FAILCOUNT=`expr $FAILCOUNT + 1`
 
 			if [ -n "$NOEXIT" ]; then
@@ -70,7 +80,9 @@ for CMD in $SRCDIR/scripts/test*; do
 			fi
 		fi
 	else
-		echo ">>>>> Skipping ${TB}$BCMD${TN} for $BACKEND."
+		MSG=">>>>> Skipping ${TB}$BCMD${TN} for $BACKEND."
+		[ -n "$TESTINST" ] && echo "$MSG" >&2
+		echo "$MSG"
 		SKIPCOUNT=`expr $SKIPCOUNT + 1`
 		RC="-"
 	fi
