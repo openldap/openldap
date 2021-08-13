@@ -33,6 +33,24 @@ alltests: tests
 	@$(MAKE) ldif
 	@$(MAKE) wt
 
+# parallel test targets
+partests: pmdb plloadd psql pldif pwt
+
+pmdb:
+	@$(MAKE) mdb TESTINST=0 > testout.0
+
+plloadd:
+	@$(MAKE) lloadd TESTINST=1 > testout.1
+
+psql:
+	@$(MAKE) sql TESTINST=2 > testout.2
+
+pldif:
+	@$(MAKE) ldif TESTINST=3 > testout.3
+
+pwt:
+	@$(MAKE) wt TESTINST=4 > testout.4
+
 mdb test-mdb:	mdb-$(BUILD_MDB)
 mdb-no:
 	@echo "run configure with --enable-mdb to run MDB tests"
