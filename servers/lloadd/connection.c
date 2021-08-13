@@ -515,7 +515,7 @@ connections_walk(
 int
 lload_connection_close( LloadConnection *c, void *arg )
 {
-    int gentle = *(int *)arg;
+    int unlock, gentle = *(int *)arg;
     LloadOperation *op;
 
     Debug( LDAP_DEBUG_CONNS, "lload_connection_close: "
@@ -526,20 +526,28 @@ lload_connection_close( LloadConnection *c, void *arg )
     assert( IS_ALIVE( c, c_refcnt ) );
 
     /* Need to acquire this first, even if we won't need it */
+    unlock = 1;
     checked_lock( &c->c_io_mutex );
     CONNECTION_LOCK(c);
 
-    /* Only if it's a client */
-    if ( c->c_state == LLOAD_C_OPEN && c->c_destroy == clients_destroy ) {
+    /* Only if it's a usable client */
+    if ( ( c->c_state == LLOAD_C_READY || c->c_state == LLOAD_C_BINDING ) &&
+            c->c_destroy == client_destroy ) {
         if ( c->c_pendingber != NULL ||
                 (c->c_pendingber = ber_alloc()) != NULL ) {
             ber_printf( c->c_pendingber, "t{tit{esss}}", LDAP_TAG_MESSAGE,
                     LDAP_TAG_MSGID, LDAP_RES_UNSOLICITED,
                     LDAP_RES_EXTENDED, LDAP_UNAVAILABLE, "",
                     "connection closing", LDAP_NOTICE_OF_DISCONNECTION );
+            unlock = 0;
+            checked_unlock( &c->c_io_mutex );
+            CONNECTION_UNLOCK(c);
+            connection_write_cb( -1, 0, c );
+            CONNECTION_LOCK(c);
         }
     }
-    checked_unlock( &c->c_io_mutex );
+    if ( unlock )
+        checked_unlock( &c->c_io_mutex );
 
     if ( !gentle || !c->c_ops ) {
         CONNECTION_DESTROY(c);
