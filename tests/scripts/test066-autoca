@@ -21,6 +21,13 @@ if test $AUTOCA = autocano; then
 	exit 0
 fi 
 
+if test $BACKEND = ldif ; then
+	# autoca tries to modify an entry in a search response,
+	# which deadlocks because the tree is readlocked by the search.
+	echo "Test does not support $BACKEND backend, test skipped"
+	exit 0
+fi
+
 CFDIR=$TESTDIR/slapd.d
 
 mkdir -p $TESTDIR $CFDIR $DBDIR1
