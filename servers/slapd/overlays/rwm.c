@@ -730,8 +730,9 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 	slap_overinst		*on = (slap_overinst *) op->o_bd->bd_info;
 	struct ldaprwmap	*rwmap = 
 			(struct ldaprwmap *)on->on_bi.bi_private;
+	struct berval pdn, pndn;
 	
-	int			rc, changedNewDN = 0;
+	int			rc;
 	dncookie		dc;
 
 	rwm_op_cb		*roc = rwm_callback_get( op );
@@ -757,7 +758,6 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 		}
 
 		if ( op->orr_newSup->bv_val != newSup.bv_val ) {
-			changedNewDN = 1;
 			op->orr_newSup = op->o_tmpalloc( sizeof( struct berval ),
 				op->o_tmpmemctx );
 			op->orr_nnewSup = op->o_tmpalloc( sizeof( struct berval ),
@@ -765,6 +765,8 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 			*op->orr_newSup = newSup;
 			*op->orr_nnewSup = nnewSup;
 		}
+		pdn = newSup;
+		pndn = nnewSup;
 	}
 
 	/*
@@ -788,27 +790,9 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 		}
 
 		if ( op->orr_newrdn.bv_val != newrdn.bv_val ) {
-			changedNewDN = 1;
 			op->orr_newrdn = newrdn;
 			op->orr_nnewrdn = nnewrdn;
 		}
-	}
-
-	/*
-	 * Update the new DN if changed
-	 */
-	if ( changedNewDN ) {
-		struct berval pdn, pndn;
-
-		if ( op->orr_newSup ) {
-			pdn = *op->orr_newSup;
-			pndn = *op->orr_nnewSup;
-		} else {
-			dnParent( &op->o_req_dn, &pdn );
-			dnParent( &op->o_req_ndn, &pndn );
-		}
-		build_new_dn( &op->orr_newDN, &pdn, &op->orr_newrdn, op->o_tmpmemctx );
-		build_new_dn( &op->orr_nnewDN, &pndn, &op->orr_nnewrdn, op->o_tmpmemctx );
 	}
 
 	/*
@@ -820,6 +804,16 @@ rwm_op_modrdn( Operation *op, SlapReply *rs )
 		send_ldap_error( op, rs, rc, "renameDN massage error" );
 		goto err;
 	}
+	if ( !op->orr_newSup ) {
+		dnParent( &op->o_req_dn, &pdn );
+		dnParent( &op->o_req_ndn, &pndn );
+	}
+
+	/*
+	 * Update the new DN
+	 */
+	build_new_dn( &op->orr_newDN, &pdn, &op->orr_newrdn, op->o_tmpmemctx );
+	build_new_dn( &op->orr_nnewDN, &pndn, &op->orr_nnewrdn, op->o_tmpmemctx );
 
 	op->o_callback = &roc->cb;
 
