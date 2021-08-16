@@ -5,9 +5,11 @@ OpenLDAP 2.5.7 Engineering
 	Fixed slapd bconfig to canonicalize structuralObjectclass (ITS#9611)
 	Fixed slapd-mdb multival crash when attribute is missing an equality matchingrule (ITS#9621)
 	Fixed slapd-mdb compatibility with OpenLDAP 2.4 MDB databases (ITS#8958)
+	Fixed slapo-accesslog to make reqMod optional (ITS#9569)
 	Fixed slapo-ppolicy logging when pwdChangedTime attribute is not present (ITS#9625)
 	Documentation
 		Updated guide to document multiprovider as replacement for mirrormode (ITS#9200)
+		slapo-accesslog(5) note that reqMod is optional (ITS#9569)
 
 OpenLDAP 2.5.6 Release (2021/07/27)
 	Fixed libldap buffer overflow (ITS#9578)
