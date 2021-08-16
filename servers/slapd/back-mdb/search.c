@@ -1326,7 +1326,7 @@ static void *search_stack( Operation *op )
 	}
 
 	if ( !ic ) {
-		ic = ch_malloc(( mdb->mi_search_stack_depth + 2 ) * MDB_idl_um_size
+		ic = ch_malloc(( mdb->mi_search_stack_depth + 2 ) * (size_t)MDB_idl_um_size
 			* sizeof( ID ) + sizeof( IDLchunk ) );
 		ic->logn = MDB_idl_logn;
 		if ( op->o_threadctx ) {
