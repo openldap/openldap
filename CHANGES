@@ -5,6 +5,7 @@ OpenLDAP 2.5.7 Engineering
 	Fixed slapd bconfig to canonicalize structuralObjectclass (ITS#9611)
 	Fixed slapd-mdb multival crash when attribute is missing an equality matchingrule (ITS#9621)
 	Fixed slapd-mdb compatibility with OpenLDAP 2.4 MDB databases (ITS#8958)
+	Fixed slapd-monitor number of ops executing with asynchronous backends (ITS#9628)
 	Fixed slapd-sql to add support for ppolicy attributes (ITS#9629)
 	Fixed slapd-sql to close transactions after bind and search (ITS#9630)
 	Fixed slapo-accesslog to make reqMod optional (ITS#9569)
