@@ -2,6 +2,10 @@ OpenLDAP 2.4 Change Log
 
 OpenLDAP 2.4.60 Engineering
 	Fixed slapo-syncprov delete of nonexistent sessionlog (ITS#9608)
+	Fixed slapo-accesslog to make reqMod optional (ITS#9569)
+	Documentation
+		slapo-accesslog(5) note that reqMod is optional (ITS#9569)
+
 
 OpenLDAP 2.4.59 Release (2021/06/03)
 	Fixed libldap TLSv1.3 cipher suites with OpenSSL 1.1.1 (ITS#9521)
