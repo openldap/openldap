@@ -12,6 +12,7 @@ OpenLDAP 2.5.7 Engineering
 	Fixed slapo-ppolicy logging when pwdChangedTime attribute is not present (ITS#9625)
 	Documentation
 		slapo-accesslog(5) note that reqMod is optional (ITS#9569)
+		Add ldapvc(1) man page (ITS#9549)
 		Add guide section on load balancer (ITS#9443)
 		Updated guide to document multiprovider as replacement for mirrormode (ITS#9200)
 		Updated guide to clarify slapd-mdb upgrade requirements (ITS#9200)
