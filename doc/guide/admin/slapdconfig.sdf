@@ -595,7 +595,7 @@ H4: idlexp <exponent>
 
 Specify a power of 2 for the maximum size of an index slot.
 The default is 16, yielding a maximum slot size of 2^16 or 65536.
-The specified value must be in the range of 16-31.
+The specified value must be in the range of 16-30.
 
 This setting helps with the case where certain search filters are
 slow to return results due to an index slot having collapsed to a

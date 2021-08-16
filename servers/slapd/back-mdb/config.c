@@ -167,7 +167,8 @@ mdb_bk_cfg( ConfigArgs *c )
 		mdb_idl_reset();
 		c->bi->bi_private = 0;
 	} else {
-		if ( c->value_int >= MDB_IDL_LOGN && c->value_int < sizeof(int) * CHAR_BIT ) {
+		/* with 32 bit ints, db_size max is 2^30 and um_size max is 2^31 */
+		if ( c->value_int >= MDB_IDL_LOGN && ( c->value_int < sizeof(int) * CHAR_BIT - 1 )) {
 			MDB_idl_logn = c->value_int;
 			mdb_idl_reset();
 			c->bi->bi_private = (void *)8;	/* non-NULL to show we're using it */
