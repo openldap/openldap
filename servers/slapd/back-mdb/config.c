@@ -210,52 +210,23 @@ mdb_online_index( void *ctx, void *arg )
 	ID id;
 	Entry *e;
 	int rc, getnext = 1;
-	int i, first = 1;
-	int intr = 0;
+	int i;
 
 	connection_fake_init( &conn, &opbuf, ctx );
 	op = &opbuf.ob_op;
 
 	op->o_bd = be;
 
+	id = 1;
 	key.mv_size = sizeof(ID);
 
 	while ( 1 ) {
+		if ( slapd_shutdown )
+			break;
+
 		rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txn );
 		if ( rc )
 			break;
-
-		/* pick up where we left off */
-		if ( first ) {
-			MDB_val k0;
-			unsigned short s = 0;
-
-			first = 0;
-			k0.mv_size = sizeof(s);
-			k0.mv_data = &s;
-			rc = mdb_get( txn, mdb->mi_idxckp, &k0, &data );
-			if ( rc ) {
-				mdb_txn_abort( txn );
-				break;
-			}
-			memcpy( &id, data.mv_data, sizeof( id ));
-		}
-
-		/* Save our stopping point */
-		if ( slapd_shutdown || ldap_pvt_thread_pool_pausequery( &connection_pool )) {
-			MDB_val k0;
-			unsigned short s = 0;
-
-			k0.mv_size = sizeof(s);
-			k0.mv_data = &s;
-			data.mv_data = &id;
-			data.mv_size = sizeof( id );
-			mdb_put( txn, mdb->mi_idxckp, &k0, &data, 0 );
-			mdb_txn_commit( txn );
-			intr = 1;
-			break;
-		}
-
 		rc = mdb_cursor_open( txn, mdb->mi_id2entry, &curs );
 		if ( rc ) {
 			mdb_txn_abort( txn );
@@ -305,135 +276,23 @@ mdb_online_index( void *ctx, void *arg )
 		getnext = 1;
 	}
 
-	/* all done */
-	if ( !intr ) {
-		for ( i = 0; i < mdb->mi_nattrs; i++ ) {
-			if ( mdb->mi_attrs[ i ]->ai_indexmask & MDB_INDEX_DELETING
-				|| mdb->mi_attrs[ i ]->ai_newmask == 0 )
-			{
-				continue;
-			}
-			mdb->mi_attrs[ i ]->ai_indexmask = mdb->mi_attrs[ i ]->ai_newmask;
-			mdb->mi_attrs[ i ]->ai_newmask = 0;
+	for ( i = 0; i < mdb->mi_nattrs; i++ ) {
+		if ( mdb->mi_attrs[ i ]->ai_indexmask & MDB_INDEX_DELETING
+			|| mdb->mi_attrs[ i ]->ai_newmask == 0 )
+		{
+			continue;
 		}
-		/* zero out checkpoint DB */
-		rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txn );
-		if ( !rc ) {
-			mdb_drop( txn, mdb->mi_idxckp, 0 );
-			mdb_txn_commit( txn );
-		}
+		mdb->mi_attrs[ i ]->ai_indexmask = mdb->mi_attrs[ i ]->ai_newmask;
+		mdb->mi_attrs[ i ]->ai_newmask = 0;
 	}
 
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-	if ( ldap_pvt_runqueue_isrunning( &slapd_rq, rtask ))
-		ldap_pvt_runqueue_stoptask( &slapd_rq, rtask );
-	if ( intr && !slapd_shutdown ) {
-		/* on pause, resched to run again immediately */
-		time_t t = rtask->interval.tv_sec;
-		rtask->interval.tv_sec = 0;
-		ldap_pvt_runqueue_resched( &slapd_rq, rtask, 0 );
-		rtask->interval.tv_sec = t;
-	} else if ( mdb->mi_index_task ) {
-		mdb->mi_index_task = NULL;
-		ldap_pvt_runqueue_remove( &slapd_rq, rtask );
-	}
+	ldap_pvt_runqueue_stoptask( &slapd_rq, rtask );
+	mdb->mi_index_task = NULL;
+	ldap_pvt_runqueue_remove( &slapd_rq, rtask );
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 
 	return NULL;
-}
-
-static int
-mdb_setup_indexer( struct mdb_info *mdb )
-{
-	MDB_txn *txn;
-	MDB_cursor *curs;
-	MDB_val key, data;
-	int i, rc;
-	unsigned short s;
-
-	rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txn );
-	if ( rc )
-		return rc;
-	rc = mdb_cursor_open( txn, mdb->mi_idxckp, &curs );
-	if ( rc ) {
-		mdb_txn_abort( txn );
-		return rc;
-	}
-
-	key.mv_size = sizeof( s );
-	key.mv_data = &s;
-
-	/* set indexer task to start at first entry */
-	{
-		ID id = 0;
-		s = 0;			/* key 0 records next entryID to index */
-		data.mv_size = sizeof( ID );
-		data.mv_data = &id;
-		rc = mdb_cursor_put( curs, &key, &data, 0 );
-		if ( rc )
-			goto done;
-	}
-
-	/* record current and new index masks for all new index definitions */
-	{
-		slap_mask_t mask[2];
-		data.mv_size = sizeof(mask);
-		data.mv_data = mask;
-
-		for ( i = 0; i < mdb->mi_nattrs; i++ ) {
-			if ( !mdb->mi_attrs[i]->ai_newmask ) continue;
-			s = mdb->mi_adxs[ mdb->mi_attrs[i]->ai_desc->ad_index ];
-			mask[0] = mdb->mi_attrs[i]->ai_indexmask;
-			mask[1] = mdb->mi_attrs[i]->ai_newmask;
-			rc = mdb_cursor_put( curs, &key, &data, 0 );
-			if ( rc )
-				goto done;
-		}
-	}
-done:
-	mdb_cursor_close( curs );
-	if ( !rc )
-		mdb_txn_commit( txn );
-	else
-		mdb_txn_abort( txn );
-	return rc;
-}
-
-void
-mdb_resume_index( BackendDB *be, MDB_txn *txn )
-{
-	struct mdb_info *mdb = be->be_private;
-	MDB_cursor *curs;
-	MDB_val key, data;
-	int i, rc;
-	unsigned short *s;
-	slap_mask_t *mask;
-	AttributeDescription *ad;
-
-	rc = mdb_cursor_open( txn, mdb->mi_idxckp, &curs );
-	if ( rc )
-		return;
-
-	while(( rc = mdb_cursor_get( curs, &key, &data, MDB_NEXT )) == 0) {
-		s = key.mv_data;
-		if ( !*s )
-			continue;
-		ad = mdb->mi_ads[*s];
-		for ( i=0; i<mdb->mi_nattrs; i++) {
-			if (mdb->mi_attrs[i]->ai_desc == ad ) {
-				mask = data.mv_data;
-				mdb->mi_attrs[i]->ai_indexmask = mask[0];
-				mdb->mi_attrs[i]->ai_newmask = mask[1];
-				break;
-			}
-		}
-	}
-	mdb_cursor_close( curs );
-	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-	mdb->mi_index_task = ldap_pvt_runqueue_insert( &slapd_rq, 36000,
-		mdb_online_index, be,
-		LDAP_XSTRING(mdb_online_index), be->be_suffix[0].bv_val );
-	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 }
 
 /* Cleanup loose ends after Modify completes */
@@ -469,7 +328,6 @@ mdb_cf_cleanup( ConfigArgs *c )
 		rc = mdb_attr_dbs_open( c->be, NULL, &c->reply );
 		if ( rc )
 			rc = LDAP_OTHER;
-		mdb_setup_indexer( mdb );
 	}
 	return rc;
 }
