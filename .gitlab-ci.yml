@@ -27,7 +27,7 @@ build-openssl-heimdal-lloadd:
     - autoreconf
     - mkdir obj
     - cd obj
-    - ../configure --enable-backends=mod --enable-overlays=mod --enable-modules --enable-dynamic --disable-ndb --enable-balancer=mod --enable-argon2 --with-systemd
+    - ../configure --enable-backends=mod --enable-overlays=mod --enable-modules --enable-dynamic --enable-balancer=mod --enable-argon2 --with-systemd
     - make depend
     - make
     - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"
@@ -49,7 +49,7 @@ build-gnutls-mit-standalone-lloadd:
     - autoreconf
     - mkdir obj
     - cd obj
-    - ../configure --enable-backends=mod --enable-overlays=mod --disable-autoca --enable-modules --enable-dynamic --disable-ndb --enable-balancer=yes --enable-argon2 --with-systemd
+    - ../configure --enable-backends=mod --enable-overlays=mod --disable-autoca --enable-modules --enable-dynamic --enable-balancer=yes --enable-argon2 --with-systemd
     - make depend
     - make
     - export DEBUGINFOD_URLS="${DEBUGINFOD_URLS-https://debuginfod.debian.net}"

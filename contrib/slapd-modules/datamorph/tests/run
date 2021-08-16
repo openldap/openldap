@@ -124,7 +124,6 @@ fi
 INDEXDB=noindexdb MAINDB=nomaindb
 case $BACKEND in
 	mdb) INDEXDB=indexdb MAINDB=maindb ;;
-	ndb) INDEXDB=indexdb ;;
 esac
 
 export	BACKEND BACKENDTYPE INDEXDB MAINDB \
@@ -174,16 +173,6 @@ if test -d ${TESTDIR} ; then
 		echo "Cleaning up only database directories leftover from previous run."
 		/bin/rm -rf ${TESTDIR}/db.*
 	fi
-fi
-if test $BACKEND = ndb ; then
-	mysql --user root <<EOF
-	drop database if exists db_1;
-	drop database if exists db_2;
-	drop database if exists db_3;
-	drop database if exists db_4;
-	drop database if exists db_5;
-	drop database if exists db_6;
-EOF
 fi
 mkdir -p ${TESTDIR}
 

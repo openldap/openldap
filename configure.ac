@@ -301,7 +301,6 @@ Backends="dnssrv \
 	mdb \
 	meta \
 	asyncmeta \
-	ndb \
 	null \
 	passwd \
 	perl \
@@ -325,8 +324,6 @@ OL_ARG_ENABLE(mdb, [AS_HELP_STRING([--enable-mdb], [enable mdb database backend]
 OL_ARG_ENABLE(meta, [AS_HELP_STRING([--enable-meta], [enable metadirectory backend])],
 	no, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE(asyncmeta, [AS_HELP_STRING([--enable-asyncmeta], [enable asynchronous metadirectory backend])],
-	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(ndb, [AS_HELP_STRING([--enable-ndb], [enable MySQL NDB Cluster backend])],
 	no, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE(null, [AS_HELP_STRING([--enable-null], [enable null backend])],
 	no, [no yes mod], ol_enable_backends)dnl
@@ -1963,47 +1960,6 @@ if test $ol_enable_sql != no ; then
 fi
 
 dnl ----------------------------------------------------------------
-dnl MySQL NDBapi
-dnl Note: uses C++, but we don't want to add C++ test overhead to
-dnl the rest of the libtool machinery.
-ol_link_ndb=no
-if test $ol_enable_ndb != no ; then
-	AC_CHECK_PROG(MYSQL,mysql_config,yes)
-	if test "$MYSQL" != yes ; then
-		AC_MSG_ERROR([could not locate mysql_config])
-	fi
-
-	SQL_INC=`mysql_config --include`
-	SLAPD_NDB_INCS="$SQL_INC $SQL_INC/storage/ndb $SQL_INC/storage/ndb/ndbapi"
-
-	save_CPPFLAGS="$CPPFLAGS"
-	CPPFLAGS="$SLAPD_NDB_INCS"
-	AC_MSG_CHECKING(for NdbApi.hpp)
-	AC_PREPROC_IFELSE(
-		[AC_LANG_SOURCE([[#include <NdbApi.hpp>]])],
-			AC_MSG_RESULT(yes),
-			AC_MSG_ERROR([could not locate NdbApi headers])
-	)
-	CPPFLAGS="$save_CPPFLAGS"
-
-	SQL_LIB=`mysql_config --libs_r`
-	SLAPD_NDB_LIBS="$SQL_LIB -lndbclient -lstdc++"
-
-	save_LDFLAGS="$LDFLAGS"
-	save_LIBS="$LIBS"
-	LDFLAGS="$SQL_LIB"
-	AC_CHECK_LIB(ndbclient,ndb_init,[: ok],[
-		AC_MSG_ERROR([could not locate ndbclient library])
-	],[-lstdc++])
-	LIBS="$save_LIBS"
-	LDFLAGS="$save_LDFLAGS"
-
-	if test "$ol_enable_ndb" = yes ; then
-		SLAPD_LIBS="$SLAPD_LIBS \$(SLAPD_NDB_LIBS)"
-	fi
-fi
-
-dnl ----------------------------------------------------------------
 dnl WiredTiger
 ol_link_wt=no
 if test $ol_enable_wt != no ; then
@@ -2656,19 +2612,6 @@ if test "$ol_enable_asyncmeta" != no ; then
 	AC_DEFINE_UNQUOTED(SLAPD_ASYNCMETA,$MFLAG,[define to support LDAP Async Metadirectory backend])
 fi
 
-if test "$ol_enable_ndb" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_NDB=$ol_enable_ndb
-	if test "$ol_enable_ndb" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-ndb"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-ndb"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_NDB,$MFLAG,[define to support NDB backend])
-fi
-
 if test "$ol_enable_null" != no ; then
 	BUILD_SLAPD=yes
 	BUILD_NULL=$ol_enable_null
@@ -3311,7 +3254,6 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [servers/slapd/back-meta/Makefile:build/top.mk:servers/slapd/back-meta/Makefile.in:build/mod.mk]
 [servers/slapd/back-asyncmeta/Makefile:build/top.mk:servers/slapd/back-asyncmeta/Makefile.in:build/mod.mk]
 [servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk]
-[servers/slapd/back-ndb/Makefile:build/top.mk:servers/slapd/back-ndb/Makefile.in:build/mod.mk]
 [servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/back-null/Makefile.in:build/mod.mk]
 [servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk]
 [servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk]

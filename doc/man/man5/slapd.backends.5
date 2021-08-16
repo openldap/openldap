@@ -67,12 +67,6 @@ daemon. Only a single instance of the
 .B monitor
 backend may be defined.
 .TP
-.B ndb
-This backend is experimental, incomplete, and deprecated.
-It uses the transactional database interface of the MySQL Cluster Engine
-(NDB) to store data. Note that Oracle, which now owns MySQL, has withdrawn
-support for NDB and this backend is unlikely to be developed any further.
-.TP
 .B null
 Operations in this backend succeed but do nothing.
 .TP
@@ -125,7 +119,6 @@ default slapd configuration directory
 .BR slapd\-mdb (5),
 .BR slapd\-meta (5),
 .BR slapd\-monitor (5),
-.BR slapd\-ndb (5),
 .BR slapd\-null (5),
 .BR slapd\-passwd (5),
 .BR slapd\-perl (5),
