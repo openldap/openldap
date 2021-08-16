@@ -9,11 +9,9 @@ ETCDIR/slapd.conf
 .SH DESCRIPTION
 The Socket backend to
 .BR slapd (8)
-uses an external program to handle queries, similarly to
-.BR slapd\-shell (5).
-However, in this case the external program listens on a Unix domain socket.
-This makes it possible to have a pool of processes, which persist between
-requests. This allows multithreaded operation and a higher level of
+uses an external program to handle queries that listens on a Unix domain
+socket.  This makes it possible to have a pool of processes, which persist
+between requests. This allows multithreaded operation and a high level of
 efficiency. The external program must have been started independently;
 .BR slapd (8)
 itself will not start it.
@@ -65,9 +63,7 @@ DNs matching the specified regular expression will be processed. The default
 is empty (all DNs are processed).
 
 .SH PROTOCOL
-The protocol is essentially the same as
-.BR slapd\-shell (5)
-with the addition of a newline to terminate the command parameters. The
+The protocol uses a newline to terminate the command parameters. The
 following commands are sent:
 .RS
 .nf
