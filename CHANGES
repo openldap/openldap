@@ -3,6 +3,7 @@ OpenLDAP 2.5 Change Log
 OpenLDAP 2.5.7 Engineering
 	Fixed lloadd client state tracking (ITS#9624)
 	Fixed slapd bconfig to canonicalize structuralObjectclass (ITS#9611)
+	Fixed slapd-ldif duplicate controls response (ITS#9497)
 	Fixed slapd-mdb multival crash when attribute is missing an equality matchingrule (ITS#9621)
 	Fixed slapd-mdb compatibility with OpenLDAP 2.4 MDB databases (ITS#8958)
 	Fixed slapd-mdb idlexp maximum size handling (ITS#9637)
