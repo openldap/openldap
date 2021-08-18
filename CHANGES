@@ -1,5 +1,7 @@
 OpenLDAP 2.5 Change Log
 
+OpenLDAP 2.5.8 Engineering
+
 OpenLDAP 2.5.7 Release (2021/08/18)
 	Fixed lloadd client state tracking (ITS#9624)
 	Fixed slapd bconfig to canonicalize structuralObjectclass (ITS#9611)
@@ -20,7 +22,6 @@ OpenLDAP 2.5.7 Release (2021/08/18)
 		Updated guide to document multiprovider as replacement for mirrormode (ITS#9200)
 		Updated guide to clarify slapd-mdb upgrade requirements (ITS#9200)
 		Updated guide to document removal of deprecated options from client tools (ITS#9200)
-
 
 OpenLDAP 2.5.6 Release (2021/07/27)
 	Fixed libldap buffer overflow (ITS#9578)
