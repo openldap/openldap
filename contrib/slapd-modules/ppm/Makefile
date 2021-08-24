@@ -59,6 +59,9 @@ TEST=ppm_test
 EXAMPLE=ppm.example
 TESTS=./unit_tests.sh
 
+MANDOC=ppm.5
+MDDOC=ppm.md
+
 all: 	ppm $(TEST)
 
 $(TEST): ppm
@@ -76,6 +79,7 @@ install: ppm
 		$(LIBTOOL) --mode=install cp $$p $(DESTDIR)/$(moduledir) ; \
 	done
 	$(INSTALL) -m 644 $(EXAMPLE) $(DESTDIR)$(sysconfdir)/
+	$(INSTALL) -m 644 $(MANDOC) $(man5dir)/
 #	$(INSTALL) -m 755 $(TEST) $(libdir)
 
 .PHONY: clean
@@ -87,4 +91,7 @@ clean:
 test: ppm $(TEST)
 	LDAP_SRC=$(LDAP_SRC) $(TESTS)
 
+doc:
+	pandoc $(MDDOC) -s -t man -o $(MANDOC)
+	sed -i -e 's#ETCDIR#$(DESTDIR)$(sysconfdir)#g' $(MANDOC)
 
