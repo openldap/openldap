@@ -6,6 +6,7 @@ Dependencies
 ppm is provided along with OpenLDAP sources. By default, it is available into contrib/slapd-modules.
  - make sure both OpenLDAP sources and ppm are available for building.
  - install cracklib development files if you want to test passwords against cracklib
+ - install pandoc if you want to build the man page
 
 
 Build
@@ -34,6 +35,7 @@ To build ppm, simply run these commands:
 make clean
 make
 make test
+make doc
 make install
 ```
 
@@ -43,6 +45,7 @@ Here is an illustrative example showing how to overload some options:
 make clean
 make LDAP_SRC=../../.. prefix=/usr/local libdir=/usr/local/lib 
 make test LDAP_SRC=../../..
+make doc prefix=/usr/local
 make install prefix=/usr/local libdir=/usr/local/lib
 ```
 
