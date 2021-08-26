@@ -287,11 +287,11 @@ factors (SSF) can be used.
 >        by ssf=64 users read
 
 This directive allows users to modify their own entries if security
-protections have of strength 128 or better have been established,
-allows authentication access to anonymous users, and read access
-when 64 or better security protections have been established.  If
-client has not establish sufficient security protections, the
-implicit {{EX:by * none}} clause would be applied.
+protections of strength 128 or better have been established, allows
+authentication access to anonymous users, and read access when 64
+or better security protections have been established.  If a client
+has not established sufficient security protections, the implicit
+{{EX:by * none}} clause would be applied.
 
 The following example shows the use of a style specifiers to select
 the entries by DN in two access directives where ordering is
