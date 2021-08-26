@@ -1584,7 +1584,7 @@ accesslog_response(Operation *op, SlapReply *rs)
 		 * Make sure we have a CSN before we release li_op_rmutex to preserve
 		 * ordering
 		 */
-		if ( BER_BVISEMPTY( &op->o_csn ) ) {
+		if ( !success || BER_BVISEMPTY( &op->o_csn ) ) {
 			slap_get_csn( &op2, &op2.o_csn, 1 );
 		} else {
 			if ( !( lo->mask & LOG_OP_WRITES ) ) {
