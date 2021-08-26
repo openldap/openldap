@@ -1515,7 +1515,7 @@ accesslog_response(Operation *op, SlapReply *rs)
 	Attribute *a, *last_attr;
 	Modifications *m;
 	struct berval *b, uuid = BER_BVNULL;
-	int i;
+	int i, success;
 	int logop;
 	slap_verbmasks *lo;
 	Entry *e = NULL, *old = NULL, *e_uuid = NULL;
@@ -1545,6 +1545,16 @@ accesslog_response(Operation *op, SlapReply *rs)
 
 	/* These internal ops are not logged */
 	if ( op->o_dont_replicate )
+		goto skip;
+
+	/*
+	 * ITS#9051 Technically LDAP_REFERRAL and LDAP_SASL_BIND_IN_PROGRESS
+	 * are not errors, but they aren't really success either
+	 */
+	success = rs->sr_err == LDAP_SUCCESS ||
+		rs->sr_err == LDAP_COMPARE_TRUE ||
+		rs->sr_err == LDAP_COMPARE_FALSE;
+	if ( li->li_success && !success )
 		goto skip;
 
 	if ( !( li->li_ops & lo->mask ) ) {
@@ -1594,15 +1604,6 @@ accesslog_response(Operation *op, SlapReply *rs)
 	li->li_old = NULL;
 	BER_BVZERO( &li->li_uuid );
 	ldap_pvt_thread_mutex_unlock( &li->li_op_rmutex );
-
-	/*
-	 * ITS#9051 Technically LDAP_REFERRAL and LDAP_SASL_BIND_IN_PROGRESS
-	 * are not errors, but they aren't really success either
-	 */
-	if ( li->li_success && rs->sr_err != LDAP_SUCCESS &&
-			rs->sr_err != LDAP_COMPARE_TRUE &&
-			rs->sr_err != LDAP_COMPARE_FALSE )
-		goto done;
 
 	e = accesslog_entry( op, rs, li, logop, &op2 );
 
