@@ -474,10 +474,11 @@ connection unless the URI directive protocol scheme is \fBldaps://\fP.
 In that case this keyword may only be set to "ldaps" and the StartTLS
 operation will not be used.
 
-\fBpropagate\fP issues the StartTLS operation only if the original
-connection did.
+With \fBpropagate\fP, the proxy issues the StartTLS operation only if
+the original connection has a TLS layer set up.
 The \fBtry\-\fP prefix instructs the proxy to continue operations
-if the StartTLS operation failed; its use is highly deprecated.
+if the StartTLS operation failed; its use is \fBnot\fP recommended.
+
 The TLS settings default to the same as the main slapd TLS settings,
 except for
 .B tls_reqcert
