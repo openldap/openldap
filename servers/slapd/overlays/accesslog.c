@@ -1525,6 +1525,7 @@ accesslog_response(Operation *op, SlapReply *rs)
 	BerVarray vals;
 	Operation op2 = {0};
 	SlapReply rs2 = {REP_RESULT};
+	char csnbuf[LDAP_PVT_CSNSTR_BUFSIZE];
 
 	/* ITS#9051 Make sure we only remove the callback on a final response */
 	if ( rs->sr_type != REP_RESULT && rs->sr_type != REP_EXTENDED &&
@@ -1558,6 +1559,12 @@ accesslog_response(Operation *op, SlapReply *rs)
 		if ( !i )
 			goto skip;
 	}
+
+	op2.o_hdr = op->o_hdr;
+	op2.o_tag = LDAP_REQ_ADD;
+	op2.o_bd = li->li_db;
+	op2.o_csn.bv_val = csnbuf;
+	op2.o_csn.bv_len = sizeof(csnbuf);
 
 	if ( !( lo->mask & LOG_OP_WRITES ) ) {
 		ldap_pvt_thread_mutex_lock( &li->li_op_rmutex );
@@ -1918,9 +1925,6 @@ accesslog_response(Operation *op, SlapReply *rs)
 		}
 	}
 
-	op2.o_hdr = op->o_hdr;
-	op2.o_tag = LDAP_REQ_ADD;
-	op2.o_bd = li->li_db;
 	op2.o_dn = li->li_db->be_rootdn;
 	op2.o_ndn = li->li_db->be_rootndn;
 	op2.o_req_dn = e->e_name;
