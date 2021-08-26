@@ -1,6 +1,10 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.8 Engineering
+	Build
+		Fixed libldap result.c compilation on musl systems (ITS#9648)
+	Documentation
+		Removed ppolicy.schema from servers/slapd/schema/README (ITS#9156)
 
 OpenLDAP 2.5.7 Release (2021/08/18)
 	Fixed lloadd client state tracking (ITS#9624)
