@@ -7,7 +7,7 @@ collective.schema       Collective attributes (experimental)
 corba.schema            Corba Object
 core.schema             OpenLDAP "core"
 cosine.schema           COSINE Pilot
-dsee.schema             Sun DSEE compatibilty schema for replication
+dsee.schema             Sun DSEE compatibility schema for replication
 duaconf.schema          Client Configuration (work in progress)
 dyngroup.schema			Dynamic Group (experimental)
 inetorgperson.schema    InetOrgPerson
