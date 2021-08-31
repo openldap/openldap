@@ -45,6 +45,7 @@
 #include <ac/stdlib.h>
 
 #include <ac/errno.h>
+#include <ac/param.h>
 #include <ac/socket.h>
 #include <ac/string.h>
 #include <ac/time.h>
