@@ -378,6 +378,8 @@ main( int argc, char **argv )
 
     slap_sl_mem_init();
 
+    (void) ldap_pvt_thread_initialize();
+
     serverName = lutil_progname( "lloadd", argc, argv );
 
 #ifdef HAVE_NT_SERVICE_MANAGER
