@@ -433,19 +433,7 @@ check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg)
 {
 
     Entry *pEntry = e;
-    ppm_log(LOG_NOTICE, "ppm: entry %s", pEntry->e_nname.bv_val);
-
     struct berval *pwdCheckModuleArg = pArg;
-    /* Determine if config file is to be read (DEPRECATED) */
-    #ifdef PPM_READ_FILE
-      ppm_log(LOG_NOTICE, "ppm: Not reading pwdCheckModuleArg attribute");
-      ppm_log(LOG_NOTICE, "ppm: instead, read configuration file (deprecated)");
-    #else
-      ppm_log(LOG_NOTICE, "ppm: Reading pwdCheckModuleArg attribute");
-      ppm_log(LOG_NOTICE, "ppm: RAW configuration: %s",
-                          (*(struct berval*)pwdCheckModuleArg).bv_val);
-    #endif
-
     char *origmsg = ppErrmsg->bv_val;
     char *szErrStr = origmsg;
     int mem_len = ppErrmsg->bv_len;
@@ -466,15 +454,32 @@ check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg)
     int nbInClass[CONF_MAX_SIZE];
     int i,j;
 
-    /* Determine config file (DEPRECATED) */
-    #ifdef PPM_READ_FILE
-      char ppm_config_file[FILENAME_MAX_LEN];
-      strcpy_safe(ppm_config_file, getenv("PPM_CONFIG_FILE"), FILENAME_MAX_LEN);
-      if (ppm_config_file[0] == '\0') {
+    ppm_log(LOG_NOTICE, "ppm: entry %s", pEntry->e_nname.bv_val);
+
+#ifdef PPM_READ_FILE
+    /* Determine if config file is to be read (DEPRECATED) */
+    char ppm_config_file[FILENAME_MAX_LEN];
+
+    ppm_log(LOG_NOTICE, "ppm: Not reading pwdCheckModuleArg attribute");
+    ppm_log(LOG_NOTICE, "ppm: instead, read configuration file (deprecated)");
+
+    strcpy_safe(ppm_config_file, getenv("PPM_CONFIG_FILE"), FILENAME_MAX_LEN);
+    if (ppm_config_file[0] == '\0') {
         strcpy_safe(ppm_config_file, CONFIG_FILE, FILENAME_MAX_LEN);
-      }
-      ppm_log(LOG_NOTICE, "ppm: reading config file from %s", ppm_config_file);
-    #endif
+    }
+    ppm_log(LOG_NOTICE, "ppm: reading config file from %s", ppm_config_file);
+#else
+    if ( !pwdCheckModuleArg || !pwdCheckModuleArg->bv_val ) {
+        ppm_log(LOG_ERR, "ppm: No config provided in pwdCheckModuleArg");
+        mem_len = realloc_error_message(origmsg, &szErrStr, mem_len,
+                        strlen(GENERIC_ERROR));
+        sprintf(szErrStr, GENERIC_ERROR);
+        goto fail;
+    }
+
+    ppm_log(LOG_NOTICE, "ppm: Reading pwdCheckModuleArg attribute");
+    ppm_log(LOG_NOTICE, "ppm: RAW configuration: %s", pwdCheckModuleArg->bv_val);
+#endif
 
     for (i = 0; i < CONF_MAX_SIZE; i++)
         nbInClass[i] = 0;
