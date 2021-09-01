@@ -67,7 +67,7 @@ objectClass: monitorContainer
 dn: cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monit
  or
 objectClass: olmBalancerServer
-olmServerURI: ldap://localhost:9012/
+olmServerURI: @URI2@
 olmActiveConnections: 4
 olmPendingConnections: 0
 olmPendingOps: 0
@@ -153,7 +153,7 @@ objectClass: monitorContainer
 dn: cn=backend,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Monit
  or
 objectClass: olmBalancerServer
-olmServerURI: ldap://localhost:9012/
+olmServerURI: @URI2@
 olmActiveConnections: 4
 olmPendingConnections: 0
 olmPendingOps: 0
@@ -204,7 +204,7 @@ olmFailedOps: 0
 dn: cn=server 2,cn=first,cn=Backend Tiers,cn=Load Balancer,cn=Backends,cn=Moni
  tor
 objectClass: olmBalancerServer
-olmServerURI: ldap://localhost:9013/
+olmServerURI: @URI3@
 olmActiveConnections: 9
 olmPendingConnections: 0
 olmPendingOps: 0

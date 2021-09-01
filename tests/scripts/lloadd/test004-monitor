@@ -345,7 +345,10 @@ LDIF=$DATADIR/lloadd/monitor.ldif
 echo "Filtering ldapsearch results..."
 $LDIFFILTER -s e < $SEARCHOUT > $SEARCHFLT
 echo "Filtering original ldif used to create database..."
-$LDIFFILTER -s e < $LDIF > $LDIFFLT
+$LDIFFILTER -s e < $LDIF | sed \
+    -e "s|@URI2@|$URI2|g" \
+    -e "s|@URI3@|$URI3|g" \
+    > $LDIFFLT
 echo "Comparing filter output..."
 $CMP $SEARCHFLT $LDIFFLT > $CMPOUT
 
