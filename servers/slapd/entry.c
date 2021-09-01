@@ -845,7 +845,8 @@ int entry_decode(EntryHeader *eh, Entry **e)
 	a = x->e_attrs;
 	bptr = (BerVarray)eh->bv.bv_val;
 
-	while ((i = entry_getlen(&ptr))) {
+	while (((char *)ptr - eh->bv.bv_val < eh->bv.bv_len) &&
+	       (i = entry_getlen(&ptr))) {
 		struct berval bv;
 		bv.bv_len = i;
 		bv.bv_val = (char *) ptr;
