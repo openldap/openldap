@@ -2110,7 +2110,6 @@ slap_listener(
 	struct berval peerbv = BER_BVC(peername);
 #ifdef LDAP_PF_LOCAL_SENDMSG
 	char peerbuf[8];
-	struct berval peerbv = BER_BVNULL;
 #endif
 	int cflag;
 	int tid;
