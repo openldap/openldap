@@ -232,19 +232,24 @@ wt_db_close( BackendDB *be, ConfigReply *cr )
 	struct wt_info *wi = (struct wt_info *) be->be_private;
 	int rc;
 
-	if ( !wi->wi_conn ) {
-		return -1;
+	if ( wi->wi_cache ) {
+		rc = wi->wi_cache->close(wi->wi_cache, NULL);
+		if( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   "wt_db_close: cannot close cache database (%d).\n", rc );
+			return -1;
+		}
 	}
 
-	rc = wi->wi_conn->close(wi->wi_conn, NULL);
-	if( rc ) {
-		int saved_errno = errno;
-		Debug( LDAP_DEBUG_ANY,
-			   "wt_db_close: cannot close database (%d).\n", saved_errno );
-		return -1;
+	if ( wi->wi_conn ) {
+		rc = wi->wi_conn->close(wi->wi_conn, NULL);
+		if( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				   "wt_db_close: cannot close database (%d).\n", rc );
+			return -1;
+		}
+		wi->wi_flags &= ~WT_IS_OPEN;
 	}
-
-	wi->wi_flags &= ~WT_IS_OPEN;
 
     return LDAP_SUCCESS;
 }
