@@ -3,6 +3,7 @@ OpenLDAP 2.5 Change Log
 OpenLDAP 2.5.8 Engineering
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
+		Fixed slapd duplicate definition of peerbv (ITS#9659)
 	Contrib
 		Added man page for ppm contrib module (ITS#9644)
 	Documentation
