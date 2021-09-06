@@ -345,7 +345,7 @@ ldap_int_tls_connect( LDAP *ld, LDAPConn *conn, const char *host )
 	Sockbuf *sb = conn->lconn_sb;
 	int	err;
 	tls_session	*ssl = NULL;
-	char *sni = (char *)host;
+	const char *sni = host;
 
 	if ( HAS_TLS( sb )) {
 		ber_sockbuf_ctrl( sb, LBER_SB_OPT_GET_SSL, (void *)&ssl );
@@ -385,8 +385,8 @@ ldap_int_tls_connect( LDAP *ld, LDAPConn *conn, const char *host )
 	 */
 	{
 		int numeric = 1;
-		char *c;
-		for ( c = sni; *c; c++ ) {
+		unsigned char *c;
+		for ( c = (unsigned char *)sni; *c; c++ ) {
 			if ( *c == ':' )	/* IPv6 address */
 				break;
 			if ( *c == '.' )
