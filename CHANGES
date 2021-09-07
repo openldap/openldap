@@ -6,6 +6,7 @@ OpenLDAP 2.5.8 Engineering
 		Fixed slapd duplicate definition of peerbv (ITS#9659)
 	Contrib
 		Added man page for ppm contrib module (ITS#9644)
+        Fix crash when pwdCheckModuleArg is not defined for ppm (ITS#9656)
 	Documentation
 		Removed ppolicy.schema from servers/slapd/schema/README (ITS#9156)
 		Fixed slapd-meta(5)/slapd-asyncmeta(5) verbiage for try-propagate (ITS#9646)
