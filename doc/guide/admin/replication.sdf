@@ -89,12 +89,16 @@ privileges for the DIT fragment to be replicated. The consumer
 server can stop the replication also without the need for provider-side
 changes and restart.
 
-Syncrepl supports partial, sparse, and fractional replications.  The shadow
-DIT fragment is defined by a general search criteria consisting of
+Syncrepl supports both types of partial replication: sparse and fractional
+The shadow DIT fragment is defined by a general search criteria consisting of
 base, scope, filter, and attribute list.  The consumer content is
 also subject to the access privileges of the bind identity of the
 syncrepl replication connection.
 
+Fractional replication uses explicit attribute lists to replicate only a
+subset of the provider's attributes and sparse replication uses
+base/scope/filter to replicate only a subset of the provider's entries.
+Both cases are just refinements of the general search criteria.
 
 H4: The LDAP Content Synchronization Protocol
 
