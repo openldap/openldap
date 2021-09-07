@@ -1,14 +1,15 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.8 Engineering
-    Fixed libldap ldap_int_tls_connect: isdigit() requires unsigned char (ITS#9668)
+	Fixed libldap ldap_int_tls_connect: isdigit() requires unsigned char (ITS#9668)
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
 		Fixed slapd duplicate definition of peerbv (ITS#9659)
 	Contrib
 		Added man page for ppm contrib module (ITS#9644)
-        Fix crash when pwdCheckModuleArg is not defined for ppm (ITS#9656)
+		Fix crash when pwdCheckModuleArg is not defined for ppm (ITS#9656)
 	Documentation
+		Fixed guide download link for heimdal (ITS#9669)
 		Removed ppolicy.schema from servers/slapd/schema/README (ITS#9156)
 		Fixed slapd-meta(5)/slapd-asyncmeta(5) verbiage for try-propagate (ITS#9646)
 
