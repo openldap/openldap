@@ -123,8 +123,9 @@ logfile_open( const char *path )
 		return errno;
 
 	if ( fstat( fd, &st ) ) {
+		int saved_errno = errno;
 		close( fd );
-		return errno;
+		return saved_errno;
 	}
 
 	if ( !logfile_path[0] ) {
