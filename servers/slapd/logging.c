@@ -39,7 +39,7 @@ ldap_pvt_thread_mutex_t logfile_mutex;
 
 static off_t logfile_fsize;
 static time_t logfile_fcreated;
-static int logfile_fd;
+static int logfile_fd = -1;
 static char logpaths[2][MAXPATHLEN];
 static int logpathlen;
 
@@ -69,7 +69,7 @@ slap_debug_print( const char *data )
 	iov[1].iov_len = strlen( data );
 	if ( !logfile_only )
 		writev( 2, iov, 2 );
-	if ( logfile_fd ) {
+	if ( logfile_fd >= 0 ) {
 		int len = iov[0].iov_len + iov[1].iov_len;
 		if ( logfile_fslimit || logfile_age ) {
 			ldap_pvt_thread_mutex_lock( &logfile_mutex );
@@ -79,6 +79,7 @@ slap_debug_print( const char *data )
 				rotate |= 2;
 			if ( rotate ) {
 				close( logfile_fd );
+				logfile_fd = -1;
 				strcpy( logpaths[0]+logpathlen, ".tmp" );
 				rename( logfile_path, logpaths[0] );
 				logfile_open( logfile_path );
@@ -105,9 +106,9 @@ slap_debug_print( const char *data )
 void
 logfile_close()
 {
-	if ( logfile_fd ) {
+	if ( logfile_fd >= 0 ) {
 		close( logfile_fd );
-		logfile_fd = 0;
+		logfile_fd = -1;
 	}
 	logfile_path[0] = '\0';
 }
