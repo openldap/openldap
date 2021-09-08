@@ -379,6 +379,7 @@ main( int argc, char **argv )
     slap_sl_mem_init();
 
     (void) ldap_pvt_thread_initialize();
+    ldap_pvt_thread_mutex_init( &logfile_mutex );
 
     serverName = lutil_progname( "lloadd", argc, argv );
 
@@ -596,6 +597,7 @@ unhandled_option:;
 
     if ( optind != argc ) goto unhandled_option;
 
+    ber_set_option( NULL, LBER_OPT_LOG_PRINT_FN, slap_debug_print );
     ber_set_option( NULL, LBER_OPT_DEBUG_LEVEL, &slap_debug );
     ldap_set_option( NULL, LDAP_OPT_DEBUG_LEVEL, &slap_debug );
     ldif_debug = slap_debug;
@@ -907,6 +909,7 @@ stop:
     /* kludge, get symbols referenced */
     ldap_tavl_free( NULL, NULL );
 
+    ldap_pvt_thread_mutex_destroy( &logfile_mutex );
     MAIN_RETURN(rc);
 }
 
