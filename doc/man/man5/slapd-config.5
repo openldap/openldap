@@ -1733,12 +1733,14 @@ before this keyword may be set. This mode also requires a
 .B olcServerID
 (see above) to be configured.
 By default, this setting is FALSE.
+.TP
 .B olcMonitoring: TRUE | FALSE
 This option enables database-specific monitoring in the entry related
 to the current database in the "cn=Databases,cn=Monitor" subtree
 of the monitor database, if the monitor database is enabled.
 Currently, only the MDB database provides database-specific monitoring.
-The default depends on the backend type.
+If monitoring is supported by the backend it defaults to TRUE, otherwise
+FALSE.
 .TP
 .B olcPlugin: <plugin_type> <lib_path> <init_function> [<arguments>]
 Configure a SLAPI plugin. See the
