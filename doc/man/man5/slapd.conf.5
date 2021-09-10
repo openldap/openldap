@@ -1661,7 +1661,8 @@ This option enables database-specific monitoring in the entry related
 to the current database in the "cn=Databases,cn=Monitor" subtree 
 of the monitor database, if the monitor database is enabled.
 Currently, only the MDB database provides database-specific monitoring.
-The default depends on the backend type.
+If monitoring is supported by the backend it defaults to on, otherwise
+off.
 .TP
 .B overlay <overlay-name>
 Add the specified overlay to this database. An overlay is a piece of
