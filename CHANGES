@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.8 Engineering
 	Fixed libldap ldap_int_tls_connect: isdigit() requires unsigned char (ITS#9668)
+	Fixed slapo-syncprov to free uuid list when finished replaying sessionlog (ITS#6467)
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
 		Fixed slapd duplicate definition of peerbv (ITS#9659)
