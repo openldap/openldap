@@ -4735,7 +4735,9 @@ syncrepl_del_nonpresent(
 
 			if ( rs_delete.sr_err == LDAP_NOT_ALLOWED_ON_NONLEAF ) {
 				SlapReply rs_modify = {REP_RESULT};
-				Modifications mod1, mod2;
+				Modifications mod1, mod2, mod3;
+				struct berval vals[2] = { csn, BER_BVNULL };
+
 				mod1.sml_op = LDAP_MOD_REPLACE;
 				mod1.sml_flags = 0;
 				mod1.sml_desc = slap_schema.si_ad_objectClass;
@@ -4752,13 +4754,22 @@ syncrepl_del_nonpresent(
 				mod2.sml_numvals = 1;
 				mod2.sml_values = &gcbva[1];
 				mod2.sml_nvalues = NULL;
-				mod2.sml_next = NULL;
+				mod2.sml_next = &mod3;
+
+				mod3.sml_op = LDAP_MOD_REPLACE;
+				mod3.sml_flags = 0;
+				mod3.sml_desc = slap_schema.si_ad_entryCSN;
+				mod3.sml_type = mod3.sml_desc->ad_cname;
+				mod3.sml_numvals = 1;
+				mod3.sml_values = vals;
+				mod3.sml_nvalues = NULL;
+				mod3.sml_next = NULL;
 
 				op->o_tag = LDAP_REQ_MODIFY;
 				op->orm_modlist = &mod1;
 
 				rc = op->o_bd->be_modify( op, &rs_modify );
-				if ( mod2.sml_next ) slap_mods_free( mod2.sml_next, 1 );
+				if ( mod3.sml_next ) slap_mods_free( mod3.sml_next, 1 );
 			}
 
 			while ( rs_delete.sr_err == LDAP_SUCCESS &&
