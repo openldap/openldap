@@ -3129,6 +3129,14 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 		op->o_callback = cb;
 		ldap_pvt_thread_mutex_destroy( &so.s_mutex );
 
+		/* Special case, if client knows nothing, nor do we, keep going */
+		if ( srs->sr_state.numcsns == 0 && rs->sr_err == LDAP_NO_SUCH_OBJECT ) {
+			Debug( LDAP_DEBUG_SYNC, "%s syncprov_op_search: "
+					"both our DB and client empty, ignoring NO_SUCH_OBJECT\n",
+					op->o_log_prefix );
+			rs->sr_err = LDAP_SUCCESS;
+		}
+
 		if ( rs->sr_err != LDAP_SUCCESS ) {
 			send_ldap_result( op, rs );
 			return rs->sr_err;
