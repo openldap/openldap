@@ -5695,6 +5695,7 @@ nonpresent_callback(
 						if ( syncCookie->sids[i] == sid &&
 								ber_bvcmp( &a->a_nvals[0], &syncCookie->ctxcsn[i] ) <= 0 ) {
 							covered = 1;
+							break;
 						}
 					}
 				}
