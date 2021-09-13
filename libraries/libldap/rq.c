@@ -59,6 +59,9 @@ ldap_pvt_runqueue_insert(
 		entry->tname = tname;
 		entry->tspec = tspec;
 		LDAP_STAILQ_INSERT_HEAD( &rq->task_list, entry, tnext );
+		if ( rq->rq_notify_cb ) {
+			rq->rq_notify_cb( rq );
+		}
 	}
 	return entry;
 }
@@ -95,6 +98,9 @@ ldap_pvt_runqueue_remove(
 	assert( e == entry );
 
 	LDAP_STAILQ_REMOVE( &rq->task_list, entry, re_s, tnext );
+	if ( rq->rq_notify_cb ) {
+		rq->rq_notify_cb( rq );
+	}
 
 	LDAP_FREE( entry );
 }
@@ -123,6 +129,9 @@ ldap_pvt_runqueue_runtask(
 )
 {
 	LDAP_STAILQ_INSERT_TAIL( &rq->run_list, entry, rnext );
+	if ( rq->rq_notify_cb ) {
+		rq->rq_notify_cb( rq );
+	}
 }
 
 void
@@ -132,6 +141,9 @@ ldap_pvt_runqueue_stoptask(
 )
 {
 	LDAP_STAILQ_REMOVE( &rq->run_list, entry, re_s, rnext );
+	if ( rq->rq_notify_cb ) {
+		rq->rq_notify_cb( rq );
+	}
 }
 
 int
@@ -188,18 +200,23 @@ ldap_pvt_runqueue_resched(
 				} else {
 					LDAP_STAILQ_INSERT_AFTER( &rq->task_list, prev, entry, tnext );
 				}
-				return;
+				goto done;
 			} else if ( e->next_sched.tv_sec > entry->next_sched.tv_sec ) {
 				if ( prev == NULL ) {
 					LDAP_STAILQ_INSERT_HEAD( &rq->task_list, entry, tnext );
 				} else {
 					LDAP_STAILQ_INSERT_AFTER( &rq->task_list, prev, entry, tnext );
 				}
-				return;
+				goto done;
 			}
 			prev = e;
 		}
 		LDAP_STAILQ_INSERT_TAIL( &rq->task_list, entry, tnext );
+	}
+
+done:
+	if ( rq->rq_notify_cb ) {
+		rq->rq_notify_cb( rq );
 	}
 }
 

@@ -79,11 +79,15 @@ int slap_inet4or6 = AF_UNSPEC;
 int slap_inet4or6 = AF_INET;
 #endif /* ! INETv6 */
 
+void slap_runqueue_notify( runqueue_t *rq );
+
 /* globals */
 time_t starttime;
 ber_socket_t dtblsize;
 slap_ssf_t local_ssf = LDAP_PVT_SASL_LOCAL_SSF;
-struct runqueue_s slapd_rq;
+struct runqueue_s slapd_rq = {
+    .rq_notify_cb = slap_runqueue_notify,
+};
 
 int slapd_daemon_threads = 1;
 int slapd_daemon_mask;
@@ -3570,6 +3574,12 @@ void
 slap_wake_listener()
 {
 	WAKE_LISTENER(0,1);
+}
+
+void
+slap_runqueue_notify( runqueue_t *rq )
+{
+	slap_wake_listener();
 }
 
 /* return 0 on timeout, 1 on writer ready
