@@ -58,6 +58,8 @@ static AttributeDescription *sy_ad_dseeLastChange;
 
 #define	UUIDLEN	16
 
+struct syncinfo_s;
+
 struct nonpresent_entry {
 	struct berval *npe_name;
 	struct berval *npe_nname;
@@ -88,6 +90,7 @@ typedef struct cookie_state {
 
 	/* serialize multi-consumer refreshes */
 	ldap_pvt_thread_mutex_t	cs_refresh_mutex;
+	struct syncinfo_s *cs_refreshing;
 } cookie_state;
 
 #define	SYNCDATA_DEFAULT	0	/* entries are plain LDAP entries */
@@ -683,6 +686,10 @@ ldap_sync_search(
 		}
 	}
 
+	si->si_refreshDone = 0;
+	si->si_refreshPresent = 0;
+	si->si_refreshDelete = 0;
+
 	rc = ldap_search_ext( si->si_ld, base, scope, filter, attrs, attrsonly,
 		ctrls, NULL, NULL, si->si_slimit, &si->si_msgid );
 	ber_free_buf( ber );
@@ -938,11 +945,21 @@ do_syncrep1(
 	void	*ssl;
 #endif
 
-	if ( ldap_pvt_thread_mutex_trylock( &si->si_cookieState->cs_refresh_mutex ))
+	ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_refresh_mutex );
+	if ( si->si_cookieState->cs_refreshing ) {
+		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_refresh_mutex );
 		return SYNC_BUSY;
+	}
+
+	/*
+	 * FIXME: Right now, ldap_sync_search decides whether we're in logging or
+	 * fallback mode for log-based replication, so we have to claim the
+	 * refreshing role (ITS#9584) preemptively and release it later.
+	 */
+	si->si_cookieState->cs_refreshing = si;
+	ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_refresh_mutex );
 
 	si->si_lastconnect = slap_get_time();
-	si->si_refreshDone = 0;
 	rc = slap_client_connect( &si->si_ld, &si->si_bindconf );
 	if ( rc != LDAP_SUCCESS ) {
 		goto done;
@@ -1120,6 +1137,11 @@ done:
 			ldap_unbind_ext( si->si_ld, NULL, NULL );
 			si->si_ld = NULL;
 		}
+	}
+	if ( rc || ( si->si_syncdata && si->si_logstate == SYNCLOG_LOGGING ) ) {
+		ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_refresh_mutex );
+		assert( si->si_cookieState->cs_refreshing == si );
+		si->si_cookieState->cs_refreshing = NULL;
 		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_refresh_mutex );
 	}
 
@@ -1246,7 +1268,8 @@ do_syncrep2(
 	struct timeval tout = { 0, 0 };
 
 	int		refreshDeletes = 0;
-	int		refreshEnded = 0;
+	int		refreshing = !si->si_refreshDone &&
+			!( si->si_syncdata && si->si_logstate == SYNCLOG_LOGGING );
 	char empty[6] = "empty";
 
 	if ( slapd_shutdown ) {
@@ -1318,8 +1341,6 @@ do_syncrep2(
 						/* The notification control is only sent during persist phase */
 						rctrlp = ldap_control_find( LDAP_CONTROL_PERSIST_ENTRY_CHANGE_NOTICE, rctrls, &next );
 						if ( rctrlp ) {
-							if ( !si->si_refreshDone )
-								si->si_refreshDone = 1;
 							if ( si->si_refreshDone )
 								syncrepl_dsee_update( si, op );
 						}
@@ -1538,7 +1559,6 @@ logerr:
 			Debug( LDAP_DEBUG_SYNC,
 				"do_syncrep2: %s LDAP_RES_SEARCH_RESULT\n",
 				si->si_ridtxt );
-			refreshEnded = 1;
 			err = LDAP_OTHER; /* FIXME check parse result properly */
 			ldap_parse_result( si->si_ld, msg, &err, NULL, NULL, NULL,
 				&rctrls, 0 );
@@ -1728,6 +1748,14 @@ logerr:
 						"LDAP_RES_INTERMEDIATE", 
 						si_tag == LDAP_TAG_SYNC_REFRESH_PRESENT ?
 						"REFRESH_PRESENT" : "REFRESH_DELETE" );
+					if ( si->si_refreshDone ) {
+						Debug( LDAP_DEBUG_ANY, "do_syncrep2: %s "
+								"server sent multiple refreshDone "
+								"messages? Ending session\n",
+								si->si_ridtxt );
+						rc = LDAP_PROTOCOL_ERROR;
+						goto done;
+					}
 					if ( si_tag == LDAP_TAG_SYNC_REFRESH_DELETE ) {
 						si->si_refreshDelete = 1;
 					} else {
@@ -1766,10 +1794,11 @@ logerr:
 						si->si_refreshDone = 1;
 					}
 					ber_scanf( ber, /*"{"*/ "}" );
-					if ( si->si_refreshDone ) {
-						Debug( LDAP_DEBUG_SYNC, "do_syncrep2: %s finished refresh\n",
-							si->si_ridtxt );
-						refreshEnded = 1;
+					if ( refreshing && si->si_refreshDone ) {
+						ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_refresh_mutex );
+						si->si_cookieState->cs_refreshing = NULL;
+						ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_refresh_mutex );
+						refreshing = 0;
 					}
 					break;
 				case LDAP_TAG_SYNC_ID_SET:
@@ -1916,8 +1945,12 @@ done:
 			"do_syncrep2: %s (%d) %s\n",
 			si->si_ridtxt, err, ldap_err2string( err ) );
 	}
-	if ( refreshEnded || ( rc && !si->si_refreshDone ))
+	if ( refreshing && ( rc || si->si_refreshDone ) ) {
+		ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_refresh_mutex );
+		assert( si->si_cookieState->cs_refreshing == si );
+		si->si_cookieState->cs_refreshing = NULL;
 		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_refresh_mutex );
+	}
 
 	slap_sync_cookie_free( &syncCookie, 0 );
 	slap_sync_cookie_free( &syncCookie_req, 0 );
@@ -2062,9 +2095,6 @@ do_syncrepl(
 
 	/* Establish session, do search */
 	if ( !si->si_ld ) {
-		si->si_refreshDelete = 0;
-		si->si_refreshPresent = 0;
-
 		if ( si->si_presentlist ) {
 		    presentlist_free( si->si_presentlist );
 		    si->si_presentlist = NULL;
@@ -6009,6 +6039,13 @@ syncinfo_free( syncinfo_t *sie, int free_all )
 			ch_free( npe );
 		}
 		if ( sie->si_cookieState ) {
+			/* Could be called from do_syncrepl (server unpaused) */
+			ldap_pvt_thread_mutex_lock( &sie->si_cookieState->cs_refresh_mutex );
+			if ( sie->si_cookieState->cs_refreshing == sie ) {
+				sie->si_cookieState->cs_refreshing = NULL;
+			}
+			ldap_pvt_thread_mutex_unlock( &sie->si_cookieState->cs_refresh_mutex );
+
 			sie->si_cookieState->cs_ref--;
 			if ( !sie->si_cookieState->cs_ref ) {
 				ch_free( sie->si_cookieState->cs_sids );
@@ -6019,6 +6056,7 @@ syncinfo_free( syncinfo_t *sie, int free_all )
 				ber_bvarray_free( sie->si_cookieState->cs_pvals );
 				ldap_pvt_thread_mutex_destroy( &sie->si_cookieState->cs_pmutex );
 				ldap_pvt_thread_mutex_destroy( &sie->si_cookieState->cs_refresh_mutex );
+				assert( sie->si_cookieState->cs_refreshing == NULL );
 				ch_free( sie->si_cookieState );
 			}
 		}
