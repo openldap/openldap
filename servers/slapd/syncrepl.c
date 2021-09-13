@@ -2201,7 +2201,6 @@ deleted:
 			}
 			si->si_retrynum[i] = RETRYNUM_TAIL;
 		}
-		slap_wake_listener();
 		rc = 0;
 	} else {
 		for ( i = 0; si->si_retrynum && si->si_retrynum[i] <= 0; i++ ) {
@@ -2222,7 +2221,6 @@ deleted:
 			fail = si->si_retrynum[i];
 			rtask->interval.tv_sec = si->si_retryinterval[i];
 			ldap_pvt_runqueue_resched( &slapd_rq, rtask, 0 );
-			slap_wake_listener();
 		}
 	}
 

@@ -3178,12 +3178,6 @@ ldap_back_conn_prune( ldapinfo_t *li )
 		li->li_conn_expire_task->interval.tv_sec = next_timeout - now;
 		ldap_pvt_runqueue_resched( &slapd_rq, li->li_conn_expire_task, 0 );
 
-		/*
-		 * The thread that handles runqueue might have already processed all tasks
-		 * before we insertered new task or rescheduled the existing task with new
-		 * timeout period. Wake it up to ensure that the task will be picked up.
-		 */
-		slap_wake_listener();
 		Debug( LDAP_DEBUG_TRACE,
 			"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
 			li->li_conn_expire_task->interval.tv_sec );
@@ -3219,7 +3213,6 @@ ldap_back_schedule_conn_expiry( ldapinfo_t *li, ldapconn_t *lc ) {
 			ldap_back_conn_expire_time( li, lc ) - slap_get_time(),
 			ldap_back_conn_expire_fn, li, "ldap_back_conn_expire_fn",
 			"ldap_back_conn_expire_timer" );
-		slap_wake_listener();
 		Debug( LDAP_DEBUG_TRACE,
 			"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
 			li->li_conn_expire_task->interval.tv_sec );

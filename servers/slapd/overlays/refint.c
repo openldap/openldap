@@ -939,7 +939,6 @@ refint_response(
 	refint_data *id;
 	refint_q *rq;
 	refint_attrs *ip;
-	int ac;
 
 	/* If the main op failed or is not a Delete or ModRdn, ignore it */
 	if (( op->o_tag != LDAP_REQ_DELETE && op->o_tag != LDAP_REQ_MODRDN ) ||
@@ -971,25 +970,20 @@ refint_response(
 	id->qtail = rq;
 	ldap_pvt_thread_mutex_unlock( &id->qmutex );
 
-	ac = 0;
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 	if ( !id->qtask ) {
 		id->qtask = ldap_pvt_runqueue_insert( &slapd_rq, RUNQ_INTERVAL,
 			refint_qtask, id, "refint_qtask",
 			op->o_bd->be_suffix[0].bv_val );
-		ac = 1;
 	} else {
 		if ( !ldap_pvt_runqueue_isrunning( &slapd_rq, id->qtask ) &&
 			!id->qtask->next_sched.tv_sec ) {
 			id->qtask->interval.tv_sec = 0;
 			ldap_pvt_runqueue_resched( &slapd_rq, id->qtask, 0 );
 			id->qtask->interval.tv_sec = RUNQ_INTERVAL;
-			ac = 1;
 		}
 	}
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
-	if ( ac )
-		slap_wake_listener();
 
 	return SLAP_CB_CONTINUE;
 }
