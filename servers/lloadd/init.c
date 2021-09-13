@@ -35,8 +35,6 @@
 #include "lload.h"
 #include "lber_pvt.h"
 
-#include "ldap_rq.h"
-
 #ifndef BALANCER_MODULE
 /*
  * read-only global variables or variables only written by the listener
@@ -158,10 +156,6 @@ lload_init( int mode, const char *name )
 
             ldap_pvt_thread_pool_init_q( &connection_pool, connection_pool_max,
                     0, connection_pool_queues );
-
-            ldap_pvt_thread_mutex_init( &slapd_rq.rq_mutex );
-            LDAP_STAILQ_INIT( &slapd_rq.task_list );
-            LDAP_STAILQ_INIT( &slapd_rq.run_list );
 
             rc = lload_global_init();
             break;

@@ -64,7 +64,6 @@ int slap_inet4or6 = AF_INET;
 
 /* globals */
 time_t starttime;
-struct runqueue_s slapd_rq;
 
 #ifdef LDAP_TCP_BUFFER
 int slapd_tcp_rmem;
