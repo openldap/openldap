@@ -2,6 +2,8 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.8 Engineering
 	Fixed libldap ldap_int_tls_connect: isdigit() requires unsigned char (ITS#9668)
+	Fixed slapd to allow normalized values for namingContexts in cn=monitor (ITS#8341)
+	Fixed slapd to normalize the suffix in rootDSE (ITS#9664)
 	Fixed slapo-syncprov to free uuid list when finished replaying sessionlog (ITS#6467)
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
@@ -12,6 +14,7 @@ OpenLDAP 2.5.8 Engineering
 	Documentation
 		Fixed guide download link for heimdal (ITS#9669)
 		Removed ppolicy.schema from servers/slapd/schema/README (ITS#9156)
+		Fixed slapd.conf(5)/slapd-config(5) to document default for database monitoring (ITS#9674)
 		Fixed slapd-meta(5)/slapd-asyncmeta(5) verbiage for try-propagate (ITS#9646)
 
 OpenLDAP 2.5.7 Release (2021/08/18)
