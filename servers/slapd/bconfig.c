@@ -5473,6 +5473,8 @@ config_add_oc( ConfigOCs **cop, CfEntryInfo *last, Entry *e, ConfigArgs *ca )
 	return rc;
 }
 
+static BackendDB *configDB;		/* only set by slapadd */
+
 /* Parse an LDAP entry into config directives */
 static int
 config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
@@ -5819,7 +5821,7 @@ ok:
 done:
 	if ( rc ) {
 		if ( (coptr->co_type == Cft_Database) && ca->be ) {
-			if ( ca->be != frontendDB )
+			if ( ca->be != frontendDB && ca->be != configDB )
 				backend_destroy_one( ca->be, 1 );
 		} else if ( (coptr->co_type == Cft_Overlay) && ca->bi ) {
 			overlay_destroy_one( ca->be, (slap_overinst *)ca->bi );
@@ -7672,6 +7674,7 @@ config_tool_entry_open( BackendDB *be, int mode )
 	CfBackInfo *cfb = be->be_private;
 	BackendInfo *bi = cfb->cb_db.bd_info;
 
+	configDB = be;
 	if ( bi && bi->bi_tool_entry_open )
 		return bi->bi_tool_entry_open( &cfb->cb_db, mode );
 	else
