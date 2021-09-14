@@ -516,10 +516,6 @@ The reloadhint option is configured by the
 directive. It must be set TRUE when using the accesslog overlay for
 delta-based syncrepl replication support. The default is FALSE.
 
-The nonpresent option should only be configured if the overlay is
-being placed on top of a log database, such as when used with
-delta-syncrepl.
-
 The nonpresent option is configured by the
 
 >	syncprov-nopresent <TRUE|FALSE>
