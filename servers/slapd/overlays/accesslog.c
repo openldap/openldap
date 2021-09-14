@@ -2063,6 +2063,16 @@ static int
 accesslog_op_misc( Operation *op, SlapReply *rs )
 {
 	slap_callback *sc;
+	slap_verbmasks *lo;
+	int logop;
+
+	logop = accesslog_op2logop( op );
+	lo = logops+logop+EN_OFFSET;
+
+	/* ignore these internal reads */
+	if (( lo->mask & LOG_OP_READS ) && op->o_do_not_cache ) {
+		return SLAP_CB_CONTINUE;
+	}
 
 	sc = op->o_tmpcalloc( 1, sizeof(slap_callback), op->o_tmpmemctx );
 	sc->sc_response = accesslog_response;
@@ -2096,11 +2106,6 @@ accesslog_op_mod( Operation *op, SlapReply *rs )
 	
 	logop = accesslog_op2logop( op );
 	lo = logops+logop+EN_OFFSET;
-
-	/* Ignore these internal reads */
-	if (( lo->mask & LOG_OP_READS ) && op->o_do_not_cache ) {
-		return SLAP_CB_CONTINUE;
-	}
 
 	if ( !( li->li_ops & lo->mask )) {
 		log_base *lb;
