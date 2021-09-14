@@ -2188,6 +2188,12 @@ accesslog_unbind( Operation *op, SlapReply *rs )
 			return SLAP_CB_CONTINUE;
 	}
 
+	op2.o_hdr = op->o_hdr;
+	op2.o_tag = LDAP_REQ_ADD;
+	op2.o_bd = li->li_db;
+	op2.o_csn.bv_val = csnbuf;
+	op2.o_csn.bv_len = sizeof(csnbuf);
+
 	ldap_pvt_thread_mutex_lock( &li->li_op_rmutex );
 
 	if ( SLAP_LASTMOD( li->li_db ) ) {
@@ -2196,8 +2202,6 @@ accesslog_unbind( Operation *op, SlapReply *rs )
 		 * ordering
 		 */
 		if ( BER_BVISEMPTY( &op->o_csn ) ) {
-			op2.o_csn.bv_val = csnbuf;
-			op2.o_csn.bv_len = sizeof(csnbuf);
 			slap_get_csn( &op2, &op2.o_csn, 1 );
 		} else {
 			Debug( LDAP_DEBUG_ANY, "%s accesslog_unbind: "
@@ -2212,9 +2216,6 @@ accesslog_unbind( Operation *op, SlapReply *rs )
 	ldap_pvt_thread_mutex_unlock( &li->li_op_rmutex );
 
 	e = accesslog_entry( op, rs, li, LOG_EN_UNBIND, &op2 );
-	op2.o_hdr = op->o_hdr;
-	op2.o_tag = LDAP_REQ_ADD;
-	op2.o_bd = li->li_db;
 	op2.o_dn = li->li_db->be_rootdn;
 	op2.o_ndn = li->li_db->be_rootndn;
 	op2.o_req_dn = e->e_name;
@@ -2267,6 +2268,12 @@ accesslog_abandon( Operation *op, SlapReply *rs )
 			return SLAP_CB_CONTINUE;
 	}
 
+	op2.o_hdr = op->o_hdr;
+	op2.o_tag = LDAP_REQ_ADD;
+	op2.o_bd = li->li_db;
+	op2.o_csn.bv_val = csnbuf;
+	op2.o_csn.bv_len = sizeof(csnbuf);
+
 	ldap_pvt_thread_mutex_lock( &li->li_op_rmutex );
 	if ( SLAP_LASTMOD( li->li_db ) ) {
 		/*
@@ -2274,8 +2281,6 @@ accesslog_abandon( Operation *op, SlapReply *rs )
 		 * ordering
 		 */
 		if ( BER_BVISEMPTY( &op->o_csn ) ) {
-			op2.o_csn.bv_val = csnbuf;
-			op2.o_csn.bv_len = sizeof(csnbuf);
 			slap_get_csn( &op2, &op2.o_csn, 1 );
 		} else {
 			Debug( LDAP_DEBUG_ANY, "%s accesslog_abandon: "
@@ -2296,9 +2301,6 @@ accesslog_abandon( Operation *op, SlapReply *rs )
 		attr_merge_one( e, ad_reqId, &bv, NULL );
 	} /* else? */
 
-	op2.o_hdr = op->o_hdr;
-	op2.o_tag = LDAP_REQ_ADD;
-	op2.o_bd = li->li_db;
 	op2.o_dn = li->li_db->be_rootdn;
 	op2.o_ndn = li->li_db->be_rootndn;
 	op2.o_req_dn = e->e_name;
