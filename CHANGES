@@ -13,6 +13,7 @@ OpenLDAP 2.5.8 Engineering
 		Fix crash when pwdCheckModuleArg is not defined for ppm (ITS#9656)
 	Documentation
 		Fixed guide download link for heimdal (ITS#9669)
+		Fixed guide documentation for TLSECName (ITS#9687)
 		Removed ppolicy.schema from servers/slapd/schema/README (ITS#9156)
 		Fixed slapd.conf(5)/slapd-config(5) to document default for database monitoring (ITS#9674)
 		Fixed slapd-meta(5)/slapd-asyncmeta(5) verbiage for try-propagate (ITS#9646)
