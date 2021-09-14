@@ -166,7 +166,7 @@ curves may be shown using the following command
 
 >	openssl ecparam -list_curves
 
-If it is omitted, OpenSSL will auto-negotiate the curve choice.
+See the OpenSSL documentation for details.
 This directive is not used for GnuTLS.
 For GnuTLS the curves may be specified in the ciphersuite.
 
