@@ -4290,6 +4290,7 @@ retry_add:;
 					op2.ors_limit = NULL;
 					op2.ors_slimit = 1;
 					op2.ors_tlimit = SLAP_NO_LIMIT;
+					BER_BVZERO( &op2.o_csn );
 
 					f.f_choice = LDAP_FILTER_PRESENT;
 					f.f_desc = slap_schema.si_ad_objectClass;
