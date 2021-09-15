@@ -1056,9 +1056,11 @@ tlso_session_endpoint( tls_session *sess, struct berval *buf, int is_server )
 		md = EVP_sha256();
 
 	if ( !X509_digest( cert, md, (unsigned char *) (buf->bv_val), &md_len ))
-		return 0;
+		md_len = 0;
 
 	buf->bv_len = md_len;
+	if ( !is_server )
+		X509_free( cert );
 
 	return md_len;
 }
@@ -1081,15 +1083,19 @@ static int
 tlso_session_peercert( tls_session *sess, struct berval *der )
 {
 	tlso_session *s = (tlso_session *)sess;
-	unsigned char *ptr;
+	int ret = -1;
 	X509 *x = SSL_get_peer_certificate(s);
-	der->bv_len = i2d_X509(x, NULL);
-	der->bv_val = LDAP_MALLOC(der->bv_len);
-	if ( !der->bv_val )
-		return -1;
-	ptr = (unsigned char *) (der->bv_val);
-	i2d_X509(x, &ptr);
-	return 0;
+	if ( x ) {
+		der->bv_len = i2d_X509(x, NULL);
+		der->bv_val = LDAP_MALLOC(der->bv_len);
+		if ( der->bv_val ) {
+			unsigned char *ptr = (unsigned char *) (der->bv_val);
+			i2d_X509(x, &ptr);
+			ret = 0;
+		}
+		X509_free( x );
+	}
+	return ret;
 }
 
 static int
@@ -1102,13 +1108,17 @@ tlso_session_pinning( LDAP *ld, tls_session *sess, char *hashalg, struct berval 
 	X509 *cert = SSL_get_peer_certificate(s);
 	int len, rc = LDAP_SUCCESS;
 
+	if ( !cert )
+		return -1;
+
 	len = i2d_X509_PUBKEY( X509_get_X509_PUBKEY(cert), NULL );
 
 	tmp = LDAP_MALLOC( len );
 	key.bv_val = (char *) tmp;
 
 	if ( !key.bv_val ) {
-		return -1;
+		rc = -1;
+		goto done;
 	}
 
 	key.bv_len = i2d_X509_PUBKEY( X509_get_X509_PUBKEY(cert), &tmp );
@@ -1162,6 +1172,7 @@ tlso_session_pinning( LDAP *ld, tls_session *sess, char *hashalg, struct berval 
 
 done:
 	LDAP_FREE( key.bv_val );
+	X509_free( cert );
 	return rc;
 }
 
