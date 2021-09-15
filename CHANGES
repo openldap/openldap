@@ -4,6 +4,7 @@ OpenLDAP 2.5.8 Engineering
 	Fixed libldap ldap_int_tls_connect: isdigit() requires unsigned char (ITS#9668)
 	Fixed slapd to allow normalized values for namingContexts in cn=monitor (ITS#8341)
 	Fixed slapd to normalize the suffix in rootDSE (ITS#9664)
+	Fixed slapd slapadd to avoid destroying configDB prematurely (ITS#9678)
 	Fixed slapo-syncprov to free uuid list when finished replaying sessionlog (ITS#6467)
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
