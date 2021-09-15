@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.8 Engineering
 	Fixed libldap ldap_int_tls_connect: isdigit() requires unsigned char (ITS#9668)
+	Fixed libldap memory leak in ldap_get_option LDAP_OPT_X_TLS_PEERCERT (ITS#9696)
 	Fixed slapd to allow normalized values for namingContexts in cn=monitor (ITS#8341)
 	Fixed slapd to normalize the suffix in rootDSE (ITS#9664)
 	Fixed slapd slapadd to avoid destroying configDB prematurely (ITS#9678)
