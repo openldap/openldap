@@ -9,6 +9,7 @@ OpenLDAP 2.5.8 Engineering
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
 		Fixed slapd duplicate definition of peerbv (ITS#9659)
+		Fixed test suite with memberof modular builds (ITS#9464)
 	Contrib
 		Added man page for ppm contrib module (ITS#9644)
 		Fix crash when pwdCheckModuleArg is not defined for ppm (ITS#9656)
