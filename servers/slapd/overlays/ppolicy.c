@@ -161,7 +161,9 @@ static struct schema_info {
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
 		"SINGLE-VALUE "
+#if 0 /* FIXME: ITS#9671 until we introduce a separate lockout flag? */
 		"NO-USER-MODIFICATION "
+#endif
 		"USAGE directoryOperation )",
 		&ad_pwdAccountLockedTime },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.19 "
@@ -203,7 +205,9 @@ static struct schema_info {
 		"EQUALITY distinguishedNameMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 "
 		"SINGLE-VALUE "
+#if 0 /* ITS#9671: until we implement ITS#9343 or similar */
 		"NO-USER-MODIFICATION "
+#endif
 		"USAGE directoryOperation )",
 		&ad_pwdPolicySubentry },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.27 "
@@ -213,7 +217,6 @@ static struct schema_info {
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
 		"SINGLE-VALUE "
-		"NO-USER-MODIFICATION "
 		"USAGE directoryOperation )",
 		&ad_pwdStartTime },
 	{	"( 1.3.6.1.4.1.42.2.27.8.1.28 "
@@ -223,7 +226,6 @@ static struct schema_info {
 		"ORDERING generalizedTimeOrderingMatch "
 		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.24 "
 		"SINGLE-VALUE "
-		"NO-USER-MODIFICATION "
 		"USAGE directoryOperation )",
 		&ad_pwdEndTime },
 	/* Defined in schema_prep.c now
