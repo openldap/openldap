@@ -6,7 +6,7 @@ HIDDEN
     _save*;
 };
 
-OPENLDAP_@OPENLDAP_LIBRELEASE@
+OPENLDAP_@OPENLDAP_API_CURRENT@
 {
   global:
     ber_*;

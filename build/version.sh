@@ -34,6 +34,7 @@ echo OL_PACKAGE=\"${ol_package}\"
 echo OL_MAJOR=$ol_major
 echo OL_MINOR=$ol_minor
 echo OL_PATCH=$ol_patch
+echo OL_API_CURRENT=$ol_api_current
 echo OL_API_INC=$ol_api_inc
 echo OL_API_LIB_VERSION=$ol_api_lib_version
 echo OL_VERSION=$ol_version
