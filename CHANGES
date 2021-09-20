@@ -7,6 +7,7 @@ OpenLDAP 2.5.8 Engineering
 	Fixed slapd to normalize the suffix in rootDSE (ITS#9664)
 	Fixed slapd slapadd to avoid destroying configDB prematurely (ITS#9678)
 	Fixed slapd-sql ldap_entry_objectclass table for mariadb/mysql (ITS#9679)
+	Fixed slapo-ppolicy to restore OpenLDAP 2.4 compatibilty (ITS#9671)
 	Fixed slapo-syncprov to free uuid list when finished replaying sessionlog (ITS#6467)
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
