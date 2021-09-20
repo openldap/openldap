@@ -1253,6 +1253,7 @@ LDAP_SLAPD_V(int) logfile_age;
 LDAP_SLAPD_V(int) logfile_only;
 LDAP_SLAPD_V(int) logfile_max;
 LDAP_SLAPD_V(long) logfile_fslimit;
+LDAP_SLAPD_V(int) slap_debug_orig;
 
 /*
  * main.c

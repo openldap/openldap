@@ -723,6 +723,7 @@ unhandled_option:;
 	ber_set_option(NULL, LBER_OPT_DEBUG_LEVEL, &slap_debug);
 	ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL, &slap_debug);
 	ldif_debug = slap_debug;
+	slap_debug_orig = slap_debug;
 
 	if ( version ) {
 		fprintf( stderr, "%s\n", Versionstr );
