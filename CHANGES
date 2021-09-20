@@ -19,6 +19,7 @@ OpenLDAP 2.5.8 Engineering
 		Fixed guide download link for heimdal (ITS#9669)
 		Fixed guide documentation for TLSECName (ITS#9687)
 		Fixed guide documentation missing tags (ITS#9693)
+		Fixed guide loadbalancer typo (ITS#9699)
 		Fixed guide synprov-nopresent redundant text (ITS#9689)
 		Removed ppolicy.schema from servers/slapd/schema/README (ITS#9156)
 		Fixed slapd.conf(5)/slapd-config(5) to document default for database monitoring (ITS#9674)
