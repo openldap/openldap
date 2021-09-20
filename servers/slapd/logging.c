@@ -34,6 +34,7 @@ static char logfile_suffix[sizeof(".xx.gz")];
 char logfile_path[MAXPATHLEN - sizeof(logfile_suffix) -1];
 long logfile_fslimit;
 int logfile_age, logfile_only, logfile_max;
+int slap_debug_orig;
 
 ldap_pvt_thread_mutex_t logfile_mutex;
 

@@ -202,6 +202,7 @@ enum {
 	CFG_TLS_CERT,
 	CFG_TLS_KEY,
 	CFG_LOGFILE_ROTATE,
+	CFG_LOGFILE_ONLY,
 
 	CFG_LAST
 };
@@ -485,8 +486,8 @@ static ConfigTable config_back_cf_table[] = {
 		&config_generic, "( OLcfgGlAt:27 NAME 'olcLogFile' "
 			"EQUALITY caseExactMatch "
 			"SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
-	{ "logfile-only", "on|off", 2, 2, 0, ARG_ON_OFF,
-		&logfile_only, "( OLcfgGlAt:102 NAME 'olcLogFileOnly' "
+	{ "logfile-only", "on|off", 2, 2, 0, ARG_ON_OFF|ARG_MAGIC|CFG_LOGFILE_ONLY,
+		&config_generic, "( OLcfgGlAt:102 NAME 'olcLogFileOnly' "
 			"EQUALITY booleanMatch "
 			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 	{ "logfile-rotate", "max> <Mbyte> <hours", 4, 4, 0, ARG_MAGIC|CFG_LOGFILE_ROTATE,
@@ -1088,6 +1089,8 @@ static ADlist *sortVals;
 
 static int new_daemon_threads;
 
+static int config_syslog;
+
 static int
 config_resize_lthreads(ConfigArgs *c)
 {
@@ -1388,6 +1391,9 @@ config_generic(ConfigArgs *c) {
 				rc = 1;
 			}
 			break;
+		case CFG_LOGFILE_ONLY:
+			c->value_int = logfile_only;
+			break;
 		case CFG_LOGFILE_ROTATE:
 			rc = 1;
 			if ( logfile_max ) {
@@ -1634,6 +1640,12 @@ config_generic(ConfigArgs *c) {
 
 		case CFG_LOGFILE:
 			logfile_close();
+			break;
+
+		case CFG_LOGFILE_ONLY:
+			/* remove loglevel from debuglevel */
+			slap_debug = slap_debug_orig;
+			ldap_syslog = config_syslog;
 			break;
 
 		case CFG_LOGFILE_ROTATE:
@@ -2417,6 +2429,16 @@ sortval_reject:
 				int rc = logfile_open( c->value_string );
 				ch_free( c->value_string );
 				return rc;
+			}
+			break;
+
+		case CFG_LOGFILE_ONLY:
+			slap_debug = slap_debug_orig;
+			if ( c->value_int ) {
+				slap_debug |= config_syslog;
+				ldap_syslog = 0;
+			} else {
+				ldap_syslog = config_syslog;
 			}
 			break;
 
@@ -3965,8 +3987,6 @@ loglevel_print( FILE *out )
 	return 0;
 }
 
-static int config_syslog;
-
 static int
 config_loglevel(ConfigArgs *c) {
 	int i;
@@ -3989,7 +4009,9 @@ config_loglevel(ConfigArgs *c) {
 			config_syslog &= ~loglevel_ops[i].mask;
 		}
 		if ( slapMode & SLAP_SERVER_MODE ) {
-			ldap_syslog = config_syslog;
+			slap_debug = slap_debug_orig;
+			if ( !logfile_only )
+				ldap_syslog = config_syslog;
 		}
 		return 0;
 	}
@@ -4019,7 +4041,12 @@ config_loglevel(ConfigArgs *c) {
 			config_syslog = 0;
 	}
 	if ( slapMode & SLAP_SERVER_MODE ) {
-		ldap_syslog = config_syslog;
+		if ( logfile_only ) {
+			slap_debug = slap_debug_orig | config_syslog;
+			ldap_syslog = 0;
+		} else {
+			ldap_syslog = config_syslog;
+		}
 	}
 	return(0);
 }
