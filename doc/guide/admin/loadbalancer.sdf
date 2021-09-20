@@ -9,7 +9,7 @@ there's a need for an LDAPv3 capable load balancer to spread the load between th
 various directory instances.
 
 {{lloadd}}(8) provides the capability to distribute LDAP v3 requests between a
-a set of running {{slapd}} instances.  It can run as a standalone daemon
+set of running {{slapd}} instances.  It can run as a standalone daemon
 {{lloadd}}, or as an embedded module running inside of {{slapd}}.
 
 H2: Overview
