@@ -1801,7 +1801,6 @@ LDAP_SLAPD_F( int ) structural_class(
 LDAP_SLAPD_F( int ) entry_schema_check(
 	Operation *op,
 	Entry *e,
-	Attribute *attrs,
 	int manage,
 	int add,
 	Attribute **socp,

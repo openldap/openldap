@@ -6038,7 +6038,7 @@ config_back_add( Operation *op, SlapReply *rs )
 	{
 		char textbuf[SLAP_TEXT_BUFLEN];
 		size_t textlen = sizeof textbuf;
-		rs->sr_err = entry_schema_check(op, op->ora_e, NULL, 0, 1, NULL,
+		rs->sr_err = entry_schema_check(op, op->ora_e, 0, 1, NULL,
 			&rs->sr_text, textbuf, sizeof( textbuf ) );
 		if ( rs->sr_err != LDAP_SUCCESS )
 			goto out;
@@ -6336,7 +6336,7 @@ config_modify_internal( CfEntryInfo *ce, Operation *op, SlapReply *rs,
 	
 	if ( rc == LDAP_SUCCESS) {
 		/* check that the entry still obeys the schema */
-		rc = entry_schema_check(op, e, NULL, 0, 0, NULL,
+		rc = entry_schema_check(op, e, 0, 0, NULL,
 			&rs->sr_text, ca->cr_msg, sizeof(ca->cr_msg) );
 	}
 	if ( rc ) goto out_noop;
