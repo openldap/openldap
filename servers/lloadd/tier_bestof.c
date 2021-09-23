@@ -30,26 +30,29 @@ static LloadTierSelect bestof_select;
 struct lload_tier_type bestof_tier;
 
 /*
- * Linear Congruential Generator - we don't need
- * high quality randomness, and we don't want to
- * interfere with anyone else's use of srand().
+ * xorshift - we don't need high quality randomness, and we don't want to
+ * interfere with anyone else's use of srand() but we still want something with
+ * little bias.
  *
- * The PRNG here cycles thru 941,955 numbers.
+ * The PRNG here cycles thru 2^64−1 numbers.
  */
-static float bestof_seed;
+static uint64_t bestof_seed;
 
 static void
 bestof_srand( int seed )
 {
-    bestof_seed = (float)seed / (float)RAND_MAX;
+    bestof_seed = seed;
 }
 
-static float
+static uint64_t
 bestof_rand()
 {
-    float val = 9821.0 * bestof_seed + .211327;
-    bestof_seed = val - (int)val;
-    return bestof_seed;
+    uint64_t val = bestof_seed;
+    val ^= val << 13;
+    val ^= val >> 7;
+    val ^= val << 17;
+    bestof_seed = val;
+    return val;
 }
 
 static int
@@ -84,6 +87,7 @@ LloadTier *
 bestof_init( void )
 {
     LloadTier *tier;
+    int seed;
 
     tier = ch_calloc( 1, sizeof(LloadTier) );
 
@@ -91,7 +95,11 @@ bestof_init( void )
     ldap_pvt_thread_mutex_init( &tier->t_mutex );
     LDAP_CIRCLEQ_INIT( &tier->t_backends );
 
-    bestof_srand( rand() );
+    /* Make sure we don't pass 0 as a seed */
+    do {
+        seed = rand();
+    } while ( !seed );
+    bestof_srand( seed );
 
     return tier;
 }
@@ -227,8 +235,8 @@ bestof_select(
     }
 
     /* Pick two backend indices at random */
-    i0 = bestof_rand() * n;
-    i1 = bestof_rand() * ( n - 1 );
+    i0 = bestof_rand() % n;
+    i1 = bestof_rand() % ( n - 1 );
     if ( i1 >= i0 ) {
         i1 += 1;
     } else {
