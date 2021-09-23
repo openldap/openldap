@@ -536,6 +536,14 @@ lload_monitor_conn_modify( Operation *op, SlapReply *rs, Entry *e, void *priv )
 {
     Modifications *m;
     LloadConnection *c = priv;
+    int rc = SLAP_CB_CONTINUE;
+    epoch_t epoch;
+
+    if ( !acquire_ref( &c->c_refcnt ) ) {
+        /* Shutting down, pretend it's already happened */
+        return LDAP_NO_SUCH_OBJECT;
+    }
+    epoch = epoch_join();
 
     for ( m = op->orm_modlist; m; m = m->sml_next ) {
         struct berval closing = BER_BVC("closing");
@@ -546,14 +554,19 @@ lload_monitor_conn_modify( Operation *op, SlapReply *rs, Entry *e, void *priv )
         if ( m->sml_desc != ad_olmConnectionState ||
                 m->sml_op != LDAP_MOD_REPLACE || m->sml_numvals != 1 ||
                 ber_bvcmp( &m->sml_nvalues[0], &closing ) ) {
-            return LDAP_OTHER;
+            rc = LDAP_CONSTRAINT_VIOLATION;
+            goto done;
         }
 
         if ( lload_connection_close( c, &gentle ) ) {
-            return LDAP_OTHER;
+            rc = LDAP_OTHER;
+            goto done;
         }
     }
-    return SLAP_CB_CONTINUE;
+done:
+    RELEASE_REF( c, c_refcnt, c->c_destroy );
+    epoch_leave( epoch );
+    return rc;
 }
 
 /*
