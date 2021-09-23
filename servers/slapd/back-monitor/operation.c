@@ -63,7 +63,7 @@ monitor_subsys_ops_init(
 {
 	monitor_info_t	*mi;
 	
-	Entry		*e_op, **ep;
+	Entry		*e_op;
 	monitor_entry_t	*mp;
 	int 		i;
 	struct berval	bv_zero = BER_BVC( "0" );
@@ -87,10 +87,6 @@ monitor_subsys_ops_init(
 
 	attr_merge_one( e_op, mi->mi_ad_monitorOpInitiated, &bv_zero, NULL );
 	attr_merge_one( e_op, mi->mi_ad_monitorOpCompleted, &bv_zero, NULL );
-
-	mp = ( monitor_entry_t * )e_op->e_private;
-	mp->mp_children = NULL;
-	ep = &mp->mp_children;
 
 	for ( i = 0; i < SLAP_OP_LAST; i++ ) {
 		struct berval	rdn;
@@ -129,7 +125,7 @@ monitor_subsys_ops_init(
 		mp->mp_flags = ms->mss_flags \
 			| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 
-		if ( monitor_cache_add( mi, e ) ) {
+		if ( monitor_cache_add( mi, e, e_op ) ) {
 			Debug( LDAP_DEBUG_ANY,
 				"monitor_subsys_ops_init: "
 				"unable to add entry \"%s,%s\"\n",
@@ -137,9 +133,6 @@ monitor_subsys_ops_init(
 				ms->mss_ndn.bv_val );
 			return( -1 );
 		}
-
-		*ep = e;
-		ep = &mp->mp_next;
 	}
 
 	monitor_cache_release( mi, e_op );

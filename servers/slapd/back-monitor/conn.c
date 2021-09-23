@@ -48,7 +48,7 @@ monitor_subsys_conn_init(
 	monitor_subsys_t	*ms )
 {
 	monitor_info_t	*mi;
-	Entry		*e, **ep, *e_conn;
+	Entry		*e, *e_conn;
 	monitor_entry_t	*mp;
 	char		buf[ BACKMONITOR_BUFSIZE ];
 	struct berval	bv;
@@ -69,8 +69,6 @@ monitor_subsys_conn_init(
 	}
 
 	mp = ( monitor_entry_t * )e_conn->e_private;
-	mp->mp_children = NULL;
-	ep = &mp->mp_children;
 
 	/*
 	 * Max file descriptors
@@ -106,7 +104,7 @@ monitor_subsys_conn_init(
 		| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 	mp->mp_flags &= ~MONITOR_F_VOLATILE_CH;
 
-	if ( monitor_cache_add( mi, e ) ) {
+	if ( monitor_cache_add( mi, e, e_conn ) ) {
 		Debug( LDAP_DEBUG_ANY,
 			"monitor_subsys_conn_init: "
 			"unable to add entry \"cn=Total,%s\"\n",
@@ -114,9 +112,6 @@ monitor_subsys_conn_init(
 		return( -1 );
 	}
 
-	*ep = e;
-	ep = &mp->mp_next;
-	
 	/*
 	 * Total conns
 	 */
@@ -145,7 +140,7 @@ monitor_subsys_conn_init(
 		| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 	mp->mp_flags &= ~MONITOR_F_VOLATILE_CH;
 
-	if ( monitor_cache_add( mi, e ) ) {
+	if ( monitor_cache_add( mi, e, e_conn ) ) {
 		Debug( LDAP_DEBUG_ANY,
 			"monitor_subsys_conn_init: "
 			"unable to add entry \"cn=Total,%s\"\n",
@@ -153,9 +148,6 @@ monitor_subsys_conn_init(
 		return( -1 );
 	}
 
-	*ep = e;
-	ep = &mp->mp_next;
-	
 	/*
 	 * Current conns
 	 */
@@ -184,7 +176,7 @@ monitor_subsys_conn_init(
 		| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 	mp->mp_flags &= ~MONITOR_F_VOLATILE_CH;
 
-	if ( monitor_cache_add( mi, e ) ) {
+	if ( monitor_cache_add( mi, e, e_conn ) ) {
 		Debug( LDAP_DEBUG_ANY,
 			"monitor_subsys_conn_init: "
 			"unable to add entry \"cn=Current,%s\"\n",
@@ -192,9 +184,6 @@ monitor_subsys_conn_init(
 		return( -1 );
 	}
 	
-	*ep = e;
-	ep = &mp->mp_next;
-
 	monitor_cache_release( mi, e_conn );
 
 	return( 0 );

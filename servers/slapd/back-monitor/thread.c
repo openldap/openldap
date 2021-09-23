@@ -106,7 +106,7 @@ monitor_subsys_thread_init(
 {
 	monitor_info_t	*mi;
 	monitor_entry_t	*mp;
-	Entry		*e, **ep, *e_thread;
+	Entry		*e, *e_thread;
 	int		i;
 
 	ms->mss_update = monitor_subsys_thread_update;
@@ -119,10 +119,6 @@ monitor_subsys_thread_init(
 			ms->mss_dn.bv_val );
 		return( -1 );
 	}
-
-	mp = ( monitor_entry_t * )e_thread->e_private;
-	mp->mp_children = NULL;
-	ep = &mp->mp_children;
 
 	for ( i = 0; !BER_BVISNULL( &mt[ i ].rdn ); i++ ) {
 		static char	buf[ BACKMONITOR_BUFSIZE ];
@@ -192,7 +188,7 @@ monitor_subsys_thread_init(
 		mp->mp_flags = ms->mss_flags \
 			| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 
-		if ( monitor_cache_add( mi, e ) ) {
+		if ( monitor_cache_add( mi, e, e_thread ) ) {
 			Debug( LDAP_DEBUG_ANY,
 				"monitor_subsys_thread_init: "
 				"unable to add entry \"%s,%s\"\n",
@@ -200,9 +196,6 @@ monitor_subsys_thread_init(
 				ms->mss_dn.bv_val );
 			return( -1 );
 		}
-	
-		*ep = e;
-		ep = &mp->mp_next;
 	}
 
 	monitor_cache_release( mi, e_thread );

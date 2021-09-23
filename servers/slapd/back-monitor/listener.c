@@ -34,7 +34,7 @@ monitor_subsys_listener_init(
 )
 {
 	monitor_info_t	*mi;
-	Entry		*e_listener, **ep;
+	Entry		*e_listener;
 	int		i;
 	monitor_entry_t	*mp;
 	Listener	**l;
@@ -61,10 +61,6 @@ monitor_subsys_listener_init(
 			ms->mss_ndn.bv_val );
 		return( -1 );
 	}
-
-	mp = ( monitor_entry_t * )e_listener->e_private;
-	mp->mp_children = NULL;
-	ep = &mp->mp_children;
 
 	for ( i = 0; l[ i ]; i++ ) {
 		char 		buf[ BACKMONITOR_BUFSIZE ];
@@ -119,16 +115,13 @@ monitor_subsys_listener_init(
 		mp->mp_flags = ms->mss_flags
 			| MONITOR_F_SUB;
 
-		if ( monitor_cache_add( mi, e ) ) {
+		if ( monitor_cache_add( mi, e, e_listener ) ) {
 			Debug( LDAP_DEBUG_ANY,
 				"monitor_subsys_listener_init: "
 				"unable to add entry \"cn=Listener %d,%s\"\n",
 				i, ms->mss_ndn.bv_val );
 			return( -1 );
 		}
-
-		*ep = e;
-		ep = &mp->mp_next;
 	}
 	
 	monitor_cache_release( mi, e_listener );
