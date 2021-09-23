@@ -56,6 +56,7 @@ typedef struct monitor_entry_t {
 	ldap_pvt_thread_mutex_t	mp_mutex;	/* entry mutex */
 	Entry			*mp_next;	/* pointer to next sibling */
 	Entry			*mp_children;	/* pointer to first child */
+	Entry			*mp_last;	/* pointer to last child */
 	struct monitor_subsys_t	*mp_info;	/* subsystem info */
 #define mp_type		mp_info->mss_type
 	unsigned long		mp_flags;	/* flags */
@@ -81,9 +82,13 @@ typedef struct monitor_info_t {
 
 	/*
 	 * Internal data
+	 *
+	 * Lock order:
+	 * - cache first, then entry
+	 * - DIT in preorder DFS
 	 */
 	Avlnode			*mi_cache;
-	ldap_pvt_thread_rdwr_t	mi_cache_rwlock;
+	ldap_pvt_thread_mutex_t	mi_cache_lock;
 
 	/*
 	 * Config parameters
