@@ -600,21 +600,28 @@ client_init(
     }
     c->c_write_event = event;
 
+    CONNECTION_LOCK(c);
+#ifdef BALANCER_MODULE
+    if ( lload_monitor_client_subsys ) {
+        acquire_ref( &c->c_refcnt );
+        CONNECTION_UNLOCK(c);
+        if ( lload_monitor_conn_entry_create(
+                    c, lload_monitor_client_subsys ) ) {
+            CONNECTION_LOCK(c);
+            RELEASE_REF( c, c_refcnt, c->c_destroy );
+            goto fail;
+        }
+        CONNECTION_LOCK(c);
+        RELEASE_REF( c, c_refcnt, c->c_destroy );
+    }
+#endif /* BALANCER_MODULE */
+
     c->c_destroy = client_destroy;
     c->c_unlink = client_unlink;
     c->c_pdu_cb = handle_one_request;
 
-    CONNECTION_LOCK(c);
     /* We only register the write event when we have data pending */
     event_add( c->c_read_event, c->c_read_timeout );
-
-#ifdef BALANCER_MODULE
-    if ( lload_monitor_client_subsys &&
-            lload_monitor_conn_entry_create(
-                    c, lload_monitor_client_subsys ) ) {
-        goto fail;
-    }
-#endif /* BALANCER_MODULE */
 
     checked_lock( &clients_mutex );
     LDAP_CIRCLEQ_INSERT_TAIL( &clients, c, c_next );
@@ -623,6 +630,14 @@ client_init(
 
     return c;
 fail:
+    if ( !IS_ALIVE( c, c_live ) ) {
+        /*
+         * Released while we were unlocked, it's scheduled for destruction
+         * already
+         */
+        return NULL;
+    }
+
     if ( c->c_write_event ) {
         event_free( c->c_write_event );
         c->c_write_event = NULL;

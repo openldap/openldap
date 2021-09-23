@@ -963,14 +963,25 @@ upstream_init( ber_socket_t s, LloadBackend *b )
     /* We only add the write event when we have data pending */
     c->c_write_event = event;
 
-    c->c_destroy = upstream_destroy;
-    c->c_unlink = upstream_unlink;
-
 #ifdef BALANCER_MODULE
-    if ( b->b_monitor && lload_monitor_conn_entry_create( c, b->b_monitor ) ) {
-        goto fail;
+    if ( b->b_monitor ) {
+        acquire_ref( &c->c_refcnt );
+        CONNECTION_UNLOCK(c);
+        checked_unlock( &b->b_mutex );
+        if ( lload_monitor_conn_entry_create( c, b->b_monitor ) ) {
+            RELEASE_REF( c, c_refcnt, c->c_destroy );
+            checked_lock( &b->b_mutex );
+            CONNECTION_LOCK(c);
+            goto fail;
+        }
+        checked_lock( &b->b_mutex );
+        CONNECTION_LOCK(c);
+        RELEASE_REF( c, c_refcnt, c->c_destroy );
     }
 #endif /* BALANCER_MODULE */
+
+    c->c_destroy = upstream_destroy;
+    c->c_unlink = upstream_unlink;
 
 #ifdef HAVE_TLS
     if ( c->c_is_tls == LLOAD_CLEARTEXT ) {
@@ -1015,6 +1026,14 @@ upstream_init( ber_socket_t s, LloadBackend *b )
     return c;
 
 fail:
+    if ( !IS_ALIVE( c, c_live ) ) {
+        /*
+         * Released while we were unlocked, it's scheduled for destruction
+         * already
+         */
+        return NULL;
+    }
+
     if ( c->c_write_event ) {
         event_del( c->c_write_event );
         event_free( c->c_write_event );
