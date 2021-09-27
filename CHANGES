@@ -24,6 +24,7 @@ OpenLDAP 2.5.8 Engineering
 		Fixed guide documentation missing tags (ITS#9693)
 		Fixed guide loadbalancer typo (ITS#9699)
 		Fixed guide synprov-nopresent redundant text (ITS#9689)
+		Fixed guide various typos and fix config alignment (ITS#9706)
 		Removed ppolicy.schema from servers/slapd/schema/README (ITS#9156)
 		Fixed slapd.conf(5)/slapd-config(5) to document default for database monitoring (ITS#9674)
 		Fixed slapd-meta(5)/slapd-asyncmeta(5) verbiage for try-propagate (ITS#9646)
