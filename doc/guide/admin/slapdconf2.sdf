@@ -543,6 +543,7 @@ H4: olcSyncrepl
 >		[filter=<filter str>]
 >		[scope=sub|one|base]
 >		[attrs=<attr list>]
+>		[exattrs=<attr list>]
 >		[attrsonly]
 >		[sizelimit=<limit>]
 >		[timelimit=<limit>]
@@ -597,7 +598,7 @@ The content of the syncrepl consumer is defined using a search
 specification as its result set. The consumer slapd will
 send search requests to the provider slapd according to the search
 specification. The search specification includes {{EX:searchbase}},
-{{EX:scope}}, {{EX:filter}}, {{EX:attrs}}, {{EX:attrsonly}},
+{{EX:scope}}, {{EX:filter}}, {{EX:attrs}}, {{EX:exattrs}}, {{EX:attrsonly}},
 {{EX:sizelimit}}, and {{EX:timelimit}} parameters as in the normal
 search specification. The {{EX:searchbase}} parameter has no
 default value and must always be specified. The {{EX:scope}} defaults
@@ -605,7 +606,8 @@ to {{EX:sub}}, the {{EX:filter}} defaults to {{EX:(objectclass=*)}},
 {{EX:attrs}} defaults to {{EX:"*,+"}} to replicate all user and operational
 attributes, and {{EX:attrsonly}} is unset by default. Both {{EX:sizelimit}}
 and {{EX:timelimit}} default to "unlimited", and only positive integers
-or "unlimited" may be specified.
+or "unlimited" may be specified. The {{EX:exattrs}} option may also be used
+to specify attributes that should be omitted from incoming entries.
 
 The {{TERM[expand]LDAP Sync}} protocol has two operation
 types: {{EX:refreshOnly}} and {{EX:refreshAndPersist}}.
