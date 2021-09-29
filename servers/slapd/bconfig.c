@@ -2440,6 +2440,7 @@ sortval_reject:
 			} else {
 				ldap_syslog = config_syslog;
 			}
+			logfile_only = c->value_int;
 			break;
 
 		case CFG_LOGFILE_ROTATE: {
