@@ -4009,12 +4009,7 @@ config_loglevel(ConfigArgs *c) {
 			i = verb_to_mask( c->line, loglevel_ops );
 			config_syslog &= ~loglevel_ops[i].mask;
 		}
-		if ( slapMode & SLAP_SERVER_MODE ) {
-			slap_debug = slap_debug_orig;
-			if ( !logfile_only )
-				ldap_syslog = config_syslog;
-		}
-		return 0;
+		goto reset;
 	}
 
 	for( i=1; i < c->argc; i++ ) {
@@ -4041,6 +4036,8 @@ config_loglevel(ConfigArgs *c) {
 		else
 			config_syslog = 0;
 	}
+
+reset:
 	if ( slapMode & SLAP_SERVER_MODE ) {
 		if ( logfile_only ) {
 			slap_debug = slap_debug_orig | config_syslog;
