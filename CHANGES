@@ -6,6 +6,7 @@ OpenLDAP 2.5.8 Engineering
 	Fixed slapd to allow normalized values for namingContexts in cn=monitor (ITS#8341)
 	Fixed slapd to normalize the suffix in rootDSE (ITS#9664)
 	Fixed slapd slapadd to avoid destroying configDB prematurely (ITS#9678)
+	Fixed slapd to not spam logs with lastbind information (ITS#9156)
 	Fixed slapd-sql ldap_entry_objectclass table for mariadb/mysql (ITS#9679)
 	Fixed slapd-wt multiple issues (ITS#9463)
 	Fixed slapd-wt to close cache db correctly (ITS#9631)
