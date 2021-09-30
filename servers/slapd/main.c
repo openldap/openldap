@@ -429,6 +429,20 @@ int main( int argc, char **argv )
 	(void) ldap_pvt_thread_initialize();
 	ldap_pvt_thread_mutex_init( &logfile_mutex );
 
+#ifdef HAVE_TLS
+	rc = ldap_create( &slap_tls_ld );
+	if ( rc ) {
+		MAIN_RETURN( rc );
+	}
+	/* Library defaults to full certificate checking. This is correct when
+	 * a client is verifying a server because all servers should have a
+	 * valid cert. But few clients have valid certs, so we want our default
+	 * to be no checking. The config file can override this as usual.
+	 */
+	rc = LDAP_OPT_X_TLS_NEVER;
+	(void) ldap_pvt_tls_set_option( slap_tls_ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &rc );
+#endif
+
 	serverName = lutil_progname( "slapd", argc, argv );
 
 	if ( strcmp( serverName, "slapd" ) ) {
@@ -805,21 +819,6 @@ unhandled_option:;
 
 	extops_init();
 	lutil_passwd_init();
-
-#ifdef HAVE_TLS
-	rc = ldap_create( &slap_tls_ld );
-	if ( rc ) {
-		SERVICE_EXIT( ERROR_SERVICE_SPECIFIC_ERROR, 20 );
-		goto destroy;
-	}
-	/* Library defaults to full certificate checking. This is correct when
-	 * a client is verifying a server because all servers should have a
-	 * valid cert. But few clients have valid certs, so we want our default
-	 * to be no checking. The config file can override this as usual.
-	 */
-	rc = LDAP_OPT_X_TLS_NEVER;
-	(void) ldap_pvt_tls_set_option( slap_tls_ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &rc );
-#endif
 
 	rc = slap_init( serverMode, serverName );
 	if ( rc ) {
