@@ -2,6 +2,7 @@ OpenLDAP 2.4 Change Log
 
 OpenLDAP 2.4.60 Engineering
 	Fixed slapd syncrepl to include full set of changes in a diff (ITS#7766)
+	Fixed slapd slaptest migration to correctly set olcTSLVerifyClient (ITS#9711)
 	Fixed slapo-syncprov delete of nonexistent sessionlog (ITS#9608)
 	Fixed slapo-accesslog to make reqMod optional (ITS#9569)
 	Documentation
