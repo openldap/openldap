@@ -157,6 +157,8 @@ enum {
     CFG_CONCUR,
     CFG_THREADS,
     CFG_LOGFILE,
+    CFG_LOGFILE_ONLY,
+    CFG_LOGFILE_ROTATE,
     CFG_MIRRORMODE,
     CFG_IOTHREADS,
     CFG_MAXBUF_CLIENT,
@@ -289,6 +291,16 @@ static ConfigTable config_back_cf_table[] = {
 #endif /* BALANCER_MODULE */
     { "logfile", "file", 2, 2, 0,
         ARG_STRING|ARG_MAGIC|CFG_LOGFILE,
+        &config_generic,
+        NULL, NULL, NULL
+    },
+    { "logfile-only", "on|off", 2, 2, 0,
+        ARG_ON_OFF|ARG_MAGIC|CFG_LOGFILE_ONLY,
+        &config_generic,
+        NULL, NULL, NULL
+    },
+    { "logfile-rotate", "max> <Mbyte> <hours", 4, 4, 0,
+        ARG_MAGIC|CFG_LOGFILE_ROTATE,
         &config_generic,
         NULL, NULL, NULL
     },
@@ -859,6 +871,8 @@ static ConfigOCs lloadocs[] = {
 };
 #endif /* BALANCER_MODULE */
 
+static int config_syslog;
+
 static int
 config_generic( ConfigArgs *c )
 {
@@ -1026,10 +1040,57 @@ config_generic( ConfigArgs *c )
         } break;
 
         case CFG_LOGFILE: {
-            if ( logfileName ) ch_free( logfileName );
-            logfileName = c->value_string;
-            logfile = fopen( logfileName, "w" );
-            if ( logfile ) lutil_debug_file( logfile );
+            int rc = logfile_open( c->value_string );
+            ch_free( c->value_string );
+            return rc;
+        } break;
+
+        case CFG_LOGFILE_ONLY:
+            slap_debug = slap_debug_orig;
+            if ( c->value_int ) {
+                slap_debug |= config_syslog;
+                ldap_syslog = 0;
+            } else {
+                ldap_syslog = config_syslog;
+            }
+            logfile_only = c->value_int;
+            break;
+
+        case CFG_LOGFILE_ROTATE: {
+            unsigned lf_max, lf_mbyte, lf_hour;
+            if ( lutil_atoux( &lf_max, c->argv[1], 0 ) != 0 ) {
+                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+                        "invalid max value \"%s\"",
+                        c->argv[0], c->argv[1] );
+                goto fail;
+            }
+            if ( !lf_max || lf_max > 99 ) {
+                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+                        "invalid max value \"%s\" must be 1-99",
+                        c->argv[0], c->argv[1] );
+                goto fail;
+            }
+            if ( lutil_atoux( &lf_mbyte, c->argv[2], 0 ) != 0 ) {
+                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+                        "invalid Mbyte value \"%s\"",
+                        c->argv[0], c->argv[2] );
+                goto fail;
+            }
+            if ( lutil_atoux( &lf_hour, c->argv[3], 0 ) != 0 ) {
+                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+                        "invalid hours value \"%s\"",
+                        c->argv[0], c->argv[3] );
+                goto fail;
+            }
+            if ( !lf_mbyte && !lf_hour ) {
+                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+                        "Mbyte and hours cannot both be zero",
+                        c->argv[0] );
+                goto fail;
+            }
+            logfile_max = lf_max;
+            logfile_fslimit = lf_mbyte * 1048576;   /* Megabytes to bytes */
+            logfile_age = lf_hour * 3600;           /* hours to seconds */
         } break;
 
         case CFG_RESCOUNT:
@@ -2065,8 +2126,6 @@ loglevel_print( FILE *out )
     return 0;
 }
 
-static int config_syslog;
-
 static int
 config_loglevel( ConfigArgs *c )
 {
@@ -2104,7 +2163,12 @@ config_loglevel( ConfigArgs *c )
             config_syslog = 0;
     }
     if ( slapMode & SLAP_SERVER_MODE ) {
-        ldap_syslog = config_syslog;
+        if ( logfile_only ) {
+            slap_debug = slap_debug_orig | config_syslog;
+            ldap_syslog = 0;
+        } else {
+            ldap_syslog = config_syslog;
+        }
     }
     return 0;
 }
