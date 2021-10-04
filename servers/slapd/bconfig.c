@@ -2448,26 +2448,36 @@ sortval_reject:
 			if ( lutil_atoux( &lf_max, c->argv[1], 0 ) != 0 ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
 					"invalid max value \"%s\"", c->argv[0], c->argv[1] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
+					c->log, c->cr_msg );
 				return 1;
 			}
 			if ( !lf_max || lf_max > 99 ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
 					"invalid max value \"%s\" must be 1-99", c->argv[0], c->argv[1] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
+					c->log, c->cr_msg );
 				return 1;
 			}
 			if ( lutil_atoux( &lf_mbyte, c->argv[2], 0 ) != 0 ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
-					"invalid Mbyte value \"%s\"", c->argv[0], c->argv[1] );
+					"invalid Mbyte value \"%s\"", c->argv[0], c->argv[2] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
+					c->log, c->cr_msg );
 				return 1;
 			}
 			if ( lutil_atoux( &lf_hour, c->argv[3], 0 ) != 0 ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
-					"invalid hours value \"%s\"", c->argv[0], c->argv[2] );
+					"invalid hours value \"%s\"", c->argv[0], c->argv[3] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
+					c->log, c->cr_msg );
 				return 1;
 			}
 			if ( !lf_mbyte && !lf_hour ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
 					"Mbyte and hours cannot both be zero", c->argv[0] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
+					c->log, c->cr_msg );
 				return 1;
 			}
 			logfile_max = lf_max;
