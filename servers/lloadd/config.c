@@ -2062,10 +2062,6 @@ loglevel_print( FILE *out )
                 loglevel_ops[i].word.bv_val, mask, mask );
     }
 
-    fprintf( out,
-            "\nNOTE: custom log subsystems may be later installed "
-            "by specific code\n\n" );
-
     return 0;
 }
 
@@ -2078,24 +2074,6 @@ config_loglevel( ConfigArgs *c )
 
     if ( loglevel_ops == NULL ) {
         loglevel_init();
-    }
-
-    if ( c->op == SLAP_CONFIG_EMIT ) {
-        /* Get default or commandline slapd setting */
-        if ( ldap_syslog && !config_syslog ) config_syslog = ldap_syslog;
-        return loglevel2bvarray( config_syslog, &c->rvalue_vals );
-
-    } else if ( c->op == LDAP_MOD_DELETE ) {
-        if ( !c->line ) {
-            config_syslog = 0;
-        } else {
-            i = verb_to_mask( c->line, loglevel_ops );
-            config_syslog &= ~loglevel_ops[i].mask;
-        }
-        if ( slapMode & SLAP_SERVER_MODE ) {
-            ldap_syslog = config_syslog;
-        }
-        return 0;
     }
 
     for ( i = 1; i < c->argc; i++ ) {
