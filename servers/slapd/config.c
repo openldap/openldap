@@ -383,7 +383,7 @@ int config_set_vals(ConfigTable *Conf, ConfigArgs *c) {
 			if ( !c->cr_msg[0] ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> handler exited with %d",
 					c->argv[0], rc );
-				Debug(LDAP_DEBUG_CONFIG, "%s: %s!\n",
+				Debug( LDAP_DEBUG_ANY, "%s: %s!\n",
 					c->log, c->cr_msg );
 			}
 			return(ARG_BAD_CONF);
@@ -398,7 +398,7 @@ int config_set_vals(ConfigTable *Conf, ConfigArgs *c) {
 		else {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> offset is missing base pointer",
 				c->argv[0] );
-			Debug(LDAP_DEBUG_CONFIG, "%s: %s!\n",
+			Debug( LDAP_DEBUG_ANY, "%s: %s!\n",
 				c->log, c->cr_msg );
 			return(ARG_BAD_CONF);
 		}

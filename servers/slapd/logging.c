@@ -118,22 +118,28 @@ int
 logfile_open( const char *path )
 {
 	struct stat st;
-	int fd;
+	int fd, saved_errno;
 
 	fd = open( path, O_CREAT|O_WRONLY, 0640 );
-	if ( fd < 0 )
-		return errno;
+	if ( fd < 0 ) {
+		saved_errno = errno;
+fail:
+		logfile_only = 0;	/* make sure something gets output */
+		return saved_errno;
+	}
 
 	if ( fstat( fd, &st ) ) {
-		int saved_errno = errno;
+		saved_errno = errno;
 		close( fd );
-		return saved_errno;
+		goto fail;
 	}
 
 	if ( !logfile_path[0] ) {
 		logpathlen = strlen( path );
-		if ( logpathlen >= sizeof(logfile_path) )
-			return ENAMETOOLONG;
+		if ( logpathlen >= sizeof(logfile_path) ) {
+			saved_errno = ENAMETOOLONG;
+			goto fail;
+		}
 		strcpy( logfile_path, path );
 		strcpy( logpaths[0], path );
 		strcpy( logpaths[1], path );
