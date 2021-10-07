@@ -55,8 +55,6 @@ mdb_id2v_compare(
 		return -1;
 	if (ui > ci)
 		return 1;
-	if (usrkey->mv_size < curkey->mv_size)
-		return 0;
 	uv = usrkey->mv_data;
 	cv = curkey->mv_data;
 	return uv[sizeof(ID)/2] - cv[sizeof(ID)/2];
@@ -467,10 +465,13 @@ int mdb_id2entry_delete(
 	MDB_dbi dbi = mdb->mi_id2entry;
 	MDB_val key;
 	MDB_cursor *mvc;
+	char kbuf[sizeof(ID) + sizeof(unsigned short)];
 	int rc;
 
-	key.mv_data = &e->e_id;
-	key.mv_size = sizeof(ID);
+	memcpy( kbuf, &e->e_id, sizeof(ID) );
+	memset( kbuf+sizeof(ID), 0, sizeof(unsigned short) );
+	key.mv_data = kbuf;
+	key.mv_size = sizeof(kbuf);
 
 	/* delete from database */
 	rc = mdb_del( tid, dbi, &key, NULL );
