@@ -55,6 +55,8 @@ mdb_id2v_compare(
 		return -1;
 	if (ui > ci)
 		return 1;
+	if (usrkey->mv_size < curkey->mv_size)
+		return 0;
 	uv = usrkey->mv_data;
 	cv = curkey->mv_data;
 	return uv[sizeof(ID)/2] - cv[sizeof(ID)/2];
@@ -490,7 +492,8 @@ int mdb_id2entry_delete(
 			return rc;
 		rc = mdb_cursor_get( mvc, &key, NULL, MDB_GET_CURRENT );
 		if (rc) {
-			if (rc == MDB_NOTFOUND)
+			/* no record or DB is empty */
+			if (rc == MDB_NOTFOUND || rc == EINVAL)
 				rc = MDB_SUCCESS;
 			break;
 		}
