@@ -465,10 +465,13 @@ int mdb_id2entry_delete(
 	MDB_dbi dbi = mdb->mi_id2entry;
 	MDB_val key;
 	MDB_cursor *mvc;
+	char kbuf[sizeof(ID) + sizeof(unsigned short)];
 	int rc;
 
-	key.mv_data = &e->e_id;
-	key.mv_size = sizeof(ID);
+	memcpy( kbuf, &e->e_id, sizeof(ID) );
+	memset( kbuf+sizeof(ID), 0, sizeof(unsigned short) );
+	key.mv_data = kbuf;
+	key.mv_size = sizeof(kbuf);
 
 	/* delete from database */
 	rc = mdb_del( tid, dbi, &key, NULL );
@@ -490,7 +493,8 @@ int mdb_id2entry_delete(
 			return rc;
 		rc = mdb_cursor_get( mvc, &key, NULL, MDB_GET_CURRENT );
 		if (rc) {
-			if (rc == MDB_NOTFOUND)
+			/* no record or DB is empty */
+			if (rc == MDB_NOTFOUND || rc == EINVAL)
 				rc = MDB_SUCCESS;
 			break;
 		}
