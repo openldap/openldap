@@ -574,6 +574,7 @@ slap_tool_init(
 			break;
 		}
 	}
+	slap_debug_orig = slap_debug;
 
 #if defined(LDAP_SYSLOG) && defined(LDAP_DEBUG)
 	if ( start_syslog ) {
