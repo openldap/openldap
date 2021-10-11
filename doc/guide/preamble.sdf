@@ -6,14 +6,14 @@
 # Preamble for all OpenLDAP SDF documents
 #
 
-!default VERSION 2.5
+!default VERSION 2.X
 
 #
 # Paths are relative to the main subdirectories
 #
 
 !define DOC_AUTHOR	"The OpenLDAP Project <{{URL:https://www.openldap.org/}}>"
-!define DOC_NAME    "OpenLDAP Software 2.5"
+!define DOC_NAME    "OpenLDAP Software 2.X"
 !define DOC_TYPE    "Guide"
 
 !define DOC_LOGO	"../images/LDAPlogo.gif"
