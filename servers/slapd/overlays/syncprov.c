@@ -514,6 +514,7 @@ syncprov_findbase( Operation *op, fbase_cookie *fc )
 		cb.sc_private = fc;
 
 		fop.o_sync_mode = 0;	/* turn off sync mode */
+		fop.o_dont_replicate = 1;
 		fop.o_managedsait = SLAP_CONTROL_CRITICAL;
 		fop.o_callback = &cb;
 		fop.o_tag = LDAP_REQ_SEARCH;
@@ -702,6 +703,7 @@ syncprov_findcsn( Operation *op, find_csn_t mode, struct berval *csn )
 	fop.o_sync_mode &= SLAP_CONTROL_MASK;	/* turn off sync_mode */
 	/* We want pure entries, not referrals */
 	fop.o_managedsait = SLAP_CONTROL_CRITICAL;
+	fop.o_dont_replicate = 1;
 
 	cf.f_ava = &eq;
 	cf.f_av_desc = slap_schema.si_ad_entryCSN;
@@ -1781,6 +1783,7 @@ check_uuidlist_presence(
 	fop.ors_attrs = slap_anlist_all_attributes;
 	fop.ors_attrsonly = 0;
 	fop.o_managedsait = SLAP_CONTROL_CRITICAL;
+	fop.o_dont_replicate = 1;
 
 	af.f_choice = LDAP_FILTER_AND;
 	af.f_next = NULL;
@@ -2267,6 +2270,7 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 
 	fop = *op;
 	fop.o_sync_mode = 0;
+	fop.o_dont_replicate = 1;
 	fop.o_bd = db;
 	rc = be_entry_get_rw( &fop, &si->si_logbase, NULL, ad_minCSN, 0, &e );
 	if ( rc ) {
