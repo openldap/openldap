@@ -4079,6 +4079,25 @@ syncrepl_entry(
 			}
 		}
 retry_add:;
+		if ( !BER_BVISNULL( &op->o_csn ) ) {
+			/* Check we're not covered by current contextCSN */
+			int i, sid = slap_parse_csn_sid( &op->o_csn );
+			ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_mutex );
+			for ( i=0;
+				i < si->si_cookieState->cs_num &&
+					sid <= si->si_cookieState->cs_sids[i];
+				i++ ) {
+				if ( si->si_cookieState->cs_sids[i] == sid &&
+					ber_bvcmp( &op->o_csn, &si->si_cookieState->cs_vals[i] ) <= 0 ) {
+					Debug( LDAP_DEBUG_SYNC, "syncrepl_entry: %s "
+						"entry '%s' csn=%s not new enough, ignored\n",
+						si->si_ridtxt, entry->e_name.bv_val, op->o_csn.bv_val );
+					ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_mutex );
+					goto done;
+				}
+			}
+			ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_mutex );
+		}
 		if ( BER_BVISNULL( &dni.dn ) ) {
 			SlapReply	rs_add = {REP_RESULT};
 
