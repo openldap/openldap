@@ -14,7 +14,7 @@ OpenLDAP 2.5.8 Release (2021/10/11)
 	Fixed slapd-sql ldap_entry_objectclass table for mariadb/mysql (ITS#9679)
 	Fixed slapd-wt multiple issues (ITS#9463)
 	Fixed slapd-wt to close cache db correctly (ITS#9631)
-	Fixed slapo-ppolicy to restore OpenLDAP 2.4 compatibilty (ITS#9671)
+	Fixed slapo-ppolicy to restore OpenLDAP 2.4 compatibility (ITS#9671)
 	Fixed slapo-syncprov to free uuid list when finished replaying sessionlog (ITS#6467)
 	Build
 		Fixed libldap result.c compilation on musl systems (ITS#9648)
