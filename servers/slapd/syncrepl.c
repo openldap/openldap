@@ -5719,6 +5719,10 @@ nonpresent_callback(
 			if ( a == NULL ) return 0;
 		}
 
+		if ( is_entry_glue( rs->sr_entry ) ) {
+			return LDAP_SUCCESS;
+		}
+
 		if ( present_uuid == NULL ) {
 			int covered = 1; /* covered by our new contextCSN? */
 
