@@ -1411,7 +1411,8 @@ syncprov_matchops( Operation *op, opcookie *opc, int saveit )
 			}
 		}
 
-		if ( fc.fscope ) {
+		rc = LDAP_COMPARE_FALSE;
+		if ( !is_entry_glue( e ) && fc.fscope ) {
 			ldap_pvt_thread_mutex_lock( &ss->s_mutex );
 			op2 = *ss->s_op;
 			oh = *op->o_hdr;
@@ -2948,6 +2949,9 @@ syncprov_search_response( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_ANY, "%s syncprov_search_response: "
 				"bogus referral in context\n", op->o_log_prefix );
 			return SLAP_CB_CONTINUE;
+		}
+		if ( is_entry_glue( rs->sr_entry ) ) {
+			return LDAP_SUCCESS;
 		}
 		a = attr_find( rs->sr_entry->e_attrs, slap_schema.si_ad_entryCSN );
 		if ( a == NULL && rs->sr_operational_attrs != NULL ) {
