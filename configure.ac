@@ -82,9 +82,6 @@ AC_DEFINE_UNQUOTED(LDAP_VENDOR_VERSION_MAJOR,$OL_MAJOR,Major)
 AC_DEFINE_UNQUOTED(LDAP_VENDOR_VERSION_MINOR,$OL_MINOR,Minor)
 AC_DEFINE_UNQUOTED(LDAP_VENDOR_VERSION_PATCH,$OL_PATCH,Patch)
 
-OPENLDAP_API_CURRENT=$OL_API_CURRENT
-AC_SUBST(OPENLDAP_API_CURRENT)dnl
-
 OPENLDAP_LIBVERSION=$OL_API_LIB_VERSION
 AC_SUBST(OPENLDAP_LIBVERSION)dnl
 
@@ -3219,10 +3216,8 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [libraries/Makefile:build/top.mk:libraries/Makefile.in:build/dir.mk]
 [libraries/liblber/Makefile:build/top.mk:libraries/liblber/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [libraries/liblber/lber.pc]
-[libraries/liblber/liblber.vers]
 [libraries/libldap/Makefile:build/top.mk:libraries/libldap/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [libraries/libldap/ldap.pc]
-[libraries/libldap/libldap.vers]
 [libraries/liblunicode/Makefile:build/top.mk:libraries/liblunicode/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/liblutil/Makefile:build/top.mk:libraries/liblutil/Makefile.in:build/lib.mk:build/lib-static.mk]
 [libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk]
