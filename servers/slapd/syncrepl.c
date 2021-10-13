@@ -3012,6 +3012,14 @@ syncrepl_message_to_op(
 		} else if ( !ber_bvstrcasecmp( &bv,
 			&slap_schema.si_ad_entryCSN->ad_cname ) )
 		{
+			int i, sid = slap_parse_csn_sid( bvals );
+			ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_mutex );
+			i = check_csn_age( si, &bdn, bvals, sid,
+					(cookie_vals *)&si->si_cookieState->cs_vals, NULL );
+			ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_mutex );
+			if ( i == CV_CSN_OLD ) {
+				goto done;
+			}
 			slap_queue_csn( op, bvals );
 			do_graduate = 1;
 		}
