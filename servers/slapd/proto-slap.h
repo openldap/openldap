@@ -504,13 +504,6 @@ LDAP_SLAPD_F (int) overlay_callback_after_backover LDAP_P((
 /*
  * bconfig.c
  */
-LDAP_SLAPD_F (int) slap_loglevel_register LDAP_P (( slap_mask_t m, struct berval *s ));
-LDAP_SLAPD_F (int) slap_loglevel_get LDAP_P(( struct berval *s, int *l ));
-LDAP_SLAPD_F (int) str2loglevel LDAP_P(( const char *s, int *l ));
-LDAP_SLAPD_F (int) loglevel2bvarray LDAP_P(( int l, BerVarray *bva ));
-LDAP_SLAPD_F (const char *) loglevel2str LDAP_P(( int l ));
-LDAP_SLAPD_F (int) loglevel2bv LDAP_P(( int l, struct berval *bv ));
-LDAP_SLAPD_F (int) loglevel_print LDAP_P(( FILE *out ));
 LDAP_SLAPD_F (int) slap_cf_aux_table_parse LDAP_P(( const char *word, void *bc, slap_cf_aux_table *tab0, LDAP_CONST char *tabmsg ));
 LDAP_SLAPD_F (int) slap_cf_aux_table_unparse LDAP_P(( void *bc, struct berval *bv, slap_cf_aux_table *tab0 ));
 
@@ -1226,30 +1219,35 @@ LDAP_SLAPD_F (int) lock_fclose LDAP_P(( FILE *fp, FILE *lfp ));
 /*
  * logging.c
  */
+LDAP_SLAPD_F (int) slap_loglevel_get LDAP_P(( struct berval *s, int *l ));
+LDAP_SLAPD_F (void) slap_loglevel_destroy LDAP_P(( void ));
+LDAP_SLAPD_F (int) str2loglevel LDAP_P(( const char *s, int *l ));
+LDAP_SLAPD_F (int) loglevel2bvarray LDAP_P(( int l, BerVarray *bva ));
+LDAP_SLAPD_F (const char *) loglevel2str LDAP_P(( int l ));
+LDAP_SLAPD_F (int) loglevel2bv LDAP_P(( int l, struct berval *bv ));
+LDAP_SLAPD_F (int) loglevel_print LDAP_P(( FILE *out ));
 LDAP_SLAPD_F (void) slap_debug_print LDAP_P(( const char *data ));
 LDAP_SLAPD_F (int) logfile_open LDAP_P(( const char *path ));
 LDAP_SLAPD_F (void) logfile_close LDAP_P(( void ));
+LDAP_SLAPD_F (void) slap_syslog_set LDAP_P(( int l ));
+LDAP_SLAPD_F (int) slap_syslog_get LDAP_P(( void ));
 LDAP_SLAPD_F (const char *) logfile_name LDAP_P(( void ));
+LDAP_SLAPD_F (int)
+slap_parse_syslog_level LDAP_P(( const char *arg, int *levelp ));
+LDAP_SLAPD_F (int)
+slap_parse_syslog_user LDAP_P(( const char *arg, int *syslogUser ));
+LDAP_SLAPD_F (int)
+slap_parse_debug_level LDAP_P(( const char *arg, int *levelp, int which ));
+LDAP_SLAPD_F (int)
+slap_parse_debug_unknowns LDAP_P(( void ));
+LDAP_SLAPD_F (void)
+slap_check_unknown_level LDAP_P(( char *levelstr, int level ));
 LDAP_SLAPD_V(ldap_pvt_thread_mutex_t) logfile_mutex;
-LDAP_SLAPD_V(int) logfile_age;
-LDAP_SLAPD_V(int) logfile_only;
-LDAP_SLAPD_V(int) logfile_max;
-LDAP_SLAPD_V(long) logfile_fslimit;
 LDAP_SLAPD_V(int) slap_debug_orig;
 
 /*
  * main.c
  */
-LDAP_SLAPD_F (int)
-parse_debug_level LDAP_P(( const char *arg, int *levelp, char ***unknowns ));
-LDAP_SLAPD_F (int)
-parse_syslog_level LDAP_P(( const char *arg, int *levelp ));
-LDAP_SLAPD_F (int)
-parse_syslog_user LDAP_P(( const char *arg, int *syslogUser ));
-LDAP_SLAPD_F (int)
-parse_debug_unknowns LDAP_P(( char **unknowns, int *levelp ));
-LDAP_SLAPD_F (void)
-slap_check_unknown_level LDAP_P(( char *levelstr, int level ));
 
 /*
  * matchedValues.c

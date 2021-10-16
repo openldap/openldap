@@ -46,6 +46,7 @@
 #include "lutil.h"
 #include "lutil_ldap.h"
 #include "lload-config.h"
+#include "../slapd/slap-cfglog.h"
 
 #ifdef _WIN32
 #define LUTIL_ATOULX lutil_atoullx
@@ -121,7 +122,6 @@ static ConfigDriver config_restrict_oid;
 static ConfigDriver config_tcp_buffer;
 #endif /* LDAP_TCP_BUFFER */
 static ConfigDriver config_restrict;
-static ConfigDriver config_loglevel;
 static ConfigDriver config_include;
 static ConfigDriver config_feature;
 #ifdef HAVE_TLS
@@ -156,9 +156,6 @@ enum {
     CFG_TLS_SHARE_CTX,
     CFG_CONCUR,
     CFG_THREADS,
-    CFG_LOGFILE,
-    CFG_LOGFILE_ONLY,
-    CFG_LOGFILE_ROTATE,
     CFG_MIRRORMODE,
     CFG_IOTHREADS,
     CFG_MAXBUF_CLIENT,
@@ -291,22 +288,22 @@ static ConfigTable config_back_cf_table[] = {
 #endif /* BALANCER_MODULE */
     { "logfile", "file", 2, 2, 0,
         ARG_STRING|ARG_MAGIC|CFG_LOGFILE,
-        &config_generic,
+        &config_logging,
         NULL, NULL, NULL
     },
     { "logfile-only", "on|off", 2, 2, 0,
         ARG_ON_OFF|ARG_MAGIC|CFG_LOGFILE_ONLY,
-        &config_generic,
+        &config_logging,
         NULL, NULL, NULL
     },
     { "logfile-rotate", "max> <Mbyte> <hours", 4, 4, 0,
         ARG_MAGIC|CFG_LOGFILE_ROTATE,
-        &config_generic,
+        &config_logging,
         NULL, NULL, NULL
     },
     { "loglevel", "level", 2, 0, 0,
-        ARG_MAGIC,
-        &config_loglevel,
+        ARG_MAGIC|CFG_LOGLEVEL,
+        &config_logging,
         NULL, NULL, NULL
     },
     { "pidfile", "file", 2, 2, 0,
@@ -1037,60 +1034,6 @@ config_generic( ConfigArgs *c )
                         "restart" );
                 Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
             }
-        } break;
-
-        case CFG_LOGFILE: {
-            int rc = logfile_open( c->value_string );
-            ch_free( c->value_string );
-            return rc;
-        } break;
-
-        case CFG_LOGFILE_ONLY:
-            slap_debug = slap_debug_orig;
-            if ( c->value_int ) {
-                slap_debug |= config_syslog;
-                ldap_syslog = 0;
-            } else {
-                ldap_syslog = config_syslog;
-            }
-            logfile_only = c->value_int;
-            break;
-
-        case CFG_LOGFILE_ROTATE: {
-            unsigned lf_max, lf_mbyte, lf_hour;
-            if ( lutil_atoux( &lf_max, c->argv[1], 0 ) != 0 ) {
-                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
-                        "invalid max value \"%s\"",
-                        c->argv[0], c->argv[1] );
-                goto fail;
-            }
-            if ( !lf_max || lf_max > 99 ) {
-                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
-                        "invalid max value \"%s\" must be 1-99",
-                        c->argv[0], c->argv[1] );
-                goto fail;
-            }
-            if ( lutil_atoux( &lf_mbyte, c->argv[2], 0 ) != 0 ) {
-                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
-                        "invalid Mbyte value \"%s\"",
-                        c->argv[0], c->argv[2] );
-                goto fail;
-            }
-            if ( lutil_atoux( &lf_hour, c->argv[3], 0 ) != 0 ) {
-                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
-                        "invalid hours value \"%s\"",
-                        c->argv[0], c->argv[3] );
-                goto fail;
-            }
-            if ( !lf_mbyte && !lf_hour ) {
-                snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
-                        "Mbyte and hours cannot both be zero",
-                        c->argv[0] );
-                goto fail;
-            }
-            logfile_max = lf_max;
-            logfile_fslimit = lf_mbyte * 1048576;   /* Megabytes to bytes */
-            logfile_age = lf_hour * 3600;           /* hours to seconds */
         } break;
 
         case CFG_RESCOUNT:
@@ -2030,146 +1973,6 @@ config_restrict( ConfigArgs *c )
     }
     if ( restrictops & SLAP_RESTRICT_OP_EXTENDED )
         restrictops &= ~SLAP_RESTRICT_EXOP_MASK;
-    return 0;
-}
-
-static slap_verbmasks *loglevel_ops;
-
-static int
-loglevel_init( void )
-{
-    slap_verbmasks lo[] = {
-        { BER_BVC("Any"), (slap_mask_t)LDAP_DEBUG_ANY },
-        { BER_BVC("Trace"), LDAP_DEBUG_TRACE },
-        { BER_BVC("Packets"), LDAP_DEBUG_PACKETS },
-        { BER_BVC("Args"), LDAP_DEBUG_ARGS },
-        { BER_BVC("Conns"), LDAP_DEBUG_CONNS },
-        { BER_BVC("BER"), LDAP_DEBUG_BER },
-        { BER_BVC("Filter"), LDAP_DEBUG_FILTER },
-        { BER_BVC("Config"), LDAP_DEBUG_CONFIG },
-        { BER_BVC("ACL"), LDAP_DEBUG_ACL },
-        { BER_BVC("Stats"), LDAP_DEBUG_STATS },
-        { BER_BVC("Stats2"), LDAP_DEBUG_STATS2 },
-        { BER_BVC("Shell"), LDAP_DEBUG_SHELL },
-        { BER_BVC("Parse"), LDAP_DEBUG_PARSE },
-        { BER_BVC("Sync"), LDAP_DEBUG_SYNC },
-        { BER_BVC("None"), LDAP_DEBUG_NONE },
-        { BER_BVNULL, 0 }
-    };
-
-    return slap_verbmasks_init( &loglevel_ops, lo );
-}
-
-static void
-loglevel_destroy( void )
-{
-    if ( loglevel_ops ) {
-        (void)slap_verbmasks_destroy( loglevel_ops );
-    }
-    loglevel_ops = NULL;
-}
-
-int
-str2loglevel( const char *s, int *l )
-{
-    int i;
-
-    if ( loglevel_ops == NULL ) {
-        loglevel_init();
-    }
-
-    i = verb_to_mask( s, loglevel_ops );
-
-    if ( BER_BVISNULL( &loglevel_ops[i].word ) ) {
-        return -1;
-    }
-
-    *l = loglevel_ops[i].mask;
-
-    return 0;
-}
-
-int
-loglevel2bvarray( int l, BerVarray *bva )
-{
-    if ( loglevel_ops == NULL ) {
-        loglevel_init();
-    }
-
-    if ( l == 0 ) {
-        struct berval bv = BER_BVC("0");
-        return value_add_one( bva, &bv );
-    }
-
-    return mask_to_verbs( loglevel_ops, l, bva );
-}
-
-int
-loglevel_print( FILE *out )
-{
-    int i;
-
-    if ( loglevel_ops == NULL ) {
-        loglevel_init();
-    }
-
-    fprintf( out, "Installed log subsystems:\n\n" );
-    for ( i = 0; !BER_BVISNULL( &loglevel_ops[i].word ); i++ ) {
-        unsigned mask = loglevel_ops[i].mask & 0xffffffffUL;
-        fprintf( out,
-                ( mask == ( (slap_mask_t)-1 & 0xffffffffUL ) ?
-                                "\t%-30s (-1, 0xffffffff)\n" :
-                                "\t%-30s (%u, 0x%x)\n" ),
-                loglevel_ops[i].word.bv_val, mask, mask );
-    }
-
-    return 0;
-}
-
-static int
-config_loglevel( ConfigArgs *c )
-{
-    int i;
-
-    if ( loglevel_ops == NULL ) {
-        loglevel_init();
-    }
-
-    for ( i = 1; i < c->argc; i++ ) {
-        int level;
-
-        if ( isdigit( (unsigned char)c->argv[i][0] ) || c->argv[i][0] == '-' ) {
-            if ( lutil_atoix( &level, c->argv[i], 0 ) != 0 ) {
-                snprintf( c->cr_msg, sizeof(c->cr_msg),
-                        "<%s> unable to parse level",
-                        c->argv[0] );
-                Debug( LDAP_DEBUG_ANY, "%s: %s \"%s\"\n",
-                        c->log, c->cr_msg, c->argv[i] );
-                return 1;
-            }
-        } else {
-            if ( str2loglevel( c->argv[i], &level ) ) {
-                snprintf( c->cr_msg, sizeof(c->cr_msg), "<%s> unknown level",
-                        c->argv[0] );
-                Debug( LDAP_DEBUG_ANY, "%s: %s \"%s\"\n",
-                        c->log, c->cr_msg, c->argv[i] );
-                return 1;
-            }
-        }
-        /* Explicitly setting a zero clears all the levels */
-        if ( level )
-            config_syslog |= level;
-        else
-            config_syslog = 0;
-    }
-    if ( slapMode & SLAP_SERVER_MODE ) {
-        if ( logfile_only ) {
-            slap_debug = slap_debug_orig | config_syslog;
-            ldap_syslog = 0;
-        } else {
-            ldap_syslog = config_syslog;
-        }
-    }
     return 0;
 }
 
@@ -3784,7 +3587,7 @@ lload_config_destroy( void )
     free( line );
     if ( slapd_args_file ) free( slapd_args_file );
     if ( slapd_pid_file ) free( slapd_pid_file );
-    loglevel_destroy();
+    slap_loglevel_destroy();
 }
 
 /* See if the given URL (in plain and parsed form) matches
