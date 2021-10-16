@@ -131,7 +131,7 @@ static struct monitor_subsys_t known_monitor_subsys[] = {
 		SLAPD_MONITOR_LOG_NAME,
 		BER_BVNULL, BER_BVNULL, BER_BVNULL,
 		{ BER_BVC( "This subsystem contains information about logging." ),
-		  	BER_BVC( "Set the attribute \"managedInfo\" to the desired log levels." ),
+			BER_BVC( "Set the \"monitorLogLevel\" or \"monitorDebugLevel\" attributes to the desired levels." ),
 			BER_BVNULL },
 		MONITOR_F_NONE,
 		monitor_subsys_log_init,
@@ -1940,6 +1940,22 @@ monitor_back_initialize(
 			"NO-USER-MODIFICATION "
 			"USAGE dSAOperation )", SLAP_AT_FINAL|SLAP_AT_HIDE,
 			offsetof(monitor_info_t, mi_ad_monitorConnectionOpsAsync) },
+		{ "( 1.3.6.1.4.1.4203.666.1.55.32 "
+			"NAME 'monitorLogLevel' "
+			"DESC 'current slapd log level' "
+			"EQUALITY caseIgnoreMatch "
+			"SUBSTR caseIgnoreSubstringsMatch "
+			"SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
+			"USAGE dSAOperation )", SLAP_AT_FINAL|SLAP_AT_HIDE,
+			offsetof(monitor_info_t, mi_ad_monitorLogLevel) },
+		{ "( 1.3.6.1.4.1.4203.666.1.55.33 "
+			"NAME 'monitorDebugLevel' "
+			"DESC 'current slapd debug level' "
+			"EQUALITY caseIgnoreMatch "
+			"SUBSTR caseIgnoreSubstringsMatch "
+			"SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
+			"USAGE dSAOperation )", SLAP_AT_FINAL|SLAP_AT_HIDE,
+			offsetof(monitor_info_t, mi_ad_monitorDebugLevel) },
 		{ NULL, 0, -1 }
 	};
 

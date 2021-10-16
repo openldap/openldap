@@ -138,6 +138,8 @@ typedef struct monitor_info_t {
 	AttributeDescription	*mi_ad_monitorRuntimeConfig;
 	AttributeDescription	*mi_ad_monitorSuperiorDN;
 	AttributeDescription	*mi_ad_monitorConnectionOpsAsync;
+	AttributeDescription	*mi_ad_monitorLogLevel;
+	AttributeDescription	*mi_ad_monitorDebugLevel;
 
 	/*
 	 * Generic description attribute

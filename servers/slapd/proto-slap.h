@@ -1231,6 +1231,8 @@ LDAP_SLAPD_F (int) logfile_open LDAP_P(( const char *path ));
 LDAP_SLAPD_F (void) logfile_close LDAP_P(( void ));
 LDAP_SLAPD_F (void) slap_syslog_set LDAP_P(( int l ));
 LDAP_SLAPD_F (int) slap_syslog_get LDAP_P(( void ));
+LDAP_SLAPD_F (void) slap_debug_set LDAP_P(( int l ));
+LDAP_SLAPD_F (int) slap_debug_get LDAP_P(( void ));
 LDAP_SLAPD_F (const char *) logfile_name LDAP_P(( void ));
 LDAP_SLAPD_F (int)
 slap_parse_syslog_level LDAP_P(( const char *arg, int *levelp ));

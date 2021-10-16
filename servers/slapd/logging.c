@@ -29,6 +29,7 @@
 #include <fcntl.h>
 
 #include "slap.h"
+#include "ldif.h"
 
 #include "slap-config.h"
 #include "slap-cfglog.h"
@@ -447,6 +448,25 @@ slap_syslog_set( int l )
 	} else {
 		ldap_syslog = active_syslog;
 	}
+}
+
+int
+slap_debug_get()
+{
+	return slap_debug_orig;
+}
+
+void
+slap_debug_set( int l )
+{
+	slap_debug_orig = l;
+	if ( logfile_only )
+		slap_debug = slap_debug_orig | active_syslog;
+	else
+		slap_debug = slap_debug_orig;
+	ber_set_option(NULL, LBER_OPT_DEBUG_LEVEL, &slap_debug);
+	ldap_set_option(NULL, LDAP_OPT_DEBUG_LEVEL, &slap_debug);
+	ldif_debug = slap_debug;
 }
 
 int
