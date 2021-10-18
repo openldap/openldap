@@ -4,19 +4,28 @@
 
 H1: Upgrading from 2.5.x
 
-The following sections attempt to document the steps you will need to take in order 
-to upgrade from the latest 2.5.x OpenLDAP version.
+The following sections attempt to document the steps you will need to take
+in order to upgrade from the latest 2.5.x OpenLDAP version.
 
-The normal upgrade procedure, as discussed in the {{SECT:Maintenance}} section, should 
-of course still be followed prior to doing any of this.
+The normal upgrade procedure, as discussed in the {{SECT:Maintenance}}
+section, should of course still be followed prior to doing any of this.
 
 H2: ppolicy overlay
 
-The pwdCheckModule option has been moved to the overlay configuration. Existing settings in password policy entries
-will be ignored. It will be necessary to add this configuration directive to the overlay when upgrading if it is
-currently in use.
+The pwdCheckModule option has been moved to the overlay configuration.
+Existing settings in password policy entries will be ignored. It will be
+necessary to add this configuration directive to the overlay when upgrading
+if it is currently in use.
 
 H2: lloadd backends
 
-Backends for lloadd are now grouped in tiers specifying the balancing strategy. OpenLDAP 2.5 configurations must be
-updated to account for this change.
+Backends for lloadd are now grouped in tiers specifying the balancing
+strategy. OpenLDAP 2.5 configurations must be updated to account for this
+change.
+
+H2: monitor backend
+
+In 2.5 and prior, the managedInfo attribute in the cn=Log entry could be
+used to change the loglevel of the slapd process. In 2.6, monitorLogLevel
+can be used to change the slapd log level and monitorDebugLevel can be used
+to change the slapd debug level.
