@@ -27,7 +27,7 @@ SRCS	= main.c globals.c bconfig.c config.c daemon.c \
 		connection.c search.c filter.c add.c cr.c \
 		attr.c entry.c backend.c result.c operation.c \
 		dn.c compare.c modify.c delete.c modrdn.c ch_malloc.c \
-		value.c ava.c bind.c unbind.c abandon.c filterentry.c \
+		value.c verbs.c ava.c bind.c unbind.c abandon.c filterentry.c \
 		phonetic.c acl.c str2filter.c aclparse.c init.c user.c \
 		lock.c logging.c controls.c extended.c passwd.c proxyp.c \
 		schema.c schema_check.c schema_init.c schema_prep.c \
@@ -45,7 +45,7 @@ OBJS	= main.o globals.o bconfig.o config.o daemon.o \
 		connection.o search.o filter.o add.o cr.o \
 		attr.o entry.o backend.o backends.o result.o operation.o \
 		dn.o compare.o modify.o delete.o modrdn.o ch_malloc.o \
-		value.o ava.o bind.o unbind.o abandon.o filterentry.o \
+		value.o verbs.o ava.o bind.o unbind.o abandon.o filterentry.o \
 		phonetic.o acl.o str2filter.o aclparse.o init.o user.o \
 		lock.o logging.o controls.o extended.o passwd.o proxyp.o \
 		schema.o schema_check.o schema_init.o schema_prep.o \
