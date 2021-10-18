@@ -723,24 +723,6 @@ LDAP_SLAPD_F (int) read_config LDAP_P(( const char *fname, const char *dir ));
 LDAP_SLAPD_F (void) config_destroy LDAP_P ((void));
 LDAP_SLAPD_F (char **) slap_str2clist LDAP_P((
 	char ***, char *, const char * ));
-LDAP_SLAPD_F (int) bverb_to_mask LDAP_P((
-	struct berval *bword,  slap_verbmasks *v ));
-LDAP_SLAPD_F (int) verb_to_mask LDAP_P((
-	const char *word,  slap_verbmasks *v ));
-LDAP_SLAPD_F (int) verbs_to_mask LDAP_P((
-	int argc, char *argv[], slap_verbmasks *v, slap_mask_t *m ));
-LDAP_SLAPD_F (int) mask_to_verbs LDAP_P((
-	slap_verbmasks *v, slap_mask_t m, BerVarray *bva ));
-LDAP_SLAPD_F (int) mask_to_verbstring LDAP_P((
-	slap_verbmasks *v, slap_mask_t m, char delim, struct berval *bv ));
-LDAP_SLAPD_F (int) verbstring_to_mask LDAP_P((
-	slap_verbmasks *v, char *str, char delim, slap_mask_t *m ));
-LDAP_SLAPD_F (int) enum_to_verb LDAP_P((
-	slap_verbmasks *v, slap_mask_t m, struct berval *bv ));
-LDAP_SLAPD_F (int) slap_verbmasks_init LDAP_P(( slap_verbmasks **vp, slap_verbmasks *v ));
-LDAP_SLAPD_F (int) slap_verbmasks_destroy LDAP_P(( slap_verbmasks *v ));
-LDAP_SLAPD_F (int) slap_verbmasks_append LDAP_P(( slap_verbmasks **vp,
-	slap_mask_t m, struct berval *v, slap_mask_t *ignore ));
 LDAP_SLAPD_F (int) slap_tls_get_config LDAP_P((
 	LDAP *ld, int opt, char **val ));
 LDAP_SLAPD_F (void) bindconf_tls_defaults LDAP_P(( slap_bindconf *bc ));
@@ -2041,6 +2023,30 @@ LDAP_SLAPD_F (int) value_add_one LDAP_P((
 
 /* assumes (x) > (y) returns 1 if true, 0 otherwise */
 #define SLAP_PTRCMP(x, y) ((x) < (y) ? -1 : (x) > (y))
+
+/*
+ * verbs.c
+ */
+LDAP_SLAPD_F (int) bverb_to_mask LDAP_P((
+	struct berval *bword,  slap_verbmasks *v ));
+LDAP_SLAPD_F (int) verb_to_mask LDAP_P((
+	const char *word,  slap_verbmasks *v ));
+LDAP_SLAPD_F (int) verbs_to_mask LDAP_P((
+	int argc, char *argv[], slap_verbmasks *v, slap_mask_t *m ));
+LDAP_SLAPD_F (int) mask_to_verbs LDAP_P((
+	slap_verbmasks *v, slap_mask_t m, BerVarray *bva ));
+LDAP_SLAPD_F (int) mask_to_verbstring LDAP_P((
+	slap_verbmasks *v, slap_mask_t m, char delim, struct berval *bv ));
+LDAP_SLAPD_F (int) verbstring_to_mask LDAP_P((
+	slap_verbmasks *v, char *str, char delim, slap_mask_t *m ));
+LDAP_SLAPD_F (int) enum_to_verb LDAP_P((
+	slap_verbmasks *v, slap_mask_t m, struct berval *bv ));
+LDAP_SLAPD_F (int) slap_verbmasks_init LDAP_P(( slap_verbmasks **vp, slap_verbmasks *v ));
+LDAP_SLAPD_F (int) slap_verbmasks_destroy LDAP_P(( slap_verbmasks *v ));
+LDAP_SLAPD_F (int) slap_verbmasks_append LDAP_P(( slap_verbmasks **vp,
+	slap_mask_t m, struct berval *v, slap_mask_t *ignore ));
+LDAP_SLAPD_F (int) slap_verbmask_register LDAP_P(( slap_verbmasks *vm_,
+	slap_verbmasks **vmp, struct berval *bv, int mask ));
 
 #ifdef SLAP_ZONE_ALLOC
 /*
