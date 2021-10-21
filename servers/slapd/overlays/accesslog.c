@@ -662,14 +662,16 @@ log_old_lookup( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_ANY, "log_old_lookup: "
 					"csn=%s with sid not in minCSN set!\n",
 					a->a_nvals[0].bv_val );
-		}
-
-		/* Paranoid len check, normalized CSNs are always the same length */
-		if ( len > li->li_mincsn[i].bv_len )
-			len = li->li_mincsn[i].bv_len;
-		if ( ber_bvcmp( &li->li_mincsn[i], &a->a_nvals[0] ) < 0 ) {
-			pd->mincsn_updated = 1;
-			AC_MEMCPY( li->li_mincsn[i].bv_val, a->a_nvals[0].bv_val, len );
+			slap_insert_csn_sids( (struct sync_cookie *)&li->li_mincsn, i,
+					sid, &a->a_nvals[0] );
+		} else {
+			/* Paranoid len check, normalized CSNs are always the same length */
+			if ( len > li->li_mincsn[i].bv_len )
+				len = li->li_mincsn[i].bv_len;
+			if ( ber_bvcmp( &li->li_mincsn[i], &a->a_nvals[0] ) < 0 ) {
+				pd->mincsn_updated = 1;
+				AC_MEMCPY( li->li_mincsn[i].bv_val, a->a_nvals[0].bv_val, len );
+			}
 		}
 		ldap_pvt_thread_mutex_unlock( &li->li_log_mutex );
 	}
