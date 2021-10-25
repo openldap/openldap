@@ -8,20 +8,14 @@ A N N O U N C E M E N T -- OpenLDAP 2.6
     This release contains the following major enhancements:
 
         * Slapd(8) enhancements
-        * New backends
-        * Backend updates
+            - Ability to log directly to a file bypassing syslog
         * Retired backends
             - back-ndb
         * Deprecated backends
             - back-sql
             - back-perl
-        * New overlays
-        * New password hashing module
-        * Overlay updates
-        * New Library
-        * Library updates
-        * Clients and tools
-        * New contrib overlays
+        * lloadd(8) enhancments
+            - Additional load balancing strategies
 
     This release includes the following major components:
 
