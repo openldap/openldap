@@ -16,6 +16,7 @@ A N N O U N C E M E N T -- OpenLDAP 2.6
             - back-perl
         * lloadd(8) enhancments
             - Additional load balancing strategies
+            - Ability to log directly to a file bypassing syslog
 
     This release includes the following major components:
 
