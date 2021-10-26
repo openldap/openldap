@@ -656,11 +656,13 @@ config_logging(ConfigArgs *c) {
 reset:
 			slap_debug = slap_debug_orig;
 			active_syslog = config_syslog;
-			if ( logfile_only ) {
-				slap_debug |= config_syslog;
-				ldap_syslog = 0;
-			} else {
-				ldap_syslog = config_syslog;
+			if ( slapMode & SLAP_SERVER_MODE ) {
+				if ( logfile_only ) {
+					slap_debug |= config_syslog;
+					ldap_syslog = 0;
+				} else {
+					ldap_syslog = config_syslog;
+				}
 			}
 			rc = 0;
 			break;
