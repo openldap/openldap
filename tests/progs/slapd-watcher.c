@@ -52,6 +52,7 @@
 
 #define WAS_LATE	0x100
 #define WAS_DOWN	0x200
+#define WAS_INIT	0x400
 
 #define	MONFILTER	"(objectClass=monitorOperation)"
 
@@ -208,6 +209,9 @@ void display()
 
 	for (i=0; i<numservers; i++) {
 		printf("\n%s", servers[i].url );
+		if ( !(servers[i].flags & WAS_INIT )) {
+			printf(", unknown");
+		}
 		if ( servers[i].flags & WAS_DOWN ) {
 			printf(", down@");
 			timestamp( &servers[i].down );
@@ -433,10 +437,10 @@ void get_csns(
 }
 
 int
-setup_server( struct tester_conn_args *config, server *sv, int first )
+setup_server( struct tester_conn_args *config, server *sv )
 {
 	config->uri = sv->url;
-	tester_init_ld( &sv->ld, config, first ? 0 : TESTER_INIT_NOEXIT );
+	tester_init_ld( &sv->ld, config, TESTER_INIT_NOEXIT );
 	if ( !sv->ld )
 		return -1;
 
@@ -504,8 +508,6 @@ setup_server( struct tester_conn_args *config, server *sv, int first )
 
 		default:
 			tester_ldap_error( ld, "ldap_search_ext_s(cn=Monitor)", sv->url );
-			if ( first )
-				exit( EXIT_FAILURE );
 		}
 		ldap_msgfree( res );
 
@@ -541,8 +543,6 @@ setup_server( struct tester_conn_args *config, server *sv, int first )
 
 			default:
 				tester_ldap_error( ld, "ldap_search_ext_s(baseDN)", sv->url );
-				if ( first )
-					exit( EXIT_FAILURE );
 			}
 		}
 	}
@@ -557,8 +557,10 @@ setup_server( struct tester_conn_args *config, server *sv, int first )
 	} else if ( sv->flags & HAS_MONITOR ) {
 		sv->monitorfilter = (char *)default_monfilter;
 	}
-	if ( first )
+	if ( !( sv->flags & WAS_INIT )) {
+		sv->flags |= WAS_INIT;
 		rotate_stats( sv );
+	}
 	return 0;
 }
 
@@ -568,7 +570,6 @@ main( int argc, char **argv )
 	int		i, rc, *msg1, *msg2;
 	char **sids = NULL;
 	struct tester_conn_args *config;
-	int first = 1;
 
 	config = tester_init( "slapd-watcher", TESTER_TESTER );
 	config->authmethod = LDAP_AUTH_SIMPLE;
@@ -661,7 +662,7 @@ main( int argc, char **argv )
 				msg2[i] = 0;
 			}
 			if ( !servers[i].ld ) {
-				setup_server( config, &servers[i], first );
+				setup_server( config, &servers[i] );
 			} else {
 				ld = servers[i].ld;
 				rc = -1;
@@ -676,19 +677,15 @@ main( int argc, char **argv )
 						attrs, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msg1[i] );
 					if ( rc != LDAP_SUCCESS ) {
 						tester_ldap_error( ld, "ldap_search_ext(cn=Monitor)", servers[i].url );
-						if ( first )
-							exit( EXIT_FAILURE );
-						else {
 server_down1:
-							ldap_unbind_ext( ld, NULL, NULL );
-							servers[i].flags |= WAS_DOWN;
-							servers[i].ld = NULL;
-							gettimeofday( &tv, NULL );
-							servers[i].down = tv.tv_sec;
-							msg1[i] = 0;
-							msg2[i] = 0;
-							continue;
-						}
+						ldap_unbind_ext( ld, NULL, NULL );
+						servers[i].flags |= WAS_DOWN;
+						servers[i].ld = NULL;
+						gettimeofday( &tv, NULL );
+						servers[i].down = tv.tv_sec;
+						msg1[i] = 0;
+						msg2[i] = 0;
+						continue;
 					}
 				}
 				if (( servers[i].flags & HAS_BASE ) && !msg2[i] ) {
@@ -698,10 +695,7 @@ server_down1:
 						attrs, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msg2[i] );
 					if ( rc != LDAP_SUCCESS ) {
 						tester_ldap_error( ld, "ldap_search_ext(baseDN)", servers[i].url );
-						if ( first )
-							exit( EXIT_FAILURE );
-						else
-							goto server_down1;
+						goto server_down1;
 					}
 				}
 				if ( rc != -1 )
@@ -717,18 +711,14 @@ server_down1:
 				rc = ldap_result( ld, msg1[i], LDAP_MSG_ALL, &tv, &res );
 				if ( rc < 0 ) {
 					tester_ldap_error( ld, "ldap_result(cn=Monitor)", servers[i].url );
-					if ( first )
-						exit( EXIT_FAILURE );
-					else {
 server_down2:
-						ldap_unbind_ext( ld, NULL, NULL );
-						servers[i].flags |= WAS_DOWN;
-						servers[i].ld = NULL;
-						servers[i].down = servers[i].c_curr.time.tv_sec;
-						msg1[i] = 0;
-						msg2[i] = 0;
-						continue;
-					}
+					ldap_unbind_ext( ld, NULL, NULL );
+					servers[i].flags |= WAS_DOWN;
+					servers[i].ld = NULL;
+					servers[i].down = servers[i].c_curr.time.tv_sec;
+					msg1[i] = 0;
+					msg2[i] = 0;
+					continue;
 				}
 				if ( rc == 0 ) {
 					if ( !( servers[i].flags & WAS_LATE ))
@@ -770,10 +760,7 @@ server_down2:
 				rc = ldap_result( ld, msg2[i], LDAP_MSG_ALL, &tv, &res );
 				if ( rc < 0 ) {
 					tester_ldap_error( ld, "ldap_result(baseDN)", servers[i].url );
-					if ( first )
-						exit( EXIT_FAILURE );
-					else
-						goto server_down2;
+					goto server_down2;
 				}
 				if ( rc == 0 ) {
 					if ( !( servers[i].flags & WAS_LATE ))
@@ -808,7 +795,6 @@ server_down2:
 		}
 		display();
 		sleep(interval);
-		first = 0;
 	}
 
 	exit( EXIT_SUCCESS );
