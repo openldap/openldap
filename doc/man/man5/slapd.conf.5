@@ -1398,11 +1398,13 @@ Controls whether
 will automatically maintain the pwdLastSuccess attribute for
 entries. By default, lastbind is off.
 .TP
-.B lastbind-precision <number>
-If lastbind is enabled, a new value is written only if the
-current one is more than
-.B number
-seconds in the past.
+.B lastbind-precision <integer>
+If lastbind is enabled, specifies how frequently pwdLastSuccess
+will be updated. More than
+.B integer
+seconds must have passed since the last successful bind. In a
+replicated environment with frequent bind activity it may be
+useful to set this to a large value.
 .TP
 .B limits <selector> <limit> [<limit> [...]]
 Specify time and size limits based on the operation's initiator or
