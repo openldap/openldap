@@ -1135,7 +1135,9 @@ compare_csns( struct sync_cookie *sc1, struct sync_cookie *sc2, int *which )
 	*which = 0;
 
 	if ( sc1->numcsns < sc2->numcsns ) {
-		*which = sc1->numcsns;
+		for ( i=0; i < sc1->numcsns && sc1->sids[i] == sc2->sids[i] ; i++ )
+			/* Find the first one that's missing */;
+		*which = i;
 		return -1;
 	}
 
