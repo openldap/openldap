@@ -1871,15 +1871,16 @@ struct BackendDB {
 #define	SLAP_DBFLAG_GLOBAL_OVERLAY	0x0200U	/* this db struct is a global overlay */
 #define SLAP_DBFLAG_DYNAMIC		0x0400U /* this db allows dynamicObjects */
 #define	SLAP_DBFLAG_MONITORING		0x0800U	/* custom monitoring enabled */
-#define SLAP_DBFLAG_SHADOW		0x8000U /* a shadow */
-#define SLAP_DBFLAG_SINGLE_SHADOW	0x4000U	/* a single-provider shadow */
 #define SLAP_DBFLAG_SYNC_SHADOW		0x1000U /* a sync shadow */
-#define SLAP_DBFLAG_SLURP_SHADOW	0x2000U /* a slurp shadow */
-#define SLAP_DBFLAG_SHADOW_MASK		(SLAP_DBFLAG_SHADOW|SLAP_DBFLAG_SINGLE_SHADOW|SLAP_DBFLAG_SYNC_SHADOW|SLAP_DBFLAG_SLURP_SHADOW)
+#define SLAP_DBFLAG_SLURP_SHADOW	0x2000U /* a push replication target */
+#define SLAP_DBFLAG_SINGLE_SHADOW_MASK	(SLAP_DBFLAG_SYNC_SHADOW|SLAP_DBFLAG_SLURP_SHADOW) /* a single-provider shadow */
+#define SLAP_DBFLAG_MULTI_SHADOW	0x4000U /* uses multi-provider */
+#define SLAP_DBFLAG_SHADOW_MASK		(SLAP_DBFLAG_SINGLE_SHADOW_MASK|SLAP_DBFLAG_MULTI_SHADOW)
+/* 0x8000U no longer used */
 #define SLAP_DBFLAG_CLEAN		0x10000U /* was cleanly shutdown */
 #define SLAP_DBFLAG_ACL_ADD		0x20000U /* check attr ACLs on adds */
 #define SLAP_DBFLAG_SYNC_SUBENTRY	0x40000U /* use subentry for context */
-#define SLAP_DBFLAG_MULTI_SHADOW	0x80000U /* uses multi-provider */
+/* 0x80000U no longer used */
 #define SLAP_DBFLAG_DISABLED	0x100000U
 #define SLAP_DBFLAG_LASTBIND	0x200000U
 #define SLAP_DBFLAG_OPEN	0x400000U	/* db is currently open */
@@ -1904,11 +1905,13 @@ struct BackendDB {
 	(SLAP_DBFLAGS(be) & SLAP_DBFLAG_GLUE_LINKED)
 #define	SLAP_GLUE_ADVERTISE(be)	\
 	(SLAP_DBFLAGS(be) & SLAP_DBFLAG_GLUE_ADVERTISE)
-#define SLAP_SHADOW(be)				(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SHADOW)
+#define SLAP_SHADOW(be)				(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SHADOW_MASK)
 #define SLAP_SYNC_SHADOW(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SYNC_SHADOW)
 #define SLAP_SLURP_SHADOW(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SLURP_SHADOW)
-#define SLAP_SINGLE_SHADOW(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SINGLE_SHADOW)
 #define SLAP_MULTIPROVIDER(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_MULTI_SHADOW)
+#define SLAP_SINGLE_SHADOW(be)		\
+	( (SLAP_DBFLAGS(be) & SLAP_DBFLAG_SINGLE_SHADOW_MASK) && \
+		!SLAP_MULTIPROVIDER(be) )
 #define SLAP_DBCLEAN(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_CLEAN)
 #define SLAP_DBOPEN(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_OPEN)
 #define SLAP_DBACL_ADD(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_ACL_ADD)

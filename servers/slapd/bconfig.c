@@ -1395,7 +1395,7 @@ config_generic(ConfigArgs *c) {
 			c->value_int = (SLAP_SYNC_SUBENTRY(c->be) != 0);
 			break;
 		case CFG_MULTIPROVIDER:
-			if ( SLAP_SHADOW(c->be))
+			if ( sid_list )
 				c->value_int = (SLAP_MULTIPROVIDER(c->be) != 0);
 			else
 				rc = 1;
@@ -1565,8 +1565,6 @@ config_generic(ConfigArgs *c) {
 
 		case CFG_MULTIPROVIDER:
 			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_MULTI_SHADOW;
-			if(SLAP_SHADOW(c->be))
-				SLAP_DBFLAGS(c->be) |= SLAP_DBFLAG_SINGLE_SHADOW;
 			break;
 
 #if defined(HAVE_CYRUS_SASL) && defined(SLAP_AUXPROP_DONTUSECOPY)
@@ -2412,18 +2410,18 @@ sortval_reject:
 			break;
 
 		case CFG_MULTIPROVIDER:
-			if(c->value_int && !SLAP_SHADOW(c->be)) {
-				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> database is not a shadow",
+			/* Matching on sid_list rather than serverID to keep tools in check */
+			if ( c->value_int && !sid_list ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> "
+					"serverID is not configured, do that first",
 					c->argv[0] );
 				Debug(LDAP_DEBUG_ANY, "%s: %s\n",
 					c->log, c->cr_msg );
 				return(1);
 			}
 			if(c->value_int) {
-				SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_SINGLE_SHADOW;
 				SLAP_DBFLAGS(c->be) |= SLAP_DBFLAG_MULTI_SHADOW;
 			} else {
-				SLAP_DBFLAGS(c->be) |= SLAP_DBFLAG_SINGLE_SHADOW;
 				SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_MULTI_SHADOW;
 			}
 			break;
@@ -3899,7 +3897,7 @@ config_updatedn(ConfigArgs *c) {
 	} else if ( c->op == LDAP_MOD_DELETE ) {
 		ch_free( c->be->be_update_ndn.bv_val );
 		BER_BVZERO( &c->be->be_update_ndn );
-		SLAP_DBFLAGS(c->be) ^= (SLAP_DBFLAG_SHADOW | SLAP_DBFLAG_SLURP_SHADOW);
+		SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_SLURP_SHADOW;
 		return 0;
 	}
 	if(SLAP_SHADOW(c->be)) {
@@ -3937,18 +3935,14 @@ config_shadow( ConfigArgs *c, slap_mask_t flag )
 		return 1;
 	}
 
-	if ( SLAP_SHADOW(c->be) ) {
-		/* if already shadow, only check consistency */
-		if ( ( SLAP_DBFLAGS(c->be) & flag ) != flag ) {
-			Debug( LDAP_DEBUG_ANY, "%s: inconsistent shadow flag 0x%lx.\n",
-				c->log, flag );
-			return 1;
-		}
+	/* if already shadow, only check consistency */
+	if ( ((SLAP_DBFLAGS(c->be) & SLAP_DBFLAG_SINGLE_SHADOW_MASK) | flag) != flag ) {
+		Debug( LDAP_DEBUG_ANY, "%s: inconsistent shadow flag 0x%lx != 0x%lx.\n",
+			c->log, flag, ( SLAP_DBFLAGS(c->be) & SLAP_DBFLAG_SINGLE_SHADOW_MASK ) );
+		return 1;
 
 	} else {
-		SLAP_DBFLAGS(c->be) |= (SLAP_DBFLAG_SHADOW | flag);
-		if ( !SLAP_MULTIPROVIDER( c->be ))
-			SLAP_DBFLAGS(c->be) |= SLAP_DBFLAG_SINGLE_SHADOW;
+		SLAP_DBFLAGS(c->be) |= flag;
 	}
 
 	return 0;
@@ -3976,7 +3970,7 @@ config_updateref(ConfigArgs *c) {
 		}
 		return 0;
 	}
-	if(!SLAP_SHADOW(c->be) && !c->be->be_syncinfo) {
+	if( !SLAP_SINGLE_SHADOW(c->be) && !c->be->be_syncinfo ) {
 		snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> must appear after syncrepl or updatedn",
 			c->argv[0] );
 		Debug(LDAP_DEBUG_ANY, "%s: %s\n",

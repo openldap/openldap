@@ -7198,7 +7198,7 @@ add_syncrepl(
 					rc = -1;
 			}
 		} else {
-			/* multiprovider still needs to see this flag in tool mode */
+			/* tools might still want to see this flag (updateref, ...) */
 			rc = config_sync_shadow( c ) ? -1 : 0;
 		}
 		ldap_free_urldesc( lud );
@@ -7508,7 +7508,7 @@ syncrepl_config( ConfigArgs *c )
 			}
 		}
 		if ( !c->be->be_syncinfo ) {
-			SLAP_DBFLAGS( c->be ) &= ~SLAP_DBFLAG_SHADOW_MASK;
+			SLAP_DBFLAGS( c->be ) &= ~SLAP_DBFLAG_SYNC_SHADOW;
 		}
 		return 0;
 	}
