@@ -552,7 +552,7 @@ loglevel_print( FILE *out )
 
 int
 config_logging(ConfigArgs *c) {
-	int i, rc;
+	int i, rc = 0;
 
 	if ( loglevel_ops == NULL ) {
 		loglevel_init();
