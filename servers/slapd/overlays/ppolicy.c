@@ -63,8 +63,10 @@ typedef struct pp_info {
 	int send_netscape_controls;	/* send netscape password controls */
 	char *pwdCheckModule; /* name of module to dynamically
 										    load to check password */
+#ifdef SLAPD_MODULES
 	lt_dlhandle	pwdCheckHandle;		/* handle from lt_dlopen */
 	check_func *pwdCheckFunc;
+#endif /* SLAPD_MODULES */
 	ldap_pvt_thread_mutex_t pwdFailureTime_mutex;
 } pp_info;
 
@@ -489,7 +491,11 @@ static ConfigTable ppolicycfg[] = {
 	  "EQUALITY booleanMatch "
 	  "SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 	{ "ppolicy_check_module", "path", 2, 2, 0,
+#ifdef SLAPD_MODULES
 	  ARG_STRING|ARG_MAGIC|PPOLICY_CHECK_MODULE, ppolicy_cf_checkmod,
+#else
+	  ARG_IGNORED, NULL,
+#endif /* SLAPD_MODULES */
 	  "( OLcfgOvAt:12.7 NAME 'olcPPolicyCheckModule' "
 	  "DESC 'Loadable module that instantiates check_password() function' "
 	  "EQUALITY caseExactIA5Match "
@@ -562,6 +568,7 @@ ppolicy_cf_default( ConfigArgs *c )
 	return rc;
 }
 
+#ifdef SLAPD_MODULES
 static int
 ppolicy_cf_checkmod( ConfigArgs *c )
 {
@@ -616,6 +623,7 @@ ppolicy_cf_checkmod( ConfigArgs *c )
 
 	return rc;
 }
+#endif /* SLAPD_MODULES */
 
 static time_t
 parse_time( char *atm )
