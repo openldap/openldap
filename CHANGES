@@ -3,6 +3,8 @@ OpenLDAP 2.6 Change Log
 OpenLDAP 2.6.1 Engineering
 	Fixed slapd to only set loglevel in server mode (ITS#9715)
 	Fixed slapd logfile-rotate use of uninitialized variable (ITS#9730)
+    Build Environment
+        Fix test022 to preserve DELAY search output (ITS#9718)
 
 OpenLDAP 2.6.0 Release (2021/10/25)
 	Initial release for "general use".
