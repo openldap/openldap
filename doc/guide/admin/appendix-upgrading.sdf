@@ -29,3 +29,10 @@ In 2.5 and prior, the managedInfo attribute in the cn=Log entry could be
 used to change the loglevel of the slapd process. In 2.6, monitorLogLevel
 can be used to change the slapd log level and monitorDebugLevel can be used
 to change the slapd debug level.
+
+H2: contrib modules
+
+If still using the lastbind overlay with olcLastBindPrecision (when
+olcLastBindForwardUpdates is needed), you will need to configure
+precision on its backend entry instead and the overlay will honour it.
+The old attribute is no longer accepted or supported.
