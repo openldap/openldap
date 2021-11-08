@@ -14,8 +14,8 @@ H2: ppolicy overlay
 
 The pwdCheckModule option has been moved to the overlay configuration.
 Existing settings in password policy entries will be ignored. It will be
-necessary to add this configuration directive to the overlay when upgrading
-if it is currently in use.
+necessary to use pwdUseCheckModule instead and add this configuration
+directive to the overlay when upgrading if it is currently in use.
 
 H2: lloadd backends
 
