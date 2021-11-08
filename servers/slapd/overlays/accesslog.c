@@ -1602,7 +1602,7 @@ accesslog_response(Operation *op, SlapReply *rs)
 						op->o_log_prefix, li->li_db_suffix.bv_val );
 				assert(0);
 			}
-			op2.o_csn = op->o_csn;
+			slap_queue_csn( &op2, &op->o_csn );
 		}
 	}
 
@@ -1942,26 +1942,6 @@ accesslog_response(Operation *op, SlapReply *rs)
 	op2.o_callback = &nullsc;
 	/* contextCSN updates may still reach here */
 	op2.o_dont_replicate = op->o_dont_replicate;
-
-	if ( lo->mask & LOG_OP_WRITES ) {
-		struct berval maxcsn;
-		char cbuf[LDAP_PVT_CSNSTR_BUFSIZE];
-		int foundit;
-		cbuf[0] = '\0';
-		maxcsn.bv_val = cbuf;
-		maxcsn.bv_len = sizeof(cbuf);
-		/* If there was a commit CSN on the main DB,
-		 * we must propagate it to the log DB for its
-		 * own syncprov. Otherwise, don't generate one.
-		 */
-		slap_get_commit_csn( op, &maxcsn, &foundit );
-		if ( !BER_BVISEMPTY( &maxcsn ) ) {
-			slap_queue_csn( &op2, &op->o_csn );
-		} else {
-			attr_merge_normalize_one( e, slap_schema.si_ad_entryCSN,
-				&op->o_csn, op->o_tmpmemctx );
-		}
-	}
 
 	op2.o_bd->be_add( &op2, &rs2 );
 	if ( rs2.sr_err != LDAP_SUCCESS ) {
