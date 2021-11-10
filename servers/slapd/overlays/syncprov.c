@@ -3234,8 +3234,15 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 		if (srs->sr_state.numcsns != numcsns) {
 			/* consumer doesn't have the right number of CSNs */
 			Debug( LDAP_DEBUG_SYNC, "%s syncprov_op_search: "
-				"consumer cookie is missing a csn we track\n",
-				op->o_log_prefix );
+				"consumer cookie is missing a csn we track%s\n",
+				op->o_log_prefix, si->si_nopres ? ", rejecting" : "" );
+
+			if ( si->si_nopres ) {
+				rs->sr_err = LDAP_SYNC_REFRESH_REQUIRED;
+				rs->sr_text = "not enough information to resync, please use other means";
+				goto bailout;
+			}
+
 			changed = SS_CHANGED;
 			if ( srs->sr_state.ctxcsn ) {
 				ber_bvarray_free_x( srs->sr_state.ctxcsn, op->o_tmpmemctx );
