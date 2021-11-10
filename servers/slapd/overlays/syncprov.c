@@ -1296,7 +1296,9 @@ syncprov_matchops( Operation *op, opcookie *opc, int saveit )
 		fc.fdn = &newdn;
 		freefdn = 1;
 	}
-	if ( op->o_tag != LDAP_REQ_ADD ) {
+	if ( !saveit && op->o_tag == LDAP_REQ_DELETE ) {
+		/* Delete succeeded, there is no entry */
+	} else if ( op->o_tag != LDAP_REQ_ADD ) {
 		if ( !SLAP_ISOVERLAY( op->o_bd )) {
 			db = *op->o_bd;
 			op->o_bd = &db;
@@ -1412,7 +1414,7 @@ syncprov_matchops( Operation *op, opcookie *opc, int saveit )
 		}
 
 		rc = LDAP_COMPARE_FALSE;
-		if ( !is_entry_glue( e ) && fc.fscope ) {
+		if ( e && !is_entry_glue( e ) && fc.fscope ) {
 			ldap_pvt_thread_mutex_lock( &ss->s_mutex );
 			op2 = *ss->s_op;
 			oh = *op->o_hdr;
@@ -2569,26 +2571,7 @@ added:
 		have_psearches = ( si->si_ops != NULL );
 		ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
 		if ( have_psearches ) {
-			switch(op->o_tag) {
-			case LDAP_REQ_ADD:
-			case LDAP_REQ_MODIFY:
-			case LDAP_REQ_MODRDN:
-			case LDAP_REQ_EXTENDED:
-				syncprov_matchops( op, opc, 0 );
-				break;
-			case LDAP_REQ_DELETE:
-				/* for each match in opc->smatches:
-				 *   send DELETE msg
-				 */
-				for ( sm = opc->smatches; sm; sm=sm->sm_next ) {
-					if ( sm->sm_op->s_op->o_abandon )
-						continue;
-					syncprov_qresp( opc, sm->sm_op, LDAP_SYNC_DELETE );
-				}
-				if ( opc->ssres.s_info )
-					free_resinfo( &opc->ssres );
-				break;
-			}
+			syncprov_matchops( op, opc, 0 );
 		}
 
 		/* Add any log records */
