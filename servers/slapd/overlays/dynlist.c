@@ -887,6 +887,13 @@ dynlist_compare( Operation *op, SlapReply *rs )
 				 * the assertion is FALSE rather than
 				 * UNDEFINED */
 				rs->sr_err = LDAP_COMPARE_FALSE;
+
+				/* If also using static groups, fallback to
+				 * vanilla compare
+				 */
+				if ( dlm->dlm_static_oc )
+					return SLAP_CB_CONTINUE;
+
 				break;
 			}
 
