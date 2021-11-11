@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.10 Engineering
+	Fixed libldap to init client socket port (ITS#9743)
 
 OpenLDAP 2.5.9 Release (2021/10/25)
 	Fixed slapo-accesslog to initialize minCSN on import of 2.4 databases (ITS#9720)
