@@ -386,6 +386,10 @@ memberOf: cn=all staff,ou=groups,dc=example,dc=com
 memberOf: cn=alumni assoc staff,ou=groups,dc=example,dc=com
 memberOf: cn=dynamic list of members,ou=dynamic lists,dc=example,dc=com
 
+TRUE
+
+FALSE
+
 # Testing nested dynamic group functionality...
 dn: cn=Dynamic List,ou=Dynamic Lists,dc=example,dc=com
 objectClass: groupOfURLs

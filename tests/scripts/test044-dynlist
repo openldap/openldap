@@ -808,6 +808,60 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
+echo "Testing static group member compare..."
+echo "# Testing static group member compare..." >> $SEARCHOUT
+$LDAPCOMPARE -H $URI1 \
+	"cn=all staff,ou=groups,$BASEDN" "member:cn=Mark Elliot,ou=Alumni Association,ou=People,$BASEDN" >> $SEARCHOUT
+RC=$?
+case $RC in
+5)
+	echo "ldapcompare returned FALSE ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+	;;
+6)
+	echo "ldapcompare returned TRUE ($RC)"
+	;;
+0)
+	echo "ldapcompare returned success ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+	;;
+*)
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+	;;
+esac
+echo "" >> $SEARCHOUT
+
+echo "Testing static group non-member compare (should return FALSE)..."
+echo "# Testing static group non-member compare (should return FALSE)..." >> $SEARCHOUT
+$LDAPCOMPARE -H $URI1 \
+	"cn=all staff,ou=groups,$BASEDN" "member:cn=Not A User,ou=Alumni Association,ou=People,$BASEDN" >> $SEARCHOUT
+RC=$?
+case $RC in
+5)
+	echo "ldapcompare returned FALSE ($RC)"
+	;;
+6)
+	echo "ldapcompare returned TRUE ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+	;;
+0)
+	echo "ldapcompare returned success ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+	;;
+*)
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+	;;
+esac
+echo "" >> $SEARCHOUT
+
 echo "Reconfiguring slapd..."
 $LDAPMODIFY -x -D cn=config -H $URI1 -y $CONFIGPWF > \
 	$TESTOUT 2>&1 << EOMODS
