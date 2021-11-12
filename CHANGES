@@ -4,6 +4,7 @@ OpenLDAP 2.6.1 Engineering
 	Fixed libldap to init client socket port (ITS#9743)
 	Fixed slapd to only set loglevel in server mode (ITS#9715)
 	Fixed slapd logfile-rotate use of uninitialized variable (ITS#9730)
+	Fixed slapo-ppolicy when not built modularly (ITS#9733)
     Build Environment
         Fix test022 to preserve DELAY search output (ITS#9718)
 		Fix slapd-watcher to allow startup when servers are down (ITS#9727)
