@@ -176,6 +176,13 @@ effect until the server has been restarted.
 Specify a file for recording lloadd debug messages. By default these messages
 only go to stderr, are not recorded anywhere else, and are unrelated to
 messages exposed by the
+.TP
+.B logfile-format debug | syslog-utc | syslog-localtime
+Specify the prefix format for messages written to the logfile. The debug
+format is the normal format used for slapd debug messages, with a timestamp
+in hexadecimal, followed by a thread ID.  The other options are to
+use syslog(3) style prefixes, with timestamps either in UTC or in the
+local timezone. The default is debug format.
 .B loglevel
 configuration parameter. Specifying a logfile copies messages to both stderr
 and the logfile.
