@@ -2105,7 +2105,10 @@ config_generic(ConfigArgs *c) {
 				}
 				/* else prev is NULL, append to end of global list */
 			}
-			if(parse_oc(c, &oc, prev)) return(1);
+			if ( parse_oc( c, &oc, prev ) ) {
+				c->reply.err = LDAP_INVALID_SYNTAX;
+				return(1);
+			}
 			if (!cfn->c_oc_head || !c->valx) cfn->c_oc_head = oc;
 			if (cfn->c_oc_tail == prev) cfn->c_oc_tail = oc;
 			}
@@ -2138,7 +2141,10 @@ config_generic(ConfigArgs *c) {
 				}
 				/* else prev is NULL, append to end of global list */
 			}
-			if(parse_at(c, &at, prev)) return(1);
+			if ( parse_at( c, &at, prev ) ) {
+				c->reply.err = LDAP_INVALID_SYNTAX;
+				return(1);
+			}
 			if (!cfn->c_at_head || !c->valx) cfn->c_at_head = at;
 			if (cfn->c_at_tail == prev) cfn->c_at_tail = at;
 			}
@@ -2171,7 +2177,10 @@ config_generic(ConfigArgs *c) {
 				}
 				/* else prev is NULL, append to end of global list */
 			}
-			if ( parse_syn( c, &syn, prev ) ) return(1);
+			if ( parse_syn( c, &syn, prev ) ) {
+				c->reply.err = LDAP_INVALID_SYNTAX;
+				return(1);
+			}
 			if ( !cfn->c_syn_head || !c->valx ) cfn->c_syn_head = syn;
 			if ( cfn->c_syn_tail == prev ) cfn->c_syn_tail = syn;
 			}
@@ -2182,7 +2191,10 @@ config_generic(ConfigArgs *c) {
 
 			if ( c->op == LDAP_MOD_ADD && c->ca_private && cfn != c->ca_private )
 				cfn = c->ca_private;
-			if(parse_cr(c, &cr)) return(1);
+			if( parse_cr( c, &cr ) ) {
+				c->reply.err = LDAP_INVALID_SYNTAX;
+				return(1);
+			}
 			if (!cfn->c_cr_head) cfn->c_cr_head = cr;
 			cfn->c_cr_tail = cr;
 			}

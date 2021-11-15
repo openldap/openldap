@@ -72,7 +72,7 @@ olcObjectClasses: ( rawr )
 -
 EOF
 RC=$?
-if test $RC != 80 ; then
+if test $RC != 21 ; then
 	echo "invalid objectclass modify allowed ($RC)"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
@@ -87,7 +87,7 @@ olcAttributeTypes: ( rawr )
 -
 EOF
 RC=$?
-if test $RC != 80 ; then
+if test $RC != 21 ; then
 	echo "invalid attributeType modify allowed ($RC)"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
