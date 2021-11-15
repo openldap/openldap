@@ -291,6 +291,11 @@ static ConfigTable config_back_cf_table[] = {
         &config_logging,
         NULL, NULL, NULL
     },
+    { "logfile-format", "debug|syslog-utc|syslog-localtime", 2, 2, 0,
+        ARG_MAGIC|CFG_LOGFILE_FORMAT,
+        &config_logging,
+        NULL, NULL, NULL
+    },
     { "logfile-only", "on|off", 2, 2, 0,
         ARG_ON_OFF|ARG_MAGIC|CFG_LOGFILE_ONLY,
         &config_logging,

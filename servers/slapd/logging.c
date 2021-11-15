@@ -40,7 +40,21 @@ static char logfile_suffix[sizeof(".xx.gz")];
 static char logfile_path[MAXPATHLEN - sizeof(logfile_suffix) -1];
 static long logfile_fslimit;
 static int logfile_age, logfile_only, logfile_max;
+static char *syslog_prefix;
+static int splen;
 
+typedef enum { LFMT_DEFAULT, LFMT_DEBUG, LFMT_SYSLOG_UTC, LFMT_SYSLOG_LOCAL } LogFormat;
+static LogFormat logfile_format;
+
+static slap_verbmasks logformat_key[] = {
+	{ BER_BVC("default"),		LFMT_DEFAULT },
+	{ BER_BVC("debug"),			LFMT_DEBUG },
+	{ BER_BVC("syslog-utc"),	LFMT_SYSLOG_UTC },
+	{ BER_BVC("syslog-localtime"),		LFMT_SYSLOG_LOCAL },
+	{ BER_BVNULL, 0 }
+};
+
+char *serverName;
 int slap_debug_orig;
 
 ldap_pvt_thread_mutex_t logfile_mutex;
@@ -50,6 +64,8 @@ static time_t logfile_fcreated;
 static int logfile_fd = -1;
 static char logpaths[2][MAXPATHLEN];
 static int logpathlen;
+
+#define SYSLOG_STAMP	"Mmm dd hh:mm:ss"
 
 void
 slap_debug_print( const char *data )
@@ -68,6 +84,7 @@ slap_debug_print( const char *data )
 #define	Tfrac	tv.tv_usec
 #define	gettime(tv)	gettimeofday( tv, NULL )
 #endif
+
 
 	gettime( &tv );
 	iov[0].iov_base = prefix;
@@ -93,6 +110,20 @@ slap_debug_print( const char *data )
 				logfile_open( logfile_path );
 			}
 		}
+
+		if ( logfile_format > LFMT_DEBUG ) {
+			struct tm tm;
+			if ( logfile_format == LFMT_SYSLOG_UTC )
+				ldap_pvt_gmtime( &tv.tv_sec, &tm );
+			else
+				ldap_pvt_localtime( &tv.tv_sec, &tm );
+			strftime( syslog_prefix, sizeof( SYSLOG_STAMP ),
+				"%b %d %T", &tm );
+			syslog_prefix[ sizeof( SYSLOG_STAMP )-1 ] = ' ';
+			iov[0].iov_base = syslog_prefix;
+			iov[0].iov_len = splen;
+		}
+
 		len = writev( logfile_fd, iov, 2 );
 		if ( len > 0 )
 			logfile_fsize += len;
@@ -575,6 +606,13 @@ config_logging(ConfigArgs *c) {
 				rc = 1;
 			}
 			break;
+		case CFG_LOGFILE_FORMAT:
+			if ( logfile_format ) {
+				value_add_one( &c->rvalue_vals, &logformat_key[logfile_format].word );
+			} else {
+				rc = 1;
+			}
+			break;
 		case CFG_LOGFILE_ONLY:
 			c->value_int = logfile_only;
 			break;
@@ -609,6 +647,12 @@ config_logging(ConfigArgs *c) {
 
 		case CFG_LOGFILE:
 			logfile_close();
+			break;
+
+		case CFG_LOGFILE_FORMAT:
+			logfile_format = 0;
+			ch_free( syslog_prefix );
+			syslog_prefix = NULL;
 			break;
 
 		case CFG_LOGFILE_ONLY:
@@ -670,6 +714,26 @@ reset:
 		case CFG_LOGFILE:
 			rc = logfile_open( c->value_string );
 			ch_free( c->value_string );
+			break;
+
+		case CFG_LOGFILE_FORMAT: {
+			int len;
+			i = verb_to_mask( c->argv[1], logformat_key );
+
+			if ( BER_BVISNULL( &logformat_key[ i ].word ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> unknown format", c->argv[0] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s \"%s\"\n",
+					c->log, c->cr_msg, c->argv[1]);
+				return( 1 );
+			}
+			if ( syslog_prefix )
+				ch_free( syslog_prefix );
+			len = strlen( global_host ) + 1 + strlen( serverName ) + 1 + sizeof("[123456789]:") +
+				sizeof( SYSLOG_STAMP );
+			syslog_prefix = ch_malloc( len );
+			splen = sprintf( syslog_prefix, SYSLOG_STAMP " %s %s[%d]: ", global_host, serverName, getpid() );
+			logfile_format = logformat_key[i].mask;
+			}
 			break;
 
 		case CFG_LOGFILE_ONLY:

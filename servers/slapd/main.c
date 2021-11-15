@@ -238,7 +238,6 @@ int main( int argc, char **argv )
 
 	char *configfile = NULL;
 	char *configdir = NULL;
-	char *serverName;
 	int serverMode = SLAP_SERVER_MODE;
 
 	struct sync_cookie *scp = NULL;

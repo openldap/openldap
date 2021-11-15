@@ -21,7 +21,8 @@ enum {
 	CFG_LOGLEVEL = 1,
 	CFG_LOGFILE,
 	CFG_LOGFILE_ROTATE,
-	CFG_LOGFILE_ONLY
+	CFG_LOGFILE_ONLY,
+	CFG_LOGFILE_FORMAT
 };
 
 extern ConfigDriver config_logging;

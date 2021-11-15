@@ -483,6 +483,10 @@ static ConfigTable config_back_cf_table[] = {
 		&config_logging, "( OLcfgGlAt:27 NAME 'olcLogFile' "
 			"EQUALITY caseExactMatch "
 			"SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "logfile-format", "debug|syslog-utc|syslog-localtime", 2, 2, 0, ARG_MAGIC|CFG_LOGFILE_FORMAT,
+		&config_logging, "( OLcfgGlAt:104 NAME 'olcLogFileFormat' "
+			"EQUALITY caseIgnoreMatch "
+			"SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
 	{ "logfile-only", "on|off", 2, 2, 0, ARG_ON_OFF|ARG_MAGIC|CFG_LOGFILE_ONLY,
 		&config_logging, "( OLcfgGlAt:102 NAME 'olcLogFileOnly' "
 			"EQUALITY booleanMatch "
@@ -984,7 +988,7 @@ static ConfigOCs cf_ocs[] = {
 		 "olcIndexSubstrIfMaxLen $ olcIndexSubstrIfMinLen $ "
 		 "olcIndexSubstrAnyLen $ olcIndexSubstrAnyStep $ olcIndexHash64 $ "
 		 "olcIndexIntLen $ "
-		 "olcListenerThreads $ olcLocalSSF $ olcLogFile $ olcLogLevel $ "
+		 "olcListenerThreads $ olcLocalSSF $ olcLogFile $ olcLogFileFormat $ olcLogLevel $ "
 		 "olcLogFileOnly $ olcLogFileRotate $ olcMaxFilterDepth $ "
 		 "olcPasswordCryptSaltFormat $ olcPasswordHash $ olcPidFile $ "
 		 "olcPluginLogFile $ olcReadOnly $ olcReferral $ "
