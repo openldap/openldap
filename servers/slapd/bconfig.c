@@ -5516,7 +5516,7 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 			}
 			rc = config_parse_add( ct, ca, i );
 			if ( rc ) {
-				rc = LDAP_OTHER;
+				rc = ca->reply.err ? ca->reply.err : LDAP_OTHER;
 				goto done;
 			}
 		}
@@ -5860,7 +5860,7 @@ config_modify_add( ConfigTable *ct, ConfigArgs *ca, AttributeDescription *ad,
 	}
 	rc = config_parse_add( ct, ca, i );
 	if ( rc ) {
-		rc = LDAP_OTHER;
+		rc = ca->reply.err ? ca->reply.err : LDAP_OTHER;
 	}
 	return rc;
 }
