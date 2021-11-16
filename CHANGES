@@ -2,6 +2,7 @@ OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.1 Engineering
 	Fixed libldap to init client socket port (ITS#9743)
+	Added slapd config keyword for logfile format (ITS#9745)
 	Fixed slapd to only set loglevel in server mode (ITS#9715)
 	Fixed slapd logfile-rotate use of uninitialized variable (ITS#9730)
 	Fixed slapo-accesslog to fix assertion due to deprecated code (ITS#9738)
