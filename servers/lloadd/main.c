@@ -94,6 +94,10 @@ struct signal_handler {
         { 0, NULL }
 };
 
+/* in logging.c */
+extern char *serverName;
+extern int slap_debug_orig;
+
 /*
  * when more than one lloadd is running on one machine, each one might have
  * it's own LOCAL for syslogging and must have its own pid/args files
@@ -367,7 +371,6 @@ main( int argc, char **argv )
 
     char *configfile = NULL;
     char *configdir = NULL;
-    char *serverName;
     int serverMode = SLAP_SERVER_MODE;
 
     char **debug_unknowns = NULL;
@@ -601,6 +604,7 @@ unhandled_option:;
     ber_set_option( NULL, LBER_OPT_DEBUG_LEVEL, &slap_debug );
     ldap_set_option( NULL, LDAP_OPT_DEBUG_LEVEL, &slap_debug );
     ldif_debug = slap_debug;
+	slap_debug_orig = slap_debug;
 
     if ( version ) {
         fprintf( stderr, "%s\n", Versionstr );
@@ -833,7 +837,7 @@ unhandled_option:;
 
 #ifndef HAVE_WINSOCK
     if ( !no_detach ) {
-        write( waitfds[1], "1", 1 );
+        (void)!write( waitfds[1], "1", 1 );
         close( waitfds[1] );
     }
 #endif
