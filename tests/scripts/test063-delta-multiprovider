@@ -405,6 +405,9 @@ displayName: James the Second
 -
 delete: displayName
 displayName: The other
+-
+replace: mail
+mail: jaj2@mail.alumni.example.com
 
 EOF
 RC=$?
@@ -428,6 +431,9 @@ displayName: James II
 -
 delete: displayName
 displayName: The other
+-
+add: mail
+mail: jaj2@moo.net
 
 EOF
 RC=$?
