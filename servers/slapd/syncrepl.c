@@ -2582,6 +2582,7 @@ static Modifications *mods_dup( Operation *op, Modifications *modlist, int match
 
 typedef struct resolve_ctxt {
 	syncinfo_t *rx_si;
+	Entry *rx_entry;
 	Modifications *rx_mods;
 } resolve_ctxt;
 
@@ -2626,6 +2627,7 @@ syncrepl_resolve_cb( Operation *op, SlapReply *rs )
 		Attribute *a = attr_find( rs->sr_entry->e_attrs, ad_reqMod );
 		if ( a ) {
 			Modifications *oldmods, *newmods, *m1, *m2, **prev;
+			Entry *e = rx->rx_entry;
 			oldmods = rx->rx_mods;
 			syncrepl_accesslog_mods( rx->rx_si, a->a_vals, &newmods );
 			for ( m2 = newmods; m2; m2=m2->sml_next ) {
@@ -2666,14 +2668,51 @@ drop:
 
 					if ( m2->sml_op == LDAP_MOD_ADD ||
 						m2->sml_op == LDAP_MOD_REPLACE ) {
-						if ( m1->sml_op == LDAP_MOD_DELETE ) {
-							if ( !m1->sml_numvals ) goto drop;
-							compare_vals( m1, m2 );
-							if ( !m1->sml_numvals )
-								goto drop;
-						}
 						if ( m2->sml_desc->ad_type->sat_atype.at_single_value )
 							goto drop;
+						if ( m1->sml_op == LDAP_MOD_DELETE ) {
+							if ( m2->sml_op == LDAP_MOD_REPLACE ) {
+								goto drop;
+							}
+							if ( !m1->sml_numvals ) {
+								Modifications *m;
+								unsigned int size, i;
+								/*
+								 * ITS#9751 An ADD might supersede parts of
+								 * this delete, but we still need to honour the
+								 * rest. Keep resolving as if it was deleting
+								 * specific values
+								 */
+								a = attr_find( e->e_attrs, m1->sml_desc );
+								if ( !a ) {
+									goto drop;
+								}
+
+								size = (a->a_numvals+1) * sizeof(struct berval);
+								if ( a->a_nvals ) size *= 2;
+								size += sizeof(Modifications);
+								m = op->o_tmpalloc( size, op->o_tmpmemctx );
+								*m = *m1;
+
+								m->sml_numvals = a->a_numvals;
+								m->sml_values = (BerVarray)(m+1);
+
+								for ( i=0; i < a->a_numvals; i++ )
+									m->sml_values[i] = a->a_vals[i];
+								BER_BVZERO( &m->sml_values[i] );
+
+								if ( a->a_nvals ) {
+									m->sml_nvalues = m->sml_values + m->sml_numvals + 1;
+									for ( i=0; i < a->a_numvals; i++ )
+										m->sml_nvalues[i] = a->a_nvals[i];
+									BER_BVZERO( &m->sml_nvalues[i] );
+								} else {
+									m->sml_nvalues = NULL;
+								}
+								op->o_tmpfree( m1, op->o_tmpmemctx );
+								*prev = m1 = m;
+							}
+						}
 						compare_vals( m1, m2 );
 						if ( !m1->sml_numvals )
 							goto drop;
@@ -2691,6 +2730,7 @@ drop:
 typedef struct modify_ctxt {
 	Modifications *mx_orig;
 	Modifications *mx_free;
+	Entry *mx_entry;
 } modify_ctxt;
 
 static int
@@ -2706,6 +2746,9 @@ syncrepl_modify_cb( Operation *op, SlapReply *rs )
 		mx->mx_free = ml->sml_next;
 		op->o_tmpfree( ml, op->o_tmpmemctx );
 	}
+	if ( mx->mx_entry ) {
+		entry_free( mx->mx_entry );
+	}
 	op->o_callback = sc->sc_next;
 	op->o_tmpfree( sc, op->o_tmpmemctx );
 	return SLAP_CB_CONTINUE;
@@ -2717,7 +2760,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
 	OpExtra *oex;
 	syncinfo_t *si;
-	Entry *e;
+	Entry *e, *e_dup;
 	int rc, match = 0;
 	Modifications *mod, *newlist;
 
@@ -2771,6 +2814,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 			/* no entryCSN? shouldn't happen. assume mod is newer. */
 			match = 1;
 		}
+		e_dup = entry_dup( e );
 		overlay_entry_release_ov( op, e, 0, on );
 	} else {
 		return SLAP_CB_CONTINUE;
@@ -2781,6 +2825,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 		slap_graduate_commit_csn( op );
 		/* tell accesslog this was a failure */
 		rs->sr_err = LDAP_TYPE_OR_VALUE_EXISTS;
+		entry_free( e_dup );
 		return LDAP_SUCCESS;
 	}
 
@@ -2795,7 +2840,8 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 	 *    delete X    delete all  drop
 	 *    delete X    delete X    drop
 	 *    delete X    delete Y    OK
-	 *    delete all  add X       drop
+	 *    delete all  add X       convert to delete current values,
+	 *                            drop delete X from it
 	 *    delete X    add X       drop
 	 *    delete X    add Y       OK
 	 *    add X       delete all  drop
@@ -2828,6 +2874,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
         AttributeAssertion aa[2] = {0};
 
 		rx.rx_si = si;
+		rx.rx_entry = e_dup;
 		rx.rx_mods = newlist;
 		cb.sc_private = &rx;
 
@@ -2890,6 +2937,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 		op->orm_no_opattrs = 1;
 		mx->mx_orig = op->orm_modlist;
 		mx->mx_free = newlist;
+		mx->mx_entry = e_dup;
 		for ( ml = newlist; ml; ml=ml->sml_next ) {
 			if ( ml->sml_flags == SLAP_MOD_INTERNAL ) {
 				ml->sml_flags = 0;
@@ -2904,6 +2952,7 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 		op->orm_modlist = newlist;
 		op->o_csn = mod->sml_nvalues[0];
 	}
+
 	return SLAP_CB_CONTINUE;
 }
 
