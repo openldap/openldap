@@ -2672,7 +2672,7 @@ config_passwd_hash(ConfigArgs *c) {
 		}
 		return 0;
 	}
-	if ( c->table == Cft_Global ) {
+	if ( c->op == LDAP_MOD_ADD && c->table == Cft_Global ) {
 		Debug( LDAP_DEBUG_ANY, "%s: setting password scheme in the global "
 				"entry is deprecated. The server may refuse to start if "
 				"it is provided by a loadable module, please move it to "
