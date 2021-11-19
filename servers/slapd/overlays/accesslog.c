@@ -740,7 +740,7 @@ accesslog_purge( void *ctx, void *arg )
 			ldap_pvt_thread_mutex_lock( &li->li_log_mutex );
 			mod.sml_numvals = li->li_numcsns;
 			mod.sml_values = li->li_mincsn;
-			mod.sml_nvalues = NULL;
+			mod.sml_nvalues = li->li_mincsn;
 			mod.sml_desc = ad_minCSN;
 			mod.sml_op = LDAP_MOD_REPLACE;
 			mod.sml_flags = SLAP_MOD_INTERNAL;
