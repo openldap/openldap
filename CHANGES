@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.10 Engineering
 	Fixed libldap to init client socket port (ITS#9743)
+	Fixed slapd-mdb to update indices correctly on replace ops (ITS#9753)
 	Fixed slapo-dynlist compare operation for static groups (ITS#9747)
 	Fixed slapo-accesslog to fix inconsistently normalized minCSN (ITS#9752)
 	Documentation
