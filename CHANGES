@@ -5,7 +5,7 @@ OpenLDAP 2.6.1 Engineering
 	Added slapd config keyword for logfile format (ITS#9745)
 	Fixed slapd to only set loglevel in server mode (ITS#9715)
 	Fixed slapd logfile-rotate use of uninitialized variable (ITS#9730)
-	Fixed slapd-mdb to update indices correctly on replace ops (ITS#9573)
+	Fixed slapd-mdb to update indices correctly on replace ops (ITS#9753)
 	Fixed slapo-accesslog to fix assertion due to deprecated code (ITS#9738)
 	Fixed slapo-accesslog to fix inconsistently normalized minCSN (ITS#9752)
 	Fixed slapo-dynlist compare operation for static groups (ITS#9747)
