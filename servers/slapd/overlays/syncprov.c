@@ -2226,7 +2226,7 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 		.numcsns = numcsns,
 		.sids = sids,
 	};
-	struct berval oldestcsn = BER_BVNULL, newestcsn = ctxcsn[0],
+	struct berval oldestcsn = BER_BVNULL, newestcsn = BER_BVNULL,
 	basedn, filterpattern = BER_BVC(
 			"(&"
 				"(entryCSN>=%s)"
@@ -2243,15 +2243,9 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 	BackendDB *db;
 	Entry *e;
 	Attribute *a;
-	int i, rc = -1;
+	int *minsids, i, j = 0, rc = -1;
 
 	assert( !BER_BVISNULL( &si->si_logbase ) );
-
-	for ( i=1; i < numcsns; i++ ) {
-		if ( ber_bvcmp( &newestcsn, &ctxcsn[i] ) < 0 ) {
-			newestcsn = ctxcsn[i];
-		}
-	}
 
 	db = select_backend( &si->si_logbase, 0 );
 	if ( !db ) {
@@ -2274,12 +2268,57 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 		be_entry_release_rw( &fop, e, 0 );
 		return LDAP_NO_SUCH_ATTRIBUTE;
 	}
-	for ( i=0; i < a->a_numvals; i++ ) {
+
+	/*
+	 * If we got here:
+	 * - the consumer's cookie (srs->sr_state.ctxcsn) has the same sids in the
+	 *   same order as ctxcsn
+	 * - at least one of the cookie's csns is older than its ctxcsn counterpart
+	 *
+	 * Now prepare the filter, we want it to be the union of all the intervals
+	 * between the cookie and our contextCSN for each sid. Right now, we can't
+	 * specify them separately, so just pick the boundary CSNs of non-empty
+	 * intervals as a conservative overestimate.
+	 *
+	 * Also check accesslog can actually serve this query based on what's
+	 * stored in minCSN.
+	 */
+
+	assert( srs->sr_state.numcsns == numcsns );
+
+	minsids = slap_parse_csn_sids( a->a_nvals, a->a_numvals, op->o_tmpmemctx );
+	slap_sort_csn_sids( a->a_nvals, minsids, a->a_numvals, op->o_tmpmemctx );
+	for ( i=0, j=0; i < numcsns; i++ ) {
+		assert( srs->sr_state.sids[i] == sids[i] );
+		if ( ber_bvcmp( &srs->sr_state.ctxcsn[i], &ctxcsn[i] ) >= 0 ) {
+			/* Consumer is up to date for this sid */
+			continue;
+		}
+		for ( ; j < a->a_numvals && minsids[j] < sids[i]; j++ )
+			/* Find the right minCSN, if present */;
+		if ( j == a->a_numvals || minsids[j] != sids[i] ||
+				ber_bvcmp( &srs->sr_state.ctxcsn[i], &a->a_nvals[j] ) < 0 ) {
+			/* Consumer is missing changes for a sid and minCSN indicates we
+			 * can't replay all relevant history */
+			Debug( LDAP_DEBUG_SYNC, "%s syncprov_play_accesslog: "
+					"accesslog information inadequate for log replay on csn=%s\n",
+					op->o_log_prefix, srs->sr_state.ctxcsn[i].bv_val );
+			slap_sl_free( minsids, op->o_tmpmemctx );
+			be_entry_release_rw( &fop, e, 0 );
+			return 1;
+		}
 		if ( BER_BVISEMPTY( &oldestcsn ) ||
-				ber_bvcmp( &oldestcsn, &a->a_nvals[i] ) > 0 ) {
-			oldestcsn = a->a_nvals[i];
+				ber_bvcmp( &oldestcsn, &srs->sr_state.ctxcsn[i] ) > 0 ) {
+			oldestcsn = srs->sr_state.ctxcsn[i];
+		}
+		if ( BER_BVISEMPTY( &newestcsn ) ||
+				ber_bvcmp( &newestcsn, &ctxcsn[i] ) < 0 ) {
+			newestcsn = ctxcsn[i];
 		}
 	}
+	assert( !BER_BVISEMPTY( &oldestcsn ) && !BER_BVISEMPTY( &newestcsn ) &&
+			ber_bvcmp( &oldestcsn, &newestcsn ) < 0 );
+	slap_sl_free( minsids, op->o_tmpmemctx );
 
 	filter_escape_value_x( &op->o_req_ndn, &basedn, fop.o_tmpmemctx );
 	/* filter_escape_value_x sets output to BVNULL if input value is empty,
