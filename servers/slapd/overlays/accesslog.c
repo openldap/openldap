@@ -926,10 +926,10 @@ log_cf_gen(ConfigArgs *c)
 					ch_free( la );
 				}
 			} else {
-				log_attr *la = NULL, **lp;
+				log_attr *la = li->li_oldattrs, **lp = &li->li_oldattrs;
 				int i;
 
-				for ( lp = &li->li_oldattrs, i=0; i < c->valx; i++ ) {
+				for ( i=0; i < c->valx; i++ ) {
 					la = *lp;
 					lp = &la->next;
 				}
@@ -946,10 +946,10 @@ log_cf_gen(ConfigArgs *c)
 					ch_free( lb );
 				}
 			} else {
-				log_base *lb = NULL, **lp;
+				log_base *lb = li->li_bases, **lp = &li->li_bases;
 				int i;
 
-				for ( lp = &li->li_bases, i=0; i < c->valx; i++ ) {
+				for ( i=0; i < c->valx; i++ ) {
 					lb = *lp;
 					lp = &lb->lb_next;
 				}
@@ -1029,14 +1029,23 @@ log_cf_gen(ConfigArgs *c)
 			int i;
 			AttributeDescription *ad;
 			const char *text;
+			log_attr **lp = &li->li_oldattrs;
+
+			for ( i=0; *lp && ( c->valx < 0 || i < c->valx ); i++ )
+				lp = &(*lp)->next;
 
 			for ( i=1; i< c->argc; i++ ) {
 				ad = NULL;
 				if ( slap_str2ad( c->argv[i], &ad, &text ) == LDAP_SUCCESS ) {
 					log_attr *la = ch_malloc( sizeof( log_attr ));
 					la->attr = ad;
-					la->next = li->li_oldattrs;
-					li->li_oldattrs = la;
+					if ( *lp ) {
+						la->next = (*lp)->next;
+					} else {
+						la->next = NULL;
+					}
+					*lp = la;
+					lp = &la->next;
 				} else {
 					snprintf( c->cr_msg, sizeof( c->cr_msg ), "%s <%s>: %s",
 						c->argv[0], c->argv[i], text );
@@ -1049,7 +1058,13 @@ log_cf_gen(ConfigArgs *c)
 			}
 			break;
 		case LOG_BASE: {
+			int i;
 			slap_mask_t m = 0;
+			log_base **lp = &li->li_bases;
+
+			for ( i=0; *lp && ( c->valx < 0 || i < c->valx ); i++ )
+				lp = &(*lp)->lb_next;
+
 			rc = verbstring_to_mask( logops, c->argv[1], '|', &m );
 			if ( rc == 0 ) {
 				struct berval dn, ndn;
@@ -1072,7 +1087,12 @@ log_cf_gen(ConfigArgs *c)
 					*ptr++ = '"';
 					lb->lb_ops = m;
 					lb->lb_next = li->li_bases;
-					li->li_bases = lb;
+					if ( *lp ) {
+						lb->lb_next = (*lp)->lb_next;
+					} else {
+						lb->lb_next = NULL;
+					}
+					*lp = lb;
 				} else {
 					snprintf( c->cr_msg, sizeof( c->cr_msg ), "%s invalid DN: %s",
 						c->argv[0], c->argv[2] );
