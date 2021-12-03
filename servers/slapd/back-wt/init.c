@@ -82,6 +82,9 @@ wt_db_open( BackendDB *be, ConfigReply *cr )
 		return -1;
 	}
 
+	/* back-wt is always clean */
+	be->be_flags |= SLAP_DBFLAG_CLEAN;
+	
 	/* Open and create database */
 	rc = wiredtiger_open(wi->wi_home, NULL,
 						 wi->wi_config, &wi->wi_conn);
