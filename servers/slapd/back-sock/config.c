@@ -214,6 +214,10 @@ bs_cf_gen( ConfigArgs *c )
 			if ( verbs_to_mask( c->argc, c->argv, bs_exts, &adds ) ) {
 				return LDAP_INVALID_SYNTAX;
 			}
+			/* Tolerate overlaps in slapd.conf */
+			if ( c->op != SLAP_CONFIG_ADD && adds & si->si_extensions ) {
+				return LDAP_TYPE_OR_VALUE_EXISTS;
+			}
 			si->si_extensions |= adds;
 			return 0;
 		}
@@ -222,6 +226,10 @@ bs_cf_gen( ConfigArgs *c )
 			if ( verbs_to_mask( c->argc, c->argv, ov_ops, &adds ) ) {
 				return LDAP_INVALID_SYNTAX;
 			}
+			/* Tolerate overlaps in slapd.conf */
+			if ( c->op != SLAP_CONFIG_ADD && adds & si->si_ops ) {
+				return LDAP_TYPE_OR_VALUE_EXISTS;
+			}
 			si->si_ops |= adds;
 			return 0;
 		}
@@ -229,6 +237,10 @@ bs_cf_gen( ConfigArgs *c )
 			slap_mask_t adds = 0;
 			if ( verbs_to_mask( c->argc, c->argv, ov_resps, &adds ) ) {
 				return LDAP_INVALID_SYNTAX;
+			}
+			/* Tolerate overlaps in slapd.conf */
+			if ( c->op != SLAP_CONFIG_ADD && adds & si->si_resps ) {
+				return LDAP_TYPE_OR_VALUE_EXISTS;
 			}
 			si->si_resps |= adds;
 			return 0;
