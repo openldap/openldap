@@ -6864,6 +6864,7 @@ config_build_attrs( Entry *e, AttributeType **at, AttributeDescription *ad,
 			continue;
 		for (i=0;ct[i].name;i++) {
 			if (ct[i].ad == (*at)->sat_ad) {
+				c->ca_desc = &ct[i];
 				rc = config_get_vals(&ct[i], c);
 				/* NOTE: tolerate that config_get_vals()
 				 * returns success with no values */
