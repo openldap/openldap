@@ -987,9 +987,21 @@ log_cf_gen(ConfigArgs *c)
 			ch_free( c->value_dn.bv_val );
 			break;
 		case LOG_OPS:
-			rc = verbs_to_mask( c->argc, c->argv, logops, &tmask );
-			if ( rc == 0 )
-				li->li_ops |= tmask;
+			if ( verbs_to_mask( c->argc, c->argv, logops, &tmask ) ) {
+				rc = 1;
+				break;
+			}
+			/* Tolerate overlaps in slapd.conf */
+			if ( c->op != SLAP_CONFIG_ADD && li->li_ops & tmask ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"%s value overlaps with existing configuration",
+					c->argv[0] );
+				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
+					"%s: %s\n", c->log, c->cr_msg );
+				rc = 1;
+				break;
+			}
+			li->li_ops |= tmask;
 			break;
 		case LOG_PURGE:
 			li->li_age = log_age_parse( c->argv[1] );
@@ -1030,6 +1042,16 @@ log_cf_gen(ConfigArgs *c)
 			AttributeDescription *ad;
 			const char *text;
 			log_attr **lp = &li->li_oldattrs;
+
+			if ( c->op != SLAP_CONFIG_ADD && c->argc > 2 ) {
+				/* We wouldn't know how to delete these values later */
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"Please insert multiple names as separate %s values",
+					c->argv[0] );
+				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
+					"%s: %s\n", c->log, c->cr_msg );
+				return LDAP_INVALID_SYNTAX;
+			}
 
 			for ( i=0; *lp && ( c->valx < 0 || i < c->valx ); i++ )
 				lp = &(*lp)->next;
