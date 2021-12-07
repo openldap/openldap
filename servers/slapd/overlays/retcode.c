@@ -1237,10 +1237,14 @@ rc_cf_gen( ConfigArgs *c )
 		}
 		*--next = '\0';
 		
-		for ( rdip = &rd->rd_item; *rdip; rdip = &(*rdip)->rdi_next )
-			/* go to last */ ;
+		/* We're marked X-ORDERED 'VALUES', valx might be valid */
+		for ( i = 0, rdip = &rd->rd_item;
+			*rdip && (c->valx < 0 || i < c->valx);
+			rdip = &(*rdip)->rdi_next, i++ )
+			/* go to position */ ;
 
 		
+		rdi.rdi_next = *rdip;
 		*rdip = ( retcode_item_t * )ch_malloc( sizeof( retcode_item_t ) );
 		*(*rdip) = rdi;
 
