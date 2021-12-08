@@ -7082,7 +7082,7 @@ add_syncrepl(
 	ConfigArgs *c )
 {
 	syncinfo_t *si;
-	int	rc = 0;
+	int i, rc = 0;
 
 	if ( !( c->be->be_search && c->be->be_add && c->be->be_modify && c->be->be_delete ) ) {
 		snprintf( c->cr_msg, sizeof(c->cr_msg), "database %s does not support "
@@ -7219,13 +7219,17 @@ add_syncrepl(
 			BER_BVISNULL( &si->si_bindconf.sb_uri ) ?
 			"(null)" : si->si_bindconf.sb_uri.bv_val );
 		if ( c->be->be_syncinfo ) {
-			syncinfo_t *sip;
+			syncinfo_t **sip;
 
 			si->si_cookieState = c->be->be_syncinfo->si_cookieState;
 
-			/* add new syncrepl to end of list (same order as when deleting) */
-			for ( sip = c->be->be_syncinfo; sip->si_next; sip = sip->si_next );
-			sip->si_next = si;
+			for ( i = 0, sip = &c->be->be_syncinfo;
+				(*sip)->si_next && ( c->valx < 0 || i < c->valx );
+				sip = &(*sip)->si_next, i++ )
+				/* advance to the desired position */ ;
+			si->si_next = *sip;
+			*sip = si;
+
 		} else {
 			si->si_cookieState = ch_calloc( 1, sizeof( cookie_state ));
 			ldap_pvt_thread_mutex_init( &si->si_cookieState->cs_mutex );
@@ -7234,10 +7238,10 @@ add_syncrepl(
 			ldap_pvt_thread_cond_init( &si->si_cookieState->cs_cond );
 
 			c->be->be_syncinfo = si;
+			si->si_next = NULL;
 		}
 		si->si_cookieState->cs_ref++;
 
-		si->si_next = NULL;
 		syncrepl_monitor_init();
 
 		return 0;
