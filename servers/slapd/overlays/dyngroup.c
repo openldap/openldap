@@ -90,7 +90,7 @@ static int dgroup_cf( ConfigArgs *c )
 	case SLAP_CONFIG_ADD:
 	case LDAP_MOD_ADD:
 		{
-		adpair ap = { NULL, NULL, NULL }, *a2;
+		adpair ap = { NULL, NULL, NULL }, **app, *a2;
 		const char *text;
 		if ( slap_str2ad( c->argv[1], &ap.ap_mem, &text ) ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ), "%s attribute description unknown: \"%s\"",
@@ -110,10 +110,14 @@ static int dgroup_cf( ConfigArgs *c )
 		 * anything this instance of the overlay needs.
 		 */
 		a2 = ch_malloc( sizeof(adpair) );
-		a2->ap_next = on->on_bi.bi_private;
+
+		for ( app = &on->on_bi.bi_private; *app; app = &(*app)->ap_next )
+			/* Get to the end */ ;
+
 		a2->ap_mem = ap.ap_mem;
 		a2->ap_uri = ap.ap_uri;
-		on->on_bi.bi_private = a2;
+		a2->ap_next = *app;
+		*app = a2;
 		rc = 0;
 		}
 	}
