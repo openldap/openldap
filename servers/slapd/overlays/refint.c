@@ -257,8 +257,11 @@ refint_cf_gen(ConfigArgs *c)
 					ip = ch_malloc (
 						sizeof ( refint_attrs ) );
 					ip->attr = ad;
-					ip->next = dd->attrs;
-					dd->attrs = ip;
+
+					for ( pipp = &dd->attrs; *pipp; pipp = &(*pipp)->next )
+						/* Get to the end */ ;
+					ip->next = *pipp;
+					*pipp = ip;
 				} else {
 					snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"%s <%s>: %s", c->argv[0], c->argv[i], text );
