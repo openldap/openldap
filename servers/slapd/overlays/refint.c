@@ -242,6 +242,17 @@ refint_cf_gen(ConfigArgs *c)
 		switch ( c->type ) {
 		case REFINT_ATTRS:
 			rc = 0;
+			if ( c->op != SLAP_CONFIG_ADD && c->argc > 2 ) {
+				/* We wouldn't know how to delete these values later */
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"Please insert multiple names as separate %s values",
+					c->argv[0] );
+				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
+					"%s: %s\n", c->log, c->cr_msg );
+				rc = LDAP_INVALID_SYNTAX;
+				break;
+			}
+
 			for ( i=1; i < c->argc; ++i ) {
 				ad = NULL;
 				if ( slap_str2ad ( c->argv[i], &ad, &text )
