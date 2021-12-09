@@ -551,6 +551,16 @@ unique_cf_attrs( ConfigArgs *c )
 		rc = 0;
 		break;
 	case LDAP_MOD_ADD:
+		if ( c->argc > 2 ) {
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"Please insert multiple names as separate %s values",
+				c->argv[0] );
+			Debug ( LDAP_DEBUG_CONFIG, "unique config: %s\n",
+				c->cr_msg );
+			rc = ARG_BAD_CONF;
+			break;
+		}
+		/* FALLTHRU */
 	case SLAP_CONFIG_ADD:
 		if ( domains ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
@@ -580,7 +590,7 @@ unique_cf_attrs( ConfigArgs *c )
 		if ( !legacy->uri )
 			unique_new_domain_uri_basic ( &legacy->uri, c );
 		rc = 0;
-		for ( i=1; c->argv[i]; ++i ) {
+		for ( i=1; i < c->argc; ++i ) {
 			AttributeDescription * ad = NULL;
 			const char * text;
 			if ( slap_str2ad ( c->argv[i], &ad, &text )
