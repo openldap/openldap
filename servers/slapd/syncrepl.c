@@ -1084,7 +1084,8 @@ do_syncrep1(
 	}
 
 	Debug( LDAP_DEBUG_SYNC, "do_syncrep1: %s starting refresh (sending cookie=%s)\n",
-		si->si_ridtxt, si->si_syncCookie.octet_str.bv_val );
+		si->si_ridtxt, si->si_syncCookie.octet_str.bv_val ?
+		si->si_syncCookie.octet_str.bv_val : "" );
 
 	if ( si->si_syncCookie.octet_str.bv_val ) {
 		ldap_pvt_thread_mutex_lock( &si->si_monitor_mutex );
