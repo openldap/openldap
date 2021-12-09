@@ -1099,9 +1099,11 @@ do_syncrep1(
 	Debug( LDAP_DEBUG_SYNC, "do_syncrep1: %s starting refresh (sending cookie=%s)\n",
 		si->si_ridtxt, si->si_syncCookie.octet_str.bv_val );
 
-	ldap_pvt_thread_mutex_lock( &si->si_monitor_mutex );
-	ber_bvreplace( &si->si_lastCookieSent, &si->si_syncCookie.octet_str );
-	ldap_pvt_thread_mutex_unlock( &si->si_monitor_mutex );
+	if ( si->si_syncCookie.octet_str.bv_val ) {
+		ldap_pvt_thread_mutex_lock( &si->si_monitor_mutex );
+		ber_bvreplace( &si->si_lastCookieSent, &si->si_syncCookie.octet_str );
+		ldap_pvt_thread_mutex_unlock( &si->si_monitor_mutex );
+	}
 
 	rc = ldap_sync_search( si, op->o_tmpmemctx );
 
