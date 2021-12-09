@@ -1946,7 +1946,7 @@ ag_cfgen( ConfigArgs *c )
 			}
 		}
 
-		if ( c->valx > 0 ) {
+		if ( c->valx >= 0 ) {
 			int	i;
 
 			for ( i = 0, agdp = &agi->agi_def ;
