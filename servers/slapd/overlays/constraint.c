@@ -537,8 +537,8 @@ constraint_cf_gen( ConfigArgs *c )
 
 done:;
 			if ( rc == LDAP_SUCCESS ) {
-				constraint *a2 = ch_calloc( sizeof(constraint), 1 );
-				a2->ap_next = on->on_bi.bi_private;
+				constraint **app, *a2 = ch_calloc( sizeof(constraint), 1 );
+
 				a2->ap = ap.ap;
 				a2->type = ap.type;
 				a2->re = ap.re;
@@ -556,7 +556,12 @@ done:;
 				a2->restrict_ndn = ap.restrict_ndn;
 				a2->restrict_filter = ap.restrict_filter;
 				a2->restrict_val = ap.restrict_val;
-				on->on_bi.bi_private = a2;
+
+				for ( app = &on->on_bi.bi_private; *app; app = &(*app)->ap_next )
+					/* Get to the end */ ;
+
+				a2->ap_next = *app;
+				*app = a2;
 
 			} else {
 				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
