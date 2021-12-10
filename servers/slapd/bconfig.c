@@ -6599,6 +6599,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
 	/* If we have a backend, it will handle the control */
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
 	if ( ce && !cfb->cb_use_ldif && op->o_preread ) {
 		if ( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
@@ -6618,7 +6619,6 @@ config_back_delete( Operation *op, SlapReply *rs )
 		}
 	}
 
-	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
 	if ( !ce ) {
 		if ( last )
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
