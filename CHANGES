@@ -7,6 +7,7 @@ OpenLDAP 2.5.10 Engineering
 	Fixed slapd-mdb to update indices correctly on replace ops (ITS#9753)
 	Fixed slapo-dynlist compare operation for static groups (ITS#9747)
 	Fixed slapo-accesslog to fix inconsistently normalized minCSN (ITS#9752)
+	Fixed slapo-syncprov to generate a more accurate accesslog query (ITS#9756)
 	Documentation
 		Fixed slapo-accesslog(5) to clarify logoldattr usage (ITS#9749)
 
