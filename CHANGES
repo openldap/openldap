@@ -9,6 +9,7 @@ OpenLDAP 2.6.1 Engineering
 	Fixed slapd syncrepl recreation of deleted entries (ITS#9282)
 	Fixed slapd syncrepl replication with ODSEE (ITS#9707)
 	Fixed slapd syncrepl to properly replicate glue entries (ITS#9647)
+	Fixed slapd syncrepl to reject REFRESH for precise resync (ITS#9742)
 	Fixed slapd-mdb to update indices correctly on replace ops (ITS#9753)
 	Fixed slapo-accesslog to fix assertion due to deprecated code (ITS#9738)
 	Fixed slapo-accesslog to fix inconsistently normalized minCSN (ITS#9752)
