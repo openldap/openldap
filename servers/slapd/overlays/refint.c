@@ -242,6 +242,14 @@ refint_cf_gen(ConfigArgs *c)
 		switch ( c->type ) {
 		case REFINT_ATTRS:
 			rc = 0;
+			if ( c->op != SLAP_CONFIG_ADD && c->argc > 2 ) {
+				/* We wouldn't know how to delete these values later */
+				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
+					"Supplying multiple names in a single %s value is "
+					"unsupported and will be disallowed in a future version\n",
+					c->argv[0] );
+			}
+
 			for ( i=1; i < c->argc; ++i ) {
 				ad = NULL;
 				if ( slap_str2ad ( c->argv[i], &ad, &text )
