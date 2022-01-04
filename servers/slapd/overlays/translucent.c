@@ -218,6 +218,16 @@ translucent_cf_gen( ConfigArgs *c )
 		}
 		return 0;
 	}
+
+	/* cn=config values could be deleted later, we only want one name
+	 * per value for valx to match. */
+	if ( c->op != SLAP_CONFIG_ADD && strchr( c->argv[1], ',' ) ) {
+		Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE, "%s: %s: "
+			"Supplying multiple attribute names in a single value is "
+			"unsupported and will be disallowed in a future version\n",
+			c->log, c->argv[0] );
+	}
+
 	a2 = str2anlist( *an, c->argv[1], "," );
 	if ( !a2 ) {
 		snprintf( c->cr_msg, sizeof( c->cr_msg ), "%s unable to parse attribute %s",
