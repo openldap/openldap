@@ -551,6 +551,13 @@ unique_cf_attrs( ConfigArgs *c )
 		rc = 0;
 		break;
 	case LDAP_MOD_ADD:
+		if ( c->argc > 2 ) {
+			Debug ( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE, "unique config: "
+				"Supplying multiple names in a single %s value is unsupported "
+				"and will be disallowed in a future version\n",
+				c->argv[0] );
+		}
+		/* FALLTHRU */
 	case SLAP_CONFIG_ADD:
 		if ( domains ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
