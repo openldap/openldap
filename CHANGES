@@ -7,6 +7,7 @@ OpenLDAP 2.5.10 Engineering
 	Fixed slapd syncrepl to reject REFRESH for precise resync (ITS#9742)
 	Fixed slapd syncrepl when X-ORDERED is specified (ITS#9761)
 	Fixed slapd syncrepl to better handle out of order delete ops (ITS#9751)
+	Fixed slapd syncrepl to correctly close connections when config is deleted (ITS#9776)
 	Fixed slapd-mdb to update indices correctly on replace ops (ITS#9753)
 	Fixed slapd-wt to set correct flags (ITS#9760)
 	Fixed slapo-accesslog to fix inconsistently normalized minCSN (ITS#9752)
