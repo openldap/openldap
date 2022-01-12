@@ -14,6 +14,7 @@ OpenLDAP 2.6.1 Engineering
 	Fixed slapd syncrepl to avoid busy loop during refresh (ITS#9584)
 	Fixed slapd syncrepl when X-ORDERED is specified (ITS#9761)
 	Fixed slapd syncrepl to better handle out of order delete ops (ITS#9751)
+	Fixed slapd syncrepl to correctly close connections when config is deleted (ITS#9776)
 	Fixed slapd-mdb to update indices correctly on replace ops (ITS#9753)
 	Fixed slapd-wt to set correct flags (ITS#9760)
 	Fixed slapo-accesslog to fix assertion due to deprecated code (ITS#9738)
