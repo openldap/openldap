@@ -16,6 +16,8 @@ OpenLDAP 2.5.10 Engineering
 	slapo-refint to maintain values in insertion order (ITS#9763)
 	Fixed slapo-retcode to honor requested insert position (ITS#9759)
 	Fixed slapo-syncprov to generate a more accurate accesslog query (ITS#9756)
+	Fixed slapo-translucent to warn on invalid config (ITS#9768)
+	Fixed slapo-unique to warn on invalid config (ITS#9767)
 	Fixed slapo-valsort to maintain values in insertion order (ITS#9764)
 	Documentation
 		Fixed slapo-accesslog(5) to clarify logoldattr usage (ITS#9749)
