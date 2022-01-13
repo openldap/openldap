@@ -6077,8 +6077,49 @@ config_modify_internal( CfEntryInfo *ce, Operation *op, SlapReply *rs,
 	if ( !oc_at ) return LDAP_OBJECT_CLASS_VIOLATION;
 
 	for (ml = op->orm_modlist; ml; ml=ml->sml_next) {
-		if (ml->sml_desc == slap_schema.si_ad_objectClass)
-			return rc;
+		if (ml->sml_desc == slap_schema.si_ad_objectClass) {
+			/* We'd be fine comparing the structural objectclass before and
+			 * after, but AUXILIARY ocs exist so we have to check them all */
+			unsigned int i, j;
+
+			if ( ml->sml_numvals != oc_at->a_numvals ) {
+				snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+					"objectclass modification disallowed" );
+				return LDAP_UNWILLING_TO_PERFORM;
+			}
+
+			for ( i = 0; i < oc_at->a_numvals; i++ ) {
+				ObjectClass *new_oc, *old_oc = oc_bvfind( &oc_at->a_vals[i] );
+				int found = 0;
+
+				if ( old_oc == NULL ) {
+					snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+						"no objectClass named %s",
+						oc_at->a_vals[i].bv_val );
+					return LDAP_OBJECT_CLASS_VIOLATION;
+				}
+				for ( j = 0; j < ml->sml_numvals; j++ ) {
+					new_oc = oc_bvfind( &ml->sml_values[j] );
+					if ( new_oc == NULL ) {
+						snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+							"no objectClass named %s",
+							ml->sml_values[j].bv_val );
+						return LDAP_OBJECT_CLASS_VIOLATION;
+					}
+
+					if ( old_oc == new_oc ) {
+						found = 1;
+						break;
+					}
+				}
+
+				if ( !found ) {
+					snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+						"objectclass modification disallowed" );
+					return LDAP_UNWILLING_TO_PERFORM;
+				}
+			}
+		}
 	}
 
 	colst = count_ocs( oc_at, &nocs );
