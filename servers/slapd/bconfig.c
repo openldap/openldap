@@ -6615,6 +6615,20 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		op->oq_modrdn = modr;
 	}
 
+	if ( rs->sr_err == LDAP_SUCCESS && !cfb->cb_use_ldif && op->o_postread ) {
+		if ( postread_ctrl == NULL ) {
+			postread_ctrl = &ctrls[num_ctrls++];
+			ctrls[num_ctrls] = NULL;
+		}
+		if ( slap_read_controls( op, rs, ce->ce_entry,
+			&slap_post_read_bv, postread_ctrl ) )
+		{
+			Debug( LDAP_DEBUG_ANY, "config_back_modrdn: "
+				"post-read failed \"%s\"\n",
+				ce->ce_entry->e_name.bv_val );
+		}
+	}
+
 	if ( dopause )
 		slap_unpause_server();
 out:
