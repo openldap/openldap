@@ -843,24 +843,27 @@ again:
 static void free_resinfo( syncres *sr )
 {
 	syncres **st;
+	resinfo *ri = sr->s_info;
 	int freeit = 0;
-	ldap_pvt_thread_mutex_lock( &sr->s_info->ri_mutex );
+
+	ldap_pvt_thread_mutex_lock( &ri->ri_mutex );
 	for (st = &sr->s_info->ri_list; *st; st = &(*st)->s_rilist) {
 		if (*st == sr) {
 			*st = sr->s_rilist;
+			if ( !sr->s_info->ri_list )
+				freeit = 1;
+			sr->s_info = NULL;
 			break;
 		}
 	}
-	if ( !sr->s_info->ri_list )
-		freeit = 1;
-	ldap_pvt_thread_mutex_unlock( &sr->s_info->ri_mutex );
+	ldap_pvt_thread_mutex_unlock( &ri->ri_mutex );
 	if ( freeit ) {
-		ldap_pvt_thread_mutex_destroy( &sr->s_info->ri_mutex );
-		if ( sr->s_info->ri_e )
-			entry_free( sr->s_info->ri_e );
-		if ( !BER_BVISNULL( &sr->s_info->ri_cookie ))
-			ch_free( sr->s_info->ri_cookie.bv_val );
-		ch_free( sr->s_info );
+		ldap_pvt_thread_mutex_destroy( &ri->ri_mutex );
+		if ( ri->ri_e )
+			entry_free( ri->ri_e );
+		if ( !BER_BVISNULL( &ri->ri_cookie ))
+			ch_free( ri->ri_cookie.bv_val );
+		ch_free( ri );
 	}
 }
 
@@ -1546,6 +1549,10 @@ syncprov_op_cleanup( Operation *op, SlapReply *rs )
 	if ( !BER_BVISNULL( &opc->sdn ))
 		op->o_tmpfree( opc->sdn.bv_val, op->o_tmpmemctx );
 	op->o_callback = cb->sc_next;
+
+	if ( opc->ssres.s_info ) {
+		free_resinfo( &opc->ssres );
+	}
 	op->o_tmpfree(cb, op->o_tmpmemctx);
 
 	return 0;
