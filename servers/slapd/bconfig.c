@@ -5808,7 +5808,7 @@ config_back_add( Operation *op, SlapReply *rs )
 		if ( slap_read_controls( op, rs, op->ora_e,
 			&slap_post_read_bv, postread_ctrl ) )
 		{
-			Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
+			Debug( LDAP_DEBUG_ANY, "config_back_add: "
 				"post-read failed \"%s\"\n",
 				op->ora_e->e_name.bv_val );
 			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
