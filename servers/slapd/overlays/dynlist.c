@@ -1208,20 +1208,13 @@ dynlist_filter_stgroup( Operation *op, Filter *n, Attribute *a )
 	Filter *dnf, *orf = NULL;
 	int i;
 
-	if ( a->a_numvals == 1 && n->f_choice == SLAPD_FILTER_COMPUTED ) {
+	if ( a->a_numvals == 1 ) {
 		dnf = n;
-		dnf->f_next = NULL;
 	} else {
 		orf = n;
-		if ( n->f_choice != LDAP_FILTER_OR ) {
-			dnf = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
-			*dnf = *n;
-			orf->f_choice = LDAP_FILTER_OR;
-			orf->f_next = NULL;
-			orf->f_list = dnf;
-		}
+		orf->f_choice = LDAP_FILTER_OR;
 		dnf = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
-		dnf->f_next = orf->f_list;
+		dnf->f_next = NULL;
 		orf->f_list = dnf;
 	}
 
