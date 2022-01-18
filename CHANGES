@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.10 Engineering
 	Fixed libldap to init client socket port (ITS#9743)
+	Fixed slapd to allow objectClass edits with no net change (ITS#9772)
 	Fixed slapd syncrepl recreation of deleted entries (ITS#9282)
 	Fixed slapd syncrepl replication with ODSEE (ITS#9707)
 	Fixed slapd syncrepl to reject REFRESH for precise resync (ITS#9742)
