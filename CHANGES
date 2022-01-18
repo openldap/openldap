@@ -25,6 +25,7 @@ OpenLDAP 2.6.1 Engineering
 	Fixed slapo-constraint to maintain values in insertion order (ITS#9770)
 	Fixed slapo-dyngroup to maintain values in insertion order (ITS#9762)
 	Fixed slapo-dynlist compare operation for static groups (ITS#9747)
+	Fixed slapo-dynlist static group filter with multiple members (ITS#9779)
 	Fixed slapo-ppolicy when not built modularly (ITS#9733)
 	Fixed slapo-refint to maintain values in insertion order (ITS#9763)
 	Fixed slapo-retcode to honor requested insert position (ITS#9759)
