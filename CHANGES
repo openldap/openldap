@@ -8,6 +8,7 @@ OpenLDAP 2.6.1 Engineering
 	Fixed slapd to only set loglevel in server mode (ITS#9715)
 	Fixed slapd logfile-rotate use of uninitialized variable (ITS#9730)
 	Fixed slapd passwd scheme handling with slapd.conf (ITS#9750)
+	Fixed slapd postread support for modrdn (ITS#7080)
 	Fixed slapd syncrepl recreation of deleted entries (ITS#9282)
 	Fixed slapd syncrepl replication with ODSEE (ITS#9707)
 	Fixed slapd syncrepl to properly replicate glue entries (ITS#9647)
