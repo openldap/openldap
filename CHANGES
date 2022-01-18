@@ -19,6 +19,7 @@ OpenLDAP 2.5.10 Engineering
 	Fixed slapo-dynlist static group filter with multiple members (ITS#9779)
 	slapo-refint to maintain values in insertion order (ITS#9763)
 	Fixed slapo-retcode to honor requested insert position (ITS#9759)
+	Fixed slapo-syncprov memory leak (ITS#8039)
 	Fixed slapo-syncprov to generate a more accurate accesslog query (ITS#9756)
 	Fixed slapo-translucent to warn on invalid config (ITS#9768)
 	Fixed slapo-unique to warn on invalid config (ITS#9767)
