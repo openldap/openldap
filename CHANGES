@@ -30,6 +30,7 @@ OpenLDAP 2.6.1 Engineering
 	Fixed slapo-refint to maintain values in insertion order (ITS#9763)
 	Fixed slapo-retcode to honor requested insert position (ITS#9759)
 	Fixed slapo-sock cn=config support (ITS#9758)
+	Fixed slapo-syncprov memory leak (ITS#8039)
 	Fixed slapo-syncprov to generate a more accurate accesslog query (ITS#9756)
 	Fixed slapo-syncprov to allow empty DB to host persistent syncrepl connections (ITS#9691)
 	Fixed slapo-syncprov to consider all deletes for sycnInfo messages (ITS#5972)
