@@ -2,6 +2,7 @@ OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.1 Engineering
 	Fixed libldap to init client socket port (ITS#9743)
+	Fixed libldap with referrals (ITS#9781)
 	Added slapd config keyword for logfile format (ITS#9745)
 	Fixed slapd to allow objectClass edits with no net change (ITS#9772)
 	Fixed slapd configtable population (ITS#9576)
