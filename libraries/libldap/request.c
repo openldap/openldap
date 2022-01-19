@@ -1667,9 +1667,9 @@ ldap_find_request_by_msgid( LDAP *ld, ber_int_t msgid )
 
 	lr = ldap_tavl_find( ld->ld_requests, &needle, ldap_req_cmp );
 	if ( lr != NULL && lr->lr_status != LDAP_REQST_COMPLETED ) {
-		/* try_read1msg is the only user at the moment and we would free it
-		 * multiple times if retrieving the request again */
-		assert( lr->lr_refcnt == 0 );
+		/* lr_refcnt is only negative when we removed it from ld_requests
+		 * already, it is positive if we have sub-requests (referrals) */
+		assert( lr->lr_refcnt >= 0 );
 		lr->lr_refcnt++;
 		Debug3( LDAP_DEBUG_TRACE, "ldap_find_request_by_msgid: "
 				"msgid %d, lr %p lr->lr_refcnt = %d\n",
