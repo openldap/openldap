@@ -1,5 +1,8 @@
 OpenLDAP 2.5 Change Log
 
+OpenLDAP 2.5.11 Release (2022/01/20)
+	Fix broken build release variable
+
 OpenLDAP 2.5.10 Release (2022/01/20)
 	Fixed libldap to init client socket port (ITS#9743)
 	Fixed libldap with referrals (ITS#9781)
