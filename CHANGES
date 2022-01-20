@@ -1,5 +1,7 @@
 OpenLDAP 2.5 Change Log
 
+OpenLDAP 2.5.12 Engineering
+
 OpenLDAP 2.5.11 Release (2022/01/20)
 	Fix broken build release variable
 
