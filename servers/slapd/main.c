@@ -275,6 +275,9 @@ int main( int argc, char **argv )
 	(void) ldap_pvt_tls_set_option( slap_tls_ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &rc );
 #endif
 
+	global_host = ldap_pvt_get_fqdn( NULL );
+	ber_str2bv( global_host, 0, 0, &global_host_bv );
+
 	serverName = lutil_progname( "slapd", argc, argv );
 
 	if ( strcmp( serverName, "slapd" ) ) {
@@ -613,9 +616,6 @@ unhandled_option:;
 #endif /* LDAP_DEBUG && LDAP_SYSLOG */
 
 	Debug( LDAP_DEBUG_ANY, "%s", Versionstr );
-
-	global_host = ldap_pvt_get_fqdn( NULL );
-	ber_str2bv( global_host, 0, 0, &global_host_bv );
 
 	if( check == CHECK_NONE && slapd_daemon_init( urls ) != 0 ) {
 		rc = 1;
