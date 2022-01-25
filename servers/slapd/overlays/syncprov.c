@@ -1075,6 +1075,7 @@ syncprov_qtask( void *ctx, void *arg )
 	op->o_tmpmemctx = slap_sl_mem_create(SLAP_SLAB_SIZE, SLAP_SLAB_STACK, ctx, 1);
 	op->o_tmpmfuncs = &slap_sl_mfuncs;
 	op->o_threadctx = ctx;
+	operation_counter_init( op, ctx );
 
 	/* syncprov_qplay expects a fake db */
 	be = *so->s_op->o_bd;
