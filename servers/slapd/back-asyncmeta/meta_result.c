@@ -650,6 +650,7 @@ asyncmeta_send_all_pending_ops(a_metaconn_t *mc, int candidate, void *ctx, int d
 		bc->op->o_threadctx = ctx;
 		bc->op->o_tid = ldap_pvt_thread_pool_tid( ctx );
 		slap_sl_mem_setctx(ctx, bc->op->o_tmpmemctx);
+		operation_counter_init( bc->op, ctx );
 		bc->bc_active++;
 		ret = asyncmeta_send_pending_op(bc, candidate);
 		if (ret != META_SEARCH_CANDIDATE) {
@@ -699,6 +700,7 @@ asyncmeta_return_bind_errors(a_metaconn_t *mc, int candidate, SlapReply *bind_re
 			bc->op->o_threadctx = ctx;
 			bc->op->o_tid = ldap_pvt_thread_pool_tid( ctx );
 			slap_sl_mem_setctx(ctx, bc->op->o_tmpmemctx);
+			operation_counter_init( bc->op, ctx );
 			bc->rs.sr_err = bind_result->sr_err;
 			bc->rs.sr_text = bind_result->sr_text;
 			mc->pending_ops--;
@@ -1422,6 +1424,7 @@ asyncmeta_op_read_error(a_metaconn_t *mc, int candidate, int error, void* ctx)
 		bc->op->o_threadctx = ctx;
 		bc->op->o_tid = ldap_pvt_thread_pool_tid( ctx );
 		slap_sl_mem_setctx(ctx, bc->op->o_tmpmemctx);
+		operation_counter_init( bc->op, ctx );
 
 		op = bc->op;
 		rs = &bc->rs;
@@ -1569,6 +1572,7 @@ retry_bc:
 		bc->op->o_threadctx = ctx;
 		bc->op->o_tid = ldap_pvt_thread_pool_tid( ctx );
 		slap_sl_mem_setctx(ctx, bc->op->o_tmpmemctx);
+		operation_counter_init( bc->op, ctx );
 		if (bc->op->o_abandon) {
 			ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
 			asyncmeta_drop_bc( mc, bc);
@@ -1668,11 +1672,13 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 			}
 
 			if (bc->op->o_abandon ) {
-					/* set our memctx */
-				bc->op->o_threadctx = ctx;
-				bc->op->o_tid = ldap_pvt_thread_pool_tid( ctx );
-				slap_sl_mem_setctx(ctx, bc->op->o_tmpmemctx);
 				Operation *op = bc->op;
+
+				/* set our memctx */
+				op->o_threadctx = ctx;
+				op->o_tid = ldap_pvt_thread_pool_tid( ctx );
+				slap_sl_mem_setctx(ctx, op->o_tmpmemctx);
+				operation_counter_init( op, ctx );
 
 				LDAP_STAILQ_REMOVE(&mc->mc_om_list, bc, bm_context_t, bc_next);
 				mc->pending_ops--;
@@ -1730,6 +1736,7 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 			bc->op->o_threadctx = ctx;
 			bc->op->o_tid = ldap_pvt_thread_pool_tid( ctx );
 			slap_sl_mem_setctx(ctx, bc->op->o_tmpmemctx);
+			operation_counter_init( bc->op, ctx );
 
 			if (bc->searchtime) {
 				timeout_err = LDAP_TIMELIMIT_EXCEEDED;
