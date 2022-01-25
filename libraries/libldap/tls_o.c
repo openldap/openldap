@@ -1026,8 +1026,12 @@ tlso_session_endpoint( tls_session *sess, struct berval *buf, int is_server )
 #ifndef OPENSSL_NO_MD2
 	     md == EVP_md2() ||
 #endif
+#ifndef OPENSSL_NO_MD4
 	     md == EVP_md4() ||
+#endif
+#ifndef OPENSSL_NO_MD5
 	     md == EVP_md5() ||
+#endif
 	     md == EVP_sha1() )
 		md = EVP_sha256();
 
