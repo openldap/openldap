@@ -185,11 +185,11 @@ ldap_pvt_get_hname LDAP_P((
 #define LDAP_IPADDRLEN	sizeof("IP=255.255.255.255:65336")
 #endif
 
-typedef union Sockaddr Sockaddr;
+union Sockaddr;
 
 LDAP_F (void)
 ldap_pvt_sockaddrstr LDAP_P((
-	Sockaddr *sa,
+	union Sockaddr *sa,
 	struct berval * ));
 
 
