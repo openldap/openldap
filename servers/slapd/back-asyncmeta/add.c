@@ -51,6 +51,7 @@ asyncmeta_error_cleanup(Operation *op,
 	}
 	asyncmeta_drop_bc(mc, bc);
 	slap_sl_mem_setctx(op->o_threadctx, op->o_tmpmemctx);
+	operation_counter_init( op, op->o_threadctx );
 	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex);
 	send_ldap_result(op, rs);
 	return LDAP_SUCCESS;
