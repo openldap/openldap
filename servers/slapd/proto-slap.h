@@ -800,6 +800,7 @@ LDAP_SLAPD_F (Connection *) connection_init LDAP_P((
 	struct berval *id
 	LDAP_PF_LOCAL_SENDMSG_ARG(struct berval *peerbv)));
 
+LDAP_SLAPD_F (void) operation_counter_init LDAP_P(( Operation *op, void *threadctx ));
 LDAP_SLAPD_F (void) connection_closing LDAP_P((
 	Connection *c, const char *why ));
 LDAP_SLAPD_F (int) connection_is_active LDAP_P(( ber_socket_t s ));

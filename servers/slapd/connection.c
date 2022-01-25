@@ -963,18 +963,18 @@ conn_counter_destroy( void *key, void *data )
 	ldap_pvt_thread_mutex_unlock( &slap_counters.sc_mutex );
 }
 
-static void
-conn_counter_init( Operation *op, void *ctx )
+void
+operation_counter_init( Operation *op, void *ctx )
 {
 	slap_counters_t *sc;
 	void *vsc = NULL;
 
 	if ( ldap_pvt_thread_pool_getkey(
-			ctx, (void *)conn_counter_init, &vsc, NULL ) || !vsc ) {
+			ctx, (void *)operation_counter_init, &vsc, NULL ) || !vsc ) {
 		vsc = ch_malloc( sizeof( slap_counters_t ));
 		sc = vsc;
 		slap_counters_init( sc );
-		ldap_pvt_thread_pool_setkey( ctx, (void*)conn_counter_init, vsc,
+		ldap_pvt_thread_pool_setkey( ctx, (void*)operation_counter_init, vsc,
 			conn_counter_destroy, NULL, NULL );
 
 		ldap_pvt_thread_mutex_lock( &slap_counters.sc_mutex );
@@ -1030,7 +1030,7 @@ connection_operation( void *ctx, void *arg_v )
 		op->o_qtime.tv_sec--;
 	}
 	op->o_qtime.tv_sec -= op->o_time;
-	conn_counter_init( op, ctx );
+	operation_counter_init( op, ctx );
 	ldap_pvt_thread_mutex_lock( &op->o_counters->sc_mutex );
 	/* FIXME: returns 0 in case of failure */
 	ldap_pvt_mp_add_ulong(op->o_counters->sc_ops_initiated, 1);
