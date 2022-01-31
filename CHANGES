@@ -4,6 +4,7 @@ OpenLDAP 2.6.2 Engineering
 	Fixed slapd to correctly init global_host earlier (ITS#9787)
 	Build Enviornment
 		Fix compilation with openssl exclusions (ITS#9791)
+		Fix warnings from make jobserver (ITS#9788)
 
 OpenLDAP 2.6.1 Release (2022/01/20)
 	Fixed libldap to init client socket port (ITS#9743)
