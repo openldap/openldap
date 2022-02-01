@@ -295,6 +295,7 @@ RFC3384|I|Lightweight Directory Access Protocol (version 3) Replication Requirem
 RFC3494|I|Lightweight Directory Access Protocol version 2 (LDAPv2) to Historic Status|https://www.rfc-editor.org/rfc/rfc3494.txt
 RFC4013|PS|SASLprep: Stringprep Profile for User Names and Passwords|https://www.rfc-editor.org/rfc/rfc4013.txt
 RFC4346|PS|The Transport Layer Security (TLS) Protocol, Version 1.1|https://www.rfc-editor.org/rfc/rfc4346.txt
+RFC4370|PS|Lightweight Directory Access Protocol (LDAP) Proxied Authorization Control|https://www.rfc-editor.org/rfc/rfc4370.txt
 RFC4422|PS|Simple Authentication and Security Layer (SASL)|https://www.rfc-editor.org/rfc/rfc4422.txt
 RFC4510|PS|Lightweight Directory Access Protocol (LDAP): Technical Specification Roadmap|https://www.rfc-editor.org/rfc/rfc4510.txt
 RFC4511|PS|Lightweight Directory Access Protocol (LDAP): The Protocol|https://www.rfc-editor.org/rfc/rfc4511.txt
