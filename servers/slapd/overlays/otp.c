@@ -42,12 +42,22 @@
 #include <openssl/hmac.h>
 
 #define TOTP_SHA512_DIGEST_LENGTH SHA512_DIGEST_LENGTH
+
+#if OPENSSL_VERSION_MAJOR >= 3
+#define TOTP_SHA1 SN_sha1
+#define TOTP_SHA224 SN_sha224
+#define TOTP_SHA256 SN_sha256
+#define TOTP_SHA384 SN_sha384
+#define TOTP_SHA512 SN_sha512
+#define TOTP_HMAC_CTX	EVP_MAC_CTX *
+#else
 #define TOTP_SHA1 EVP_sha1()
 #define TOTP_SHA224 EVP_sha224()
 #define TOTP_SHA256 EVP_sha256()
 #define TOTP_SHA384 EVP_sha384()
 #define TOTP_SHA512 EVP_sha512()
 #define TOTP_HMAC_CTX HMAC_CTX *
+#endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static HMAC_CTX *
@@ -70,6 +80,22 @@ HMAC_CTX_free( HMAC_CTX *ctx )
 }
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 
+#if OPENSSL_VERSION_MAJOR >= 3
+static EVP_MAC *evp_mac;
+#define HMAC_setup( ctx, key, len, hash ) \
+	{ OSSL_PARAM params[2]; \
+	ctx = EVP_MAC_CTX_new( evp_mac ); \
+	params[0] = OSSL_PARAM_construct_utf8_string( "digest", (char *)hash, 0 ); \
+	params[1] = OSSL_PARAM_construct_end(); \
+	EVP_MAC_init( ctx, key, len, params ); }
+#define HMAC_crunch( ctx, buf, len ) EVP_MAC_update( ctx, buf, len )
+#define HMAC_finish( ctx, dig, dlen ) \
+	{ size_t outlen; \
+	EVP_MAC_final( ctx, dig, &outlen, TOTP_SHA512_DIGEST_LENGTH ); \
+	dlen = outlen; } \
+	EVP_MAC_CTX_free( ctx )
+
+#else
 #define HMAC_setup( ctx, key, len, hash ) \
 	ctx = HMAC_CTX_new(); \
 	HMAC_Init_ex( ctx, key, len, hash, 0 )
@@ -77,6 +103,7 @@ HMAC_CTX_free( HMAC_CTX *ctx )
 #define HMAC_finish( ctx, dig, dlen ) \
 	HMAC_Final( ctx, dig, &dlen ); \
 	HMAC_CTX_free( ctx )
+#endif
 
 #elif HAVE_GNUTLS
 #include <nettle/hmac.h>
@@ -960,6 +987,9 @@ otp_initialize( void )
 		}
 	}
 
+#if OPENSSL_VERSION_MAJOR >= 3
+	evp_mac = EVP_MAC_fetch( NULL, "HMAC", "provider=default" );
+#endif
 	return overlay_register( &otp );
 }
 
