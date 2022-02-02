@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.12 Engineering
+	Fixed slapd usage of thread local counters (ITS#9789)
 	Build Environment
 		Fix compilation with openssl exclusions (ITS#9791)
 		Fix warnings from make jobserver (ITS#9788)
