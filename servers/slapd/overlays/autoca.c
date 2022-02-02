@@ -48,6 +48,10 @@
 #define X509_get_notAfter(x)	X509_getm_notAfter(x)
 #endif
 
+#if OPENSSL_VERSION_MAJOR >= 3
+#define BN_pseudo_rand(bn, bits, top, bottom)	BN_rand(bn, bits, top, bottom)
+#endif
+
 /* This overlay implements a certificate authority that can generate
  * certificates automatically for any entry in the directory.
  * On startup it generates a self-signed CA cert for the directory's
