@@ -52,6 +52,10 @@
 #define ASN1_STRING_data(x)	ASN1_STRING_get0_data(x)
 #endif
 
+#if OPENSSL_VERSION_MAJOR >= 3
+#define ERR_get_error_line( a, b )	ERR_get_error_all( a, b, NULL, NULL, NULL )
+#define SSL_get_peer_certificate( s )	SSL_get1_peer_certificate( s )
+#endif
 typedef SSL_CTX tlso_ctx;
 typedef SSL tlso_session;
 
@@ -523,7 +527,13 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 	}
 
 	if ( is_server && lo->ldo_tls_dhfile ) {
+#if OPENSSL_VERSION_MAJOR >= 3
+		EVP_PKEY *dh;
+#define	bio_params( bio, dh )	dh = PEM_read_bio_Parameters( bio, &dh )
+#else
 		DH *dh;
+#define	bio_params( bio, dh )	dh = PEM_read_bio_DHparams( bio, NULL, NULL, NULL )
+#endif
 		BIO *bio;
 
 		if (( bio=BIO_new_file( lt->lt_dhfile,"r" )) == NULL ) {
@@ -533,7 +543,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			tlso_report_error();
 			return -1;
 		}
-		if (!( dh=PEM_read_bio_DHparams( bio, NULL, NULL, NULL ))) {
+		if (!( bio_params( bio, dh ))) {
 			Debug1( LDAP_DEBUG_ANY,
 				"TLS: could not read DH parameters file `%s'.\n",
 				lo->ldo_tls_dhfile );
@@ -542,9 +552,13 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			return -1;
 		}
 		BIO_free( bio );
+#if OPENSSL_VERSION_MAJOR >= 3
+		SSL_CTX_set0_tmp_dh_pkey( ctx, dh );
+#else
 		SSL_CTX_set_tmp_dh( ctx, dh );
 		SSL_CTX_set_options( ctx, SSL_OP_SINGLE_DH_USE );
 		DH_free( dh );
+#endif
 	}
 
 	if ( lo->ldo_tls_ecname ) {
