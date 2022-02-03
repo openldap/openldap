@@ -75,6 +75,7 @@ typedef struct {
 	BackendDB	cb_db;	/* underlying database */
 	int		cb_got_ldif;
 	int		cb_use_ldif;
+	ldap_pvt_thread_rdwr_t cb_rwlock;
 } CfBackInfo;
 
 static CfBackInfo cfBackInfo;
@@ -5959,6 +5960,8 @@ config_back_add( Operation *op, SlapReply *rs )
 	if ( slap_pause_server() < 0 )
 		dopause = 0;
 
+	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
+
 	/* Strategy:
 	 * 1) check for existence of entry
 	 * 2) check for sibling renumbering
@@ -6007,6 +6010,7 @@ config_back_add( Operation *op, SlapReply *rs )
 	}
 
 out2:;
+	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
 	if ( dopause )
 		slap_unpause_server();
 
@@ -6493,6 +6497,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 		if ( slap_pause_server() < 0 )
 			do_pause = 0;
 	}
+	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
 
 	/* Strategy:
 	 * 1) perform the Modify on the cached Entry.
@@ -6524,6 +6529,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 		op->o_ndn = ndn;
 	}
 
+	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
 	if ( do_pause )
 		slap_unpause_server();
 out:
@@ -6663,6 +6669,8 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 	if ( slap_pause_server() < 0 )
 		dopause = 0;
 
+	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
+
 	if ( ce->ce_type == Cft_Schema ) {
 		req_modrdn_s modr = op->oq_modrdn;
 		struct berval rdn;
@@ -6727,6 +6735,8 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		op->oq_modrdn = modr;
 	}
 
+	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
+
 	if ( dopause )
 		slap_unpause_server();
 out:
@@ -6762,6 +6772,8 @@ config_back_delete( Operation *op, SlapReply *rs )
 		if ( slap_pause_server() < 0 )
 			dopause = 0;
 
+		ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
+
 		if ( ce->ce_type == Cft_Overlay ){
 			overlay_remove( ce->ce_be, (slap_overinst *)ce->ce_bi, op );
 		} else if ( ce->ce_type == Cft_Misc ) {
@@ -6780,8 +6792,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 			if ( !oc_at ) {
 				rs->sr_err = LDAP_OTHER;
 				rs->sr_text = "objectclass not found";
-				if ( dopause ) slap_unpause_server();
-				goto out;
+				goto out2;
 			}
 			for ( i=0; !BER_BVISNULL(&oc_at->a_nvals[i]); i++ ) {
 				co.co_name = &oc_at->a_nvals[i];
@@ -6798,8 +6809,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 						/* FIXME: We should return a helpful error message
 						 * here */
 					}
-					if ( dopause ) slap_unpause_server();
-					goto out;
+					goto out2;
 				}
 				break;
 			}
@@ -6807,8 +6817,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 			if ( ce->ce_be == frontendDB || ce->ce_be == op->o_bd ){
 				rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 				rs->sr_text = "Cannot delete config or frontend database";
-				if ( dopause ) slap_unpause_server();
-				goto out;
+				goto out2;
 			}
 			if ( ce->ce_be->bd_info->bi_db_close ) {
 				ce->ce_be->bd_info->bi_db_close( ce->ce_be, NULL );
@@ -6869,6 +6878,8 @@ config_back_delete( Operation *op, SlapReply *rs )
 		ce->ce_entry->e_private=NULL;
 		entry_free(ce->ce_entry);
 		ch_free(ce);
+out2:
+		ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
 		if ( dopause ) slap_unpause_server();
 	} else {
 		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
@@ -6890,6 +6901,7 @@ config_back_search( Operation *op, SlapReply *rs )
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
+	ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
 	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
 	if ( !ce ) {
 		if ( last )
@@ -6924,6 +6936,7 @@ config_back_search( Operation *op, SlapReply *rs )
 	}
 
 out:
+	ldap_pvt_thread_rdwr_runlock( &cfb->cb_rwlock );
 	send_ldap_result( op, rs );
 	return rs->sr_err;
 }
@@ -7659,6 +7672,8 @@ config_back_db_destroy( BackendDB *be, ConfigReply *cr )
 
 	ch_free( cfdir.bv_val );
 
+	ldap_pvt_thread_rdwr_destroy( &cfb->cb_rwlock );
+
 	ldap_avl_free( CfOcTree, NULL );
 
 	if ( cfb->cb_db.bd_info ) {
@@ -7692,6 +7707,8 @@ config_back_db_init( BackendDB *be, ConfigReply* cr )
 	ber_bvarray_add( &be->be_suffix, &dn );
 	ber_dupbv( &dn, &be->be_rootdn );
 	ber_bvarray_add( &be->be_nsuffix, &dn );
+
+	ldap_pvt_thread_rdwr_init( &cfb->cb_rwlock );
 
 	/* Hide from namingContexts */
 	SLAP_BFLAGS(be) |= SLAP_BFLAG_CONFIG;
