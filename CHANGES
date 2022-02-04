@@ -3,6 +3,7 @@ OpenLDAP 2.5 Change Log
 OpenLDAP 2.5.12 Engineering
 	Fixed slapd usage of thread local counters (ITS#9789)
 	Fixed slapd to clear runqueue task correctly (ITS#9785)
+	Fixed slapd bconfig locking for cn=config replication (ITS#9584)
 	Fixed slapd syncrepl handling of new sessions (ITS#9584)
 	Build Environment
 		Fix compilation with openssl exclusions (ITS#9791)
