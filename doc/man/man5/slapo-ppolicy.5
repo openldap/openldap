@@ -55,9 +55,20 @@ after the
 .B overlay
 directive.
 .TP
+.B ppolicy_rules <LDAP URI> <policyDN>
+Specify which pwdPolicy object to use when no specific policy is set on
+a given user's entry. If there is no pwdPolicySubentry set, the URIs are
+checked in order and the first one to match will apply. If one is selected
+and the object at
+.B policyDN
+does not exist or is not a password policy, then no policies will be
+enforced.
+.TP
 .B ppolicy_default <policyDN>
 Specify the DN of the pwdPolicy object to use when no specific policy is
-set on a given user's entry. If there is no specific policy for an entry
+set on a given user's entry and none of the
+.B ppolicy_rules
+apply. If there is no specific policy for an entry
 and no default is given, then no policies will be enforced.
 .TP
 .B ppolicy_forward_updates
