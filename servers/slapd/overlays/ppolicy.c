@@ -2215,6 +2215,7 @@ ppolicy_add(
 	PassPolicy pp;
 	Attribute *pa;
 	const char *txt;
+	int is_pwdadmin = 0;
 
 	if ( ppolicy_restrict( op, rs ) != SLAP_CB_CONTINUE )
 		return rs->sr_err;
@@ -2223,10 +2224,14 @@ ppolicy_add(
 	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) )
 		return SLAP_CB_CONTINUE;
 
+	ppolicy_get( op, op->ora_e, &pp );
+
+	if ( access_allowed( op, op->ora_e, pp.ad, NULL, ACL_MANAGE, NULL ) ) {
+		is_pwdadmin = 1;
+	}
+
 	/* Check for password in entry */
-	if ((pa = attr_find( op->oq_add.rs_e->e_attrs,
-		slap_schema.si_ad_userPassword )))
-	{
+	if ( (pa = attr_find( op->oq_add.rs_e->e_attrs, pp.ad )) ) {
 		assert( pa->a_vals != NULL );
 		assert( !BER_BVISNULL( &pa->a_vals[ 0 ] ) );
 
@@ -2235,15 +2240,13 @@ ppolicy_add(
 			return rs->sr_err;
 		}
 
-		ppolicy_get( op, op->ora_e, &pp );
-
 		/*
-		 * new entry contains a password - if we're not the root user
+		 * new entry contains a password - if we're not the password admin
 		 * then we need to check that the password fits in with the
 		 * security policy for the new entry.
 		 */
 
-		if (pp.pwdCheckQuality > 0 && !be_isroot( op )) {
+		if ( pp.pwdCheckQuality > 0 && !is_pwdadmin ) {
 			struct berval *bv = &(pa->a_vals[0]);
 			int rc, send_ctrl = 0;
 			LDAPPasswordPolicyError pErr = PP_noError;
@@ -2305,7 +2308,8 @@ ppolicy_add(
 		}
 
 		/* If password aging is in effect, set the pwdChangedTime */
-		if ( pp.pwdMaxAge || pp.pwdMinAge ) {
+		if ( ( pp.pwdMaxAge || pp.pwdMinAge ) &&
+				!attr_find( op->ora_e->e_attrs, ad_pwdChangedTime ) ) {
 			struct berval timestamp;
 			char timebuf[ LDAP_LUTIL_GENTIME_BUFSIZE ];
 			time_t now = slap_get_time();
