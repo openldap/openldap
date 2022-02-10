@@ -734,6 +734,7 @@ static void connection_abandon( Connection *c )
 		LDAP_STAILQ_NEXT(o, o_next) = NULL;
 		slap_op_free( o, NULL );
 	}
+	c->c_n_ops_pending = 0;
 }
 
 static void
