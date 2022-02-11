@@ -880,6 +880,17 @@ must be
 .BR "char **" ,
 and its contents need to be freed by the caller using
 .BR ldap_memfree (3).
+.TP
+.B LDAP_OPT_X_TLS_PEERKEY_HASH
+Sets the (public) key that the application expects the peer to be using.
+.B invalue
+must be
+.BR "const char *"
+containing the base64 encoding of the expected peer's key or in the format
+.B "<hashalg>:<peerkey hash base64 encoded>"
+where as a TLS session is established, the library will hash the peer's key
+with the provided hash algorithm and compare it with value provided and will
+only allow the session to continue if they match.
 .SH ERRORS
 On success, the functions return
 .BR LDAP_OPT_SUCCESS ,
