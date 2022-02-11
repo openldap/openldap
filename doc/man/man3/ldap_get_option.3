@@ -455,6 +455,12 @@ This option is OpenLDAP specific.
 .B LDAP_OPT_TCP_USER_TIMEOUT
 Allows to configure TCP_USER_TIMEOUT in milliseconds on the connection, overriding the operating system setting.
 This option is OpenLDAP specific and supported only on Linux 2.6.37 or higher.
+.B invalue
+must be a
+.BR "const unsigned int *" ;
+.BR outvalue
+must be an
+.BR "unsigned int *" .
 
 .SH SASL OPTIONS
 The SASL options are OpenLDAP specific.
