@@ -587,6 +587,7 @@ must be a
 .BR "char **" .
 Its content needs to be freed by the caller using
 .BR ldap_memfree (3).
+.TP
 .B LDAP_OPT_X_SASL_CBINDING
 Sets/gets the channel-binding type to use in SASL,
 one of
@@ -602,7 +603,6 @@ must be
 .BR outvalue
 must be
 .BR "int *" .
-.TP
 .SH TCP OPTIONS
 The TCP options are OpenLDAP specific.
 Mainly intended for use with Linux, they may not be portable.
