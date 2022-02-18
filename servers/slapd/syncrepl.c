@@ -1378,6 +1378,7 @@ do_syncrep2(
 				break;
 			}
 #endif
+			punlock = -1;
 			ldap_get_entry_controls( si->si_ld, msg, &rctrls );
 			ldap_get_dn_ber( si->si_ld, msg, NULL, &bdn );
 			if (!bdn.bv_len) {
@@ -1465,7 +1466,6 @@ do_syncrep2(
 				rc = -1;
 				goto done;
 			}
-			punlock = -1;
 			if ( ber_peek_tag( ber, &len ) == LDAP_TAG_SYNC_COOKIE ) {
 				if ( ber_scanf( ber, /*"{"*/ "m}", &cookie ) != LBER_ERROR ) {
 
