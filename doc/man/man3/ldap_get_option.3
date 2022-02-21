@@ -890,7 +890,11 @@ containing the base64 encoding of the expected peer's key or in the format
 .B "<hashalg>:<peerkey hash base64 encoded>"
 where as a TLS session is established, the library will hash the peer's key
 with the provided hash algorithm and compare it with value provided and will
-only allow the session to continue if they match.
+only allow the session to continue if they match. This happens regardless of
+certificate checking strategy. The list of supported
+.B hashalg
+values depends on the crypto library used, check its documentation to get
+a list.
 .SH ERRORS
 On success, the functions return
 .BR LDAP_OPT_SUCCESS ,
