@@ -65,7 +65,7 @@ will wait 5000ms (5 seconds) before making another attempt to that server.
 
 When a new Bind request comes from a client, it will be allocated to one of the
 available {{bind connections}}, each of which can only carry one request at a
-time. For other reqests that need to be passed on to the backends, backends are
+time. For other requests that need to be passed on to the backends, backends are
 considered in order:
 * if the number of pending/in-flight for that backend is at or above 10, it is
 skipped
@@ -118,7 +118,7 @@ Two alternative selection strategies have been implemented:
   neither backend can be used, selection falls back to the regular strategy
   used by the roundrobin backend
 
-The {{weighted}} tier might be appropritate when servers have differing load
+The {{weighted}} tier might be appropriate when servers have differing load
 capacity. Due to its reinforced self-limiting feedback, the {{bestof}} tier
 might be appropriate in large scale environments where each backend's
 capacity/latency fluctuates widely and rapidly.
