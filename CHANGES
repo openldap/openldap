@@ -16,6 +16,8 @@ OpenLDAP 2.6.2 Engineering
 		Fix compiliation with certain versions of gcc (ITS#9790)
 		Fix compilation with openssl exclusions (ITS#9791)
 		Fix warnings from make jobserver (ITS#9788)
+	Documentation
+		admin26 Document new lloadd features (ITS#9780)
 
 OpenLDAP 2.6.1 Release (2022/01/20)
 	Fixed libldap to init client socket port (ITS#9743)
