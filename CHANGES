@@ -6,6 +6,7 @@ OpenLDAP 2.5.12 Engineering
 	Fixed slapd bconfig locking for cn=config replication (ITS#9584)
 	Fixed slapd syncrepl handling of new sessions (ITS#9584)
 	Fixed slapd to clear connections on bind (ITS#9799)
+	Fixed slapd syncrepl ODSEE replication of unknown attr (ITS#9801)
 	Fixed slapo-ppolicy operation handling to be consistent (ITS#9794)
 	Build Environment
 		Fix compilation with openssl exclusions (ITS#9791)
