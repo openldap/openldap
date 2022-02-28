@@ -19,6 +19,7 @@ OpenLDAP 2.6.2 Engineering
 		Fix warnings from make jobserver (ITS#9788)
 	Documentation
 		admin26 Document new lloadd features (ITS#9780)
+		Fixed slapd-sock(5) to clarify "sockresps result" behavior (ITS#8255)
 
 OpenLDAP 2.6.1 Release (2022/01/20)
 	Fixed libldap to init client socket port (ITS#9743)
