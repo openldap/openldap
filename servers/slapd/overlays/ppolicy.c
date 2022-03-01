@@ -1072,6 +1072,56 @@ fail:
 	(void)ber_free_buf(ber);
 }
 
+static int
+ppolicy_operational( Operation *op, SlapReply *rs )
+{
+	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
+	pp_info *pi = on->on_bi.bi_private;
+	Entry *e = rs->sr_entry;
+
+	/* This allows clients to find out if there's a value stored directly in
+	 * the DB (and syncrepl clients not to commit our generated copy), callers
+	 * need to make sure they don't copy the control from their op if they need
+	 * it resolved anyway */
+	if ( op->o_managedsait != SLAP_CONTROL_NONE )
+		return SLAP_CB_CONTINUE;
+
+	/* No entry or attribute already set? Nothing to do */
+	if ( !e || attr_find( e->e_attrs, ad_pwdPolicySubentry ) )
+		return SLAP_CB_CONTINUE;
+
+	if ( SLAP_OPATTRS( rs->sr_attr_flags ) ||
+		ad_inlist( ad_pwdPolicySubentry, rs->sr_attrs )) {
+		Attribute *a, **ap = NULL;
+		policy_rule *pr;
+		BerVarray vals;
+
+		for ( pr = pi->policy_rules; pr; pr = pr->next ) {
+			if ( !dnIsSuffixScope( &e->e_nname, &pr->base, pr->scope ) ) continue;
+			if ( pr->filter && test_filter( op, e, pr->filter ) != LDAP_COMPARE_TRUE ) continue;
+
+			/* We found a match */
+			break;
+		}
+
+		if ( pr ) {
+			vals = &pr->policy_dn;
+		} else if ( !BER_BVISNULL( &pi->def_policy ) ) {
+			vals = &pi->def_policy;
+		} else {
+			return SLAP_CB_CONTINUE;
+		}
+
+		a = attr_alloc( ad_pwdPolicySubentry );
+		attr_valadd( a, vals, vals, 1 );
+
+		for ( ap = &rs->sr_operational_attrs; *ap; ap=&(*ap)->a_next );
+		*ap = a;
+	}
+
+	return SLAP_CB_CONTINUE;
+}
+
 static void
 ppolicy_get_default( PassPolicy *pp )
 {
@@ -3626,6 +3676,7 @@ int ppolicy_initialize()
 	ppolicy.on_bi.bi_op_delete = ppolicy_restrict;
 	ppolicy.on_bi.bi_op_modify = ppolicy_modify;
 	ppolicy.on_bi.bi_op_search = ppolicy_search;
+	ppolicy.on_bi.bi_operational = ppolicy_operational;
 	ppolicy.on_bi.bi_connection_destroy = ppolicy_connection_destroy;
 
 	ppolicy.on_bi.bi_cf_ocs = ppolicyocs;
