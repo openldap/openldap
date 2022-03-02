@@ -589,19 +589,20 @@ connection_timeout( LloadConnection *upstream, void *arg )
                                                LDAP_ADMINLIMIT_EXCEEDED,
                 "upstream did not respond in time", 0 );
 
-        if ( rc == LDAP_SUCCESS ) {
+        if ( upstream->c_type != LLOAD_C_BIND && rc == LDAP_SUCCESS ) {
             rc = operation_send_abandon( op, upstream );
         }
         operation_unlink( op );
     }
 
-    /* TODO: if operation_send_abandon failed, we need to kill the upstream */
     if ( rc == LDAP_SUCCESS ) {
         connection_write_cb( -1, 0, upstream );
     }
 
     CONNECTION_LOCK(upstream);
-    if ( upstream->c_state == LLOAD_C_CLOSING && !upstream->c_ops ) {
+    /* ITS#9799: If a Bind timed out, connection is in an unknown state */
+    if ( upstream->c_type == LLOAD_C_BIND || rc != LDAP_SUCCESS ||
+            ( upstream->c_state == LLOAD_C_CLOSING && !upstream->c_ops ) ) {
         CONNECTION_DESTROY(upstream);
     } else {
         CONNECTION_UNLOCK(upstream);
