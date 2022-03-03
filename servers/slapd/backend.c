@@ -1732,7 +1732,9 @@ fe_acl_attribute(
 
 	} else {
 		op->o_private = NULL;
-		rc = be_entry_get_rw( op, edn, NULL, entry_at, 0, &e );
+		rc = be_entry_get_rw( op, edn, NULL,
+				is_at_operational( entry_at->ad_type ) ? NULL : entry_at,
+				0, &e );
 		e_priv = op->o_private;
 		op->o_private = o_priv;
 	} 
@@ -1893,7 +1895,9 @@ backend_access(
 
 	} else {
 		op->o_private = NULL;
-		rc = be_entry_get_rw( op, edn, NULL, entry_at, 0, &e );
+		rc = be_entry_get_rw( op, edn, NULL,
+				is_at_operational( entry_at->ad_type ) ? NULL : entry_at,
+				0, &e );
 		e_priv = op->o_private;
 		op->o_private = o_priv;
 	} 
