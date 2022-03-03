@@ -1137,40 +1137,25 @@ ppolicy_get_default( PassPolicy *pp )
 static int
 ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 {
-	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
-	pp_info *pi = on->on_bi.bi_private;
 	BackendDB *bd, *bd_orig = op->o_bd;
 	AttributeDescription *ad = NULL;
 	Attribute *a;
-	BerVarray vals;
+	BerVarray vals = NULL;
 	int rc = LDAP_SUCCESS;
 	Entry *pe = NULL;
-#if 0
-	const char *text;
-#endif
 
 	ppolicy_get_default( pp );
 
 	ad = ad_pwdPolicySubentry;
 	if ( (a = attr_find( e->e_attrs, ad )) == NULL ) {
-		policy_rule *pr = pi->policy_rules;
-		/*
-		 * entry has no password policy assigned - find the default one
-		 */
-		for ( pr = pi->policy_rules; pr; pr = pr->next ) {
-			if ( !dnIsSuffixScope( &e->e_nname, &pr->base, pr->scope ) ) continue;
-			if ( pr->filter && test_filter( op, e, pr->filter ) != LDAP_COMPARE_TRUE ) continue;
-
-			/* We found a match */
-			break;
-		}
-		if ( pr ) {
-			vals = &pr->policy_dn;
-		} else {
-			vals = &pi->def_policy;
-		}
-		if ( !vals->bv_val )
+		/* This could be an Add, make sure we pass the entry in */
+		rc = backend_attribute( op, e, &op->o_req_ndn,
+				ad_pwdPolicySubentry, &vals, ACL_NONE );
+		if ( rc || vals == NULL ) {
+			Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
+				"got rc=%d getting value for policySubEntry\n", rc );
 			goto defaultpol;
+		}
 	} else {
 		vals = a->a_nvals;
 		if (vals[0].bv_val == NULL) {
@@ -1366,7 +1351,7 @@ defaultpol:
 		op->o_bd = bd_orig;
 	}
 
-	if ( rc && !BER_BVISNULL( vals ) ) {
+	if ( rc && vals && !BER_BVISNULL( vals ) ) {
 		Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
 			"policy subentry %s missing or invalid at '%s', "
 			"no policy will be applied!\n",
