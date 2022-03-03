@@ -2453,6 +2453,36 @@ ppolicy_compare(
 			return rs->sr_err;
 		}
 	}
+
+	if ( op->orc_ava->aa_desc == ad_pwdPolicySubentry ) {
+		BerVarray vals = NULL;
+		int rc;
+
+		rc = backend_attribute( op, NULL, &op->o_req_ndn,
+				ad_pwdPolicySubentry, &vals, ACL_COMPARE );
+
+		if ( rc != LDAP_SUCCESS ) {
+			/* Defer to the DB */
+			return SLAP_CB_CONTINUE;
+		}
+
+		if ( value_find_ex( ad_pwdPolicySubentry,
+					SLAP_MR_ATTRIBUTE_VALUE_NORMALIZED_MATCH |
+					SLAP_MR_ASSERTED_VALUE_NORMALIZED_MATCH,
+					vals, &op->orc_ava->aa_value, op->o_tmpmemctx ) == 0 )
+		{
+			rc = LDAP_COMPARE_TRUE;
+		} else {
+			rc = LDAP_COMPARE_FALSE;
+		}
+
+		if ( vals ) {
+			ber_bvarray_free_x( vals, op->o_tmpmemctx );
+		}
+		send_ldap_error( op, rs, rc, NULL );
+		return rs->sr_err;
+	}
+
 	return SLAP_CB_CONTINUE;
 }
 

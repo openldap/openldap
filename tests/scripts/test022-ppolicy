@@ -496,6 +496,16 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
+$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+	"$USER" "pwdPolicySubentry:cn=Idle Expiration Policy, ou=Policies, dc=example, dc=com" \
+	>> $TESTOUT 2>&1
+RC=$?
+if test $RC != 6 ; then
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 $LDAPSEARCH -e ppolicy -H $URI1 -D "$USER" -w $PASS \
 	-b "$BASEDN" -s base > $SEARCHOUT 2>&1
 
@@ -530,6 +540,16 @@ if test $RC != 0 ; then
 	echo "ldapmodify failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
+fi
+
+$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+	"$USER" "pwdPolicySubentry:cn=Standard Policy, ou=Policies, dc=example, dc=com" \
+	>> $TESTOUT 2>&1
+RC=$?
+if test $RC != 6 ; then
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
 fi
 
 if test "$BACKLDAP" != "ldapno" && test "$SYNCPROV" != "syncprovno"  ; then 
@@ -720,6 +740,16 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
+$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+	"$USER" "pwdPolicySubentry:cn=Stricter Policy, ou=Policies, dc=example, dc=com" \
+	>> $TESTOUT 2>&1
+RC=$?
+if test $RC != 6 ; then
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 $LDAPMODIFY -v -D cn=config -H $URI2 -y $CONFIGPWF >> \
 	$TESTOUT 2>&1 << EOMODS
 dn: olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
@@ -734,6 +764,16 @@ if test $RC != 0 ; then
 	echo "ldapmodify failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
+fi
+
+$LDAPCOMPARE -D "$MANAGERDN" -H $URI2 -w $PASSWD \
+	"$USER" "pwdPolicySubentry:cn=Stricter Policy, ou=Policies, dc=example, dc=com" \
+	>> $TESTOUT 2>&1
+RC=$?
+if test $RC != 6 ; then
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
 fi
 
 OLDPASS=$PASS
