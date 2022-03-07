@@ -506,6 +506,16 @@ nextresp3:
 		lc->lconn_ber = NULL;
 		break;
 
+	default:
+		/*
+		 * We read a BerElement that isn't LDAP or the stream has desync'd.
+		 * In either case, anything we read from now on is probably garbage,
+		 * just drop the connection.
+		 */
+		ber_free( ber, 1 );
+		lc->lconn_ber = NULL;
+		/* FALLTHRU */
+
 	case LBER_DEFAULT:
 fail:
 		err = sock_errno();
@@ -520,10 +530,6 @@ fail:
 			--lc->lconn_refcnt;
 		}
 		lc->lconn_status = 0;
-		return -1;
-
-	default:
-		ld->ld_errno = LDAP_LOCAL_ERROR;
 		return -1;
 	}
 
