@@ -1877,9 +1877,8 @@ The \fBsizelimit\fP and \fBtimelimit\fP only
 accept "unlimited" and positive integers, and both default to "unlimited".
 The \fBsizelimit\fP and \fBtimelimit\fP parameters define
 a consumer requested limitation on the number of entries that can be returned
-by the LDAP Content Synchronization operation; as such, it is intended
-to implement partial replication based on the size of the replicated database
-and on the time required by the synchronization.
+by the LDAP Content Synchronization operation; these should be left unchanged
+from the default otherwise replication may never succeed.
 Note, however, that any provider-side limits for the replication identity
 will be enforced by the provider regardless of the limits requested
 by the LDAP Content Synchronization operation, much like for any other
