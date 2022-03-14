@@ -1387,7 +1387,7 @@ config_generic(ConfigArgs *c) {
 			c->value_int = (SLAP_NOLASTMOD(c->be) == 0);
 			break;
 		case CFG_LASTBIND:
-			c->value_int = (SLAP_NOLASTMOD(c->be) == 0);
+			c->value_int = (SLAP_LASTBIND(c->be) != 0);
 			break;
 		case CFG_LASTBIND_PRECISION:
 			c->value_uint = c->be->be_lastbind_precision;
