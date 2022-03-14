@@ -1364,7 +1364,7 @@ config_generic(ConfigArgs *c) {
 			c->value_int = (SLAP_NOLASTMOD(c->be) == 0);
 			break;
 		case CFG_LASTBIND:
-			c->value_int = (SLAP_NOLASTMOD(c->be) == 0);
+			c->value_int = (SLAP_LASTBIND(c->be) != 0);
 			break;
 		case CFG_SYNC_SUBENTRY:
 			c->value_int = (SLAP_SYNC_SUBENTRY(c->be) != 0);
