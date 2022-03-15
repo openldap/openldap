@@ -2662,9 +2662,9 @@ idassert-authzFrom	"dn:<rootdn>"
 						c->fname, c->lineno, ca.argc, ca.argv );
 				}
 				assert( rc == 0 );
-				ch_free( ca.argv );
 				ch_free( ca.tline );
 			}
+			ch_free( ca.argv );
 		}
 		argc = c->argc;
 		argv = c->argv;
@@ -2699,9 +2699,9 @@ idassert-authzFrom	"dn:<rootdn>"
 						c->fname, c->lineno, ca.argc, argv );
 				}
 				assert( rc == 0 );
-				ch_free( ca.argv );
 				ch_free( ca.tline );
 			}
+			ch_free( ca.argv );
 		}
 
 		/* save the rule info */
