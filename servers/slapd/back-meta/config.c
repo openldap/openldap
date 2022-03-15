@@ -2718,7 +2718,7 @@ idassert-authzFrom	"dn:<rootdn>"
 			/* move it to the right slot */
 			if ( ix < cnt ) {
 				for ( i=cnt; i>ix; i-- )
-					mt->mt_rwmap.rwm_bva_rewrite[i+1] = mt->mt_rwmap.rwm_bva_rewrite[i];
+					mt->mt_rwmap.rwm_bva_rewrite[i] = mt->mt_rwmap.rwm_bva_rewrite[i-1];
 				mt->mt_rwmap.rwm_bva_rewrite[i] = bv;
 
 				/* destroy old rules */
