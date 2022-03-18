@@ -2247,7 +2247,7 @@ sortval_reject:
 				for ( a=c->be->be_acl; a; a = a->acl_next )
 					i++;
 			}
-			if ( parse_acl(c->be, c->fname, c->lineno, c->argc, c->argv, i ) ) {
+			if ( parse_acl( c, i ) ) {
 				if ( SLAP_CONFIG( c->be ) && !c->be->be_acl) {
 					c->be->be_acl = defacl_parsed;
 				}
@@ -7447,7 +7447,12 @@ config_back_db_open( BackendDB *be, ConfigReply *cr )
 	 */
 	save_access = be->bd_self->be_acl;
 	be->bd_self->be_acl = NULL;
-	parse_acl(be->bd_self, "config_back_db_open", 0, 6, (char **)defacl, 0 );
+	c.be = be->bd_self;
+	c.fname = "config_back_db_open";
+	c.lineno = 0;
+	c.argc = 6;
+	c.argv = (char **)defacl;
+	parse_acl( &c, 0 );
 	defacl_parsed = be->bd_self->be_acl;
 	if ( save_access ) {
 		be->bd_self->be_acl = save_access;

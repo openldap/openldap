@@ -100,9 +100,7 @@ LDAP_SLAPD_F (int) acl_string_expand LDAP_P((
  */
 LDAP_SLAPD_V (LDAP_CONST char *) style_strings[];
 
-LDAP_SLAPD_F (int) parse_acl LDAP_P(( Backend *be,
-	const char *fname, int lineno,
-	int argc, char **argv, int pos ));
+LDAP_SLAPD_F (int) parse_acl LDAP_P(( struct config_args_s *ca, int pos ));
 
 LDAP_SLAPD_F (char *) access2str LDAP_P(( slap_access_t access ));
 LDAP_SLAPD_F (slap_access_t) str2access LDAP_P(( const char *str ));

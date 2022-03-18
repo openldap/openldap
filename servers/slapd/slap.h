@@ -1319,12 +1319,15 @@ typedef struct AuthorizationInformation {
 	slap_ssf_t	sai_sasl_ssf;		/* SASL SSF */
 } AuthorizationInformation;
 
+typedef struct config_args_s ConfigArgs;	/* slap-config.h */
+typedef struct config_reply_s ConfigReply;	/* slap-config.h */
+
 #ifdef SLAP_DYNACL
 
 /*
  * "dynamic" ACL infrastructure (for ACIs and more)
  */
-typedef int (slap_dynacl_parse) LDAP_P(( const char *fname, int lineno,
+typedef int (slap_dynacl_parse) LDAP_P(( ConfigArgs *ca,
 	const char *opts, slap_style_t, const char *, void **privp ));
 typedef int (slap_dynacl_unparse) LDAP_P(( void *priv, struct berval *bv ));
 typedef int (slap_dynacl_mask) LDAP_P((
@@ -2019,7 +2022,6 @@ typedef int (BI_config) LDAP_P((BackendInfo *bi,
 	const char *fname, int lineno,
 	int argc, char **argv));
 
-typedef struct config_reply_s ConfigReply; /* slap-config.h */
 typedef int (BI_db_func) LDAP_P((Backend *bd, ConfigReply *cr));
 typedef BI_db_func BI_db_init;
 typedef BI_db_func BI_db_open;

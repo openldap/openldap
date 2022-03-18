@@ -39,6 +39,7 @@
 #include "slap.h"
 #include "lber_pvt.h"
 #include "lutil.h"
+#include "slap-config.h"
 
 /* use most appropriate size */
 #define ACI_BUF_SIZE 			1024
@@ -741,8 +742,7 @@ aci_init( void )
 
 static int
 dynacl_aci_parse(
-	const char *fname,
-	int lineno,
+	ConfigArgs *c,
 	const char *opts,
 	slap_style_t sty,
 	const char *right,
@@ -752,17 +752,19 @@ dynacl_aci_parse(
 	const char		*text = NULL;
 
 	if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
-		fprintf( stderr, "%s: line %d: "
-			"inappropriate style \"%s\" in \"aci\" by clause\n",
-			fname, lineno, style_strings[sty] );
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+			"inappropriate style \"%s\" in \"aci\" by clause",
+			style_strings[sty] );
+		Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 		return -1;
 	}
 
 	if ( right != NULL && *right != '\0' ) {
 		if ( slap_str2ad( right, &ad, &text ) != LDAP_SUCCESS ) {
-			fprintf( stderr,
-				"%s: line %d: aci \"%s\": %s\n",
-				fname, lineno, right, text );
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"aci \"%s\": %s",
+				right, text );
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 			return -1;
 		}
 
@@ -771,10 +773,10 @@ dynacl_aci_parse(
 	}
 
 	if ( !is_at_syntax( ad->ad_type, SLAPD_ACI_SYNTAX) ) {
-		fprintf( stderr, "%s: line %d: "
-			"aci \"%s\": inappropriate syntax: %s\n",
-			fname, lineno, right,
-			ad->ad_type->sat_syntax_oid );
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+			"aci \"%s\": inappropriate syntax: %s",
+			right, ad->ad_type->sat_syntax_oid );
+		Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 		return -1;
 	}
 
