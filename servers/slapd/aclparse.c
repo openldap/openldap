@@ -37,6 +37,7 @@
 #include "slap.h"
 #include "lber_pvt.h"
 #include "lutil.h"
+#include "slap-config.h"
 
 static const char style_base[] = "base";
 const char *style_strings[] = {
@@ -76,8 +77,7 @@ static int		check_scope( BackendDB *be, AccessControl *a );
 #ifdef SLAP_DYNACL
 static int
 slap_dynacl_config(
-	const char *fname,
-	int lineno,
+	struct config_args_s *c,
 	Access *b,
 	const char *name,
 	const char *opts,
@@ -89,9 +89,10 @@ slap_dynacl_config(
 
 	for ( da = b->a_dynacl; da; da = da->da_next ) {
 		if ( strcasecmp( da->da_name, name ) == 0 ) {
-			Debug( LDAP_DEBUG_ANY,
-				"%s: line %d: dynacl \"%s\" already specified.\n",
-				fname, lineno, name );
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"dynacl \"%s\" already specified",
+				name );
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 			return acl_usage();
 		}
 	}
@@ -105,7 +106,7 @@ slap_dynacl_config(
 	*tmp = *da;
 
 	if ( tmp->da_parse ) {
-		rc = ( *tmp->da_parse )( fname, lineno, opts, sty, right, &tmp->da_private );
+		rc = ( *tmp->da_parse )( c, opts, sty, right, &tmp->da_private );
 		if ( rc ) {
 			ch_free( tmp );
 			return rc;
@@ -321,11 +322,7 @@ regex_done:;
 
 int
 parse_acl(
-	Backend	*be,
-	const char	*fname,
-	int		lineno,
-	int		argc,
-	char		**argv,
+	struct config_args_s *c,
 	int		pos )
 {
 	int		i;
@@ -335,14 +332,19 @@ parse_acl(
 	Access	*b = NULL;
 	int rc;
 	const char *text;
+	Backend *be = c->be;
+	const char *fname = c->fname;
+	int lineno = c->lineno;
+	int argc = c->argc;
+	char **argv = c->argv;
 
 	for ( i = 1; i < argc; i++ ) {
 		/* to clause - select which entries are protected */
 		if ( strcasecmp( argv[i], "to" ) == 0 ) {
 			if ( a != NULL ) {
-				Debug( LDAP_DEBUG_ANY, "%s: line %d: "
-					"only one to clause allowed in access line\n",
-				    fname, lineno );
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"only one to clause allowed in access line" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 				goto fail;
 			}
 			a = (AccessControl *) ch_calloc( 1, sizeof(AccessControl) );
@@ -1607,7 +1609,7 @@ parse_acl(
 					}
 
 					if ( name ) {
-						if ( slap_dynacl_config( fname, lineno, b, name, opts, sty, right ) ) {
+						if ( slap_dynacl_config( c, b, name, opts, sty, right ) ) {
 							Debug( LDAP_DEBUG_ANY, "%s: line %d: "
 								"unable to configure dynacl \"%s\".\n",
 								fname, lineno, name );
