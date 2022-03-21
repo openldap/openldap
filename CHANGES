@@ -3,6 +3,7 @@ OpenLDAP 2.6 Change Log
 OpenLDAP 2.6.2 Engineering
 	Added slapd support for OpenSSL 3.0 (ITS#9436)
 	Fixed libldap to drop connection when non-LDAP data is received (ITS#9803)
+	Fixed slapd slaptest conversion of olcLastBind (ITS#9808)
 	Fixed slapd to correctly init global_host earlier (ITS#9787)
 	Fixed slapd bconfig locking for cn=config replication (ITS#9584)
 	Fixed slapd usage of thread local counters (ITS#9789)
