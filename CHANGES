@@ -22,6 +22,8 @@ OpenLDAP 2.5.12 Engineering
 		Fix compilation with openssl exclusions (ITS#9791)
 		Fix warnings from make jobserver (ITS#9788)
 		Fix compiliation with certain versions of gcc (ITS#9790)
+	Documentation
+		Fixed slapd.conf(5)/slapd-config(5) syncrepl sizelimit/timelimit documentation (ITS#9804)
 
 OpenLDAP 2.5.11 Release (2022/01/20)
 	Fix broken build release variable
