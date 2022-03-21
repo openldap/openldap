@@ -2405,9 +2405,11 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 		break;
 #endif /* SLAPD_META_CLIENT_PR */
 
-	case LDAP_BACK_CFG_KEEPALIVE:
-		slap_keepalive_parse( ber_bvstrdup(c->argv[1]),
-				 &mt->mt_tls.sb_keepalive, 0, 0, 0);
+	case LDAP_BACK_CFG_KEEPALIVE: {
+		struct berval bv;
+		ber_str2bv( c->argv[1], 0, 1, &bv );
+		slap_keepalive_parse( &bv, &mt->mt_tls.sb_keepalive, 0, 0, 0 );
+		}
 		break;
 
 	case LDAP_BACK_CFG_TCP_USER_TIMEOUT:

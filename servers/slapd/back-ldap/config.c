@@ -2051,9 +2051,11 @@ done_url:;
 		}
 		break;
 
-	case LDAP_BACK_CFG_KEEPALIVE:
-		slap_keepalive_parse( ber_bvstrdup(c->argv[1]),
-				 &li->li_tls.sb_keepalive, 0, 0, 0);
+	case LDAP_BACK_CFG_KEEPALIVE: {
+		struct berval bv;
+		ber_str2bv( c->argv[1], 0, 1, &bv );
+		slap_keepalive_parse( &bv, &li->li_tls.sb_keepalive, 0, 0, 0 );
+		}
 		break;
 
 	case LDAP_BACK_CFG_TCP_USER_TIMEOUT:
