@@ -42,7 +42,7 @@ sn: default
 cn: default
 pwdMinLength: 6
 pwdCheckModule: /usr/local/lib/ppm.so
-pwdCheckModuleArg:: bWluUXVhbGl0eSAzCmNoZWNrUkROIDAKZm9yYmlkZGVuQ2hhcnMKbWF4Q29uc2VjdXRpdmVQZXJDbGFzcyAwCnVzZUNyYWNrbGliIDAKY3JhY2tsaWJEaWN0IC92YXIvY2FjaGUvY3JhY2tsaWIvY3JhY2tsaWJfZGljdApjbGFzcy11cHBlckNhc2UgQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVogMCAxCmNsYXNzLWxvd2VyQ2FzZSBhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5eiAwIDEKY2xhc3MtZGlnaXQgMDEyMzQ1Njc4OSAwIDEKY2xhc3Mtc3BlY2lhbCA8Piw/Oy46LyHCp8O5JSrCtV7CqCTCo8KyJsOpfiIjJ3soWy18w6hgX1zDp17DoEApXcKwPX0rIDAgMQ==
+pwdCheckModuleArg:: bWluUXVhbGl0eSAzCmNoZWNrUkROIDAKY2hlY2tBdHRyaWJ1dGVzCmZvcmJpZGRlbkNoYXJzCm1heENvbnNlY3V0aXZlUGVyQ2xhc3MgMAp1c2VDcmFja2xpYiAwCmNyYWNrbGliRGljdCAvdmFyL2NhY2hlL2NyYWNrbGliL2NyYWNrbGliX2RpY3QKY2xhc3MtdXBwZXJDYXNlIEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaIDAgMQpjbGFzcy1sb3dlckNhc2UgYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXogMCAxCmNsYXNzLWRpZ2l0IDAxMjM0NTY3ODkgMCAxCmNsYXNzLXNwZWNpYWwgPD4sPzsuOi8hwqfDuSUqwrVewqgkwqPCsibDqX4iIyd7KFstfMOoYF9cw6dew6BAKV3CsD19KyAwIDEK
 ```
 
 
@@ -85,6 +85,8 @@ defined.
 rejected.
 
 - if a password contains tokens from the RDN, then it is rejected.
+
+- if a password contains tokens from defined attributes, then it is rejected.
 
 - if a password does not pass cracklib check, then it is rejected.
 
@@ -138,6 +140,17 @@ minQuality 3
 # Tokens are separated by the following delimiters : space tabulation _ - , ; £
 checkRDN 0
 
+# checkAttributes parameter
+# Format:
+# checkRDN [ATTR1,ATTR2,...]
+# Description:
+# Password must not contain a token from the values in the given list of attributes
+# Tokens are substrings of the values of the given attributes,
+# delimited by: space tabulation _ - , ; @
+# For example, if uid="the wonderful entry",
+# password must not contain "the", nor "wonderful", nor "entry"
+checkAttributes
+
 # forbiddenChars parameter
 # Format:
 # forbiddenChars [CHARACTERS_FORBIDDEN]
@@ -189,6 +202,7 @@ With this policy:
 minQuality 4
 forbiddenChars .?,
 checkRDN 1
+checkAttributes mail
 class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 5
 class-lowerCase abcdefghijklmnopqrstuvwxyz 0 12
 class-digit 0123456789 0 1
@@ -204,6 +218,9 @@ the password **ThereIsNoCowLevel)** is working, because:
 
 but it won't work for the user uid=John Cowlevel,ou=people,cn=example,cn=com,
 because the token "Cowlevel" from his RDN exists in the password (case insensitive).
+
+Also, it won't work for a mail attribute containing: "thereis@domain.com"
+because the part "thereis" matches the password.
 
 
 # LOGS
@@ -222,88 +239,56 @@ A more detailed message is written to the server log.
 Server log:
 
 ```
-Feb 26 14:46:10 debian-11-64 slapd[1981]: conn=1000 op=16 MOD dn="uid=user,ou=persons,dc=my-domain,dc=com"
-Feb 26 14:46:10 debian-11-64 slapd[1981]: conn=1000 op=16 MOD attr=userPassword
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: entry uid=user,ou=persons,dc=my-domain,dc=com
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Reading pwdCheckModuleArg attribute
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: RAW configuration: # minQuality parameter#012# Format:#012# minQuality [NUMBER]#012# Description:#012# One point is granted for each class for which MIN_FOR_POINT criteria is fulfilled.#012# defines the minimum point numbers for the password to be accepted.#012minQuality 3#012#012# checkRDN parameter#012# Format:#012# checkRDN [0 | 1]#012# Description:#012# If set to 1, password must not contain a token from the RDN.#012# Tokens are separated by the following delimiters : space tabulation _ - , ; £#012checkRDN 0#012#012# forbiddenChars parameter#012# Format:#012# forbiddenChars [CHARACTERS_FORBIDDEN]#012# Description:#012# Defines the forbidden characters list (no separator).#012# If one of them is found in the password, then it is rejected.#012forbiddenChars#012#012# maxConsecutivePerClass parameter#012# Format:#012# maxConsecutivePerClass [NUMBER]#012# Description:#012# Defines the maximum number of consecutive character allowed for any class#012maxConsecutivePerClass 0#012#012# useCracklib parameter#012# Format:#012# useCracklib [0 | 1]#012# Description:#012# If set to 1, the password must pass the cracklib check#012useCracklib 0#012#012# cracklibDict parameter#012# Format:#012# cracklibDict [path_to_cracklib_dictionary]#012# Description:#012# directory+filename-prefix that your version of CrackLib will go hunting for#012# For example, /var/pw_dict resolves as /var/pw_dict.pwd,#012# /var/pw_dict.pwi and /var/pw_dict.hwm dictionary files#012cracklibDict /var/cache/cracklib/cracklib_dict#012#012# classes parameter#012# Format:#012# class-[CLASS_NAME] [CHARACTERS_DEFINING_CLASS] [MIN] [MIN_FOR_POINT]#012# Description:#012# [CHARACTERS_DEFINING_CLASS]: characters defining the class (no separator)#012# [MIN]: If at least [MIN] characters of this class is not found in the password, then it is rejected#012# [MIN_FOR_POINT]: one point is granted if password contains at least [MIN_FOR_POINT] character numbers of this class#012class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1#012class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1#012class-digit 0123456789 0 1#012class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Parsing pwdCheckModuleArg attribute
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # minQuality parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # minQuality [NUMBER]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Description:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # One point is granted for each class for which MIN_FOR_POINT criteria is fulfilled.
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # defines the minimum point numbers for the password to be accepted.
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: minQuality 3
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = minQuality, value = 3, min = (null), minForPoint= (null)
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: 3
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # checkRDN parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # checkRDN [0 | 1]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Description:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # If set to 1, password must not contain a token from the RDN.
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Tokens are separated by the following delimiters : space tabulation _ - , ; £
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: checkRDN 0
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = checkRDN, value = 0, min = (null), minForPoint= (null)
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: 0
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # forbiddenChars parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # forbiddenChars [CHARACTERS_FORBIDDEN]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Description:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Defines the forbidden characters list (no separator).
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # If one of them is found in the password, then it is rejected.
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: forbiddenChars
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: No value, goto next parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # maxConsecutivePerClass parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # maxConsecutivePerClass [NUMBER]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Description:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Defines the maximum number of consecutive character allowed for any class
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: maxConsecutivePerClass 0
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = maxConsecutivePerClass, value = 0, min = (null), minForPoint= (null)
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: 0
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # useCracklib parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # useCracklib [0 | 1]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Description:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # If set to 1, the password must pass the cracklib check
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: useCracklib 0
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = useCracklib, value = 0, min = (null), minForPoint= (null)
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: 0
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # cracklibDict parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # cracklibDict [path_to_cracklib_dictionary]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Description:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # directory+filename-prefix that your version of CrackLib will go hunting for
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # For example, /var/pw_dict resolves as /var/pw_dict.pwd,
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # /var/pw_dict.pwi and /var/pw_dict.hwm dictionary files
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: cracklibDict /var/cache/cracklib/cracklib_dict
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = cracklibDict, value = /var/cache/cracklib/cracklib_dict, min = (null), minForPoint= (null)
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: /var/cache/cracklib/cracklib_dict
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # classes parameter
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Format:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # class-[CLASS_NAME] [CHARACTERS_DEFINING_CLASS] [MIN] [MIN_FOR_POINT]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # Description:
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # [CHARACTERS_DEFINING_CLASS]: characters defining the class (no separator)
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # [MIN]: If at least [MIN] characters of this class is not found in the password, then it is rejected
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: # [MIN_FOR_POINT]: one point is granted if password contains at least [MIN_FOR_POINT] character numbers of this class
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = class-upperCase, value = ABCDEFGHIJKLMNOPQRSTUVWXYZ, min = 0, minForPoint= 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: ABCDEFGHIJKLMNOPQRSTUVWXYZ
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = class-lowerCase, value = abcdefghijklmnopqrstuvwxyz, min = 0, minForPoint= 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: abcdefghijklmnopqrstuvwxyz
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: class-digit 0123456789 0 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = class-digit, value = 0123456789, min = 0, minForPoint= 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: 0123456789
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: get line: class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Param = class-special, value = <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+, min = 0, minForPoint= 1
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm:  Accepted replaced value: <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: 1 point granted for class class-lowerCase
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: 1 point granted for class class-digit
-Feb 26 14:46:10 debian-11-64 slapd[1981]: ppm: Reallocating szErrStr from 64 to 173
-Feb 26 14:46:10 debian-11-64 slapd[1981]: check_password_quality: module error: (/usr/local/lib/ppm.so) Password for dn="uid=user,ou=persons,dc=my-domain,dc=com" does not pass required number of strength checks (2 of 3).[1]
-Feb 26 14:46:10 debian-11-64 slapd[1981]: conn=1000 op=16 RESULT tag=103 err=19 qtime=0.000020 etime=0.001496 text=Password for dn="uid=user,ou=persons,dc=my-domain,dc=com" does not pass required number of strength checks (2 of 3)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 fd=13 ACCEPT from IP=[::1]:49322 (IP=[::]:389)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=0 BIND dn="uid=daniel.jackson,ou=people,dc=my-domain,dc=com" method=128
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=0 BIND dn="uid=daniel.jackson,ou=people,dc=my-domain,dc=com" mech=SIMPLE bind_ssf=0 ssf=0
+Mar 22 17:08:23 debian-11-64 slapd[79222]: connection_input: conn=1000 deferring operation: binding
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=0 RESULT tag=97 err=0 qtime=0.000047 etime=0.157388 text=
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=1 MOD dn="uid=jack.oneill,ou=people,dc=my-domain,dc=com"
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=1 MOD attr=userPassword
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: entry uid=jack.oneill,ou=people,dc=my-domain,dc=com
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Reading pwdCheckModuleArg attribute
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: RAW configuration: minQuality 3#012checkRDN 0#012checkAttributes mail,uid#012forbiddenChars#012maxConsecutivePerClass 0#012useCracklib 0#012cracklibDict /var/cache/cracklib/cracklib_dict#012class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1#012class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1#012class-digit 0123456789 0 1#012class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Parsing pwdCheckModuleArg attribute
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: minQuality 3
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = minQuality, value = 3, min = (null), minForPoint= (null)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 3
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: checkRDN 0
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = checkRDN, value = 0, min = (null), minForPoint= (null)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: checkAttributes mail,uid
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = checkAttributes, value = mail,uid, min = (null), minForPoint= (null)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: mail,uid
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: forbiddenChars
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: No value, goto next parameter
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: maxConsecutivePerClass 0
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = maxConsecutivePerClass, value = 0, min = (null), minForPoint= (null)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: useCracklib 0
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = useCracklib, value = 0, min = (null), minForPoint= (null)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: cracklibDict /var/cache/cracklib/cracklib_dict
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = cracklibDict, value = /var/cache/cracklib/cracklib_dict, min = (null), minForPoint= (null)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: /var/cache/cracklib/cracklib_dict
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-upperCase, value = ABCDEFGHIJKLMNOPQRSTUVWXYZ, min = 0, minForPoint= 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-lowerCase, value = abcdefghijklmnopqrstuvwxyz, min = 0, minForPoint= 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: abcdefghijklmnopqrstuvwxyz
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-digit 0123456789 0 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-digit, value = 0123456789, min = 0, minForPoint= 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0123456789
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-special, value = <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+, min = 0, minForPoint= 1
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: 1 point granted for class class-upperCase
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: 1 point granted for class class-lowerCase
+Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Reallocating szErrStr from 64 to 179
+Mar 22 17:08:23 debian-11-64 slapd[79222]: check_password_quality: module error: (/usr/local/openldap/libexec/openldap/ppm.so) Password for dn="uid=jack.oneill,ou=people,dc=my-domain,dc=com" does not pass required number of strength checks (2 of 3).[1]
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=1 RESULT tag=103 err=19 qtime=0.000668 etime=0.004593 text=Password for dn="uid=jack.oneill,ou=people,dc=my-domain,dc=com" does not pass required number of strength checks (2 of 3)
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=2 UNBIND
+Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 fd=13 closed
 ```
 
 

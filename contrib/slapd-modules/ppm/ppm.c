@@ -427,6 +427,88 @@ containsRDN(char* passwd, char* DN)
     return 0;
 }
 
+// Does the password contains a token from an attribute?
+int
+containsAttributes(char* passwd, Entry* pEntry, char* checkAttributes)
+{
+    char checkAttrs[VALUE_MAX_LEN];
+    char val[VALUE_MAX_LEN];
+    char * token;
+    char * tk;
+    Attribute *a;
+    int i;
+    regex_t regex;
+    int reti;
+
+    // Parse all attributes in the LDAP entry
+    for ( a = pEntry->e_attrs; a != NULL; a = a->a_next ) {
+
+        // Parse all attributes in checkAttributes parameter
+        strcpy_safe(checkAttrs, checkAttributes, VALUE_MAX_LEN);
+        token = strtok(checkAttrs, ",\0");
+        while (token != NULL)
+        {
+            // if attribute to check is found in LDAP entry
+            if( strcmp(a->a_desc->ad_cname.bv_val, token) == 0 )
+            {
+                ppm_log(LOG_NOTICE, "ppm: check password against %s attribute", token);
+                // parse attribute values
+                for ( i = 0; a->a_vals[i].bv_val != NULL; i++ )
+                {
+                    strcpy_safe(val, a->a_vals[i].bv_val, VALUE_MAX_LEN);
+                    ppm_log(LOG_NOTICE,
+                            "ppm: check password against %s attribute value",
+                            a->a_vals[i].bv_val);
+                    
+                    // Search for each token in the attribute
+                    tk = strtok(val, ATTR_TOKENS_DELIMITERS);
+
+                    while (tk != NULL)
+                    {
+                        if (strlen(tk) > 2)
+                        {
+                            ppm_log(LOG_NOTICE,
+                                    "ppm: Checking if %s part of value %s of attribute %s matches the password",
+                                    tk,
+                                    a->a_vals[i].bv_val,
+                                    a->a_desc->ad_cname.bv_val);
+                            // Compile regular expression 
+                            reti = regcomp(&regex, tk, REG_ICASE);
+                            if (reti) {
+                              ppm_log(LOG_ERR, "ppm: Cannot compile regex: %s", tk);
+                              return 0;
+                            }
+
+                            // Execute regular expression: does password
+                            // contains the token extracted from the attr value?
+                            reti = regexec(&regex, passwd, 0, NULL, 0);
+                            if (!reti)
+                            { 
+                              regfree(&regex);
+                              return 1;
+                            }
+        
+                            regfree(&regex);
+                          }
+                          else
+                          { 
+                            ppm_log(LOG_NOTICE,
+                                    "ppm: %s part of value %s of attribute %s is too short to be checked",
+                                    tk,
+                                    a->a_vals[i].bv_val,
+                                    a->a_desc->ad_cname.bv_val);
+                          }
+                          tk = strtok(NULL, ATTR_TOKENS_DELIMITERS);
+                        }
+                }
+            }
+            token = strtok(NULL, ",\0");
+        }
+    }
+ 
+    return 0;
+}
+
 
 int
 check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg)
@@ -447,6 +529,7 @@ check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg)
     char* res;
     int minQuality;
     int checkRDN;
+    char checkAttributes[VALUE_MAX_LEN];
     char forbiddenChars[VALUE_MAX_LEN];
     int nForbiddenChars = 0;
     int nQuality = 0;
@@ -516,8 +599,11 @@ check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg)
         {"class-special", typeStr,
          {.sVal = "<>,?;.:/!§ù%*µ^¨$£²&é~\"#'{([-|è`_\\ç^à@)]°=}+"}, 0, 1
          }
+        ,
+        {"checkAttributes", typeStr, {.sVal = ""}, 0, 0
+         }
     };
-    numParam = 10;
+    numParam = 11;
 
     #ifdef PPM_READ_FILE
       /* Read configuration file (DEPRECATED) */
@@ -536,6 +622,9 @@ check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg)
     useCracklib = getValue(fileConf, numParam, "useCracklib")->iVal;
     strcpy_safe(cracklibDict,
                 getValue(fileConf, numParam, "cracklibDict")->sVal,
+                VALUE_MAX_LEN);
+    strcpy_safe(checkAttributes,
+                getValue(fileConf, numParam, "checkAttributes")->sVal,
                 VALUE_MAX_LEN);
 
 
@@ -670,6 +759,18 @@ check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg)
                                         strlen(RDN_TOKEN_FOUND) +
                                         strlen(pEntry->e_nname.bv_val));
         sprintf(szErrStr, RDN_TOKEN_FOUND, pEntry->e_nname.bv_val);
+
+        goto fail;
+    }
+
+    // Password checking done, now looking for checkAttributes criteria
+    if (containsAttributes(pPasswd, pEntry, checkAttributes))
+    // A token from an attribute is found in password: goto fail
+    {
+        mem_len = realloc_error_message(origmsg, &szErrStr, mem_len,
+                                        strlen(ATTR_TOKEN_FOUND) +
+                                        strlen(pEntry->e_nname.bv_val));
+        sprintf(szErrStr, ATTR_TOKEN_FOUND, pEntry->e_nname.bv_val);
 
         goto fail;
     }
