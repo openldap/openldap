@@ -2558,7 +2558,7 @@ sortval_reject:
 
 #ifdef LDAP_SLAPI
 		case CFG_PLUGIN:
-			if(slapi_int_read_config(c->be, c->fname, c->lineno, c->argc, c->argv, c->valx) != LDAP_SUCCESS)
+			if(slapi_int_read_config(c) != LDAP_SUCCESS)
 				return(1);
 			slapi_plugins_used++;
 			break;
