@@ -35,11 +35,12 @@
 
 #define CONF_MAX_SIZE                      50
 #define PARAM_MAX_LEN                      32
-#define VALUE_MAX_LEN                      128
+#define VALUE_MAX_LEN                      512
 #define ATTR_NAME_MAX_LEN                  150
 
 #define PARAM_PREFIX_CLASS                "class-"
 #define TOKENS_DELIMITERS                 " ,;-_£\t"
+#define ATTR_TOKENS_DELIMITERS            " ,;-_@\t"
 
 
 #define DEBUG_MSG_MAX_LEN                 256
@@ -54,6 +55,8 @@
   "Password for dn=\"%s\" contains %d forbidden characters in %s"
 #define RDN_TOKEN_FOUND \
   "Password for dn=\"%s\" contains tokens from the RDN"
+#define ATTR_TOKEN_FOUND \
+  "Password for dn=\"%s\" is too simple: it contains part of an attribute"
 #define GENERIC_ERROR \
   "Error while checking password"
 #define PASSWORD_CRACKLIB \
@@ -80,9 +83,10 @@ typedef struct params {
 
 // allowed parameters loaded into configuration structure
 // it also contains the type of the corresponding value
-params allowedParameters[7] = {
+params allowedParameters[8] = {
     {"^minQuality", typeInt},
     {"^checkRDN", typeInt},
+    {"^checkAttributes", typeStr},
     {"^forbiddenChars", typeStr},
     {"^maxConsecutivePerClass", typeInt},
     {"^useCracklib", typeInt},

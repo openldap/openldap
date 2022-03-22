@@ -1,5 +1,8 @@
 # CHANGELOG
 
+* 2022-03-22 David Coutadeur <david.coutadeur@gmail.com>
+  Reject password if it contains tokens from an attribute of the LDAP entry #17 
+  Version 2.1
 * 2021-02-23 David Coutadeur <david.coutadeur@gmail.com>
   remove maxLength attribute (#21)
   adapt the readme and documentation of ppm (#22)
