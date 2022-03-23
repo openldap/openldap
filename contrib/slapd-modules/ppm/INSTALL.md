@@ -11,6 +11,8 @@ ppm is provided along with OpenLDAP sources. By default, it is available into co
 
 Build
 -----
+Prerequisite: run `./configure && make depend` on openldap base source directory.
+
 Enter contrib/slapd-modules/ppm directory
 
 You can optionally customize some variables if you don't want the default ones:
