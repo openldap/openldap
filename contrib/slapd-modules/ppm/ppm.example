@@ -43,7 +43,7 @@ checkRDN 0
 
 # checkAttributes parameter
 # Format:
-# checkRDN [ATTR1,ATTR2,...]
+# checkAttributes [ATTR1,ATTR2,...]
 # Description:
 # Password must not contain a token from the values in the given list of attributes
 # Tokens are substrings of the values of the given attributes,

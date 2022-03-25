@@ -142,7 +142,7 @@ checkRDN 0
 
 # checkAttributes parameter
 # Format:
-# checkRDN [ATTR1,ATTR2,...]
+# checkAttributes [ATTR1,ATTR2,...]
 # Description:
 # Password must not contain a token from the values in the given list of attributes
 # Tokens are substrings of the values of the given attributes,
@@ -236,59 +236,49 @@ Typical user message from ldappasswd(5):
 
 A more detailed message is written to the server log.
 
-Server log:
+While evaluating a password change, you should observe something looking at this in the logs:
 
 ```
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 fd=13 ACCEPT from IP=[::1]:49322 (IP=[::]:389)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=0 BIND dn="uid=daniel.jackson,ou=people,dc=my-domain,dc=com" method=128
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=0 BIND dn="uid=daniel.jackson,ou=people,dc=my-domain,dc=com" mech=SIMPLE bind_ssf=0 ssf=0
-Mar 22 17:08:23 debian-11-64 slapd[79222]: connection_input: conn=1000 deferring operation: binding
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=0 RESULT tag=97 err=0 qtime=0.000047 etime=0.157388 text=
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=1 MOD dn="uid=jack.oneill,ou=people,dc=my-domain,dc=com"
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=1 MOD attr=userPassword
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: entry uid=jack.oneill,ou=people,dc=my-domain,dc=com
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Reading pwdCheckModuleArg attribute
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: RAW configuration: minQuality 3#012checkRDN 0#012checkAttributes mail,uid#012forbiddenChars#012maxConsecutivePerClass 0#012useCracklib 0#012cracklibDict /var/cache/cracklib/cracklib_dict#012class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1#012class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1#012class-digit 0123456789 0 1#012class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Parsing pwdCheckModuleArg attribute
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: minQuality 3
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = minQuality, value = 3, min = (null), minForPoint= (null)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 3
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: checkRDN 0
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = checkRDN, value = 0, min = (null), minForPoint= (null)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: checkAttributes mail,uid
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = checkAttributes, value = mail,uid, min = (null), minForPoint= (null)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: mail,uid
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: forbiddenChars
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: No value, goto next parameter
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: maxConsecutivePerClass 0
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = maxConsecutivePerClass, value = 0, min = (null), minForPoint= (null)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: useCracklib 0
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = useCracklib, value = 0, min = (null), minForPoint= (null)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: cracklibDict /var/cache/cracklib/cracklib_dict
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = cracklibDict, value = /var/cache/cracklib/cracklib_dict, min = (null), minForPoint= (null)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: /var/cache/cracklib/cracklib_dict
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-upperCase, value = ABCDEFGHIJKLMNOPQRSTUVWXYZ, min = 0, minForPoint= 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: ABCDEFGHIJKLMNOPQRSTUVWXYZ
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-lowerCase, value = abcdefghijklmnopqrstuvwxyz, min = 0, minForPoint= 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: abcdefghijklmnopqrstuvwxyz
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-digit 0123456789 0 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-digit, value = 0123456789, min = 0, minForPoint= 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: 0123456789
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: get line: class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Param = class-special, value = <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+, min = 0, minForPoint= 1
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm:  Accepted replaced value: <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: 1 point granted for class class-upperCase
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: 1 point granted for class class-lowerCase
-Mar 22 17:08:23 debian-11-64 slapd[79222]: ppm: Reallocating szErrStr from 64 to 179
-Mar 22 17:08:23 debian-11-64 slapd[79222]: check_password_quality: module error: (/usr/local/openldap/libexec/openldap/ppm.so) Password for dn="uid=jack.oneill,ou=people,dc=my-domain,dc=com" does not pass required number of strength checks (2 of 3).[1]
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=1 RESULT tag=103 err=19 qtime=0.000668 etime=0.004593 text=Password for dn="uid=jack.oneill,ou=people,dc=my-domain,dc=com" does not pass required number of strength checks (2 of 3)
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 op=2 UNBIND
-Mar 22 17:08:23 debian-11-64 slapd[79222]: conn=1000 fd=13 closed
+ppm: entry uid=jack.oneill,ou=people,dc=my-domain,dc=com
+ppm: Reading pwdCheckModuleArg attribute
+ppm: RAW configuration: minQuality 3#012checkRDN 0#012checkAttributes mail,uid#012forbiddenChars#012maxConsecutivePerClass 0#012useCracklib 0#012cracklibDict /var/cache/cracklib/cracklib_dict#012class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1#012class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1#012class-digit 0123456789 0 1#012class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
+ppm: Parsing pwdCheckModuleArg attribute
+ppm: get line: minQuality 3
+ppm: Param = minQuality, value = 3, min = (null), minForPoint= (null)
+ppm:  Accepted replaced value: 3
+ppm: get line: checkRDN 0
+ppm: Param = checkRDN, value = 0, min = (null), minForPoint= (null)
+ppm:  Accepted replaced value: 0
+ppm: get line: checkAttributes mail,uid
+ppm: Param = checkAttributes, value = mail,uid, min = (null), minForPoint= (null)
+ppm:  Accepted replaced value: mail,uid
+ppm: get line: forbiddenChars
+ppm: No value, goto next parameter
+ppm: get line: maxConsecutivePerClass 0
+ppm: Param = maxConsecutivePerClass, value = 0, min = (null), minForPoint= (null)
+ppm:  Accepted replaced value: 0
+ppm: get line: useCracklib 0
+ppm: Param = useCracklib, value = 0, min = (null), minForPoint= (null)
+ppm:  Accepted replaced value: 0
+ppm: get line: cracklibDict /var/cache/cracklib/cracklib_dict
+ppm: Param = cracklibDict, value = /var/cache/cracklib/cracklib_dict, min = (null), minForPoint= (null)
+ppm:  Accepted replaced value: /var/cache/cracklib/cracklib_dict
+ppm: get line: class-upperCase ABCDEFGHIJKLMNOPQRSTUVWXYZ 0 1
+ppm: Param = class-upperCase, value = ABCDEFGHIJKLMNOPQRSTUVWXYZ, min = 0, minForPoint= 1
+ppm:  Accepted replaced value: ABCDEFGHIJKLMNOPQRSTUVWXYZ
+ppm: get line: class-lowerCase abcdefghijklmnopqrstuvwxyz 0 1
+ppm: Param = class-lowerCase, value = abcdefghijklmnopqrstuvwxyz, min = 0, minForPoint= 1
+ppm:  Accepted replaced value: abcdefghijklmnopqrstuvwxyz
+ppm: get line: class-digit 0123456789 0 1
+ppm: Param = class-digit, value = 0123456789, min = 0, minForPoint= 1
+ppm:  Accepted replaced value: 0123456789
+ppm: get line: class-special <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+ 0 1
+ppm: Param = class-special, value = <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+, min = 0, minForPoint= 1
+ppm:  Accepted replaced value: <>,?;.:/!§ù%*µ^¨$£²&é~"#'{([-|è`_\ç^à@)]°=}+
+ppm: 1 point granted for class class-upperCase
+ppm: 1 point granted for class class-lowerCase
+ppm: Reallocating szErrStr from 64 to 179
+check_password_quality: module error: (/usr/local/openldap/libexec/openldap/ppm.so) Password for dn="uid=jack.oneill,ou=people,dc=my-domain,dc=com" does not pass required number of strength checks (2 of 3).[1]
 ```
 
 
