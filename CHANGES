@@ -29,6 +29,8 @@ OpenLDAP 2.6.2 Engineering
 		Fix compiliation with certain versions of gcc (ITS#9790)
 		Fix compilation with openssl exclusions (ITS#9791)
 		Fix warnings from make jobserver (ITS#9788)
+	Contrib
+		Update ppm module to the 2.1 release (ITS#9814)
 	Documentation
 		admin26 Document new lloadd features (ITS#9780)
 		Fixed slapd.conf(5)/slapd-config(5) syncrepl sizelimit/timelimit documentation (ITS#9804)
