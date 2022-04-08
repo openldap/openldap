@@ -14,23 +14,29 @@ stages:
 build-no-threads-no-slapd:
   stage: build
   script:
+    - export STARTTIME=$(date +%s)
     - apt update
     - DEBIAN_FRONTEND=noninteractive apt install -y build-essential autoconf pkg-config groff-base libsasl2-dev libssl-dev
     - autoreconf
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Configuring"
     - ./configure --without-threads --disable-slapd
     - make depend
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Building"
     - make
 
 build-openssl-heimdal-lloadd:
   stage: build
   script:
+    - export STARTTIME=$(date +%s)
     - apt update
     - DEBIAN_FRONTEND=noninteractive apt install -y build-essential python3 gdb procps pkg-config automake libsasl2-dev heimdal-multidev libssl-dev libltdl-dev groff-base unixodbc-dev libwiredtiger-dev libperl-dev heimdal-kdc libsasl2-modules-gssapi-heimdal sasl2-bin libevent-dev libargon2-dev libsystemd-dev
     - autoreconf
     - mkdir obj
     - cd obj
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Configuring"
     - ../configure --enable-backends=mod --enable-overlays=mod --enable-modules --enable-dynamic --enable-balancer=mod --enable-argon2 --with-systemd
     - make depend
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Building"
     - make
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
     - SLAPD_COMMON_WRAPPER=gdb make test
@@ -45,13 +51,16 @@ build-openssl-heimdal-lloadd:
 build-gnutls-mit-standalone-lloadd:
   stage: build
   script:
+    - export STARTTIME=$(date +%s)
     - apt update
     - DEBIAN_FRONTEND=noninteractive apt install -y build-essential python3 gdb procps pkg-config automake libsasl2-dev libltdl-dev groff-base unixodbc-dev libwiredtiger-dev libperl-dev krb5-user krb5-kdc krb5-admin-server libsasl2-modules-gssapi-mit sasl2-bin libgnutls28-dev libevent-dev libargon2-dev libsystemd-dev
     - autoreconf
     - mkdir obj
     - cd obj
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Configuring"
     - ../configure --enable-backends=mod --enable-overlays=mod --disable-autoca --enable-modules --enable-dynamic --enable-balancer=yes --enable-argon2 --with-systemd
     - make depend
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Building"
     - make
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
     - SLAPD_COMMON_WRAPPER=gdb make test
