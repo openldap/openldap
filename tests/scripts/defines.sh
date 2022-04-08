@@ -17,6 +17,11 @@ umask 077
 
 TESTWD=`pwd`
 
+if [ -z "$STARTTIME" ]; then
+    STARTTIME=$(date +%s)
+fi
+export STARTTIME
+
 # per instance
 TESTDIR=${USER_TESTDIR-$TESTWD/testrun}
 BASEPORT=${SLAPD_BASEPORT-9010}
@@ -455,3 +460,4 @@ MEMBEROFOUT=$DATADIR/memberof.out
 MEMBEROFREFINTOUT=$DATADIR/memberof-refint.out
 SHTOOL="$SRCDIR/../build/shtool"
 
+. $ABS_SRCDIR/scripts/functions.sh

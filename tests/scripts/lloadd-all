@@ -25,7 +25,7 @@ FAILCOUNT=0
 SKIPCOUNT=0
 SLEEPTIME=10
 
-echo ">>>>> Executing all LDAP tests for the Load Balancer"
+echo ">>>>> $(timer) Executing all LDAP tests for the Load Balancer"
 
 if [ -n "$NOEXIT" ]; then
     echo "Result    Test" > $TESTWD/results
@@ -49,7 +49,7 @@ for CMD in $SRCDIR/scripts/lloadd/test*; do
 
     BCMD=`basename $CMD`
     if [ -x "$CMD" ]; then
-        MSG=">>>>> Starting ${TB}$BCMD${TN} for lloadd+$BACKEND..."
+        MSG=">>>>> $(timer) Starting ${TB}$BCMD${TN} for lloadd+$BACKEND..."
         [ -n "$TESTINST" ] && echo "$MSG" >&2
         echo "$MSG"
         START=`date +%s`
@@ -62,11 +62,11 @@ for CMD in $SRCDIR/scripts/lloadd/test*; do
         END=`date +%s`
 
         if test $RC -eq 0 ; then
-            MSG=">>>>> Finished $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds."
+            MSG=">>>>> $(timer) Finished $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds."
             [ -n "$TESTINST" ] && echo "$MSG" >&2
             echo "$MSG"
         else
-            MSG=">>>>> Failed   $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds"
+            MSG=">>>>> $(timer) Failed   $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds"
             [ -n "$TESTINST" ] && echo "$MSG" >&2
             echo "$MSG"
             FAILCOUNT=`expr $FAILCOUNT + 1`
@@ -79,7 +79,7 @@ for CMD in $SRCDIR/scripts/lloadd/test*; do
             fi
         fi
     else
-        MSG=">>>>> Skipping ${TB}$BCMD${TN} for lloadd+$BACKEND."
+        MSG=">>>>> $(timer) Skipping ${TB}$BCMD${TN} for lloadd+$BACKEND."
         [ -n "$TESTINST" ] && echo "$MSG" >&2
         echo "$MSG"
         SKIPCOUNT=`expr $SKIPCOUNT + 1`
