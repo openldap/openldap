@@ -755,6 +755,14 @@ if test -z "$ATTR" ; then
 	exit 1
 fi
 
+$LDAPSEARCH -H $URI2 -b "o=translucent" "(employeeType=consult*)" > $SEARCHOUT 2>&1
+ATTR=`grep dn: $SEARCHOUT` > $NOWHERE 2>&1
+if test -z "$ATTR" ; then
+	echo "got no result, should have found entry"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 echo "Testing search: unconfigured remote filter..."
 $LDAPSEARCH -H $URI2 -b "o=translucent" "(|(employeeType=foo)(carlicense=right))" > $SEARCHOUT 2>&1
 
