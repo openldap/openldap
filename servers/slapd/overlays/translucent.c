@@ -999,7 +999,6 @@ trans_filter_dup(Operation *op, Filter *f, AttributeName *an)
 	case LDAP_FILTER_GE:
 	case LDAP_FILTER_LE:
 	case LDAP_FILTER_APPROX:
-	case LDAP_FILTER_SUBSTRINGS:
 	case LDAP_FILTER_EXT:
 		if ( !f->f_av_desc || ad_inlist( f->f_av_desc, an )) {
 			AttributeAssertion *nava;
@@ -1012,6 +1011,29 @@ trans_filter_dup(Operation *op, Filter *f, AttributeName *an)
 			n->f_ava = nava;
 
 			ber_dupbv_x( &n->f_av_value, &f->f_av_value, op->o_tmpmemctx );
+			n->f_next = NULL;
+		}
+		break;
+
+	case LDAP_FILTER_SUBSTRINGS:
+		if ( !f->f_av_desc || ad_inlist( f->f_av_desc, an )) {
+			SubstringsAssertion *nsub;
+
+			n = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
+			n->f_choice = f->f_choice;
+
+			nsub = op->o_tmpalloc( sizeof(SubstringsAssertion), op->o_tmpmemctx );
+			*nsub = *f->f_sub;
+			n->f_sub = nsub;
+
+			if ( !BER_BVISNULL( &f->f_sub_initial ))
+				ber_dupbv_x( &n->f_sub_initial, &f->f_sub_initial, op->o_tmpmemctx );
+
+			ber_bvarray_dup_x( &n->f_sub_any, f->f_sub_any, op->o_tmpmemctx );
+
+			if ( !BER_BVISNULL( &f->f_sub_final ))
+				ber_dupbv_x( &n->f_sub_final, &f->f_sub_final, op->o_tmpmemctx );
+
 			n->f_next = NULL;
 		}
 		break;
