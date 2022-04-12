@@ -24,6 +24,7 @@ OpenLDAP 2.6.2 Engineering
 	Added slapo-otp support for OpenSSL 3.0 (ITS#9436)
 	Fixed slapo-pcache SEGV on shutdown (ITS#9809)
 	Fixed slapo-ppolicy operation handling to be consistent (ITS#9794)
+	Fixed slapo-translucent to correctly duplicate substring filters (ITS#9818)
 	Build Enviornment
 		Add ability to override default compile time paths (ITS#9675)
 		Fix compiliation with certain versions of gcc (ITS#9790)
