@@ -2664,7 +2664,6 @@ idassert-authzFrom	"dn:<rootdn>"
 				assert( rc == 0 );
 				ch_free( ca.tline );
 			}
-			ch_free( ca.argv );
 		}
 		argc = c->argc;
 		argv = c->argv;
@@ -2730,7 +2729,7 @@ idassert-authzFrom	"dn:<rootdn>"
 	case LDAP_BACK_CFG_MAP: {
 	/* objectclass/attribute mapping */
 		ConfigArgs ca = { 0 };
-		char *argv[5];
+		char *argv[5], **argvp;
 		struct ldapmap rwm_oc;
 		struct ldapmap rwm_at;
 		int cnt = 0, ix = c->valx;
@@ -2763,7 +2762,8 @@ idassert-authzFrom	"dn:<rootdn>"
 				argv[2] = ca.argv[1];
 				argv[3] = ca.argv[2];
 				argv[4] = ca.argv[3];
-				ch_free( ca.argv );
+
+				argvp = ca.argv;
 				ca.argv = argv;
 				ca.argc++;
 				rc = ldap_back_map_config( &ca, &mt->mt_rwmap.rwm_oc,
@@ -2771,7 +2771,7 @@ idassert-authzFrom	"dn:<rootdn>"
 
 				ch_free( ca.tline );
 				ca.tline = NULL;
-				ca.argv = NULL;
+				ca.argv = argvp;
 
 				/* in case of failure, restore
 				 * the existing mapping */
@@ -2788,7 +2788,7 @@ idassert-authzFrom	"dn:<rootdn>"
 		}
 
 		if ( ix < cnt ) {
-			for ( ; i<cnt ; cnt++ ) {
+			for ( ; i<cnt ; i++ ) {
 				ca.line = mt->mt_rwmap.rwm_bva_map[ i ].bv_val;
 				ca.argc = 0;
 				config_fp_parse_line( &ca );
@@ -2798,7 +2798,7 @@ idassert-authzFrom	"dn:<rootdn>"
 				argv[3] = ca.argv[2];
 				argv[4] = ca.argv[3];
 
-				ch_free( ca.argv );
+				argvp = ca.argv;
 				ca.argv = argv;
 				ca.argc++;
 				rc = ldap_back_map_config( &ca, &mt->mt_rwmap.rwm_oc,
@@ -2806,7 +2806,7 @@ idassert-authzFrom	"dn:<rootdn>"
 
 				ch_free( ca.tline );
 				ca.tline = NULL;
-				ca.argv = NULL;
+				ca.argv = argvp;
 
 				/* in case of failure, restore
 				 * the existing mapping */
@@ -2814,6 +2814,7 @@ idassert-authzFrom	"dn:<rootdn>"
 					goto map_fail;
 				}
 			}
+			ch_free( ca.argv );
 		}
 
 		/* save the map info */
@@ -2825,7 +2826,7 @@ idassert-authzFrom	"dn:<rootdn>"
 			/* move it to the right slot */
 			if ( ix < cnt ) {
 				for ( i=cnt; i>ix; i-- )
-					mt->mt_rwmap.rwm_bva_map[i+1] = mt->mt_rwmap.rwm_bva_map[i];
+					mt->mt_rwmap.rwm_bva_map[i] = mt->mt_rwmap.rwm_bva_map[i-1];
 				mt->mt_rwmap.rwm_bva_map[i] = bv;
 
 				/* destroy old mapping */
@@ -2841,6 +2842,7 @@ map_fail:;
 			meta_back_map_free( &mt->mt_rwmap.rwm_at );
 			mt->mt_rwmap.rwm_oc = rwm_oc;
 			mt->mt_rwmap.rwm_at = rwm_at;
+			ch_free( ca.argv );
 		}
 		} break;
 
