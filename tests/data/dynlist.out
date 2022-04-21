@@ -679,6 +679,10 @@ memberOf: cn=bonus group,ou=groups,dc=example,dc=com
 memberOf: cn=alumni assoc staff,ou=groups,dc=example,dc=com
 memberOf: cn=dynamic list of members,ou=dynamic lists,dc=example,dc=com
 
+dn: cn=James A Jones 2,ou=Information Technology Division,ou=People,dc=example
+ ,dc=com
+uid: jjones
+
 # Testing negated filtered memberOf functionality...
 dn: cn=Barbara Jensen,ou=Information Technology Division,ou=People,dc=example,
  dc=com
