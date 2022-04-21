@@ -1208,13 +1208,16 @@ dynlist_filter_stgroup( Operation *op, Filter *n, Attribute *a )
 	Filter *dnf, *orf = NULL;
 	int i;
 
-	if ( a->a_numvals == 1 ) {
+	if ( a->a_numvals == 1 && n->f_choice == SLAPD_FILTER_COMPUTED ) {
 		dnf = n;
 	} else {
 		orf = n;
-		orf->f_choice = LDAP_FILTER_OR;
+		if ( n->f_choice != LDAP_FILTER_OR ) {
+			orf->f_choice = LDAP_FILTER_OR;
+			orf->f_list = NULL;
+		}
 		dnf = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
-		dnf->f_next = NULL;
+		dnf->f_next = orf->f_list;
 		orf->f_list = dnf;
 	}
 
@@ -1298,9 +1301,9 @@ dynlist_filter_dup( Operation *op, Filter *f, AttributeDescription *ad, dynlist_
 		break;
 
 	case LDAP_FILTER_EQUALITY:
-		n->f_choice = SLAPD_FILTER_COMPUTED;
 		if ( f->f_av_desc == ad ) {
 			dynlist_name_t *dyn = ldap_tavl_find( ds->ds_names, &f->f_av_value, dynlist_avl_cmp );
+			n->f_choice = SLAPD_FILTER_COMPUTED;
 			if ( dyn && !dynlist_filter_group( op, dyn, n, ds ))
 				break;
 		}
