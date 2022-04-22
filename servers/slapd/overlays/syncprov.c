@@ -3235,14 +3235,8 @@ aband:
 		if (srs->sr_state.numcsns != numcsns) {
 			/* consumer doesn't have the right number of CSNs */
 			Debug( LDAP_DEBUG_SYNC, "%s syncprov_op_search: "
-				"consumer cookie is missing a csn we track%s\n",
-				op->o_log_prefix, si->si_nopres ? ", rejecting" : "" );
-
-			if ( si->si_nopres ) {
-				rs->sr_err = LDAP_SYNC_REFRESH_REQUIRED;
-				rs->sr_text = "not enough information to resync, please use other means";
-				goto bailout;
-			}
+				"consumer cookie is missing a csn we track\n",
+				op->o_log_prefix );
 
 			changed = SS_CHANGED;
 			if ( srs->sr_state.ctxcsn ) {
@@ -3342,7 +3336,55 @@ no_change:	if ( !(op->o_sync_mode & SLAP_SYNC_PERSIST) ) {
 					numcsns, sids, &mincsn, minsid ) ) {
 				do_present = SS_PRESENT;
 			}
+		} else if ( si->si_nopres && si->si_usehint ) {
+			/* We are instructed to trust minCSN if it exists. */
+			Entry *e;
+			Attribute *a = NULL;
+			int rc;
+
+			/*
+			 * ITS#9580 FIXME: when we've figured out and split the
+			 * sessionlog/deltalog tracking, use the appropriate attribute
+			 */
+			rc = overlay_entry_get_ov( op, &op->o_bd->be_nsuffix[0], NULL,
+					ad_minCSN, 0, &e, on );
+			if ( rc == LDAP_SUCCESS && e != NULL ) {
+				a = attr_find( e->e_attrs, ad_minCSN );
+			}
+
+			if ( a != NULL ) {
+				int *minsids;
+
+				minsids = slap_parse_csn_sids( a->a_vals, a->a_numvals, op->o_tmpmemctx );
+				slap_sort_csn_sids( a->a_vals, minsids, a->a_numvals, op->o_tmpmemctx );
+
+				for ( i=0, j=0; i < a->a_numvals; i++ ) {
+					while ( j < numcsns && minsids[i] > sids[j] ) j++;
+					if ( j < numcsns && minsids[i] == sids[j] &&
+							ber_bvcmp( &a->a_vals[i], &srs->sr_state.ctxcsn[j] ) <= 0 ) {
+						/* minCSN for this serverID is contained, keep going */
+						continue;
+					}
+					/*
+					 * Log DB's minCSN claims we can only replay from a certain
+					 * CSN for this serverID, but consumer's cookie hasn't met that
+					 * threshold: they need to refresh
+					 */
+					Debug( LDAP_DEBUG_SYNC, "%s syncprov_op_search: "
+						"consumer not within recorded mincsn for DB's mincsn=%s\n",
+						op->o_log_prefix, a->a_vals[i].bv_val );
+					rs->sr_err = LDAP_SYNC_REFRESH_REQUIRED;
+					rs->sr_text = "sync cookie is stale";
+					slap_sl_free( minsids, op->o_tmpmemctx );
+					overlay_entry_release_ov( op, e, 0, on );
+					goto bailout;
+				}
+				slap_sl_free( minsids, op->o_tmpmemctx );
+			}
+			if ( e != NULL )
+				overlay_entry_release_ov( op, e, 0, on );
 		}
+
 		/*
 		 * If sessionlog wasn't useful, see if we can find at least one entry
 		 * that hasn't changed based on the cookie.
@@ -3787,6 +3829,7 @@ sp_cf_gen(ConfigArgs *c)
 		break;
 	case SP_USEHINT:
 		si->si_usehint = c->value_int;
+		rc = syncprov_setup_accesslog();
 		break;
 	case SP_LOGDB:
 		if ( si->si_logs ) {
