@@ -871,13 +871,14 @@ Connection* connection_next( Connection *c, ber_socket_t *index )
 
 	for(; *index < dtblsize; (*index)++) {
 		if( connections[*index].c_sb ) {
-			c = &connections[(*index)++];
+			c = &connections[*index];
 			ldap_pvt_thread_mutex_lock( &c->c_mutex );
 			if ( c->c_conn_state == SLAP_C_INVALID ) {
 				ldap_pvt_thread_mutex_unlock( &c->c_mutex );
 				c = NULL;
 				continue;
 			}
+			(*index)++;
 			break;
 		}
 	}
