@@ -128,6 +128,7 @@ monitor_send_children(
 					monitor_cache_lock( e );
 					monitor_cache_release( mi, e );
 				}
+				e = rs->sr_entry;
 				goto freeout;
 			}
 		}
