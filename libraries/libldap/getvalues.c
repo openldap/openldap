@@ -159,15 +159,7 @@ ldap_count_values( char **vals )
 int
 ldap_count_values_len( struct berval **vals )
 {
-	int i;
-
-	if ( vals == NULL )
-		return 0;
-
-	for ( i = 0; !BER_BVISNULL( vals[i] ); i++ )
-		; /* NULL */
-
-	return i;
+	return( ldap_count_values( (char **) vals ) );
 }
 
 void
