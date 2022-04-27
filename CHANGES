@@ -11,6 +11,7 @@ OpenLDAP 2.6.2 Engineering
 	Fixed slapd bconfig locking for cn=config replication (ITS#9584)
 	Fixed slapd usage of thread local counters (ITS#9789)
 	Fixed slapd to clear runqueue task correctly (ITS#9785)
+	Fixed slapd idletimeout handling (ITS#9820)
 	Fixed slapd syncrepl handling of new sessions (ITS#9584)
 	Fixed slapd to clear connections on bind (ITS#9799)
 	Fixed slapd syncrepl ODSEE replication of unknown attr (ITS#9801)
