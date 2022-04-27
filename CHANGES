@@ -10,6 +10,7 @@ OpenLDAP 2.5.12 Engineering
 	Fixed slapd bconfig locking for cn=config replication (ITS#9584)
 	Fixed slapd syncrepl handling of new sessions (ITS#9584)
 	Fixed slapd to clear connections on bind (ITS#9799)
+	Fixed slapd to correctly advance connections index (ITS#9831)
 	Fixed slapd syncrepl ODSEE replication of unknown attr (ITS#9801)
 	Fixed slapd-asyncmeta memory leak in keepalive setting (ITS#9802)
 	Fixed slapd-ldap memory leak in keepalive setting (ITS#9802)
