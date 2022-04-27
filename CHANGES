@@ -16,6 +16,7 @@ OpenLDAP 2.5.12 Engineering
 	Fixed slapd-meta ordering on config rewrite (ITS#9802)
 	Fixed slapd-meta memory leak in keepalive setting (ITS#9802)
 	Fixed slapd-monitor SEGV on shutdown (ITS#9809)
+	Fixed slapo-dynlist dynamic group regression (ITS#9825)
 	Fixed slapo-pcache SEGV on shutdown (ITS#9809)
 	Fixed slapo-ppolicy operation handling to be consistent (ITS#9794)
 	Fixed slapo-translucent to correctly duplicate substring filters (ITS#9818)
