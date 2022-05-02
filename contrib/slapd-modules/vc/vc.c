@@ -289,7 +289,7 @@ vc_exop(
 			goto done;
 		}
 		conn->refcnt++;
-		operation_counters_init( conn->op, op->o_threadctx );
+		operation_counter_init( conn->op, op->o_threadctx );
 		ldap_pvt_thread_mutex_unlock( &vc_mutex );
 
 	} else {
