@@ -23,6 +23,7 @@ OpenLDAP 2.6.2 Engineering
 	Fixed slapd-meta memory leak in keepalive setting (ITS#9802)
 	Fixed slapd-monitor SEGV on shutdown (ITS#9809)
 	Fixed slapd-monitor crash when hitting sizelimit (ITS#9832)
+	Fixed slapd-sql to properly escape filter value (ITS#9815)
 	Added slapo-autoca support for OpenSSL 3.0 (ITS#9436)
 	Added slapo-otp support for OpenSSL 3.0 (ITS#9436)
 	Fixed slapo-dynlist dynamic group regression (ITS#9825)
