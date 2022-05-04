@@ -43,7 +43,6 @@ OpenLDAP 2.6.2 Release (2022/05/04)
 		admin26 Document new lloadd features (ITS#9780)
 		Fixed slapd.conf(5)/slapd-config(5) syncrepl sizelimit/timelimit documentation (ITS#9804)
 		Fixed slapd-sock(5) to clarify "sockresps result" behavior (ITS#8255)
-		
 
 OpenLDAP 2.6.1 Release (2022/01/20)
 	Fixed libldap to init client socket port (ITS#9743)
