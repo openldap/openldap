@@ -1,6 +1,6 @@
 OpenLDAP 2.6 Change Log
 
-OpenLDAP 2.6.2 Engineering
+OpenLDAP 2.6.2 Release (2022/05/04)
 	Added libldap support for OpenSSL 3.0 (ITS#9436)
 	Added slapd support for OpenSSL 3.0 (ITS#9436)
 	Fixed ldapdelete to prune LDAP subentries (ITS#9737)
