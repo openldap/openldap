@@ -1,5 +1,7 @@
 OpenLDAP 2.5 Change Log
 
+OpenLDAP 2.5.13 Engineering
+
 OpenLDAP 2.5.12 Release (2022/05/04)
 	Fixed libldap to drop connection when non-LDAP data is received (ITS#9803)
 	Fixed libldap to allow newlines at end of included file (ITS#9811)
