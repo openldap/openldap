@@ -1,5 +1,12 @@
 # CHANGELOG
 
+* 2022-05-17 David Coutadeur <david.coutadeur@gmail.com>
+  implement a maximum number of characters for each class #18
+  upgrade documentation for new olcPPolicyCheckModule in OpenLDAP 2.6 #30
+  Make one unique code of development for 2.5 and 2.6 OpenLDAP versions #35
+  fix segmentation fault in ppm_test #36
+  various minor fixes and optimizations
+  Version 2.2
 * 2022-03-22 David Coutadeur <david.coutadeur@gmail.com>
   Reject password if it contains tokens from an attribute of the LDAP entry #17 
   Version 2.1

@@ -18,6 +18,11 @@
 #include <syslog.h>
 #endif
 
+// Get OpenLDAP version
+#define OLDAP_VERSION ((LDAP_VENDOR_VERSION_MAJOR << 8) | LDAP_VENDOR_VERSION_MINOR)
+// OLDAP_VERSION = 0x0205 // (v2.5)
+// OLDAP_VERSION = 0x0206 // (v2.6)
+
 //#define PPM_READ_FILE 1       // old deprecated configuration mode
                                 // 1: (deprecated) don't read pwdCheckModuleArg
                                 //    attribute, instead read config file
@@ -31,6 +36,9 @@
 
 #define DEFAULT_QUALITY                   3
 #define MEMORY_MARGIN                     50
+#if OLDAP_VERSION == 0x0205
+  #define MEM_INIT_SZ                     64
+#endif
 #define DN_MAX_LEN                        512
 
 #define CONF_MAX_SIZE                      50
@@ -47,8 +55,10 @@
 
 #define PASSWORD_QUALITY_SZ \
   "Password for dn=\"%s\" does not pass required number of strength checks (%d of %d)"
-#define PASSWORD_CRITERIA \
+#define PASSWORD_MIN_CRITERIA \
   "Password for dn=\"%s\" has not reached the minimum number of characters (%d) for class %s"
+#define PASSWORD_MAX_CRITERIA \
+  "Password for dn=\"%s\" has reached the maximum number of characters (%d) for class %s"
 #define PASSWORD_MAXCONSECUTIVEPERCLASS \
   "Password for dn=\"%s\" has reached the maximum number of characters (%d) for class %s"
 #define PASSWORD_FORBIDDENCHARS \
@@ -104,6 +114,7 @@ typedef struct conf {
     genValue value;
     int min;
     int minForPoint;
+    int max;
 } conf;
 
 void ppm_log(int priority, const char *format, ...);
@@ -114,10 +125,16 @@ int min(char *str1, char *str2);
 #ifdef PPM_READ_FILE
   static void read_config_file(conf * fileConf, int *numParam, char *ppm_config_file);
 #endif
-int check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg);
+
+#if OLDAP_VERSION == 0x0205
+  int check_password(char *pPasswd, char **ppErrStr, Entry *e, void *pArg);
+#else
+  int check_password(char *pPasswd, struct berval *ppErrmsg, Entry *e, void *pArg);
+#endif
 int maxConsPerClass(char *password, char *charClass);
 void storeEntry(char *param, char *value, valueType valType, 
-           char *min, char *minForPoint, conf * fileConf, int *numParam);
+           char *min, char *minForPoint, char *max, conf * fileConf,
+           int *numParam);
 int typeParam(char* param);
 genValue* getValue(conf *fileConf, int numParam, char* param);
 void strcpy_safe(char *dest, char *src, int length_dest);

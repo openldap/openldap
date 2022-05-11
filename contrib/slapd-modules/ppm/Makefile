@@ -65,7 +65,7 @@ MDDOC=ppm.md
 all: 	ppm $(TEST)
 
 $(TEST): ppm
-	$(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(LDFLAGS) $(INCS) $(LDAP_LIBS) -Wl,-rpath=. -o $(TEST) ppm_test.c $(PROGRAMS) $(LDAP_LIBS) $(CRACKLIB)
+	$(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(DEFS) $(LDFLAGS) $(INCS) -Wl,-rpath=. -o $(TEST) ppm_test.c $(PROGRAMS) $(LDAP_LIBS) $(CRACKLIB)
 
 ppm.o:
 	$(CC) $(CFLAGS) $(OPT) $(CPPFLAGS) $(DEFS) -c $(INCS) ppm.c
