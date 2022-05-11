@@ -19,8 +19,12 @@ int main(int argc, char *argv[])
           );
 
     /* format user entry */
+#if OLDAP_VERSION == 0x0205
+    char *errmsg = NULL;
+#else
     char errbuf[256];
     struct berval errmsg = { sizeof(errbuf)-1, errbuf };
+#endif
     Entry pEntry;
     pEntry.e_nname.bv_val=argv[1];
     pEntry.e_name.bv_val=argv[1];
@@ -52,11 +56,19 @@ int main(int argc, char *argv[])
     }
     else
     {
+#if OLDAP_VERSION == 0x0205
+      printf("Password failed checks : %s\n", errmsg);
+#else
       printf("Password failed checks : %s\n", errmsg.bv_val);
+#endif
     }
 
+#if OLDAP_VERSION == 0x0205
+    ber_memfree(errmsg);
+#else
     if (errmsg.bv_val != errbuf)
         ber_memfree(errmsg.bv_val);
+#endif
     return ret;
 
   }
