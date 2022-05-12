@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.13 Engineering
+	Fixed librewrite declaration of calloc (ITS#9841)
 
 OpenLDAP 2.5.12 Release (2022/05/04)
 	Fixed libldap to drop connection when non-LDAP data is received (ITS#9803)
