@@ -2,6 +2,8 @@ OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.3 Engineering
 	Fixed librewrite declaration of calloc (ITS#9841)
+	Build Environment
+		Fixed parallel builds (ITS#9840)
 
 OpenLDAP 2.6.2 Release (2022/05/04)
 	Added libldap support for OpenSSL 3.0 (ITS#9436)
