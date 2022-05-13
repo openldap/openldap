@@ -779,7 +779,17 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 			return rc;
 		}
 		if ( ldap_pvt_thread_pool_getkey( ctx, mdb->mi_dbenv, &data, NULL ) ) {
+			int retried = 0;
+retry:
 			rc = mdb_txn_begin( mdb->mi_dbenv, NULL, MDB_RDONLY, &moi->moi_txn );
+			if (rc == MDB_READERS_FULL && !retried) {
+				int dead;
+				/* if any stale readers were cleared, a slot should be available */
+				if (!mdb_reader_check( mdb->mi_dbenv, &dead ) && dead) {
+					retried = 1;
+					goto retry;
+				}
+			}
 			if (rc) {
 				Debug( LDAP_DEBUG_ANY, "mdb_opinfo_get: err %s(%d)\n",
 					mdb_strerror(rc), rc );
