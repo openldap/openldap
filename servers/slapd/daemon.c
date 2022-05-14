@@ -231,11 +231,10 @@ static slap_daemon_st *slap_daemon;
     slap_daemon[t].sd_kq = kqueue(); \
 } while (0)
 
-/* a kqueue fd obtained before a fork can't be used in child process.
- * close it and reacquire it.
+/* a kqueue fd obtained before a fork isn't inherited by child process.
+ * reacquire it.
  */
 # define SLAP_SOCK_INIT2() do { \
-	close(slap_daemon[0].sd_kq); \
 	slap_daemon[0].sd_kq = kqueue(); \
 } while (0)
 
