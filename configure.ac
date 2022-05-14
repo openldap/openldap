@@ -1022,7 +1022,14 @@ dnl ----------------------------------------------------------------
 AC_CHECK_HEADERS( sys/event.h )
 if test "${ac_cv_header_sys_event_h}" = yes; then
 AC_MSG_CHECKING(for kqueue system call)
-AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(int argc, char **argv)
+AC_RUN_IFELSE([AC_LANG_SOURCE([[$ac_includes_default
+#ifdef HAVE_SYS_EVENT_H
+#include <sys/event.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
+int main(int argc, char **argv)
 {
 	int kqfd = kqueue();
 	exit (kqfd == -1 ? 1 : 0);
