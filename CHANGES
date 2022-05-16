@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.13 Engineering
 	Fixed librewrite declaration of calloc (ITS#9841)
+	Fixed slapd kqueue support (ITS#9847)
 	Build Environment
 		Fixed parallel builds (ITS#9840)
 	Contrib
