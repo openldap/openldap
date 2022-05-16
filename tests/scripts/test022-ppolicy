@@ -568,12 +568,12 @@ mkdir $DBDIR2
 sed -e "s,$DBDIR1,$DBDIR2," < $CONF1 > $CONF2
 echo "Starting slapd consumer on TCP/IP port $PORT2..."
 $SLAPD -f $CONF2 -h $URI2 -d $LVL > $LOG2 2>&1 &
-PID=$!
+CONSUMERPID=$!
 if test $WAIT != 0 ; then
-    echo PID $PID
+    echo CONSUMERPID $CONSUMERPID
     read foo
 fi
-KILLPIDS="$KILLPIDS $PID"
+KILLPIDS="$KILLPIDS $CONSUMERPID"
 
 echo "Configuring syncprov on provider..."
 if [ "$SYNCPROV" = syncprovmod ]; then
@@ -758,6 +758,8 @@ if test $RC != 6 ; then
 	exit 1
 fi
 
+# URI2 is not running unless we performed chaining test above
+if test -n "$CONSUMERPID"; then
 $LDAPMODIFY -v -D cn=config -H $URI2 -y $CONFIGPWF >> \
 	$TESTOUT 2>&1 << EOMODS
 dn: olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
@@ -782,6 +784,7 @@ if test $RC != 6 ; then
 	echo "ldapcompare failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
+fi
 fi
 
 OLDPASS=$PASS
