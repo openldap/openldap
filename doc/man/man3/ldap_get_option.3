@@ -463,7 +463,7 @@ must be an
 .BR "unsigned int *" .
 
 .SH SASL OPTIONS
-The SASL options are OpenLDAP specific.
+The SASL options are OpenLDAP specific and unless otherwise noted, require an LDAP handle to be passed.
 .TP
 .B LDAP_OPT_X_SASL_AUTHCID
 Gets the SASL authentication identity;
@@ -507,7 +507,7 @@ in form of a NULL-terminated array of strings;
 .BR outvalue
 must be
 .BR "char ***" .
-The caller must not free or otherwise muck with it.
+The caller must not free or otherwise muck with it. This option can be used globally.
 .TP
 .B LDAP_OPT_X_SASL_NOCANON
 Sets/gets the NOCANON flag.
