@@ -8,6 +8,7 @@ OpenLDAP 2.6.3 Engineering
 		Fixed parallel builds (ITS#9840)
 	Contrib
 		Added slapo-emptyds contrib module (ITS#8882)
+		Update ppm module to the 2.2 release (ITS#9846)
 
 OpenLDAP 2.6.2 Release (2022/05/04)
 	Added libldap support for OpenSSL 3.0 (ITS#9436)
