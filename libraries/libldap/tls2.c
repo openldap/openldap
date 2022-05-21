@@ -989,7 +989,7 @@ ldap_pvt_tls_set_option( LDAP *ld, int option, void *arg )
 		lo->ldo_tls_ctx = NULL;
 		errmsg[0] = 0;
 		rc = ldap_int_tls_init_ctx( lo, *(int *)arg, errmsg );
-		if ( rc && errmsg[0] ) {
+		if ( rc && errmsg[0] && ld ) {
 			if ( ld->ld_error )
 				LDAP_FREE( ld->ld_error );
 			ld->ld_error = LDAP_STRDUP( errmsg );
