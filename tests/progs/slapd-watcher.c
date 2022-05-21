@@ -628,7 +628,7 @@ main( int argc, char **argv )
 		monfilter = MONFILTER;
 	}
 
-	if ( numservers > 1 ) {
+	if ( sids || numservers > 1 ) {
 		for ( i=0; i<numservers; i++ )
 			if ( sids )
 				servers[i].sid = atoi(sids[i]);
