@@ -93,10 +93,15 @@ The autogroup overlay has been reworked with the 2.5 release to use
 a consistent namespace as with other overlays. As a side-effect the
 following cn=config parameters are deprecated and will be removed in
 a future release:
+.IP \[bu] 2
 .B olcAGattrSet
 is replaced with olcAutoGroupAttrSet
+.IP \[bu]
 .B olcAGmemberOfAd
 is replaced with olcAutoGroupMemberOfAd
+.IP \[bu]
+.B olcAutomaticGroups
+is replaced with olcAutoGroupConfig
 .SH ACKNOWLEDGEMENTS
 This module was originally written in 2007 by Michał
 Szulczyński.  Further enhancements were contributed by Howard
