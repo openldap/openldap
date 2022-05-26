@@ -1733,7 +1733,7 @@ static ConfigTable agcfg[] = {
 
 static ConfigOCs agocs[] = {
 	{ "( OLcfgCtOc:2.1 "
-		"NAME 'olcAutoGroupConfig' "
+		"NAME ( 'olcAutoGroupConfig' 'olcAutomaticGroups' ) "
 		"DESC 'Automatic groups configuration' "
 		"SUP olcOverlayConfig "
 		"MAY ( "
