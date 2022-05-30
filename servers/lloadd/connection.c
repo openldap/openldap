@@ -535,10 +535,11 @@ lload_connection_close( LloadConnection *c, void *arg )
             c->c_destroy == client_destroy ) {
         if ( c->c_pendingber != NULL ||
                 (c->c_pendingber = ber_alloc()) != NULL ) {
-            ber_printf( c->c_pendingber, "t{tit{esss}}", LDAP_TAG_MESSAGE,
+            ber_printf( c->c_pendingber, "t{tit{essts}}", LDAP_TAG_MESSAGE,
                     LDAP_TAG_MSGID, LDAP_RES_UNSOLICITED,
                     LDAP_RES_EXTENDED, LDAP_UNAVAILABLE, "",
-                    "connection closing", LDAP_NOTICE_OF_DISCONNECTION );
+                    "connection closing",
+                    LDAP_TAG_EXOP_RES_OID, LDAP_NOTICE_OF_DISCONNECTION );
             unlock = 0;
             checked_unlock( &c->c_io_mutex );
             CONNECTION_UNLOCK(c);
