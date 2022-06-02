@@ -91,6 +91,7 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 	unsigned flags;
 	char *dbhome;
 	MDB_txn *txn;
+	int do_index = 0;
 
 	if ( be->be_suffix == NULL ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -291,7 +292,7 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 		MDB_stat st;
 		rc = mdb_stat( txn, mdb->mi_idxckp, &st );
 		if ( st.ms_entries )
-			mdb_resume_index( be, txn );
+			do_index = mdb_resume_index( be, txn );
 	}
 
 	rc = mdb_txn_commit(txn);
@@ -310,6 +311,9 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 	}
 
 	mdb->mi_flags |= MDB_IS_OPEN;
+
+	if ( do_index )
+		mdb_start_index_task( be );
 
 	return 0;
 
