@@ -349,7 +349,7 @@ mdb_setup_indexer( struct mdb_info *mdb )
 	MDB_txn *txn;
 	MDB_cursor *curs;
 	MDB_val key, data;
-	int i, rc;
+	int i, rc, changed = 0;
 	unsigned short s;
 
 	rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txn );
@@ -363,17 +363,6 @@ mdb_setup_indexer( struct mdb_info *mdb )
 
 	key.mv_size = sizeof( s );
 	key.mv_data = &s;
-
-	/* set indexer task to start at first entry */
-	{
-		ID id = 0;
-		s = 0;			/* key 0 records next entryID to index */
-		data.mv_size = sizeof( ID );
-		data.mv_data = &id;
-		rc = mdb_cursor_put( curs, &key, &data, 0 );
-		if ( rc )
-			goto done;
-	}
 
 	/* record current and new index masks for all new index definitions */
 	{
@@ -389,8 +378,19 @@ mdb_setup_indexer( struct mdb_info *mdb )
 			rc = mdb_cursor_put( curs, &key, &data, 0 );
 			if ( rc )
 				goto done;
+			changed = 1;
 		}
 	}
+
+	/* set indexer task to start at first entry */
+	if ( changed ) {
+		ID id = 0;
+		s = 0;			/* key 0 records next entryID to index */
+		data.mv_size = sizeof( ID );
+		data.mv_data = &id;
+		rc = mdb_cursor_put( curs, &key, &data, 0 );
+	}
+
 done:
 	mdb_cursor_close( curs );
 	if ( !rc )
