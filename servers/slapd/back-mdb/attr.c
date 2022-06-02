@@ -446,7 +446,11 @@ fail:
 					/* If this is leftover from a previous add, commit it */
 					if ( b->ai_newmask )
 						b->ai_indexmask = b->ai_newmask;
-					b->ai_newmask = a->ai_newmask;
+					/* If the mask changed, remember it */
+					if ( b->ai_indexmask != a->ai_newmask )
+						b->ai_newmask = a->ai_newmask;
+					else	/* else ignore it */
+						b->ai_newmask = 0;
 					ch_free( a );
 					rc = 0;
 					continue;
