@@ -9,6 +9,7 @@ OpenLDAP 2.6.3 Engineering
 		Fixed parallel builds (ITS#9840)
 	Contrib
 		Added slapo-emptyds contrib module (ITS#8882)
+		Fixed slapo-autogroup backwards compat (ITS#9020)
 		Update ppm module to the 2.2 release (ITS#9846)
 	Documentation
 		Fixed ldap_get_option(3) to clarify ldap_get/set_option restrictions (ITS#9824)
