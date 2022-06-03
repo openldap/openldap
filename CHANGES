@@ -8,6 +8,7 @@ OpenLDAP 2.6.3 Engineering
 	Fixed slpad-mdb indexer task with replicated config (ITS#9858)
 	Build Environment
 		Fixed parallel builds (ITS#9840)
+		Fixed slapd-watcher SID handling with single URI (ITS#9850)
 	Contrib
 		Added slapo-emptyds contrib module (ITS#8882)
 		Fixed slapo-autogroup backwards compat (ITS#9020)
