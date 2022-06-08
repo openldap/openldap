@@ -40,6 +40,11 @@ if test $BACKEND = ldif ; then
 	exit 0
 fi
 
+if test $BACKEND = wt ; then
+	echo "Test does not support $BACKEND backend, test skipped"
+	exit 0
+fi
+
 mkdir -p $TESTDIR $DBDIR1 $DBDIR2
 
 # Test proxy caching:
