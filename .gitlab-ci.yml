@@ -41,6 +41,7 @@ build-openssl-heimdal-lloadd:
     paths:
       - obj/tests/testrun/
       - obj/servers/
+      - obj/libraries/
 
 build-gnutls-mit-standalone-lloadd:
   stage: build
@@ -62,3 +63,4 @@ build-gnutls-mit-standalone-lloadd:
     paths:
       - obj/tests/testrun/
       - obj/servers/
+      - obj/libraries/
