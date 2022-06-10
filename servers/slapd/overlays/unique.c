@@ -1225,13 +1225,15 @@ unique_modify(
 		return rc;
 	}
 
-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) || (
-			get_relax(op) > SLAP_CONTROL_IGNORED
-			&& overlay_entry_get_ov(op, &op->o_req_ndn, NULL, NULL, 0, &e, on) == LDAP_SUCCESS
-			&& e
-			&& access_allowed( op, e,
-				slap_schema.si_ad_entry, NULL,
-				ACL_MANAGE, NULL ) ) ) {
+	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) ) {
+		return rc;
+	}
+	if ( get_relax(op) > SLAP_CONTROL_IGNORED
+		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
+		&& e
+		&& access_allowed( op, e,
+			slap_schema.si_ad_entry, NULL,
+			ACL_MANAGE, NULL ) ) {
 		overlay_entry_release_ov( op, e, 0, on );
 		return rc;
 	}
@@ -1363,13 +1365,15 @@ unique_modrdn(
 	Debug(LDAP_DEBUG_TRACE, "==> unique_modrdn <%s> <%s>\n",
 		op->o_req_dn.bv_val, op->orr_newrdn.bv_val );
 
-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) || (
-			get_relax(op) > SLAP_CONTROL_IGNORED
-			&& overlay_entry_get_ov(op, &op->o_req_ndn, NULL, NULL, 0, &e, on) == LDAP_SUCCESS
-			&& e
-			&& access_allowed( op, e,
-				slap_schema.si_ad_entry, NULL,
-				ACL_MANAGE, NULL ) ) ) {
+	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) ) {
+		return rc;
+	}
+	if ( get_relax(op) > SLAP_CONTROL_IGNORED
+		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
+		&& e
+		&& access_allowed( op, e,
+			slap_schema.si_ad_entry, NULL,
+			ACL_MANAGE, NULL ) ) {
 		overlay_entry_release_ov( op, e, 0, on );
 		return rc;
 	}
