@@ -4139,6 +4139,8 @@ syncprov_db_destroy(
 			ber_bvarray_free( si->si_ctxcsn );
 		if ( si->si_sids )
 			ch_free( si->si_sids );
+		if ( si->si_logbase.bv_val )
+			ch_free( si->si_logbase.bv_val );
 		ldap_pvt_thread_mutex_destroy( &si->si_resp_mutex );
 		ldap_pvt_thread_mutex_destroy( &si->si_mods_mutex );
 		ldap_pvt_thread_mutex_destroy( &si->si_ops_mutex );
