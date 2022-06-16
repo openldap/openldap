@@ -2283,6 +2283,8 @@ accesslog_db_destroy(
 		ch_free( li->li_sids );
 	if ( li->li_mincsn )
 		ber_bvarray_free( li->li_mincsn );
+	if ( li->li_db_suffix.bv_val )
+		ch_free( li->li_db_suffix.bv_val );
 	ldap_pvt_thread_mutex_destroy( &li->li_log_mutex );
 	ldap_pvt_thread_mutex_destroy( &li->li_op_rmutex );
 	free( li );
