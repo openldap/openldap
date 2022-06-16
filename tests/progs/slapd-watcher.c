@@ -140,12 +140,13 @@ usage( char *name, char opt )
 		"[-x | -Y <SASL mech>] "
 		"[-i <interval>] "
 		"[-s <sids>] "
+		"[-c <contextDN>] "
 		"[-b <baseDN> ] URI[...]\n",
 		name );
 	exit( EXIT_FAILURE );
 }
 
-struct berval base;
+struct berval base, cbase;
 int interval = 10;
 int numservers;
 server *servers;
@@ -511,9 +512,9 @@ setup_server( struct tester_conn_args *config, server *sv )
 		}
 		ldap_msgfree( res );
 
-		if ( base.bv_val ) {
+		if ( cbase.bv_val ) {
 			char *attr2[] = { at_contextCSN.bv_val, NULL };
-			rc = ldap_search_ext_s( ld, base.bv_val, LDAP_SCOPE_BASE, "(objectClass=*)",
+			rc = ldap_search_ext_s( ld, cbase.bv_val, LDAP_SCOPE_BASE, "(objectClass=*)",
 				attr2, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &res );
 			switch(rc) {
 			case LDAP_SUCCESS:
@@ -574,11 +575,17 @@ main( int argc, char **argv )
 	config = tester_init( "slapd-watcher", TESTER_TESTER );
 	config->authmethod = LDAP_AUTH_SIMPLE;
 
-	while ( ( i = getopt( argc, argv, "D:O:R:U:X:Y:b:d:i:s:w:x" ) ) != EOF )
+	while ( ( i = getopt( argc, argv, "D:O:R:U:X:Y:b:c:d:i:s:w:x" ) ) != EOF )
 	{
 		switch ( i ) {
-		case 'b':		/* base DN for contextCSN lookups */
+		case 'b':		/* base DN for DB entrycount lookups */
 			ber_str2bv( optarg, 0, 0, &base );
+			if ( !cbase.bv_val )
+				cbase = base;
+			break;
+
+		case 'c':		/* base DN for contextCSN lookups */
+			ber_str2bv( optarg, 0, 0, &cbase );
 			break;
 
 		case 'i':
@@ -690,7 +697,7 @@ server_down1:
 				}
 				if (( servers[i].flags & HAS_BASE ) && !msg2[i] ) {
 					char *attrs[2] = { at_contextCSN.bv_val };
-					rc = ldap_search_ext( ld, base.bv_val,
+					rc = ldap_search_ext( ld, cbase.bv_val,
 						LDAP_SCOPE_BASE, "(objectClass=*)",
 						attrs, 0, NULL, NULL, NULL, LDAP_NO_LIMIT, &msg2[i] );
 					if ( rc != LDAP_SUCCESS ) {
