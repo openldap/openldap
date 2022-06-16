@@ -3163,6 +3163,8 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 			 */
 			ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
 			if ( slapd_shutdown ) {
+aband:
+				ch_free( sop->s_base.bv_val );
 				ch_free( sop );
 				return SLAPD_ABANDON;
 			}
@@ -3172,8 +3174,7 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 		}
 		if ( op->o_abandon ) {
 			ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
-			ch_free( sop );
-			return SLAPD_ABANDON;
+			goto aband;
 		}
 		ldap_pvt_thread_mutex_init( &sop->s_mutex );
 		sop->s_next = si->si_ops;
@@ -3302,6 +3303,7 @@ bailout:
 						sp = &(*sp)->s_next;
 					*sp = sop->s_next;
 					ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
+					ch_free( sop->s_base.bv_val );
 					ch_free( sop );
 				}
 				rs->sr_ctrls = NULL;
