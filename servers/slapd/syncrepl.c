@@ -3114,10 +3114,8 @@ syncrepl_message_to_op(
 				ch_free( bvals );
 				goto done;
 			}
-			ber_dupbv( &op->o_req_dn, &dn );
-			ber_dupbv( &op->o_req_ndn, &ndn );
-			slap_sl_free( ndn.bv_val, op->o_tmpmemctx );
-			slap_sl_free( dn.bv_val, op->o_tmpmemctx );
+			op->o_req_dn = dn;
+			op->o_req_ndn = ndn;
 			freeReqDn = 1;
 		} else if ( !ber_bvstrcasecmp( &bv, &ls->ls_req ) ) {
 			int i = verb_to_mask( bvals[0].bv_val, modops );
@@ -3227,9 +3225,8 @@ syncrepl_message_to_op(
 		if ( op->o_tag == LDAP_REQ_ADD ) {
 			Entry *e = entry_alloc();
 			op->ora_e = e;
-			op->ora_e->e_name = op->o_req_dn;
-			op->ora_e->e_nname = op->o_req_ndn;
-			freeReqDn = 0;
+			ber_dupbv( &op->ora_e->e_name, &op->o_req_dn );
+			ber_dupbv( &op->ora_e->e_nname, &op->o_req_ndn );
 			rc = slap_mods2entry( modlist, &op->ora_e, 1, 0, &text, txtbuf, textlen);
 			if( rc != LDAP_SUCCESS ) {
 				Debug( LDAP_DEBUG_ANY, "syncrepl_message_to_op: %s "
@@ -3373,8 +3370,8 @@ done:
 		op->o_tmpfree( op->orr_nnewDN.bv_val, op->o_tmpmemctx );
 	}
 	if ( freeReqDn ) {
-		ch_free( op->o_req_ndn.bv_val );
-		ch_free( op->o_req_dn.bv_val );
+		op->o_tmpfree( op->o_req_ndn.bv_val, op->o_tmpmemctx );
+		op->o_tmpfree( op->o_req_dn.bv_val, op->o_tmpmemctx );
 	}
 	ber_free( ber, 0 );
 	return rc;
