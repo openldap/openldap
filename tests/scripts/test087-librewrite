@@ -21,6 +21,8 @@ if test $RWM = rwmno ; then
 	exit 0
 fi
 
+mkdir -p $TESTDIR
+
 echo "" >>$TESTOUT
 echo "# making a filter from a DN" > $TESTOUT
 echo "Testing DN unescaping then escaping for use in a filter..."
@@ -37,7 +39,7 @@ for input in \
 		-r testdn2filter "$input" >>$TESTOUT 2>/dev/null
 	if test $? != 0 ; then
 		echo "rewriting failed"
-		exit $?
+		exit 1
 	fi
 done
 
@@ -56,7 +58,7 @@ for input in \
 		-r testdn2dnfilter "$input" >>$TESTOUT 2>/dev/null
 	if test $? != 0 ; then
 		echo "rewriting failed"
-		exit $?
+		exit 1
 	fi
 done
 
@@ -74,7 +76,7 @@ for input in \
 		-r testfilter2dn "$input" >>$TESTOUT 2>/dev/null
 	if test $? != 0 ; then
 		echo "rewriting failed"
-		exit $?
+		exit 1
 	fi
 done
 
