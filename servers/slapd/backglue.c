@@ -1440,6 +1440,7 @@ glue_sub_attach( int online )
 				&gi->gi_n[gi->gi_nodes].gn_pdn );
 			gi->gi_nodes++;
 			on->on_bi.bi_private = gi;
+			ga->ga_be->be_pcsn_p = be->be_pcsn_p;
 			ga->ga_be->be_flags |= SLAP_DBFLAG_GLUE_LINKED;
 			break;
 		}

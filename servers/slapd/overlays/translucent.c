@@ -1440,7 +1440,7 @@ translucent_db_destroy( BackendDB *be, ConfigReply *cr )
 			backend_stopdown_one( &ov->db );
 		}
 
-		ldap_pvt_thread_mutex_destroy( &ov->db.be_pcl_mutex );
+		ldap_pvt_thread_mutex_destroy( &ov->db.be_pcsn_st.be_pcsn_mutex );
 		ch_free(ov);
 		on->on_bi.bi_private = NULL;
 	}

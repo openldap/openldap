@@ -108,7 +108,7 @@ frontend_init( void )
 	frontendDB->be_def_limit.lms_s_pr_hide = 0;			/* don't hide number of entries left */
 	frontendDB->be_def_limit.lms_s_pr_total = 0;			/* number of total entries returned by pagedResults equal to hard limit */
 
-	ldap_pvt_thread_mutex_init( &frontendDB->be_pcl_mutex );
+	ldap_pvt_thread_mutex_init( &frontendDB->be_pcsn_st.be_pcsn_mutex );
 
 	/* suffix */
 	frontendDB->be_suffix = ch_calloc( 2, sizeof( struct berval ) );
