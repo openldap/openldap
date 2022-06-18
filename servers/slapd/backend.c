@@ -199,10 +199,7 @@ int backend_startup_one(Backend *be, ConfigReply *cr)
 
 	assert( be != NULL );
 
-	be->be_pending_csn_list = (struct be_pcl *)
-		ch_calloc( 1, sizeof( struct be_pcl ) );
-
-	LDAP_TAILQ_INIT( be->be_pending_csn_list );
+	LDAP_TAILQ_INIT( &be->be_pcsn_st.be_pcsn_list );
 
 	Debug( LDAP_DEBUG_TRACE,
 		"backend_startup_one: starting \"%s\"\n",
@@ -433,18 +430,15 @@ int backend_shutdown( Backend *be )
 void
 backend_stopdown_one( BackendDB *bd )
 {
-	if ( bd->be_pending_csn_list ) {
-		struct slap_csn_entry *csne;
-		csne = LDAP_TAILQ_FIRST( bd->be_pending_csn_list );
-		while ( csne ) {
-			struct slap_csn_entry *tmp_csne = csne;
+	struct slap_csn_entry *csne;
+	csne = LDAP_TAILQ_FIRST( &bd->be_pcsn_st.be_pcsn_list );
+	while ( csne ) {
+		struct slap_csn_entry *tmp_csne = csne;
 
-			LDAP_TAILQ_REMOVE( bd->be_pending_csn_list, csne, ce_csn_link );
-			ch_free( csne->ce_csn.bv_val );
-			csne = LDAP_TAILQ_NEXT( csne, ce_csn_link );
-			ch_free( tmp_csne );
-		}
-		ch_free( bd->be_pending_csn_list );
+		LDAP_TAILQ_REMOVE( &bd->be_pcsn_st.be_pcsn_list, csne, ce_csn_link );
+		ch_free( csne->ce_csn.bv_val );
+		csne = LDAP_TAILQ_NEXT( csne, ce_csn_link );
+		ch_free( tmp_csne );
 	}
 
 	if ( bd->bd_info->bi_db_destroy ) {
@@ -487,7 +481,7 @@ void backend_destroy_one( BackendDB *bd, int dynamic )
 		ber_bvarray_free( bd->be_update_refs );
 	}
 
-	ldap_pvt_thread_mutex_destroy( &bd->be_pcl_mutex );
+	ldap_pvt_thread_mutex_destroy( &bd->be_pcsn_st.be_pcsn_mutex );
 
 	if ( dynamic ) {
 		free( bd );
@@ -624,7 +618,8 @@ backend_db_init(
 	be->be_requires = frontendDB->be_requires;
 	be->be_ssf_set = frontendDB->be_ssf_set;
 
-	ldap_pvt_thread_mutex_init( &be->be_pcl_mutex );
+	ldap_pvt_thread_mutex_init( &be->be_pcsn_st.be_pcsn_mutex );
+	be->be_pcsn_p = &be->be_pcsn_st;
 
  	/* assign a default depth limit for alias deref */
 	be->be_max_deref_depth = SLAPD_DEFAULT_MAXDEREFDEPTH; 
@@ -638,7 +633,7 @@ backend_db_init(
 		/* If we created and linked this be, remove it and free it */
 		if ( !b0 ) {
 			LDAP_STAILQ_REMOVE(&backendDB, be, BackendDB, be_next);
-			ldap_pvt_thread_mutex_destroy( &be->be_pcl_mutex );
+			ldap_pvt_thread_mutex_destroy( &be->be_pcsn_st.be_pcsn_mutex );
 			ch_free( be );
 			be = NULL;
 			nbackends--;

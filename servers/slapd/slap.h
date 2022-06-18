@@ -1786,7 +1786,13 @@ struct sync_cookie {
 
 LDAP_STAILQ_HEAD( slap_sync_cookie_s, sync_cookie );
 
-LDAP_TAILQ_HEAD( be_pcl, slap_csn_entry );
+/* Defs for pending_csn_list */
+LDAP_TAILQ_HEAD( be_pclh, slap_csn_entry );
+
+typedef struct be_pcsn {
+	struct be_pclh			be_pcsn_list;
+	ldap_pvt_thread_mutex_t	be_pcsn_mutex;
+} be_pcsn;
 
 #ifndef SLAP_MAX_CIDS
 #define	SLAP_MAX_CIDS	32	/* Maximum number of supported controls */
@@ -1990,8 +1996,8 @@ struct BackendDB {
 	/* Consumer Information */
 	struct berval be_update_ndn;	/* allowed to make changes (in replicas) */
 	BerVarray	be_update_refs;	/* where to refer modifying clients to */
-	struct		be_pcl	*be_pending_csn_list;
-	ldap_pvt_thread_mutex_t					be_pcl_mutex;
+	be_pcsn	be_pcsn_st;			/* be_pending_csn_list now inside this */
+	be_pcsn	*be_pcsn_p;
 	struct syncinfo_s						*be_syncinfo; /* For syncrepl */
 
 	void    *be_pb;         /* Netscape plugin */
