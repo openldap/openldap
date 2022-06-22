@@ -1381,6 +1381,11 @@ glue_sub_del( BackendDB *b0 )
 				gi->gi_nodes--;
 			}
 		}
+		/* Mark as no longer linked/sub */
+		b0->be_flags &= ~(SLAP_DBFLAG_GLUE_SUBORDINATE|SLAP_DBFLAG_GLUE_LINKED|
+			SLAP_DBFLAG_GLUE_ADVERTISE);
+		b0->be_pcsn_p = &b0->be_pcsn_st;
+		break;
 	}
 	if ( be == NULL )
 		rc = LDAP_NO_SUCH_OBJECT;
