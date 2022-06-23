@@ -11,6 +11,7 @@ OpenLDAP 2.6.3 Engineering
 	Fixed slapo-accesslog onetime memory leak (ITS#9864)
 	Fixed slapo-rwm to handle escaping special characters (ITS#9817)
 	Fixed slapo-syncprov memory leaks (ITS#9867)
+	Fixed slapo-syncprov fallback in delta-sync mode (ITS#9823)
 	Fixed slapo-unique to not release NULL entry (ITS#8245)
 	Build Environment
 		Added slapd-watcher -c contextDN option (ITS#9865)
