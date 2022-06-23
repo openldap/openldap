@@ -2905,17 +2905,8 @@ config_overlay(ConfigArgs *c) {
 	} else if ( c->op == LDAP_MOD_DELETE ) {
 		assert(0);
 	}
-	if(c->argv[1][0] == '-' && overlay_config(c->be, &c->argv[1][1],
-		c->valx, &c->bi, &c->reply)) {
-		/* log error */
-		Debug( LDAP_DEBUG_ANY,
-			"%s: (optional) %s overlay \"%s\" configuration failed.\n",
-			c->log, c->be == frontendDB ? "global " : "", &c->argv[1][1]);
-		return 1;
-	} else if(overlay_config(c->be, c->argv[1], c->valx, &c->bi, &c->reply)) {
-		return(1);
-	}
-	return(0);
+
+	return overlay_config( c->be, c->argv[1], c->valx, &c->bi, &c->reply );
 }
 
 static int
