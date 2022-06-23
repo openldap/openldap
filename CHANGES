@@ -6,6 +6,7 @@ OpenLDAP 2.6.3 Engineering
 	Fixed lloadd to correctly tag Notice of Disconnection (ITS#9856)
 	Fixed slapd kqueue support (ITS#9847)
 	Fixed slapd delta-sync DN leak on ADD ops (ITS#9866)
+	Fixed slapd replication with back-glue (ITS#9868)
 	Fixed slapd-mdb to check for stale readers on MDB_READERS_FULL (ITS#7165)
 	Fixed slapd-mdb indexer task with replicated config (ITS#9858)
 	Fixed slapo-accesslog onetime memory leak (ITS#9864)
