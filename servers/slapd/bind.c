@@ -473,9 +473,6 @@ fe_op_lastbind( Operation *op )
 	op2.o_ndn = op->o_bd->be_rootndn;
 
 	/*
-	 * TODO: this is core+frontend, not everything works the same way?
-	 */
-	/*
 	 * Code for forwarding of updates adapted from ppolicy.c of slapo-ppolicy
 	 *
 	 * If this server is a shadow and forward_updates is true,
@@ -485,6 +482,8 @@ fe_op_lastbind( Operation *op )
 	 * must be configured appropriately for this to be useful.
 	 */
 	if ( SLAP_SHADOW( op->o_bd ) ) {
+		op2.o_bd = frontendDB;
+
 		/* Must use Relax control since these are no-user-mod */
 		op2.o_relax = SLAP_CONTROL_CRITICAL;
 		op2.o_ctrls = ca;

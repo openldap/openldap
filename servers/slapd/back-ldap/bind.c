@@ -1417,7 +1417,7 @@ retry_lock:;
 				sb->sb_realm.bv_val,
 				sb->sb_authcId.bv_val,
 				sb->sb_cred.bv_val,
-				NULL );
+				sb->sb_authzId.bv_val );
 		if ( defaults == NULL ) {
 			rs->sr_err = LDAP_OTHER;
 			LDAP_BACK_CONN_ISBOUND_CLEAR( lc );
