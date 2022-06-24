@@ -1475,7 +1475,8 @@ free_pwd_history_list( pw_hist **l )
 }
 
 typedef struct ppbind {
-	slap_overinst *on;
+	pp_info *pi;
+	BackendDB *be;
 	int send_ctrl;
 	int set_restrict;
 	LDAPControl **oldctrls;
@@ -1525,8 +1526,7 @@ static int
 ppolicy_bind_response( Operation *op, SlapReply *rs )
 {
 	ppbind *ppb = op->o_callback->sc_private;
-	slap_overinst *on = ppb->on;
-	pp_info *pi = on->on_bi.bi_private;
+	pp_info *pi = ppb->pi;
 	Modifications *mod = ppb->mod, *m;
 	int pwExpired = 0;
 	int ngut = -1, warn = -1, fc = 0, age, rc;
@@ -1537,7 +1537,7 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 	char nowstr[ LDAP_LUTIL_GENTIME_BUFSIZE ];
 	char nowstr_usec[ LDAP_LUTIL_GENTIME_BUFSIZE+8 ];
 	struct berval timestamp, timestamp_usec;
-	BackendInfo *bi = op->o_bd->bd_info;
+	BackendDB *be = op->o_bd;
 	LDAPControl *ctrl = NULL;
 	Entry *e;
 
@@ -1547,9 +1547,9 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 		goto locked;
 	}
 
-	op->o_bd->bd_info = (BackendInfo *)on->on_info;
+	op->o_bd = ppb->be;
 	rc = be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &e );
-	op->o_bd->bd_info = bi;
+	op->o_bd = be;
 
 	if ( rc != LDAP_SUCCESS ) {
 		ldap_pvt_thread_mutex_unlock( &pi->pwdFailureTime_mutex );
@@ -1851,8 +1851,9 @@ check_expiring_password:
 	}
 
 done:
-	op->o_bd->bd_info = (BackendInfo *)on->on_info;
+	op->o_bd = ppb->be;
 	be_entry_release_r( op, e );
+	op->o_bd = be;
 
 locked:
 	if ( mod && !pi->disable_write ) {
@@ -1891,7 +1892,7 @@ locked:
 				op2.orm_no_opattrs = 1;
 				op2.o_dont_replicate = 1;
 			}
-			op2.o_bd->bd_info = (BackendInfo *)on->on_info;
+			op2.o_bd = ppb->be;
 		}
 		rc = op2.o_bd->be_modify( &op2, &r2 );
 		if ( rc != LDAP_SUCCESS ) {
@@ -1922,7 +1923,6 @@ locked:
 		ppb->oldctrls = add_passcontrol( op, rs, ctrl );
 		op->o_callback->sc_cleanup = ppolicy_ctrls_cleanup;
 	}
-	op->o_bd->bd_info = bi;
 	ldap_pvt_thread_mutex_unlock( &pi->pwdFailureTime_mutex );
 	return SLAP_CB_CONTINUE;
 }
@@ -1955,7 +1955,8 @@ ppolicy_bind( Operation *op, SlapReply *rs )
 		cb = op->o_tmpcalloc( sizeof(ppbind)+sizeof(slap_callback),
 			1, op->o_tmpmemctx );
 		ppb = (ppbind *)(cb+1);
-		ppb->on = on;
+		ppb->pi = on->on_bi.bi_private;
+		ppb->be = op->o_bd->bd_self;
 		ppb->pErr = PP_noError;
 		ppb->set_restrict = 1;
 
@@ -2245,7 +2246,8 @@ ppolicy_compare(
 		cb = op->o_tmpcalloc( sizeof(ppbind)+sizeof(slap_callback),
 			1, op->o_tmpmemctx );
 		ppb = (ppbind *)(cb+1);
-		ppb->on = on;
+		ppb->pi = on->on_bi.bi_private;
+		ppb->be = op->o_bd->bd_self;
 		ppb->pErr = PP_noError;
 		ppb->send_ctrl = 1;
 		/* failures here don't lockout the connection */
