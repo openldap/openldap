@@ -43,6 +43,7 @@ BACKSQL=${AC_sql-sqlno}
 # overlays
 ACCESSLOG=${AC_accesslog-accesslogno}
 ARGON2=${AC_argon2-argon2no}
+AUDITLOG=${AC_auditlog-auditlogno}
 AUTOCA=${AC_autoca-autocano}
 CONSTRAINT=${AC_constraint-constraintno}
 DDS=${AC_dds-ddsno}
