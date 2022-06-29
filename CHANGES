@@ -7,6 +7,7 @@ OpenLDAP 2.5.13 Engineering
 	Fixed slapd replication with back-glue (ITS#9868)
 	Fixed slapd-mdb to check for stale readers on MDB_READERS_FULL (ITS#7165)
 	Fixed slapo-accesslog onetime memory leak (ITS#9864)
+	Fixed slapo-ppolicy interaction with slapo-rwm (ITS#9871)
 	Fixed slapo-syncprov memory leaks (ITS#9867)
 	Fixed slapo-syncprov fallback in delta-sync mode (ITS#9823)
 	Fixed slapo-unique to not release NULL entry (ITS#8245)
