@@ -74,6 +74,7 @@ if test $RC != 0 ; then
 	test $KILLSERVERS != no && kill -HUP $SERVERPID
 	exit $RC
 fi
+KILLPIDS="$KILLPIDS $SERVERPID"
 
 #
 # Start slapd that will proxy for the remote server
