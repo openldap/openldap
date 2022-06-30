@@ -21,6 +21,7 @@ OpenLDAP 2.5.13 Engineering
 		Fixed slapo-autogroup backwards compat (ITS#9020)
 	Documentation
 		Fixed ldap_get_option(3) to clarify ldap_get/set_option restrictions (ITS#9824)
+		Fixed slapd-ldap(5),slapd-meta(5) missing bold tag on authz parameter (ITS#9872)
 
 OpenLDAP 2.5.12 Release (2022/05/04)
 	Fixed libldap to drop connection when non-LDAP data is received (ITS#9803)
