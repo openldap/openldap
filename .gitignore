@@ -68,6 +68,8 @@ Makefile
 /include/ldap_features.h
 /include/portable.h
 libraries/libl*/*test
+libraries/libl*/*.pc
+libraries/libldap/testavl
 libraries/liblunicode/ucdata.c
 libraries/liblunicode/ucdata.h
 libraries/liblunicode/ucgendat
@@ -97,6 +99,8 @@ servers/slapd/slappasswd
 servers/slapd/slapschema
 servers/slapd/slaptest
 servers/lloadd/lloadd
+servers/lloadd/Makefile.module
+servers/lloadd/Makefile.server
 tests/progs/ldif-filter
 tests/progs/slapd-addel
 tests/progs/slapd-bind
@@ -106,6 +110,7 @@ tests/progs/slapd-mtread
 tests/progs/slapd-read
 tests/progs/slapd-search
 tests/progs/slapd-tester
+tests/progs/slapd-watcher
 tests/schema
 tests/testdata
 tests/testrun
