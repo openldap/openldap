@@ -193,6 +193,7 @@ ldap_parse_derefresponse_control(
 		dr = LDAP_CALLOC( 1, sizeof(LDAPDerefRes) );
 		if ( dr == NULL ) {
 			ldap_derefresponse_free( drhead );
+			ber_free( ber, 1 );
 			*drp2 = NULL;
 			ld->ld_errno = LDAP_NO_MEMORY;
 			return ld->ld_errno;
