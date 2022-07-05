@@ -68,7 +68,7 @@ ldap_txn_end(
 {
 	int rc;
 	BerElement *txnber = NULL;
-	struct berval *txnval = NULL;
+	struct berval txnval;
 
 	assert( txnid != NULL );
 
@@ -80,10 +80,10 @@ ldap_txn_end(
 		ber_printf( txnber, "{bON}", commit, txnid );
 	}
 
-	ber_flatten( txnber, &txnval );
+	ber_flatten2( txnber, &txnval, 0 );
 
 	rc = ldap_extended_operation( ld, LDAP_EXOP_TXN_END,
-		txnval, sctrls, cctrls, msgidp );
+		&txnval, sctrls, cctrls, msgidp );
 
 	ber_free( txnber, 1 );
 	return rc;
@@ -100,7 +100,7 @@ ldap_txn_end_s(
 {
 	int rc;
 	BerElement *txnber = NULL;
-	struct berval *txnval = NULL;
+	struct berval txnval;
 	struct berval *retdata = NULL;
 
 	if ( retidp != NULL ) *retidp = -1;
@@ -113,10 +113,10 @@ ldap_txn_end_s(
 		ber_printf( txnber, "{bON}", commit, txnid );
 	}
 
-	ber_flatten( txnber, &txnval );
+	ber_flatten2( txnber, &txnval, 0 );
 
 	rc = ldap_extended_operation_s( ld, LDAP_EXOP_TXN_END,
-		txnval, sctrls, cctrls, NULL, &retdata );
+		&txnval, sctrls, cctrls, NULL, &retdata );
 
 	ber_free( txnber, 1 );
 
