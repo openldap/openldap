@@ -16,6 +16,7 @@ OpenLDAP 2.5.13 Engineering
 		Fixed parallel builds (ITS#9840)
 		Fixed test020 to skip back-wt (ITS#9859)
 		Fixed slapd-watcher SID handling with single URI (ITS#9850)
+		Fixed test043 with workaround for ITS#9878
 	Contrib
 		Added slapo-emptyds contrib module (ITS#8882)
 		Fixed slapo-autogroup backwards compat (ITS#9020)
