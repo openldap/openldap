@@ -16,12 +16,14 @@
 USAGE="$0 [-b <backend>] [-c] [-k] [-l #] [-p] [-s {ro|rp}] [-u] [-w] <script>"
 
 # configure generated
-SRCDIR="@srcdir@"
-TOPSRCDIR="@top_srcdir@"
+SRCDIR="${SRCDIR:-@srcdir@}"
+TOPSRCDIR="${TOPSRCDIR:-@top_srcdir@}"
+TOPDIR="`(cd ..; echo $PWD)`"
+OBJDIR="${OBJDIR:-$TOPDIR}"
 LN_S="@LN_S@"
 EGREP_CMD="@EGREP@"
 
-export SRCDIR TOPSRCDIR LN_S EGREP_CMD
+export SRCDIR TOPSRCDIR OBJDIR LN_S EGREP_CMD
 
 # Load balancer
 AC_lloadd=lloadd@BUILD_BALANCER@
@@ -198,10 +200,11 @@ if test $# = 0 ; then
 	echo "$USAGE"; exit 1
 fi
 
+SCRIPTDIR="${SCRIPTDIR:-${SRCDIR}/scripts}"
+DEFSDIR="${DEFSDIR:-$SCRIPTDIR}"
 # need defines.sh for the definitions of the directories
-. $SRCDIR/scripts/defines.sh
+. "$DEFSDIR/defines.sh"
 
-SCRIPTDIR="${SRCDIR}/scripts"
 ITSDIR="${SRCDIR}/data/regressions"
 SCRIPTNAME="$1"
 shift
