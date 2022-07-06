@@ -492,6 +492,19 @@ if test $WAIT != 0 ; then
 fi
 KILLPIDS="$PID $CONSUMERPID"
 
+echo "Waiting $SLEEP1 seconds for syncrepl to reschedule (ITS#9878) and poking it..."
+sleep $SLEEP1
+
+$LDAPSEARCH -s base -b "$MONITOR" -H $URI2 \
+    'objectclass=*' > /dev/null 2>&1
+RC=$?
+
+if test $RC != 0; then
+	echo "ldapsearch failed at consumer ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 echo "Waiting $SLEEP1 seconds for syncrepl to receive changes..."
 sleep $SLEEP1
 
