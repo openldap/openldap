@@ -75,7 +75,7 @@ SLEEP2=${SLEEP2-15}
 TIMEOUT=${TIMEOUT-8}
 
 # dirs
-PROGDIR=./progs
+PROGDIR="$OBJDIR/tests/progs"
 DATADIR=${USER_DATADIR-./testdata}
 SCHEMADIR=${USER_SCHEMADIR-./schema}
 case "$SCHEMADIR" in
@@ -103,7 +103,7 @@ DBDIR5=$TESTDIR/db.5.a
 DBDIR6=$TESTDIR/db.6.a
 SQLCONCURRENCYDIR=$DATADIR/sql-concurrency
 
-CLIENTDIR=../clients/tools
+CLIENTDIR="$OBJDIR/clients/tools"
 #CLIENTDIR=/usr/local/bin
 
 # conf
@@ -235,11 +235,12 @@ CONFDIRSYNC=$SRCDIR/scripts/confdirsync.sh
 
 MONITORDATA=$SRCDIR/scripts/monitor_data.sh
 
-SLAPADD="$SLAPD_WRAPPER $TESTWD/../servers/slapd/slapd -Ta -d 0 $LDAP_VERBOSE"
-SLAPCAT="$SLAPD_WRAPPER $TESTWD/../servers/slapd/slapd -Tc -d 0 $LDAP_VERBOSE"
-SLAPINDEX="$SLAPD_WRAPPER $TESTWD/../servers/slapd/slapd -Ti -d 0 $LDAP_VERBOSE"
-SLAPMODIFY="$SLAPD_WRAPPER $TESTWD/../servers/slapd/slapd -Tm -d 0 $LDAP_VERBOSE"
-SLAPPASSWD="$SLAPD_WRAPPER $TESTWD/../servers/slapd/slapd -Tpasswd"
+SLAPDBIN="$OBJDIR/servers/slapd/slapd"
+SLAPADD="$SLAPD_WRAPPER $SLAPDBIN -Ta -d 0 $LDAP_VERBOSE"
+SLAPCAT="$SLAPD_WRAPPER $SLAPDBIN -Tc -d 0 $LDAP_VERBOSE"
+SLAPINDEX="$SLAPD_WRAPPER $SLAPDBIN -Ti -d 0 $LDAP_VERBOSE"
+SLAPMODIFY="$SLAPD_WRAPPER $SLAPDBIN -Tm -d 0 $LDAP_VERBOSE"
+SLAPPASSWD="$SLAPD_WRAPPER $SLAPDBIN -Tpasswd"
 
 unset DIFF_OPTIONS
 # NOTE: -u/-c is not that portable...
@@ -247,8 +248,8 @@ DIFF="diff -i"
 CMP="diff -i"
 BCMP="diff -iB"
 CMPOUT=/dev/null
-SLAPD="$SLAPD_WRAPPER $TESTWD/../servers/slapd/slapd -s0"
-LLOADD="$SLAPD_WRAPPER $TESTWD/../servers/lloadd/lloadd -s0"
+SLAPD="$SLAPD_WRAPPER $SLAPDBIN -s0"
+LLOADD="$SLAPD_WRAPPER $OBJDIR/servers/lloadd/lloadd -s0"
 LDAPPASSWD="$CLIENTDIR/ldappasswd $TOOLARGS"
 LDAPSASLSEARCH="$CLIENTDIR/ldapsearch $SASLARGS $TOOLPROTO $LDAP_TOOLARGS -LLL"
 LDAPSASLWHOAMI="$CLIENTDIR/ldapwhoami $SASLARGS $LDAP_TOOLARGS"
@@ -458,6 +459,6 @@ DDSOUT=$DATADIR/dds.out
 DEREFOUT=$DATADIR/deref.out
 MEMBEROFOUT=$DATADIR/memberof.out
 MEMBEROFREFINTOUT=$DATADIR/memberof-refint.out
-SHTOOL="$SRCDIR/../build/shtool"
+SHTOOL="$TOPSRCDIR/build/shtool"
 
 . $ABS_SRCDIR/scripts/functions.sh
