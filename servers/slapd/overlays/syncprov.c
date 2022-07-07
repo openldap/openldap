@@ -3332,7 +3332,7 @@ no_change:	if ( !(op->o_sync_mode & SLAP_SYNC_PERSIST) ) {
 					numcsns, sids, &mincsn, minsid ) ) {
 				do_present = SS_PRESENT;
 			}
-		} else if ( si->si_nopres && si->si_usehint ) {
+		} else if ( ad_minCSN != NULL && si->si_nopres && si->si_usehint ) {
 			/* We are instructed to trust minCSN if it exists. */
 			Entry *e;
 			Attribute *a = NULL;
@@ -3825,7 +3825,10 @@ sp_cf_gen(ConfigArgs *c)
 		break;
 	case SP_USEHINT:
 		si->si_usehint = c->value_int;
-		rc = syncprov_setup_accesslog();
+		if ( si->si_usehint ) {
+			/* Consider we might be a delta provider, but it's ok if not */
+			(void)syncprov_setup_accesslog();
+		}
 		break;
 	case SP_LOGDB:
 		if ( si->si_logs ) {
