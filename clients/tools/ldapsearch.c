@@ -1866,12 +1866,13 @@ again:
 			if ( ldapsync && sync_slimit != -1 &&
 					nresponses_psearch >= sync_slimit ) {
 				BerElement *msgidber = NULL;
-				struct berval *msgidvalp = NULL;
+				struct berval msgidval;
 				msgidber = ber_alloc_t(LBER_USE_DER);
 				ber_printf(msgidber, "{i}", msgid);
-				ber_flatten(msgidber, &msgidvalp);
+				ber_flatten2( msgidber, &msgidval, 0 );
 				ldap_extended_operation(ld, LDAP_EXOP_CANCEL,
-					msgidvalp, NULL, NULL, &cancel_msgid);
+					&msgidval, NULL, NULL, &cancel_msgid);
+				ber_free( msgidber, 1 );
 				nresponses_psearch = -1;
 			}
 		}

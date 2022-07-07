@@ -160,7 +160,8 @@ ldap_parse_derefresponse_control(
 	LDAPControl	*ctrl,
 	LDAPDerefRes	**drp2 )
 {
-	BerElement *ber;
+	BerElementBuffer berbuf;
+	BerElement *ber = (BerElement *)&berbuf;
 	ber_tag_t tag;
 	ber_len_t len;
 	char *last;
@@ -172,13 +173,8 @@ ldap_parse_derefresponse_control(
 		return LDAP_PARAM_ERROR;
 	}
 
-	/* Create a BerElement from the berval returned in the control. */
-	ber = ber_init( &ctrl->ldctl_value );
-
-	if ( ber == NULL ) {
-		ld->ld_errno = LDAP_NO_MEMORY;
-		return ld->ld_errno;
-	}
+	/* Set up a BerElement from the berval returned in the control. */
+	ber_init2( ber, &ctrl->ldctl_value, 0 );
 
 	/* Extract the count and cookie from the control. */
 	drp = &drhead;
@@ -193,7 +189,6 @@ ldap_parse_derefresponse_control(
 		dr = LDAP_CALLOC( 1, sizeof(LDAPDerefRes) );
 		if ( dr == NULL ) {
 			ldap_derefresponse_free( drhead );
-			ber_free( ber, 1 );
 			*drp2 = NULL;
 			ld->ld_errno = LDAP_NO_MEMORY;
 			return ld->ld_errno;
@@ -244,8 +239,6 @@ ldap_parse_derefresponse_control(
 	tag = 0;
 
 done:;
-        ber_free( ber, 1 );
-
 	if ( tag == LBER_ERROR ) {
 		if ( drhead != NULL ) {
 			ldap_derefresponse_free( drhead );
