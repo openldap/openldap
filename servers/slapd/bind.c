@@ -500,7 +500,7 @@ fe_op_lastbind( Operation *op )
 		}
 	}
 
-	rc = op->o_bd->be_modify( &op2, &r2 );
+	rc = op2.o_bd->be_modify( &op2, &r2 );
 	slap_mods_free( m, 1 );
 
 done:
