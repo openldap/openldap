@@ -1,5 +1,7 @@
 OpenLDAP 2.6 Change Log
 
+OpenLDAP 2.6.4 Engineering
+
 OpenLDAP 2.6.3 Release (2022/07/14)
 	Fixed librewrite declaration of calloc (ITS#9841)
 	Fixed libldap to check for NULL ld (ITS#9157)
