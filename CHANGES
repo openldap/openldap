@@ -1,6 +1,6 @@
 OpenLDAP 2.5 Change Log
 
-OpenLDAP 2.5.13 Engineering
+OpenLDAP 2.5.13 Release (2022/07/14)
 	Fixed librewrite declaration of calloc (ITS#9841)
 	Fixed libldap memory leaks (ITS#9876)
 	Fixed slapd kqueue support (ITS#9847)
