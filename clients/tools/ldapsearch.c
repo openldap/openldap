@@ -998,10 +998,7 @@ main( int argc, char **argv )
 	FILE		*fp = NULL;
 	int			rc, rc1, i, first;
 	LDAP		*ld = NULL;
-	BerElement	*seber = NULL, *vrber = NULL;
-
-	BerElement      *syncber = NULL;
-	struct berval   *syncbvalp = NULL;
+	BerElement	*ber = NULL;
 	int		err;
 
 	tool_init( TOOL_SEARCH );
@@ -1200,20 +1197,21 @@ getNextPage:
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			if (( seber = ber_alloc_t(LBER_USE_DER)) == NULL ) {
+			if (( ber = ber_alloc_t(LBER_USE_DER)) == NULL ) {
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			err = ber_printf( seber, "b", abs(subentries) == 1 ? 0 : 1 );
+			err = ber_printf( ber, "b", abs(subentries) == 1 ? 0 : 1 );
 			if ( err == -1 ) {
-				ber_free( seber, 1 );
+				ber_free( ber, 1 );
 				fprintf( stderr, _("Subentries control encoding error!\n") );
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			if ( ber_flatten2( seber, &c[i].ldctl_value, 0 ) == -1 ) {
+			err = ber_flatten2( ber, &c[i].ldctl_value, 1 );
+			ber_free( ber, 1 );
+			if ( err == -1 )
 				tool_exit( ld, EXIT_FAILURE );
-			}
 
 			c[i].ldctl_oid = LDAP_CONTROL_SUBENTRIES;
 			c[i].ldctl_iscritical = subentries < 1;
@@ -1225,29 +1223,29 @@ getNextPage:
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			if (( syncber = ber_alloc_t(LBER_USE_DER)) == NULL ) {
+			if (( ber = ber_alloc_t(LBER_USE_DER)) == NULL ) {
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
 			if ( sync_cookie.bv_len == 0 ) {
-				err = ber_printf( syncber, "{e}", abs(ldapsync) );
+				err = ber_printf( ber, "{e}", abs(ldapsync) );
 			} else {
-				err = ber_printf( syncber, "{eO}", abs(ldapsync),
+				err = ber_printf( ber, "{eO}", abs(ldapsync),
 							&sync_cookie );
 			}
 
 			if ( err == -1 ) {
-				ber_free( syncber, 1 );
+				ber_free( ber, 1 );
 				fprintf( stderr, _("ldap sync control encoding error!\n") );
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			if ( ber_flatten( syncber, &syncbvalp ) == -1 ) {
+			err = ber_flatten2( ber, &c[i].ldctl_value, 1 );
+			ber_free( ber, 1 );
+			if ( err == -1 )
 				tool_exit( ld, EXIT_FAILURE );
-			}
 
 			c[i].ldctl_oid = LDAP_CONTROL_SYNC;
-			c[i].ldctl_value = (*syncbvalp);
 			c[i].ldctl_iscritical = ldapsync < 0;
 			i++;
 		}
@@ -1257,19 +1255,20 @@ getNextPage:
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			if (( vrber = ber_alloc_t(LBER_USE_DER)) == NULL ) {
+			if (( ber = ber_alloc_t(LBER_USE_DER)) == NULL ) {
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			if ( ( err = ldap_put_vrFilter( vrber, vrFilter ) ) == -1 ) {
-				ber_free( vrber, 1 );
+			if ( ( err = ldap_put_vrFilter( ber, vrFilter ) ) == -1 ) {
+				ber_free( ber, 1 );
 				fprintf( stderr, _("Bad ValuesReturnFilter: %s\n"), vrFilter );
 				tool_exit( ld, EXIT_FAILURE );
 			}
 
-			if ( ber_flatten2( vrber, &c[i].ldctl_value, 0 ) == -1 ) {
+			err = ber_flatten2( ber, &c[i].ldctl_value, 1 );
+			ber_free( ber, 1 );
+			if ( err == -1 )
 				tool_exit( ld, EXIT_FAILURE );
-			}
 
 			c[i].ldctl_oid = LDAP_CONTROL_VALUESRETURNFILTER;
 			c[i].ldctl_iscritical = valuesReturnFilter > 1;
@@ -1439,8 +1438,11 @@ getNextPage:
 
 	tool_server_controls( ld, c, i );
 
-	if ( seber ) ber_free( seber, 1 );
-	if ( vrber ) ber_free( vrber, 1 );
+	/* free any controls we added */
+	for ( ; nctrls-- > save_nctrls; ) {
+		if ( c[nctrls].ldctl_value.bv_val != derefval.bv_val )
+			ber_memfree( c[nctrls].ldctl_value.bv_val );
+	}
 
 	/* step back to the original number of controls, so that 
 	 * those set while parsing args are preserved */
