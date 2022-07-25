@@ -3,7 +3,6 @@ OpenLDAP 2.6 Change Log
 OpenLDAP 2.6.4 Engineering
 
 OpenLDAP 2.6.3 Release (2022/07/14)
-	Fixed librewrite declaration of calloc (ITS#9841)
 	Fixed libldap to check for NULL ld (ITS#9157)
 	Fixed libldap memory leaks (ITS#9876)
 	Fixed lloadd to correctly tag Notice of Disconnection (ITS#9856)
@@ -22,6 +21,7 @@ OpenLDAP 2.6.3 Release (2022/07/14)
 	Fixed slapo-unique to not release NULL entry (ITS#8245)
 	Build Environment
 		Added slapd-watcher -c contextDN option (ITS#9865)
+		Fixed librewrite declaration of calloc (ITS#9841)
 		Fixed parallel builds (ITS#9840)
 		Fixed test020 to skip back-wt (ITS#9859)
 		Fixed slapd-watcher SID handling with single URI (ITS#9850)
