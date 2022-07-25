@@ -821,6 +821,9 @@ static struct {
 	{ BER_BVC("passcred"), SASL_SEC_PASS_CREDENTIALS, 0, 0 },
 	{ BER_BVC("forwardsec"), SASL_SEC_FORWARD_SECRECY, 0, 0 },
 	{ BER_BVC("noanonymous"), SASL_SEC_NOANONYMOUS, 0, 0 },
+#ifdef SASL_SEC_NONSTD_CBIND
+	{ BER_BVC("nonstdcbind"), SASL_SEC_NONSTD_CBIND, 0, 0 },
+#endif
 	{ BER_BVC("minssf="), 0, GOT_MINSSF, 0 },
 	{ BER_BVC("maxssf="), 0, GOT_MAXSSF, INT_MAX },
 	{ BER_BVC("maxbufsize="), 0, GOT_MAXBUF, 65536 },
