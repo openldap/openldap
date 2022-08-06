@@ -41,7 +41,7 @@ LDAP_BEGIN_DECL
 /* The minimum we can function with */
 #define MINIMUM_SEARCH_STACK_DEPTH	8
 
-#define MDB_INDICES		128
+#define MDB_INDICES		256
 
 #define	MDB_MAXADS	65536
 
