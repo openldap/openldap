@@ -2034,7 +2034,7 @@ dnl
 WITH_SYSTEMD=no
 systemdsystemunitdir=
 ol_link_systemd=no
-if test $ol_enable_slapd == no && test $ol_enable_balancer != yes ; then
+if test $ol_enable_slapd = no && test $ol_enable_balancer != yes ; then
 	if test $ol_with_systemd != no ; then
 		AC_MSG_WARN([servers disabled, ignoring --with-systemd=$ol_with_systemd argument])
 		ol_with_systemd=no
