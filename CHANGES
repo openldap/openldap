@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.14 Engineering
 	Fixed ldapsearch memory leak with controls (ITS#9860)
+	Fixed slapd-mdb max number of index databases to 256 (ITS#9895)
 
 OpenLDAP 2.5.13 Release (2022/07/14)
 	Fixed librewrite declaration of calloc (ITS#9841)
