@@ -6,6 +6,7 @@ OpenLDAP 2.5.14 Engineering
     Build Environment
 		Fixed build process to not use gmake specific features (ITS#9894)
 		Fixed usage of non-standard C syntax (ITS#9898, ITS#9899, ITS#9901)
+		Fixed usage of bashism (ITS#9900)
 
 OpenLDAP 2.5.13 Release (2022/07/14)
 	Fixed librewrite declaration of calloc (ITS#9841)
