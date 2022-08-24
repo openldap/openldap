@@ -26,7 +26,6 @@ O = o
 
 OBJS	= backend.$O bind.$O config.$O connection.$O client.$O \
 		  daemon.$O epoch.$O extended.$O init.$O operation.$O \
-		  tier.$O tier_roundrobin.$O tier_weighted.$O tier_bestof.$O \
 		  upstream.$O libevent_support.$O
 
 LDAP_INCDIR= ../../include -I$(srcdir) -I$(srcdir)/../slapd
