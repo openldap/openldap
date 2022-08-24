@@ -23,8 +23,8 @@ SRCS	+= main.c value.c \
 		  ../slapd/ch_malloc.c ../slapd/proxyp.c ../slapd/sl_malloc.c ../slapd/user.c
 
 OBJS	+= main.o value.o \
-		  ../slapd/ch_malloc.o ../slapd/logging.o ../slapd/proxyp.o \
-		  ../slapd/sl_malloc.o ../slapd/user.o ../slapd/verbs.o \
+		  ../slapd/ch_malloc.o ../slapd/proxyp.o \
+		  ../slapd/sl_malloc.o ../slapd/user.o \
 		  $(@PLAT@_OBJS)
 
 BUILD_OPT = "--enable-balancer"
