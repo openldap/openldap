@@ -1385,24 +1385,22 @@ ldap_url_parsehosts(
 		}
 		ludp->lud_port = port;
 		ludp->lud_host = specs[i];
-		specs[i] = NULL;
 		p = strchr(ludp->lud_host, ':');
 		if (p != NULL) {
 			/* more than one :, IPv6 address */
 			if ( strchr(p+1, ':') != NULL ) {
 				/* allow [address] and [address]:port */
 				if ( *ludp->lud_host == '[' ) {
-					p = LDAP_STRDUP(ludp->lud_host+1);
-					/* copied, make sure we free source later */
-					specs[i] = ludp->lud_host;
-					ludp->lud_host = p;
-					p = strchr( ludp->lud_host, ']' );
+					p = strchr( ludp->lud_host+1, ']' );
 					if ( p == NULL ) {
 						LDAP_FREE(ludp);
 						ldap_charray_free(specs);
 						return LDAP_PARAM_ERROR;
 					}
-					*p++ = '\0';
+					/* Truncate trailing ']' and shift hostname down 1 char */
+					*p = '\0';
+					AC_MEMCPY( ludp->lud_host, ludp->lud_host+1, p - ludp->lud_host );
+					p++;
 					if ( *p != ':' ) {
 						if ( *p != '\0' ) {
 							LDAP_FREE(ludp);
@@ -1428,14 +1426,19 @@ ldap_url_parsehosts(
 				}
 			}
 		}
-		ldap_pvt_hex_unescape(ludp->lud_host);
 		ludp->lud_scheme = LDAP_STRDUP("ldap");
+		if ( ludp->lud_scheme == NULL ) {
+			LDAP_FREE(ludp);
+			ldap_charray_free(specs);
+			return LDAP_NO_MEMORY;
+		}
+		specs[i] = NULL;
+		ldap_pvt_hex_unescape(ludp->lud_host);
 		ludp->lud_next = *ludlist;
 		*ludlist = ludp;
 	}
 
 	/* this should be an array of NULLs now */
-	/* except entries starting with [ */
 	ldap_charray_free(specs);
 	return LDAP_SUCCESS;
 }
