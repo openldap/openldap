@@ -73,19 +73,26 @@ tier_destroy( LloadTier *tier )
 
 #ifdef BALANCER_MODULE
     if ( tier->t_monitor ) {
-        BackendDB *be;
-        struct berval monitordn = BER_BVC("cn=monitor");
-        int rc;
-
-        be = select_backend( &monitordn, 0 );
-
         /* FIXME: implement proper subsys shutdown in back-monitor or make
          * backend just an entry, not a subsys */
-        rc = tier->t_monitor->mss_destroy( be, tier->t_monitor );
-        assert( rc == LDAP_SUCCESS );
+        if ( slapd_shutdown ) {
+            /* Just drop backlink, back-monitor will call mss_destroy later */
+            assert( tier->t_monitor->mss_private == tier );
+            tier->t_monitor->mss_private = NULL;
+        } else {
+            BackendDB *be;
+            struct berval monitordn = BER_BVC("cn=monitor");
+            int rc;
+
+            be = select_backend( &monitordn, 0 );
+
+            rc = tier->t_monitor->mss_destroy( be, tier->t_monitor );
+            assert( rc == LDAP_SUCCESS );
+        }
     }
 #endif /* BALANCER_MODULE */
 
+    ch_free( tier->t_name.bv_val );
     ch_free( tier );
     return LDAP_SUCCESS;
 }

@@ -277,6 +277,16 @@ static struct {
 static int
 lload_monitor_subsystem_destroy( BackendDB *be, monitor_subsys_t *ms )
 {
+    ch_free( ms->mss_dn.bv_val );
+    ch_free( ms->mss_ndn.bv_val );
+    return LDAP_SUCCESS;
+}
+
+static int
+lload_monitor_subsystem_free( BackendDB *be, monitor_subsys_t *ms )
+{
+    lload_monitor_subsystem_destroy( be, ms );
+    ch_free( ms );
     return LDAP_SUCCESS;
 }
 
@@ -287,16 +297,14 @@ lload_monitor_backend_destroy( BackendDB *be, monitor_subsys_t *ms )
     monitor_extra_t *mbe;
     int rc = LDAP_SUCCESS;
 
+    ms->mss_destroy = lload_monitor_subsystem_free;
+
     mbe = (monitor_extra_t *)be->bd_info->bi_extra;
     if ( b->b_monitor ) {
-        ms->mss_destroy = lload_monitor_subsystem_destroy;
-
         assert( b->b_monitor == ms );
         b->b_monitor = NULL;
 
         rc = mbe->unregister_entry( &ms->mss_ndn );
-        ber_memfree( ms->mss_dn.bv_val );
-        ber_memfree( ms->mss_ndn.bv_val );
     }
 
     return rc;
@@ -306,19 +314,21 @@ static int
 lload_monitor_tier_destroy( BackendDB *be, monitor_subsys_t *ms )
 {
     LloadTier *tier = ms->mss_private;
-    monitor_extra_t *mbe;
 
-    mbe = (monitor_extra_t *)be->bd_info->bi_extra;
-    if ( tier->t_monitor ) {
-        ms->mss_destroy = lload_monitor_subsystem_destroy;
+    assert( slapd_shutdown || ( tier && tier->t_monitor == ms ) );
 
-        assert( tier->t_monitor == ms );
+    ms->mss_destroy = lload_monitor_subsystem_free;
+
+    if ( !slapd_shutdown ) {
+        monitor_extra_t *mbe;
+
         tier->t_monitor = NULL;
 
+        mbe = (monitor_extra_t *)be->bd_info->bi_extra;
         return mbe->unregister_entry( &ms->mss_ndn );
     }
 
-    return LDAP_SUCCESS;
+    return ms->mss_destroy( be, ms );
 }
 
 static void
