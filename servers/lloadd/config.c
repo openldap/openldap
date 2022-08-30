@@ -74,9 +74,6 @@ char *slapd_pid_file = NULL;
 char *slapd_args_file = NULL;
 #endif /* !BALANCER_MODULE */
 
-static FILE *logfile;
-static char *logfileName;
-
 static struct timeval timeout_api_tv, timeout_net_tv,
         timeout_write_tv = { 10, 0 };
 
@@ -91,8 +88,6 @@ int lload_conn_max_pdus_per_cycle = LLOAD_CONN_MAX_PDUS_PER_CYCLE_DEFAULT;
 struct timeval *lload_timeout_api = NULL;
 struct timeval *lload_timeout_net = NULL;
 struct timeval *lload_write_timeout = &timeout_write_tv;
-
-static slap_verbmasks tlskey[];
 
 static int fp_getline( FILE *fp, ConfigArgs *c );
 static void fp_getline_init( ConfigArgs *c );
@@ -872,8 +867,6 @@ static ConfigOCs lloadocs[] = {
     { NULL, 0, NULL }
 };
 #endif /* BALANCER_MODULE */
-
-static int config_syslog;
 
 static int
 config_generic( ConfigArgs *c )
