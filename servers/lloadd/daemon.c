@@ -779,6 +779,9 @@ lloadd_daemon_destroy( void )
             }
         }
 
+        event_free( lload_stats_event );
+        event_free( lload_timeout_event );
+
         event_base_free( daemon_base );
         daemon_base = NULL;
 

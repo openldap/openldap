@@ -106,6 +106,37 @@ lload_global_init( void )
 }
 
 int
+lload_global_destroy( void )
+{
+    if ( !BER_BVISNULL( &lloadd_identity ) ) {
+        ch_free( lloadd_identity.bv_val );
+        BER_BVZERO( &lloadd_identity );
+    }
+
+    lload_exop_destroy();
+
+#ifdef HAVE_TLS
+    if ( lload_tls_backend_ld ) {
+        ldap_unbind_ext( lload_tls_backend_ld, NULL, NULL );
+    }
+    if ( lload_tls_ld ) {
+        ldap_unbind_ext( lload_tls_ld, NULL, NULL );
+    }
+#endif
+
+    ldap_pvt_thread_mutex_destroy( &lload_wait_mutex );
+    ldap_pvt_thread_cond_destroy( &lload_wait_cond );
+    ldap_pvt_thread_cond_destroy( &lload_pause_cond );
+
+    ldap_pvt_thread_mutex_destroy( &clients_mutex );
+    ldap_pvt_thread_mutex_destroy( &lload_pin_mutex );
+
+    lload_libevent_destroy();
+
+    return 0;
+}
+
+int
 lload_tls_init( void )
 {
 #ifdef HAVE_TLS

@@ -1319,14 +1319,15 @@ config_bindconf( ConfigArgs *c )
     }
 
     if ( !BER_BVISNULL( &bindconf.sb_authzId ) ) {
-        ber_dupbv( &lloadd_identity, &bindconf.sb_authzId );
+        ber_bvreplace( &lloadd_identity, &bindconf.sb_authzId );
     } else if ( !BER_BVISNULL( &bindconf.sb_authcId ) ) {
-        ber_dupbv( &lloadd_identity, &bindconf.sb_authcId );
+        ber_bvreplace( &lloadd_identity, &bindconf.sb_authcId );
     } else if ( !BER_BVISNULL( &bindconf.sb_binddn ) ) {
         char *ptr;
 
         lloadd_identity.bv_len = STRLENOF("dn:") + bindconf.sb_binddn.bv_len;
-        lloadd_identity.bv_val = ch_malloc( lloadd_identity.bv_len + 1 );
+        lloadd_identity.bv_val = ch_realloc(
+                lloadd_identity.bv_val, lloadd_identity.bv_len + 1 );
 
         ptr = lutil_strcopy( lloadd_identity.bv_val, "dn:" );
         ptr = lutil_strncopy(
@@ -1552,10 +1553,12 @@ config_tier( ConfigArgs *c )
     if ( CONFIG_ONLINE_ADD( c ) ) {
         assert( tier );
         lload_change.target = tier;
+        ch_free( c->value_string );
         return rc;
     }
 
     tier_impl = lload_tier_find( c->value_string );
+    ch_free( c->value_string );
     if ( !tier_impl ) {
         goto fail;
     }
