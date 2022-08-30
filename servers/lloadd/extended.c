@@ -211,3 +211,10 @@ lload_exop_init( void )
 
     return LDAP_SUCCESS;
 }
+
+void
+lload_exop_destroy( void )
+{
+    ldap_avl_free( lload_exop_handlers, NULL );
+    lload_exop_handlers = NULL;
+}
