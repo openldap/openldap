@@ -2537,12 +2537,12 @@ monitor_back_db_destroy(
 		int	i;
 
 		for ( i = 0; monitor_subsys[ i ] != NULL; i++ ) {
-			if ( monitor_subsys[ i ]->mss_destroy ) {
-				monitor_subsys[ i ]->mss_destroy( be, monitor_subsys[ i ] );
-			}
-
 			if ( !BER_BVISNULL( &monitor_subsys[ i ]->mss_rdn ) ) {
 				ch_free( monitor_subsys[ i ]->mss_rdn.bv_val );
+			}
+
+			if ( monitor_subsys[ i ]->mss_destroy ) {
+				monitor_subsys[ i ]->mss_destroy( be, monitor_subsys[ i ] );
 			}
 		}
 
