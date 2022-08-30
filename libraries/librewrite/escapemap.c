@@ -103,7 +103,7 @@ map_unescape_dn( struct berval *input, struct berval *output )
 	int rc = REWRITE_SUCCESS;
 
 	fake_dn.bv_len = STRLENOF("uid=") + input->bv_len;
-	fake_dn.bv_val = p = malloc( fake_dn.bv_len );
+	fake_dn.bv_val = p = malloc( fake_dn.bv_len + 1 );
 	if ( p == NULL ) {
 		return REWRITE_ERR;
 	}
@@ -111,14 +111,17 @@ map_unescape_dn( struct berval *input, struct berval *output )
 	memcpy( p, "uid=", STRLENOF("uid=") );
 	p += STRLENOF("uid=");
 	memcpy( p, input->bv_val, input->bv_len );
+	fake_dn.bv_val[fake_dn.bv_len] = '\0';
 
 	if ( ldap_bv2dn( &fake_dn, &dn, LDAP_DN_FORMAT_LDAPV3 ) != LDAP_SUCCESS ) {
+		free( fake_dn.bv_val );
 		return REWRITE_ERR;
 	}
 	if ( ber_dupbv( output, &dn[0][0]->la_value ) == NULL ) {
 		rc = REWRITE_ERR;
 	}
 	ldap_dnfree( dn );
+	free( fake_dn.bv_val );
 	return rc;
 }
 
@@ -178,7 +181,7 @@ map_escape_apply(
 		struct berval *output )
 {
 	escape_fn **fns = private;
-	struct berval tmpin, tmpout;
+	struct berval tmpin, tmpout = BER_BVNULL;
 	int i;
 
 	assert( private != NULL );
@@ -191,9 +194,11 @@ map_escape_apply(
 		int rc = fns[i]( &tmpin, &tmpout );
 		free( tmpin.bv_val );
 		if ( rc != REWRITE_SUCCESS ) {
+			free( tmpout.bv_val );
 			return rc;
 		}
 		tmpin = tmpout;
+		BER_BVZERO( &tmpout );
 	}
 	*output = tmpin;
 
