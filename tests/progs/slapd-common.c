@@ -522,6 +522,8 @@ retry:;
 
 		if ( rc != LDAP_SUCCESS ) {
 			tester_ldap_error( ld, "ldap_sasl_bind_s", NULL );
+			ldap_unbind_ext( ld, NULL, NULL );
+			ld = NULL;
 			switch ( rc ) {
 				case LDAP_BUSY:
 				case LDAP_UNAVAILABLE:
@@ -533,8 +535,6 @@ retry:;
 						goto retry;
 					}
 			}
-			ldap_unbind_ext( ld, NULL, NULL );
-			ld = NULL;
 			if ( !( flags & TESTER_INIT_NOEXIT ))
 				exit( EXIT_FAILURE );
 		}
