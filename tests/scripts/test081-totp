@@ -22,6 +22,12 @@ if test $OTP = otpno; then
     exit 0
 fi
 
+export URI1 MANAGERDN PASSWD BABSDN BJORNSDN
+
+OTP_DATA=$DATADIR/otp/totp.ldif
+
+mkdir -p $TESTDIR $DBDIR1
+
 for python in python3 python2 python2.7 python27 python ""; do
     if test x"$python" = x; then
         echo "Useable Python environment not found, skipping test"
@@ -41,12 +47,6 @@ for python in python3 python2 python2.7 python27 python ""; do
         ;;
     esac
 done
-
-export URI1 MANAGERDN PASSWD BABSDN BJORNSDN
-
-OTP_DATA=$DATADIR/otp/totp.ldif
-
-mkdir -p $TESTDIR $DBDIR1
 
 echo "Running slapadd to build slapd database..."
 . $CONFFILTER $BACKEND < $CONF > $ADDCONF
