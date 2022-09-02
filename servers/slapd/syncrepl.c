@@ -5987,6 +5987,8 @@ syncinfo_free( syncinfo_t *sie, int free_all )
 		if ( !BER_BVISEMPTY( &sie->si_monitor_ndn )) {
 			syncrepl_monitor_del( sie );
 		}
+		ch_free( sie->si_lastCookieSent.bv_val );
+		ch_free( sie->si_lastCookieRcvd.bv_val );
 
 		if ( sie->si_ld ) {
 			if ( sie->si_conn ) {
@@ -7168,8 +7170,6 @@ syncrepl_monitor_del(
 		monitor_extra_t *mbe = mi->bi_extra;
 		mbe->unregister_entry( &si->si_monitor_ndn );
 	}
-	ch_free( si->si_lastCookieSent.bv_val );
-	ch_free( si->si_lastCookieRcvd.bv_val );
 	ch_free( si->si_monitor_ndn.bv_val );
 	return 0;
 }
