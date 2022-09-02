@@ -67,8 +67,11 @@ tier_destroy( LloadTier *tier )
 {
     while ( !LDAP_CIRCLEQ_EMPTY( &tier->t_backends ) ) {
         LloadBackend *b = LDAP_CIRCLEQ_FIRST( &tier->t_backends );
+        epoch_t epoch = epoch_join();
 
         lload_backend_destroy( b );
+
+        epoch_leave( epoch );
     }
 
 #ifdef BALANCER_MODULE
