@@ -796,8 +796,10 @@ client_destroy( LloadConnection *c )
 void
 clients_destroy( int gentle )
 {
+    epoch_t epoch = epoch_join();
     checked_lock( &clients_mutex );
     connections_walk(
             &clients_mutex, &clients, lload_connection_close, &gentle );
     checked_unlock( &clients_mutex );
+    epoch_leave( epoch );
 }
