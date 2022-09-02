@@ -54,7 +54,10 @@ map_unescape_filter( struct berval *input, struct berval *output )
 	}
 
 	len = ldap_pvt_filter_value_unescape( output->bv_val );
-	if ( len < 0 ) return REWRITE_ERR;
+	if ( len < 0 ) {
+		ber_memfree( output->bv_val );
+		return REWRITE_ERR;
+	}
 	output->bv_len = len;
 
 	return LDAP_SUCCESS;
@@ -194,7 +197,6 @@ map_escape_apply(
 		int rc = fns[i]( &tmpin, &tmpout );
 		free( tmpin.bv_val );
 		if ( rc != REWRITE_SUCCESS ) {
-			free( tmpout.bv_val );
 			return rc;
 		}
 		tmpin = tmpout;
