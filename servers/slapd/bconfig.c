@@ -2978,7 +2978,7 @@ config_subordinate(ConfigArgs *c)
 
 #ifdef LDAP_TCP_BUFFER
 static BerVarray tcp_buffer;
-int tcp_buffer_num;
+static int tcp_buffer_num;
 
 #define SLAP_TCP_RMEM (0x1U)
 #define SLAP_TCP_WMEM (0x2U)
