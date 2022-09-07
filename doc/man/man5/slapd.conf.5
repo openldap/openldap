@@ -1411,7 +1411,9 @@ will be updated. More than
 .B integer
 seconds must have passed since the last successful bind. In a
 replicated environment with frequent bind activity it may be
-useful to set this to a large value.
+useful to set this to a large value. On a backend, if set to
+.B 0
+(the default), the value set on the frontend is used.
 .TP
 .B limits <selector> <limit> [<limit> [...]]
 Specify time and size limits based on the operation's initiator or

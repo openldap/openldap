@@ -424,6 +424,11 @@ fe_op_lastbind( Operation *op )
 	if ( (a = attr_find( e->e_attrs, slap_schema.si_ad_pwdLastSuccess )) != NULL ) {
 		struct lutil_tm tm;
 		struct lutil_timet tt;
+		unsigned int precision = op->o_bd->be_lastbind_precision;
+
+		if ( precision == 0 ) {
+			precision = frontendDB->be_lastbind_precision;
+		}
 
 		if ( lutil_parsetime( a->a_nvals[0].bv_val, &tm ) == 0 ) {
 			lutil_tm2time( &tm, &tt );
@@ -437,8 +442,7 @@ fe_op_lastbind( Operation *op )
 		 * TODO: If the recorded bind time is within configurable precision,
 		 * it doesn't need to be updated (save a write for nothing)
 		 */
-		if ( bindtime != (time_t)-1 &&
-				op->o_time <= bindtime + op->o_bd->be_lastbind_precision ) {
+		if ( bindtime != (time_t)-1 && op->o_time <= bindtime + precision ) {
 			be_entry_release_r( op, e );
 			return LDAP_SUCCESS;
 		}
