@@ -2649,7 +2649,7 @@ accesslog_db_open(
 	}
 
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-	ldap_pvt_runqueue_insert( &slapd_rq, 3600, accesslog_db_root, on,
+	ldap_pvt_runqueue_insert( &slapd_rq, 0, accesslog_db_root, on,
 		"accesslog_db_root", li->li_db->be_suffix[0].bv_val );
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 

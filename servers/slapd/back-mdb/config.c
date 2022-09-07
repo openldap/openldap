@@ -439,7 +439,7 @@ mdb_start_index_task( BackendDB *be )
 {
 	struct mdb_info *mdb = be->be_private;
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-	mdb->mi_index_task = ldap_pvt_runqueue_insert( &slapd_rq, 36000,
+	mdb->mi_index_task = ldap_pvt_runqueue_insert( &slapd_rq, 0,
 		mdb_online_index, be,
 		LDAP_XSTRING(mdb_online_index), be->be_suffix[0].bv_val );
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
@@ -923,7 +923,7 @@ mdb_cf_gen( ConfigArgs *c )
 					return 1;
 				}
 				ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-				mdb->mi_index_task = ldap_pvt_runqueue_insert( &slapd_rq, 36000,
+				mdb->mi_index_task = ldap_pvt_runqueue_insert( &slapd_rq, 0,
 					mdb_online_index, c->be,
 					LDAP_XSTRING(mdb_online_index), c->be->be_suffix[0].bv_val );
 				ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
