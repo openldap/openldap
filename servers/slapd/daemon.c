@@ -2788,11 +2788,13 @@ loop:
 			ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 			rtask = ldap_pvt_runqueue_next_sched( &slapd_rq, &cat );
 			while ( rtask && cat.tv_sec && cat.tv_sec <= now ) {
+				/* ITS#9878 If interval == 0, this task was meant to be one-shot */
+				int defer = !rtask->interval.tv_sec;
 				if ( ldap_pvt_runqueue_isrunning( &slapd_rq, rtask )) {
-					ldap_pvt_runqueue_resched( &slapd_rq, rtask, 0 );
+					ldap_pvt_runqueue_resched( &slapd_rq, rtask, defer );
 				} else {
 					ldap_pvt_runqueue_runtask( &slapd_rq, rtask );
-					ldap_pvt_runqueue_resched( &slapd_rq, rtask, 0 );
+					ldap_pvt_runqueue_resched( &slapd_rq, rtask, defer );
 					ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 					ldap_pvt_thread_pool_submit2( &connection_pool,
 						slapd_rtask_trampoline, (void *) rtask, &rtask->pool_cookie );
