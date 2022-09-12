@@ -9,15 +9,16 @@ OpenLDAP 2.6.4 Engineering
 	Fixed slapd-lloadd memory leaks (ITS#9907)
 	Fixed slapd-mdb max number of index databases to 256 (ITS#9895)
 	Fixed slapd-monitor memory leaks with lloadd (ITS#9906)
+	Fixed slapd-monitor to free remembered cookies (ITS#9339)
 	Fixed slapo-dynlist to ignore irrelevant objectClasses (ITS#9897)
 	Fixed slapo-remoteauth memory leaks (ITS#9438)
 	Fixed slapo-rwm memory leaks (ITS#9817)
 	Build Environment
 		Fixed build process to not use gmake specific features (ITS#9894)
+		Fixed slapo-otp testdir creation (ITS#9437)
 		Fixed slapd-tester memory leak (ITS#9908)
 		Fixed usage of non-standard C syntax (ITS#9898, ITS#9899, ITS#9901)
 		Fixed usage of bashism (ITS#9900)
-		Fixed slapo-otp testdir creation (ITS#9437)
 
 OpenLDAP 2.6.3 Release (2022/07/14)
 	Fixed libldap to check for NULL ld (ITS#9157)
