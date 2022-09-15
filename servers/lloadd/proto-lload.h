@@ -81,6 +81,7 @@ LDAP_SLAPD_F (int) lload_bindconf_parse( const char *word, slap_bindconf *bc );
 LDAP_SLAPD_F (int) lload_bindconf_unparse( slap_bindconf *bc, struct berval *bv );
 LDAP_SLAPD_F (int) lload_bindconf_tls_set( slap_bindconf *bc, LDAP *ld );
 LDAP_SLAPD_F (void) lload_bindconf_free( slap_bindconf *bc );
+LDAP_SLAPD_F (void) lload_restriction_free( struct restriction_entry *entry );
 #ifdef BALANCER_MODULE
 LDAP_SLAPD_F (int) lload_back_init_cf( BackendInfo *bi );
 #endif

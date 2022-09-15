@@ -1389,8 +1389,8 @@ static struct {
     { NULL }
 };
 
-static void
-restriction_free( struct restriction_entry *restriction )
+void
+lload_restriction_free( struct restriction_entry *restriction )
 {
     ch_free( restriction->oid.bv_val );
     ch_free( restriction );
@@ -1428,7 +1428,7 @@ config_restrict_oid( ConfigArgs *c )
 
     } else if ( c->op == LDAP_MOD_DELETE ) {
         if ( !c->line ) {
-            ldap_tavl_free( *root, (AVL_FREE)restriction_free );
+            ldap_tavl_free( *root, (AVL_FREE)lload_restriction_free );
             *root = NULL;
             if ( c->type == CFG_RESTRICT_EXOP ) {
                 lload_default_exop_action = LLOAD_OP_NOT_RESTRICTED;
