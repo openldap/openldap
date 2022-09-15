@@ -114,6 +114,8 @@ lload_global_destroy( void )
     }
 
     lload_exop_destroy();
+    ldap_tavl_free( lload_control_actions, (AVL_FREE)lload_restriction_free );
+    ldap_tavl_free( lload_exop_actions, (AVL_FREE)lload_restriction_free );
 
 #ifdef HAVE_TLS
     if ( lload_tls_backend_ld ) {
