@@ -198,7 +198,6 @@ do_add( Operation *op, SlapReply *rs )
 		return rc;
 	}
 
-	LDAP_SLIST_REMOVE(&op->o_extra, &oex->oe, OpExtra, oe_next);
 	if ( rc == LDAP_TXN_SPECIFY_OKAY ) {
 		/* skip cleanup */
 		return rc;
@@ -214,6 +213,7 @@ do_add( Operation *op, SlapReply *rs )
 			op->o_bd = bd;
 		}
 	}
+	LDAP_SLIST_REMOVE(&op->o_extra, &oex->oe, OpExtra, oe_next);
 	op->o_tmpfree( oex, op->o_tmpmemctx );
 
 done:;
