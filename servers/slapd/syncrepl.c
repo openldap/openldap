@@ -1598,6 +1598,17 @@ logerr:
 			if ( modlist ) {
 				slap_mods_free( modlist, 1 );
 			}
+			if ( LogTest( LDAP_DEBUG_SYNC ) ) {
+				struct timeval now;
+				gettimeofday( &now, NULL );
+				now.tv_sec -= si->si_lastcontact.tv_sec;
+				now.tv_usec -= si->si_lastcontact.tv_usec;
+				if ( now.tv_usec < 0 ) {
+					--now.tv_sec; now.tv_usec += 1000000;
+				}
+				Debug( LDAP_DEBUG_SYNC, "do_syncrep2: %s etime=%d.%06d\n",
+						si->si_ridtxt, (int)now.tv_sec, (int)now.tv_usec );
+			}
 			if ( rc )
 				goto done;
 			break;
