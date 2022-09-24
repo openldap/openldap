@@ -77,7 +77,7 @@ case $RC in
 	if test $BACKEND != null ; then
 		echo "ldapmodify should have failed ($RC)!"
 		test $KILLSERVERS != no && kill -HUP $KILLPIDS
-		exit 1
+		exit -1
 	fi
 	;;
 *)

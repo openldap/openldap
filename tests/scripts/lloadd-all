@@ -25,7 +25,7 @@ FAILCOUNT=0
 SKIPCOUNT=0
 SLEEPTIME=10
 
-echo ">>>>> $(timer) Executing all LDAP tests for the Load Balancer"
+echo ">>>>> Executing all LDAP tests for the Load Balancer"
 
 if [ -n "$NOEXIT" ]; then
     echo "Result    Test" > $TESTWD/results
@@ -46,29 +46,29 @@ for CMD in $SRCDIR/scripts/lloadd/test*; do
     else
         /bin/rm -rf $TESTDIR
     fi
+    if test $BACKEND = ndb ; then
+        mysql --user root <<EOF
+        drop database if exists db_1;
+        drop database if exists db_2;
+        drop database if exists db_3;
+        drop database if exists db_4;
+        drop database if exists db_5;
+        drop database if exists db_6;
+EOF
+    fi
 
     BCMD=`basename $CMD`
     if [ -x "$CMD" ]; then
-        MSG=">>>>> $(timer) Starting ${TB}$BCMD${TN} for lloadd+$BACKEND..."
-        [ -n "$TESTINST" ] && echo "$MSG" >&2
-        echo "$MSG"
+        echo ">>>>> Starting ${TB}$BCMD${TN} for $BACKEND..."
         START=`date +%s`
-        if [ -n "$TESTINST" ]; then
-            $CMD 2>&1
-        else
-            $CMD
-        fi
+        $CMD
         RC=$?
         END=`date +%s`
 
         if test $RC -eq 0 ; then
-            MSG=">>>>> $(timer) Finished $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds."
-            [ -n "$TESTINST" ] && echo "$MSG" >&2
-            echo "$MSG"
+            echo ">>>>> $BCMD completed ${TB}OK${TN} for $BACKEND after $(( $END - $START )) seconds."
         else
-            MSG=">>>>> $(timer) Failed   $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds"
-            [ -n "$TESTINST" ] && echo "$MSG" >&2
-            echo "$MSG"
+            echo ">>>>> $BCMD ${TB}failed${TN} for $BACKEND after $(( $END - $START )) seconds"
             FAILCOUNT=`expr $FAILCOUNT + 1`
 
             if [ -n "$NOEXIT" ]; then
@@ -79,9 +79,7 @@ for CMD in $SRCDIR/scripts/lloadd/test*; do
             fi
         fi
     else
-        MSG=">>>>> $(timer) Skipping ${TB}$BCMD${TN} for lloadd+$BACKEND."
-        [ -n "$TESTINST" ] && echo "$MSG" >&2
-        echo "$MSG"
+        echo ">>>>> Skipping ${TB}$BCMD${TN} for $BACKEND."
         SKIPCOUNT=`expr $SKIPCOUNT + 1`
         RC="-"
     fi

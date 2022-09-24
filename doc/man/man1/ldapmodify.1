@@ -21,8 +21,6 @@ ldapmodify, ldapadd \- LDAP modify entry and LDAP add entry tools
 [\c
 .BI \-f \ file\fR]
 [\c
-.BI \-i \ time\fR]
-[\c
 .BI \-S \ file\fR]
 [\c
 .BR \-M [ M ]]
@@ -78,8 +76,6 @@ ldapmodify, ldapadd \- LDAP modify entry and LDAP add entry tools
 .BR \-c ]
 [\c
 .BI \-f \ file\fR]
-[\c
-.BI \-i \ time\fR]
 [\c
 .BI \-S \ file\fR]
 [\c
@@ -174,9 +170,6 @@ reporting an error.
 .BI \-f \ file
 Read the entry modification information from \fIfile\fP instead of from
 standard input.
-.TP
-.BI \-i \ time
-Wait \fItime\fP microseconds before issuing an operation.
 .TP
 .BI \-S \ file
 Add or change records which were skipped due to an error are written to \fIfile\fP 

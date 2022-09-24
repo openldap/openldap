@@ -528,9 +528,6 @@ rewrite_map_destroy(
 /* ldapmap.c */
 extern const rewrite_mapper rewrite_ldap_mapper;
 
-/* escapemap.c */
-extern const rewrite_mapper rewrite_escape_mapper;
-
 const rewrite_mapper *
 rewrite_mapper_find(
 	const char *name
@@ -540,9 +537,6 @@ rewrite_mapper_find(
 
 	if ( !strcasecmp( name, "ldap" ))
 		return &rewrite_ldap_mapper;
-
-	if ( !strcasecmp( name, "escape" ))
-		return &rewrite_escape_mapper;
 
 	for (i=0; i<num_mappers; i++)
 		if ( !strcasecmp( name, mappers[i]->rm_name ))

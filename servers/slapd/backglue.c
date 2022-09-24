@@ -1381,11 +1381,6 @@ glue_sub_del( BackendDB *b0 )
 				gi->gi_nodes--;
 			}
 		}
-		/* Mark as no longer linked/sub */
-		b0->be_flags &= ~(SLAP_DBFLAG_GLUE_SUBORDINATE|SLAP_DBFLAG_GLUE_LINKED|
-			SLAP_DBFLAG_GLUE_ADVERTISE);
-		b0->be_pcsn_p = &b0->be_pcsn_st;
-		break;
 	}
 	if ( be == NULL )
 		rc = LDAP_NO_SUCH_OBJECT;
@@ -1445,7 +1440,6 @@ glue_sub_attach( int online )
 				&gi->gi_n[gi->gi_nodes].gn_pdn );
 			gi->gi_nodes++;
 			on->on_bi.bi_private = gi;
-			ga->ga_be->be_pcsn_p = be->be_pcsn_p;
 			ga->ga_be->be_flags |= SLAP_DBFLAG_GLUE_LINKED;
 			break;
 		}

@@ -141,12 +141,6 @@ lload_back_close( BackendInfo *bi )
 }
 
 int
-lload_back_destroy( BackendInfo *bi )
-{
-    return lload_global_destroy();
-}
-
-int
 lload_back_initialize( BackendInfo *bi )
 {
     bi->bi_flags = SLAP_BFLAG_STANDALONE;
@@ -155,7 +149,7 @@ lload_back_initialize( BackendInfo *bi )
     bi->bi_pause = lload_pause_cb;
     bi->bi_unpause = lload_unpause_cb;
     bi->bi_close = lload_back_close;
-    bi->bi_destroy = lload_back_destroy;
+    bi->bi_destroy = 0;
 
     bi->bi_db_init = 0;
     bi->bi_db_config = 0;

@@ -191,6 +191,7 @@ kinit_qtask( void *ctx, void *arg )
 			nextcheck/3600, (nextcheck%3600)/60,  nextcheck%60);
 	rtask->interval.tv_sec = nextcheck;
 	ldap_pvt_runqueue_resched( &slapd_rq, rtask, 0 );
+	slap_wake_listener();
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 	return NULL;
 }

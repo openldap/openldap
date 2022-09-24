@@ -266,9 +266,9 @@ ber_dump(
 	}
 
 	sprintf( buf, "ber_dump: buf=%p ptr=%p end=%p len=%ld\n",
-		(void *) ber->ber_buf,
-		(void *) ber->ber_ptr,
-		(void *) ber->ber_end,
+		ber->ber_buf,
+		ber->ber_ptr,
+		ber->ber_end,
 		(long) len );
 
 	(void) (*ber_pvt_log_print)( buf );

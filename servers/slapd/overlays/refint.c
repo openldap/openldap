@@ -244,13 +244,10 @@ refint_cf_gen(ConfigArgs *c)
 			rc = 0;
 			if ( c->op != SLAP_CONFIG_ADD && c->argc > 2 ) {
 				/* We wouldn't know how to delete these values later */
-				snprintf( c->cr_msg, sizeof( c->cr_msg ),
-					"Please insert multiple names as separate %s values",
-					c->argv[0] );
 				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
-					"%s: %s\n", c->log, c->cr_msg );
-				rc = LDAP_INVALID_SYNTAX;
-				break;
+					"Supplying multiple names in a single %s value is "
+					"unsupported and will be disallowed in a future version\n",
+					c->argv[0] );
 			}
 
 			for ( i=1; i < c->argc; ++i ) {
@@ -951,8 +948,10 @@ refint_response(
 	refint_pre *rp;
 	slap_overinst *on;
 	refint_data *id;
+	BerValue pdn;
 	refint_q *rq;
 	refint_attrs *ip;
+	int ac;
 
 	/* If the main op failed or is not a Delete or ModRdn, ignore it */
 	if (( op->o_tag != LDAP_REQ_DELETE && op->o_tag != LDAP_REQ_MODRDN ) ||
@@ -971,8 +970,18 @@ refint_response(
 	rq->do_sub = rp->do_sub;
 
 	if ( op->o_tag == LDAP_REQ_MODRDN ) {
-		ber_dupbv( &rq->newdn, &op->orr_newDN );
-		ber_dupbv( &rq->newndn, &op->orr_nnewDN );
+		if ( op->oq_modrdn.rs_newSup ) {
+			pdn = *op->oq_modrdn.rs_newSup;
+		} else {
+			dnParent( &op->o_req_dn, &pdn );
+		}
+		build_new_dn( &rq->newdn, &pdn, &op->orr_newrdn, NULL );
+		if ( op->oq_modrdn.rs_nnewSup ) {
+			pdn = *op->oq_modrdn.rs_nnewSup;
+		} else {
+			dnParent( &op->o_req_ndn, &pdn );
+		}
+		build_new_dn( &rq->newndn, &pdn, &op->orr_nnewrdn, NULL );
 	}
 
 	ldap_pvt_thread_mutex_lock( &id->qmutex );
@@ -984,20 +993,25 @@ refint_response(
 	id->qtail = rq;
 	ldap_pvt_thread_mutex_unlock( &id->qmutex );
 
+	ac = 0;
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 	if ( !id->qtask ) {
 		id->qtask = ldap_pvt_runqueue_insert( &slapd_rq, RUNQ_INTERVAL,
 			refint_qtask, id, "refint_qtask",
 			op->o_bd->be_suffix[0].bv_val );
+		ac = 1;
 	} else {
 		if ( !ldap_pvt_runqueue_isrunning( &slapd_rq, id->qtask ) &&
 			!id->qtask->next_sched.tv_sec ) {
 			id->qtask->interval.tv_sec = 0;
 			ldap_pvt_runqueue_resched( &slapd_rq, id->qtask, 0 );
 			id->qtask->interval.tv_sec = RUNQ_INTERVAL;
+			ac = 1;
 		}
 	}
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+	if ( ac )
+		slap_wake_listener();
 
 	return SLAP_CB_CONTINUE;
 }

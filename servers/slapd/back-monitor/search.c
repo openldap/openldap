@@ -120,6 +120,7 @@ monitor_send_children(
 		rc = test_filter( op, e, op->oq_search.rs_filter );
 		if ( rc == LDAP_COMPARE_TRUE ) {
 			rs->sr_entry = e;
+			rs->sr_flags = REP_ENTRY_MUSTRELEASE;
 			rc = send_search_entry( op, rs );
 			if ( rc ) {
 				for ( e = sub_ch; e != NULL; e = sub_nv ) {
@@ -128,11 +129,9 @@ monitor_send_children(
 					monitor_cache_lock( e );
 					monitor_cache_release( mi, e );
 				}
-				e = rs->sr_entry;
 				goto freeout;
 			}
-		}
-		if ( sub_nv == NULL ) {
+		} else {
 			monitor_cache_release( mi, e );
 		}
 
@@ -140,7 +139,6 @@ monitor_send_children(
 			rc = monitor_send_children( op, rs, sub_nv, sub_ch, sub );
 			if ( rc ) {
 freeout:
-				monitor_cache_release( mi, e );
 				if ( nonvolatile == 0 ) {
 					for ( ; e_tmp != NULL; ) {
 						mp = ( monitor_entry_t * )e_tmp->e_private;
@@ -157,9 +155,6 @@ freeout:
 
 				return( rc );
 			}
-		}
-		if ( sub_nv != NULL ) {
-			monitor_cache_release( mi, e );
 		}
 	}
 	
@@ -239,9 +234,9 @@ monitor_back_search( Operation *op, SlapReply *rs )
 	case LDAP_SCOPE_ONELEVEL:
 	case LDAP_SCOPE_SUBORDINATE:
 		monitor_find_children( op, rs, e, &e_nv, &e_ch );
+		monitor_cache_release( mi, e );
 		rc = monitor_send_children( op, rs, e_nv, e_ch,
 			op->oq_search.rs_scope == LDAP_SCOPE_SUBORDINATE );
-		monitor_cache_release( mi, e );
 		break;
 
 	case LDAP_SCOPE_SUBTREE:
@@ -250,12 +245,14 @@ monitor_back_search( Operation *op, SlapReply *rs )
 		rc = test_filter( op, e, op->oq_search.rs_filter );
 		if ( rc == LDAP_COMPARE_TRUE ) {
 			rs->sr_entry = e;
+			rs->sr_flags = REP_ENTRY_MUSTRELEASE;
 			send_search_entry( op, rs );
 			rs->sr_entry = NULL;
+		} else {
+			monitor_cache_release( mi, e );
 		}
 
 		rc = monitor_send_children( op, rs, e_nv, e_ch, 1 );
-		monitor_cache_release( mi, e );
 		break;
 
 	default:

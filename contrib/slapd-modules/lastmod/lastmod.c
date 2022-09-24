@@ -545,12 +545,26 @@ lastmod_update( Operation *op, SlapReply *rs )
 		lmt = LASTMOD_MODRDN;
 		e = NULL;
 
+		if ( op->orr_newSup && !BER_BVISNULL( op->orr_newSup ) ) {
+			build_new_dn( &bv_name, op->orr_newSup, &op->orr_newrdn, NULL );
+			build_new_dn( &bv_nname, op->orr_nnewSup, &op->orr_nnewrdn, NULL );
+
+		} else {
+			struct berval	pdn;
+
+			dnParent( &op->o_req_dn, &pdn );
+			build_new_dn( &bv_name, &pdn, &op->orr_newrdn, NULL );
+
+			dnParent( &op->o_req_ndn, &pdn );
+			build_new_dn( &bv_nname, &pdn, &op->orr_nnewrdn, NULL );
+		}
+
 		if ( on->on_info->oi_orig->bi_entry_get_rw ) {
 			BackendInfo	*bi = op->o_bd->bd_info;
 			int		rc;
 
 			op->o_bd->bd_info = (BackendInfo *)on->on_info->oi_orig;
-			rc = op->o_bd->bd_info->bi_entry_get_rw( op, &op->orr_nnewDN, NULL, NULL, 0, &e );
+			rc = op->o_bd->bd_info->bi_entry_get_rw( op, &bv_name, NULL, NULL, 0, &e );
 			if ( rc == LDAP_SUCCESS ) {
 				a = attr_find( e->e_attrs, slap_schema.si_ad_modifiersName );
 				if ( a != NULL ) {
@@ -576,16 +590,14 @@ lastmod_update( Operation *op, SlapReply *rs )
 					}
 				}
 
-				assert( dn_match( &op->orr_newDN, &e->e_name ) );
-				assert( dn_match( &op->orr_nnewDN, &e->e_nname ) );
+				assert( dn_match( &bv_name, &e->e_name ) );
+				assert( dn_match( &bv_nname, &e->e_nname ) );
 
 				op->o_bd->bd_info->bi_entry_release_rw( op, e, 0 );
 			}
 
 			op->o_bd->bd_info = bi;
 
-			ber_dupbv( &bv_name, &op->orr_newDN );
-			ber_dupbv( &bv_nname, &op->orr_nnewDN );
 		}
 
 		/* if !bi_entry_get_rw || bi_entry_get_rw failed for any reason... */

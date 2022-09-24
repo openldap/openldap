@@ -250,13 +250,6 @@ asyncmeta_back_modify( Operation *op, SlapReply *rs )
 		      op->o_log_prefix, op->o_time, current_time );
 	}
 
-	if ( mi->mi_ntargets == 0 ) {
-		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
-		rs->sr_text = "No targets are configured for this database";
-		send_ldap_result(op, rs);
-		return rs->sr_err;
-	}
-
 	asyncmeta_new_bm_context(op, rs, &bc, mi->mi_ntargets, mi );
 	if (bc == NULL) {
 		rs->sr_err = LDAP_OTHER;

@@ -14,10 +14,10 @@
 ## <http://www.OpenLDAP.org/license.html>.
 ol_package=OpenLDAP
 ol_major=2
-ol_minor=X
-ol_patch=X
-ol_api_inc=000000
-ol_api_current=0
-ol_api_revision=0
-ol_api_age=0
-ol_release_date="0000/00/00"
+ol_minor=5
+ol_patch=11
+ol_api_inc=20511
+ol_api_current=1
+ol_api_revision=6
+ol_api_age=1
+ol_release_date="2022/01/20"

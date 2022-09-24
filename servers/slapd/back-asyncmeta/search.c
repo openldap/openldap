@@ -58,7 +58,6 @@ asyncmeta_handle_onerr_stop(Operation *op,
 		}
 	}
 	slap_sl_mem_setctx(op->o_threadctx, op->o_tmpmemctx);
-	operation_counter_init( op, op->o_threadctx );
 	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex);
 	send_ldap_result(op, rs);
 }
@@ -687,13 +686,6 @@ asyncmeta_back_search( Operation *op, SlapReply *rs )
 
 	rs_assert_ready( rs );
 	rs->sr_flags &= ~REP_ENTRY_MASK; /* paranoia, we can set rs = non-entry */
-
-	if ( mi->mi_ntargets == 0 ) {
-		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
-		rs->sr_text = "No targets are configured for this database";
-		send_ldap_result(op, rs);
-		return rs->sr_err;
-	}
 
 	/*
 	 * controls are set in ldap_back_dobind()

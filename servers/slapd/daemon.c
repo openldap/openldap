@@ -79,15 +79,11 @@ int slap_inet4or6 = AF_UNSPEC;
 int slap_inet4or6 = AF_INET;
 #endif /* ! INETv6 */
 
-void slap_runqueue_notify( runqueue_t *rq );
-
 /* globals */
 time_t starttime;
 ber_socket_t dtblsize;
 slap_ssf_t local_ssf = LDAP_PVT_SASL_LOCAL_SSF;
-struct runqueue_s slapd_rq = {
-    .rq_notify_cb = slap_runqueue_notify,
-};
+struct runqueue_s slapd_rq;
 
 int slapd_daemon_threads = 1;
 int slapd_daemon_mask;
@@ -231,10 +227,11 @@ static slap_daemon_st *slap_daemon;
     slap_daemon[t].sd_kq = kqueue(); \
 } while (0)
 
-/* a kqueue fd obtained before a fork isn't inherited by child process.
- * reacquire it.
+/* a kqueue fd obtained before a fork can't be used in child process.
+ * close it and reacquire it.
  */
 # define SLAP_SOCK_INIT2() do { \
+	close(slap_daemon[0].sd_kq); \
 	slap_daemon[0].sd_kq = kqueue(); \
 } while (0)
 
@@ -1380,14 +1377,13 @@ get_url_perms(
 static int
 slap_get_listener_addresses(
 	const char *host,
-	int proto,
 	unsigned short port,
 	struct sockaddr ***sal )
 {
 	struct sockaddr **sap;
 
 #ifdef LDAP_PF_LOCAL
-	if ( proto == LDAP_PROTO_IPC ) {
+	if ( port == 0 ) {
 		sap = *sal = ch_malloc(2 * sizeof(void *));
 
 		*sap = ch_malloc(sizeof(struct sockaddr_un));
@@ -1512,7 +1508,7 @@ slap_open_listener(
 	int *listeners,
 	int *cur )
 {
-	int	num, proto, tmp, rc;
+	int	num, tmp, rc;
 	Listener l;
 	Listener *li;
 	LDAPURLDesc *lud;
@@ -1530,7 +1526,7 @@ slap_open_listener(
 	int	crit = 1;
 #endif /* LDAP_PF_LOCAL || SLAP_X_LISTENER_MOD */
 
-	rc = ldap_url_parse_ext( url, &lud, LDAP_PVT_URL_PARSE_DEF_PORT );
+	rc = ldap_url_parse( url, &lud );
 
 	if( rc != LDAP_URL_SUCCESS ) {
 		Debug( LDAP_DEBUG_ANY,
@@ -1551,8 +1547,14 @@ slap_open_listener(
 		return -1;
 	}
 
+	if(! lud->lud_port ) lud->lud_port = LDAP_PORT;
+
 #else /* HAVE_TLS */
 	l.sl_is_tls = ldap_pvt_url_scheme2tls( lud->lud_scheme );
+
+	if(! lud->lud_port ) {
+		lud->lud_port = l.sl_is_tls ? LDAPS_PORT : LDAP_PORT;
+	}
 #endif /* HAVE_TLS */
 
 	l.sl_is_proxied = ldap_pvt_url_scheme2proxied( lud->lud_scheme );
@@ -1564,13 +1566,13 @@ slap_open_listener(
 
 	port = (unsigned short) lud->lud_port;
 
-	proto = ldap_pvt_url_scheme2proto(lud->lud_scheme);
-	if ( proto == LDAP_PROTO_IPC ) {
+	tmp = ldap_pvt_url_scheme2proto(lud->lud_scheme);
+	if ( tmp == LDAP_PROTO_IPC ) {
 #ifdef LDAP_PF_LOCAL
 		if ( lud->lud_host == NULL || lud->lud_host[0] == '\0' ) {
-			err = slap_get_listener_addresses(LDAPI_SOCK, proto, 0, &sal);
+			err = slap_get_listener_addresses(LDAPI_SOCK, 0, &sal);
 		} else {
-			err = slap_get_listener_addresses(lud->lud_host, proto, 0, &sal);
+			err = slap_get_listener_addresses(lud->lud_host, 0, &sal);
 		}
 #else /* ! LDAP_PF_LOCAL */
 
@@ -1583,14 +1585,14 @@ slap_open_listener(
 		if( lud->lud_host == NULL || lud->lud_host[0] == '\0'
 			|| strcmp(lud->lud_host, "*") == 0 )
 		{
-			err = slap_get_listener_addresses(NULL, proto, port, &sal);
+			err = slap_get_listener_addresses(NULL, port, &sal);
 		} else {
-			err = slap_get_listener_addresses(lud->lud_host, proto, port, &sal);
+			err = slap_get_listener_addresses(lud->lud_host, port, &sal);
 		}
 	}
 
 #ifdef LDAP_CONNECTIONLESS
-	l.sl_is_udp = ( proto == LDAP_PROTO_UDP );
+	l.sl_is_udp = ( tmp == LDAP_PROTO_UDP );
 #endif /* LDAP_CONNECTIONLESS */
 
 #if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
@@ -1772,44 +1774,34 @@ slap_open_listener(
 
 		case AF_INET: {
 			char addr[INET_ADDRSTRLEN];
-			const char *name;
-			unsigned short local_port = port;
-			if ( local_port == 0 ) {
-				socklen_t len = sizeof(struct sockaddr_in);
-				getsockname( s, *sal, &len );
-			}
+			const char *s;
 #if defined( HAVE_GETADDRINFO ) && defined( HAVE_INET_NTOP )
-			name = inet_ntop( AF_INET, &((struct sockaddr_in *)*sal)->sin_addr,
+			s = inet_ntop( AF_INET, &((struct sockaddr_in *)*sal)->sin_addr,
 				addr, sizeof(addr) );
 #else /* ! HAVE_GETADDRINFO || ! HAVE_INET_NTOP */
-			name = inet_ntoa( ((struct sockaddr_in *) *sal)->sin_addr );
+			s = inet_ntoa( ((struct sockaddr_in *) *sal)->sin_addr );
 #endif /* ! HAVE_GETADDRINFO || ! HAVE_INET_NTOP */
-			if (!name) name = SLAP_STRING_UNKNOWN;
-			local_port = ntohs( ((struct sockaddr_in *)*sal) ->sin_port );
+			if (!s) s = SLAP_STRING_UNKNOWN;
+			port = ntohs( ((struct sockaddr_in *)*sal) ->sin_port );
 			l.sl_name.bv_val =
 				ch_malloc( sizeof("IP=255.255.255.255:65535") );
 			snprintf( l.sl_name.bv_val, sizeof("IP=255.255.255.255:65535"),
-				"IP=%s:%d", name, local_port );
+				"IP=%s:%d", s, port );
 			l.sl_name.bv_len = strlen( l.sl_name.bv_val );
 		} break;
 
 #ifdef LDAP_PF_INET6
 		case AF_INET6: {
 			char addr[INET6_ADDRSTRLEN];
-			const char *name;
-			unsigned short local_port = port;
-			if ( local_port == 0 ) {
-				socklen_t len = sizeof(struct sockaddr_in);
-				getsockname( s, *sal, &len );
-			}
-			name = inet_ntop( AF_INET6, &((struct sockaddr_in6 *)*sal)->sin6_addr,
+			const char *s;
+			s = inet_ntop( AF_INET6, &((struct sockaddr_in6 *)*sal)->sin6_addr,
 				addr, sizeof addr);
-			if (!name) name = SLAP_STRING_UNKNOWN;
-			local_port = ntohs( ((struct sockaddr_in6 *)*sal)->sin6_port );
-			l.sl_name.bv_len = strlen(name) + sizeof("IP=[]:65535");
+			if (!s) s = SLAP_STRING_UNKNOWN;
+			port = ntohs( ((struct sockaddr_in6 *)*sal)->sin6_port );
+			l.sl_name.bv_len = strlen(s) + sizeof("IP=[]:65535");
 			l.sl_name.bv_val = ch_malloc( l.sl_name.bv_len );
 			snprintf( l.sl_name.bv_val, l.sl_name.bv_len, "IP=[%s]:%d", 
-				name, local_port );
+				s, port );
 			l.sl_name.bv_len = strlen( l.sl_name.bv_val );
 		} break;
 #endif /* LDAP_PF_INET6 */
@@ -2421,18 +2413,6 @@ slap_listener_activate(
 }
 
 static void *
-slapd_rtask_trampoline(
-	void	*ctx,
-	void	*arg )
-{
-	struct re_s *rtask = arg;
-
-	/* invalidate pool_cookie */
-	rtask->pool_cookie = NULL;
-	return rtask->routine( ctx, arg );
-}
-
-static void *
 slapd_daemon_task(
 	void *ptr )
 {
@@ -2627,7 +2607,7 @@ slapd_daemon_task(
 					sock_errstr(err, ebuf, sizeof(ebuf)) );
 			ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
 			slapd_shutdown = 2;
-			ldap_pvt_thread_cond_broadcast( &slapd_init_cond );
+			ldap_pvt_thread_cond_signal( &slapd_init_cond );
 			ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 			return (void*)-1;
 		}
@@ -2638,7 +2618,7 @@ slapd_daemon_task(
 				"set nonblocking on a listening socket failed\n" );
 			ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
 			slapd_shutdown = 2;
-			ldap_pvt_thread_cond_broadcast( &slapd_init_cond );
+			ldap_pvt_thread_cond_signal( &slapd_init_cond );
 			ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 			return (void*)-1;
 		}
@@ -2648,7 +2628,7 @@ slapd_daemon_task(
 
 	ldap_pvt_thread_mutex_lock( &slapd_init_mutex );
 	slapd_ready = 1;
-	ldap_pvt_thread_cond_broadcast( &slapd_init_cond );
+	ldap_pvt_thread_cond_signal( &slapd_init_cond );
 	ldap_pvt_thread_mutex_unlock( &slapd_init_mutex );
 
 #ifdef HAVE_NT_SERVICE_MANAGER
@@ -2788,16 +2768,14 @@ loop:
 			ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 			rtask = ldap_pvt_runqueue_next_sched( &slapd_rq, &cat );
 			while ( rtask && cat.tv_sec && cat.tv_sec <= now ) {
-				/* ITS#9878 If interval == 0, this task was meant to be one-shot */
-				int defer = !rtask->interval.tv_sec;
 				if ( ldap_pvt_runqueue_isrunning( &slapd_rq, rtask )) {
-					ldap_pvt_runqueue_resched( &slapd_rq, rtask, defer );
+					ldap_pvt_runqueue_resched( &slapd_rq, rtask, 0 );
 				} else {
 					ldap_pvt_runqueue_runtask( &slapd_rq, rtask );
-					ldap_pvt_runqueue_resched( &slapd_rq, rtask, defer );
+					ldap_pvt_runqueue_resched( &slapd_rq, rtask, 0 );
 					ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 					ldap_pvt_thread_pool_submit2( &connection_pool,
-						slapd_rtask_trampoline, (void *) rtask, &rtask->pool_cookie );
+						rtask->routine, (void *) rtask, &rtask->pool_cookie );
 					ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 				}
 				rtask = ldap_pvt_runqueue_next_sched( &slapd_rq, &cat );
@@ -3587,12 +3565,6 @@ void
 slap_wake_listener()
 {
 	WAKE_LISTENER(0,1);
-}
-
-void
-slap_runqueue_notify( runqueue_t *rq )
-{
-	slap_wake_listener();
 }
 
 /* return 0 on timeout, 1 on writer ready

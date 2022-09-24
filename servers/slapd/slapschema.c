@@ -143,7 +143,7 @@ slapschema( int argc, char **argv )
 			printf( "# id=%08lx\n", (long) id );
 		}
 
-		rc = entry_schema_check( op, e, 0, 0, NULL,
+		rc = entry_schema_check( op, e, NULL, 0, 0, NULL,
 			&text, textbuf, textlen );
 		if ( rc != LDAP_SUCCESS ) {
 			fprintf( ldiffp->fp, "# (%d) %s%s%s\n",

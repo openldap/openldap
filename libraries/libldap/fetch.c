@@ -69,8 +69,6 @@ ldif_open_url(
 		}
 
 		p = ber_strdup( urlstr );
-		if ( p == NULL )
-			return NULL;
 
 		/* But we should convert to LDAP_DIRSEP before use */
 		if ( LDAP_DIRSEP[0] != '/' ) {

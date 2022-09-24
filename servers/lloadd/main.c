@@ -94,10 +94,6 @@ struct signal_handler {
         { 0, NULL }
 };
 
-/* in logging.c */
-extern char *serverName;
-extern int slap_debug_orig;
-
 /*
  * when more than one lloadd is running on one machine, each one might have
  * it's own LOCAL for syslogging and must have its own pid/args files
@@ -371,6 +367,7 @@ main( int argc, char **argv )
 
     char *configfile = NULL;
     char *configdir = NULL;
+    char *serverName;
     int serverMode = SLAP_SERVER_MODE;
 
     char **debug_unknowns = NULL;
@@ -380,9 +377,6 @@ main( int argc, char **argv )
     int firstopt = 1;
 
     slap_sl_mem_init();
-
-    (void) ldap_pvt_thread_initialize();
-    ldap_pvt_thread_mutex_init( &logfile_mutex );
 
     serverName = lutil_progname( "lloadd", argc, argv );
 
@@ -600,11 +594,9 @@ unhandled_option:;
 
     if ( optind != argc ) goto unhandled_option;
 
-    ber_set_option( NULL, LBER_OPT_LOG_PRINT_FN, slap_debug_print );
     ber_set_option( NULL, LBER_OPT_DEBUG_LEVEL, &slap_debug );
     ldap_set_option( NULL, LDAP_OPT_DEBUG_LEVEL, &slap_debug );
     ldif_debug = slap_debug;
-	slap_debug_orig = slap_debug;
 
     if ( version ) {
         fprintf( stderr, "%s\n", Versionstr );
@@ -837,7 +829,7 @@ unhandled_option:;
 
 #ifndef HAVE_WINSOCK
     if ( !no_detach ) {
-        (void)!write( waitfds[1], "1", 1 );
+        write( waitfds[1], "1", 1 );
         close( waitfds[1] );
     }
 #endif
@@ -870,7 +862,6 @@ destroy:
         (void)loglevel_print( stdout );
     }
     /* remember an error during destroy */
-    rc |= lload_global_destroy();
     rc |= lload_destroy();
 
 stop:
@@ -914,7 +905,6 @@ stop:
     /* kludge, get symbols referenced */
     ldap_tavl_free( NULL, NULL );
 
-    ldap_pvt_thread_mutex_destroy( &logfile_mutex );
     MAIN_RETURN(rc);
 }
 

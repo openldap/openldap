@@ -35,6 +35,8 @@
 #include "lload.h"
 #include "lber_pvt.h"
 
+#include "ldap_rq.h"
+
 #ifndef BALANCER_MODULE
 /*
  * read-only global variables or variables only written by the listener
@@ -96,45 +98,13 @@ lload_global_init( void )
     ldap_pvt_thread_cond_init( &lload_wait_cond );
     ldap_pvt_thread_cond_init( &lload_pause_cond );
 
+    ldap_pvt_thread_mutex_init( &backend_mutex );
     ldap_pvt_thread_mutex_init( &clients_mutex );
     ldap_pvt_thread_mutex_init( &lload_pin_mutex );
 
     if ( lload_exop_init() ) {
         return -1;
     }
-    return 0;
-}
-
-int
-lload_global_destroy( void )
-{
-    if ( !BER_BVISNULL( &lloadd_identity ) ) {
-        ch_free( lloadd_identity.bv_val );
-        BER_BVZERO( &lloadd_identity );
-    }
-
-    lload_exop_destroy();
-    ldap_tavl_free( lload_control_actions, (AVL_FREE)lload_restriction_free );
-    ldap_tavl_free( lload_exop_actions, (AVL_FREE)lload_restriction_free );
-
-#ifdef HAVE_TLS
-    if ( lload_tls_backend_ld ) {
-        ldap_unbind_ext( lload_tls_backend_ld, NULL, NULL );
-    }
-    if ( lload_tls_ld ) {
-        ldap_unbind_ext( lload_tls_ld, NULL, NULL );
-    }
-#endif
-
-    ldap_pvt_thread_mutex_destroy( &lload_wait_mutex );
-    ldap_pvt_thread_cond_destroy( &lload_wait_cond );
-    ldap_pvt_thread_cond_destroy( &lload_pause_cond );
-
-    ldap_pvt_thread_mutex_destroy( &clients_mutex );
-    ldap_pvt_thread_mutex_destroy( &lload_pin_mutex );
-
-    lload_libevent_destroy();
-
     return 0;
 }
 
@@ -189,6 +159,10 @@ lload_init( int mode, const char *name )
 
             ldap_pvt_thread_pool_init_q( &connection_pool, connection_pool_max,
                     0, connection_pool_queues );
+
+            ldap_pvt_thread_mutex_init( &slapd_rq.rq_mutex );
+            LDAP_STAILQ_INIT( &slapd_rq.task_list );
+            LDAP_STAILQ_INIT( &slapd_rq.run_list );
 
             rc = lload_global_init();
             break;

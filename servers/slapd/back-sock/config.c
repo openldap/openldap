@@ -160,8 +160,6 @@ bs_cf_gen( ConfigArgs *c )
 		case BS_RESP:
 			return mask_to_verbs( ov_resps, si->si_resps, &c->rvalue_vals );
 		case BS_DNPAT:
-			if ( BER_BVISEMPTY( &si->si_dnpatstr ) )
-				return 1;
 			value_add_one( &c->rvalue_vals, &si->si_dnpatstr );
 			return 0;
 		}
@@ -173,9 +171,9 @@ bs_cf_gen( ConfigArgs *c )
 				rc = 0;
 			} else {
 				slap_mask_t dels = 0;
-				rc = verbstring_to_mask( bs_exts, c->line, ' ', &dels );
+				rc = verbs_to_mask( c->argc, c->argv, bs_exts, &dels );
 				if ( rc == 0 )
-					si->si_extensions &= ~dels;
+					si->si_extensions ^= dels;
 			}
 			return rc;
 		case BS_OPS:
@@ -184,9 +182,9 @@ bs_cf_gen( ConfigArgs *c )
 				rc = 0;
 			} else {
 				slap_mask_t dels = 0;
-				rc = verbstring_to_mask( ov_ops, c->line, ' ', &dels );
+				rc = verbs_to_mask( c->argc, c->argv, ov_ops, &dels );
 				if ( rc == 0 )
-					si->si_ops &= ~dels;
+					si->si_ops ^= dels;
 			}
 			return rc;
 		case BS_RESP:
@@ -195,9 +193,9 @@ bs_cf_gen( ConfigArgs *c )
 				rc = 0;
 			} else {
 				slap_mask_t dels = 0;
-				rc = verbstring_to_mask( ov_resps, c->line, ' ', &dels );
+				rc = verbs_to_mask( c->argc, c->argv, ov_resps, &dels );
 				if ( rc == 0 )
-					si->si_resps &= ~dels;
+					si->si_resps ^= dels;
 			}
 			return rc;
 		case BS_DNPAT:
@@ -209,42 +207,12 @@ bs_cf_gen( ConfigArgs *c )
 
 	} else {
 		switch( c->type ) {
-		case BS_EXT: {
-			slap_mask_t adds = 0;
-			if ( verbs_to_mask( c->argc, c->argv, bs_exts, &adds ) ) {
-				return LDAP_INVALID_SYNTAX;
-			}
-			/* Tolerate overlaps in slapd.conf */
-			if ( c->op != SLAP_CONFIG_ADD && adds & si->si_extensions ) {
-				return LDAP_TYPE_OR_VALUE_EXISTS;
-			}
-			si->si_extensions |= adds;
-			return 0;
-		}
-		case BS_OPS: {
-			slap_mask_t adds = 0;
-			if ( verbs_to_mask( c->argc, c->argv, ov_ops, &adds ) ) {
-				return LDAP_INVALID_SYNTAX;
-			}
-			/* Tolerate overlaps in slapd.conf */
-			if ( c->op != SLAP_CONFIG_ADD && adds & si->si_ops ) {
-				return LDAP_TYPE_OR_VALUE_EXISTS;
-			}
-			si->si_ops |= adds;
-			return 0;
-		}
-		case BS_RESP: {
-			slap_mask_t adds = 0;
-			if ( verbs_to_mask( c->argc, c->argv, ov_resps, &adds ) ) {
-				return LDAP_INVALID_SYNTAX;
-			}
-			/* Tolerate overlaps in slapd.conf */
-			if ( c->op != SLAP_CONFIG_ADD && adds & si->si_resps ) {
-				return LDAP_TYPE_OR_VALUE_EXISTS;
-			}
-			si->si_resps |= adds;
-			return 0;
-		}
+		case BS_EXT:
+			return verbs_to_mask( c->argc, c->argv, bs_exts, &si->si_extensions );
+		case BS_OPS:
+			return verbs_to_mask( c->argc, c->argv, ov_ops, &si->si_ops );
+		case BS_RESP:
+			return verbs_to_mask( c->argc, c->argv, ov_resps, &si->si_resps );
 		case BS_DNPAT:
 			if ( !regcomp( &si->si_dnpat, c->argv[1], REG_EXTENDED|REG_ICASE|REG_NOSUB )) {
 				ber_str2bv( c->argv[1], 0, 1, &si->si_dnpatstr );

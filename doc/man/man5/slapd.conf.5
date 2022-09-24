@@ -625,26 +625,6 @@ messages exposed by the
 configuration parameter. Specifying a logfile copies messages to both stderr
 and the logfile.
 .TP
-.B logfile-format debug | syslog-utc | syslog-localtime
-Specify the prefix format for messages written to the logfile. The debug
-format is the normal format used for slapd debug messages, with a timestamp
-in hexadecimal, followed by a thread ID.  The other options are to
-use syslog(3) style prefixes, with timestamps either in UTC or in the
-local timezone. The default is debug format.
-.TP
-.B logfile-only on | off
-Specify that debug messages should only go to the configured logfile, and
-not to stderr.
-.TP
-.B logfile-rotate <max> <Mbytes> <hours>
-Specify automatic rotation for the configured logfile as the maximum
-number of old logfiles to retain, a maximum size in megabytes to allow a
-logfile to grow before rotation, and a maximum age in hours for a logfile
-to be used before rotation. The maximum number must be in the range 1-99.
-Setting Mbytes or hours to zero disables the size or age check, respectively.
-At least one of Mbytes or hours must be non-zero. By default no automatic
-rotation will be performed.
-.TP
 .B loglevel <integer> [...]
 Specify the level at which debugging statements and operation 
 statistics should be syslogged (currently logged to the
@@ -1176,11 +1156,10 @@ the top-level CA should be present. Multiple certificates are simply
 appended to the file; the order is not significant.
 .TP
 .B TLSCACertificatePath <path>
-Specifies the path of directories that contain Certificate Authority
+Specifies the path of a directory that contains Certificate Authority
 certificates in separate individual files. Usually only one of this
 or the TLSCACertificateFile is used. If both are specified, both
-locations will be used. Multiple directories may be specified,
-separated by a semi-colon.
+locations will be used.
 .TP
 .B TLSCertificateFile <filename>
 Specifies the file that contains the
@@ -1314,6 +1293,7 @@ should be one of
 .BR mdb ,
 .BR meta ,
 .BR monitor ,
+.BR ndb ,
 .BR null ,
 .BR passwd ,
 .BR perl ,
@@ -1345,6 +1325,7 @@ should be one of
 .BR mdb ,
 .BR meta ,
 .BR monitor ,
+.BR ndb ,
 .BR null ,
 .BR passwd ,
 .BR perl ,
@@ -1404,16 +1385,6 @@ Controls whether
 .B slapd
 will automatically maintain the pwdLastSuccess attribute for
 entries. By default, lastbind is off.
-.TP
-.B lastbind-precision <integer>
-If lastbind is enabled, specifies how frequently pwdLastSuccess
-will be updated. More than
-.B integer
-seconds must have passed since the last successful bind. In a
-replicated environment with frequent bind activity it may be
-useful to set this to a large value. On a backend, if set to
-.B 0
-(the default), the value set on the frontend is used.
 .TP
 .B limits <selector> <limit> [<limit> [...]]
 Specify time and size limits based on the operation's initiator or
@@ -1906,8 +1877,9 @@ The \fBsizelimit\fP and \fBtimelimit\fP only
 accept "unlimited" and positive integers, and both default to "unlimited".
 The \fBsizelimit\fP and \fBtimelimit\fP parameters define
 a consumer requested limitation on the number of entries that can be returned
-by the LDAP Content Synchronization operation; these should be left unchanged
-from the default otherwise replication may never succeed.
+by the LDAP Content Synchronization operation; as such, it is intended
+to implement partial replication based on the size of the replicated database
+and on the time required by the synchronization.
 Note, however, that any provider-side limits for the replication identity
 will be enforced by the provider regardless of the limits requested
 by the LDAP Content Synchronization operation, much like for any other

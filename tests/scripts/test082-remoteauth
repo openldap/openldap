@@ -313,8 +313,7 @@ echo "Testing slapd.conf support..."
 sed -e "s,database\\s*monitor,\\
 TLSCACertificateFile $TESTDIR/tls/ca/certs/testsuiteCA.crt\\
 \\
-#remoteauthmod#modulepath ../servers/slapd/overlays/\\
-#remoteauthmod#moduleload remoteauth.la\\
+#remoteauthmod#moduleload ../servers/slapd/overlays/remoteauth.la\\
 include $TESTDIR/remoteauth.conf\\
 \\
 database monitor," $TLSCONF | . $CONFFILTER $BACKEND >$CONF1

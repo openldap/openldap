@@ -38,7 +38,7 @@ monitor_subsys_backend_init(
 )
 {
 	monitor_info_t		*mi;
-	Entry			*e_backend;
+	Entry			*e_backend, **ep;
 	int			i;
 	monitor_entry_t		*mp;
 	monitor_subsys_t	*ms_database;
@@ -63,6 +63,10 @@ monitor_subsys_backend_init(
 			ms->mss_ndn.bv_val );
 		return( -1 );
 	}
+
+	mp = ( monitor_entry_t * )e_backend->e_private;
+	mp->mp_children = NULL;
+	ep = &mp->mp_children;
 
 	i = -1;
 	LDAP_STAILQ_FOREACH( bi, &backendInfo, bi_next ) {
@@ -135,7 +139,7 @@ monitor_subsys_backend_init(
 		mp->mp_info = ms;
 		mp->mp_flags = ms->mss_flags | MONITOR_F_SUB;
 
-		if ( monitor_cache_add( mi, e, e_backend ) ) {
+		if ( monitor_cache_add( mi, e ) ) {
 			Debug( LDAP_DEBUG_ANY,
 				"monitor_subsys_backend_init: "
 				"unable to add entry \"cn=Backend %d,%s\"\n",
@@ -143,6 +147,9 @@ monitor_subsys_backend_init(
 					ms->mss_ndn.bv_val );
 			return( -1 );
 		}
+
+		*ep = e;
+		ep = &mp->mp_next;
 	}
 	
 	monitor_cache_release( mi, e_backend );

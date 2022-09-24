@@ -552,13 +552,10 @@ unique_cf_attrs( ConfigArgs *c )
 		break;
 	case LDAP_MOD_ADD:
 		if ( c->argc > 2 ) {
-			snprintf( c->cr_msg, sizeof( c->cr_msg ),
-				"Please insert multiple names as separate %s values",
+			Debug ( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE, "unique config: "
+				"Supplying multiple names in a single %s value is unsupported "
+				"and will be disallowed in a future version\n",
 				c->argv[0] );
-			Debug ( LDAP_DEBUG_CONFIG, "unique config: %s\n",
-				c->cr_msg );
-			rc = ARG_BAD_CONF;
-			break;
 		}
 		/* FALLTHRU */
 	case SLAP_CONFIG_ADD:
@@ -590,7 +587,7 @@ unique_cf_attrs( ConfigArgs *c )
 		if ( !legacy->uri )
 			unique_new_domain_uri_basic ( &legacy->uri, c );
 		rc = 0;
-		for ( i=1; i < c->argc; ++i ) {
+		for ( i=1; c->argv[i]; ++i ) {
 			AttributeDescription * ad = NULL;
 			const char * text;
 			if ( slap_str2ad ( c->argv[i], &ad, &text )
@@ -1006,7 +1003,6 @@ unique_search(
 	nop->ors_tlimit	= SLAP_NO_LIMIT;
 	nop->ors_attrs	= slap_anlist_no_attrs;
 	nop->ors_attrsonly = 1;
-	memset( nop->o_ctrlflag, 0, sizeof( nop->o_ctrlflag ));
 
 	uq.ndn = &op->o_req_ndn;
 
@@ -1229,15 +1225,13 @@ unique_modify(
 		return rc;
 	}
 
-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) ) {
-		return rc;
-	}
-	if ( get_relax(op) > SLAP_CONTROL_IGNORED
-		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
-		&& e
-		&& access_allowed( op, e,
-			slap_schema.si_ad_entry, NULL,
-			ACL_MANAGE, NULL ) ) {
+	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) || (
+			get_relax(op) > SLAP_CONTROL_IGNORED
+			&& overlay_entry_get_ov(op, &op->o_req_ndn, NULL, NULL, 0, &e, on) == LDAP_SUCCESS
+			&& e
+			&& access_allowed( op, e,
+				slap_schema.si_ad_entry, NULL,
+				ACL_MANAGE, NULL ) ) ) {
 		overlay_entry_release_ov( op, e, 0, on );
 		return rc;
 	}
@@ -1369,15 +1363,13 @@ unique_modrdn(
 	Debug(LDAP_DEBUG_TRACE, "==> unique_modrdn <%s> <%s>\n",
 		op->o_req_dn.bv_val, op->orr_newrdn.bv_val );
 
-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) ) {
-		return rc;
-	}
-	if ( get_relax(op) > SLAP_CONTROL_IGNORED
-		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
-		&& e
-		&& access_allowed( op, e,
-			slap_schema.si_ad_entry, NULL,
-			ACL_MANAGE, NULL ) ) {
+	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) || (
+			get_relax(op) > SLAP_CONTROL_IGNORED
+			&& overlay_entry_get_ov(op, &op->o_req_ndn, NULL, NULL, 0, &e, on) == LDAP_SUCCESS
+			&& e
+			&& access_allowed( op, e,
+				slap_schema.si_ad_entry, NULL,
+				ACL_MANAGE, NULL ) ) ) {
 		overlay_entry_release_ov( op, e, 0, on );
 		return rc;
 	}

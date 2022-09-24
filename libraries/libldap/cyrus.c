@@ -389,7 +389,7 @@ void *ldap_pvt_sasl_cbinding( void *ssl, int type, int is_server )
 	char endpoint_prefix[] = "tls-server-end-point:";
 	char cbinding[ 64 ];
 	struct berval cbv = { 64, cbinding };
-	unsigned char *cb_data; /* used since cb->data is const* */
+	void *cb_data; /* used since cb->data is const* */
 	sasl_channel_binding_t *cb;
 	char *prefix;
 	int plen;
@@ -415,7 +415,7 @@ void *ldap_pvt_sasl_cbinding( void *ssl, int type, int is_server )
 
 	cb = ldap_memalloc( sizeof(*cb) + plen + cbv.bv_len );
 	cb->len = plen + cbv.bv_len;
-	cb->data = cb_data = (unsigned char *)(cb+1);
+	cb->data = cb_data = cb+1;
 	memcpy( cb_data, prefix, plen );
 	memcpy( cb_data + plen, cbv.bv_val, cbv.bv_len );
 	cb->name = "ldap";
@@ -821,9 +821,6 @@ static struct {
 	{ BER_BVC("passcred"), SASL_SEC_PASS_CREDENTIALS, 0, 0 },
 	{ BER_BVC("forwardsec"), SASL_SEC_FORWARD_SECRECY, 0, 0 },
 	{ BER_BVC("noanonymous"), SASL_SEC_NOANONYMOUS, 0, 0 },
-#ifdef SASL_SEC_NONSTD_CBIND
-	{ BER_BVC("nonstdcbind"), SASL_SEC_NONSTD_CBIND, 0, 0 },
-#endif
 	{ BER_BVC("minssf="), 0, GOT_MINSSF, 0 },
 	{ BER_BVC("maxssf="), 0, GOT_MAXSSF, INT_MAX },
 	{ BER_BVC("maxbufsize="), 0, GOT_MAXBUF, 65536 },

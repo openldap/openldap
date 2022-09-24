@@ -711,6 +711,7 @@ retcode_entry_response( Operation *op, SlapReply *rs, BackendInfo *bi, Entry *e 
 			return rs->sr_err = SLAPD_DISCONNECT;
 		}
 	
+		op->o_abandon = 1;
 		return rs->sr_err;
 	}
 

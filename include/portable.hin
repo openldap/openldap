@@ -894,6 +894,9 @@
 /* define if sched_yield yields the entire process */
 #undef REPLACE_BROKEN_YIELD
 
+/* Define as the return type of signal handlers (`int' or `void'). */
+#undef RETSIGTYPE
+
 /* Define to the type of arg 1 for `select'. */
 #undef SELECT_TYPE_ARG1
 
@@ -950,6 +953,9 @@
 
 /* statically linked module */
 #undef SLAPD_MOD_STATIC
+
+/* define to support NDB backend */
+#undef SLAPD_NDB
 
 /* define to support NULL backend */
 #undef SLAPD_NULL
@@ -1059,6 +1065,9 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Define to 1 if you can safely include both <sys/time.h> and <time.h>. */
+#undef TIME_WITH_SYS_TIME
+
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
 
@@ -1136,8 +1145,6 @@
 
 
 /* begin of portable.h.post */
-
-#define RETSIGTYPE void
 
 #ifdef _WIN32
 	/* don't suck in all of the win32 api */

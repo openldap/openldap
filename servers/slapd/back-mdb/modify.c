@@ -416,7 +416,7 @@ do_del:
 
 	/* check that the entry still obeys the schema */
 	ap = NULL;
-	rc = entry_schema_check( op, e, get_relax(op), 0, &ap,
+	rc = entry_schema_check( op, e, save_attrs, get_relax(op), 0, &ap,
 		text, textbuf, textlen );
 	if ( rc != LDAP_SUCCESS || op->o_noop ) {
 		attrs_free( e->e_attrs );

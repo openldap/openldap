@@ -578,11 +578,10 @@ mdb_monitor_db_close( BackendDB *be )
 		monitor_extra_t		*mbe;
 
 		if ( mi && mi->bi_extra ) {
-			struct berval dummy = BER_BVNULL;
 			mbe = mi->bi_extra;
 			mbe->unregister_entry_callback( &mdb->mi_monitor.mdm_ndn,
 				(monitor_callback_t *)mdb->mi_monitor.mdm_cb,
-				&dummy, 0, &dummy );
+				NULL, 0, NULL );
 		}
 
 		memset( &mdb->mi_monitor, 0, sizeof( mdb->mi_monitor ) );

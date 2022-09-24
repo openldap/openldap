@@ -46,6 +46,7 @@ int
 entry_schema_check( 
 	Operation *op,
 	Entry *e,
+	Attribute *oldattrs,
 	int manage,
 	int add,
 	Attribute **socp,

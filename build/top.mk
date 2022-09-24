@@ -73,8 +73,9 @@ MKDEP_CFLAGS = @OL_MKDEP_FLAGS@
 MKVERSION = $(top_srcdir)/build/mkversion -v "$(VERSION)"
 
 LIBTOOL = @LIBTOOL@
+LIBRELEASE = @OPENLDAP_LIBRELEASE@
 LIBVERSION = @OPENLDAP_LIBVERSION@
-LTVERSION = -version-info $(LIBVERSION)
+LTVERSION = -release $(LIBRELEASE) -version-info $(LIBVERSION)
 
 # libtool --only flag for libraries: platform specific
 NT_LTONLY_LIB = # --only-$(BUILD_LIBS_DYNAMIC)

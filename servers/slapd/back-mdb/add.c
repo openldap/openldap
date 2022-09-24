@@ -51,7 +51,7 @@ mdb_add(Operation *op, SlapReply *rs )
 	ctrls[num_ctrls] = 0;
 
 	/* check entry's schema */
-	rs->sr_err = entry_schema_check( op, op->ora_e,
+	rs->sr_err = entry_schema_check( op, op->ora_e, NULL,
 		get_relax(op), 1, NULL, &rs->sr_text, textbuf, textlen );
 	if ( rs->sr_err != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_TRACE,

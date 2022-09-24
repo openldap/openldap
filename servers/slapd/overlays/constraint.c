@@ -1056,10 +1056,23 @@ constraint_update( Operation *op, SlapReply *rs )
 
 					target_entry_copy = entry_dup(target_entry);
 
-					/* if rename, set the new entry's name */
+					/* if rename, set the new entry's name
+					 * (in normalized form only) */
 					if ( op->o_tag == LDAP_REQ_MODRDN ) {
-						ber_bvreplace( &target_entry_copy->e_name, &op->orr_newDN );
-						ber_bvreplace( &target_entry_copy->e_nname, &op->orr_nnewDN );
+						struct berval pdn, ndn = BER_BVNULL;
+
+						if ( op->orr_nnewSup ) {
+							pdn = *op->orr_nnewSup;
+
+						} else {
+							dnParent( &target_entry_copy->e_nname, &pdn );
+						}
+
+						build_new_dn( &ndn, &pdn, &op->orr_nnewrdn, NULL ); 
+
+						ber_memfree( target_entry_copy->e_nname.bv_val );
+						target_entry_copy->e_nname = ndn;
+						ber_bvreplace( &target_entry_copy->e_name, &ndn );
 					}
 
 					/* apply modifications, in an attempt

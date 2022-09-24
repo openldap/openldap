@@ -47,8 +47,7 @@ monitor_cache_dup LDAP_P((
 extern int
 monitor_cache_add LDAP_P((
 	monitor_info_t		*mi,
-	Entry			*e,
-	Entry			*parent ));
+	Entry			*e ));
 extern int
 monitor_cache_get LDAP_P((
 	monitor_info_t		*mi,

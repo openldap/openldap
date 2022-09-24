@@ -184,28 +184,22 @@ typedef struct srv_record {
     char hostname[MAXHOST];
 } srv_record;
 
-/*
- * xorshift - we don't need high quality randomness, and we don't want to
+/* Linear Congruential Generator - we don't need
+ * high quality randomness, and we don't want to
  * interfere with anyone else's use of srand().
  *
- * The PRNG here cycles thru all nonzero 32bit numbers.
+ * The PRNG here cycles thru 941,955 numbers.
  */
-static ac_uint4 srv_seed;
+static float srv_seed;
 
-static void
-srv_srand( int seed )
-{
-	srv_seed = seed;
+static void srv_srand(int seed) {
+	srv_seed = (float)seed / (float)RAND_MAX;
 }
 
-static ac_uint4
-srv_rand( void ) {
-	ac_uint4 val = srv_seed;
-	val ^= val << 13;
-	val ^= val >> 17;
-	val ^= val << 5;
-	srv_seed = val;
-	return val;
+static float srv_rand() {
+	float val = 9821.0 * srv_seed + .211327;
+	srv_seed = val - (int)val;
+	return srv_seed;
 }
 
 static int srv_cmp(const void *aa, const void *bb){
@@ -227,11 +221,9 @@ static void srv_shuffle(srv_record *a, int n) {
 		if (!total) {
 			/* all remaining weights are zero,
 			   do a straight Fisher-Yates shuffle */
-			j = srv_rand() % p;
+			j = srv_rand() * p;
 		} else {
-			/* Extra share for the first (possibly 0-weight entry),
-			 * RFC2782 Errata (rejected) discusses the effects. */
-			r = srv_rand() % (total+1);
+			r = srv_rand() * total;
 			for (j=0; j<p; j++) {
 				r -= a[j].weight;
 				if (r < 0) {
@@ -299,11 +291,10 @@ int ldap_domain2hostlist(
 	unsigned char *p;
 	char host[DNSBUFSIZ];
 	int status;
-	u_short query_id, port, priority, weight;
+	u_short port, priority, weight;
 
 	/* Parse out query */
 	p = reply;
-	query_id = (p[0] << 8) | p[1];
 
 #ifdef NS_HFIXEDSZ
 	/* Bind 8/9 interface */
@@ -371,12 +362,8 @@ add_size:;
 	if (!hostent_head) goto out;
     qsort(hostent_head, hostent_count, sizeof(srv_record), srv_cmp);
 
-	if (!srv_seed) {
-		int seed = time( NULL ) ^ query_id;
-		/* Make sure we never pass 0 as a seed */
-		if ( !seed ) seed++;
-		srv_srand( seed );
-	}
+	if (!srv_seed)
+		srv_srand(time(0L));
 
 	/* shuffle records of same priority */
 	j = 0;

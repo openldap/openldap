@@ -36,47 +36,6 @@ pwdFailureCountInterval: 120
 pwdSafeModify: TRUE
 pwdLockout: TRUE
 
-dn: cn=Idle Expiration Policy, ou=Policies, dc=example, dc=com
-objectClass: top
-objectClass: device
-objectClass: pwdPolicy
-cn: Idle Expiration Policy
-pwdAttribute: 2.5.4.35
-pwdLockoutDuration: 15
-pwdInHistory: 6
-pwdCheckQuality: 2
-pwdExpireWarning: 10
-pwdMaxIdle: 15
-pwdMinLength: 5
-pwdMaxLength: 13
-pwdGraceAuthnLimit: 3
-pwdAllowUserChange: TRUE
-pwdMustChange: TRUE
-pwdMaxFailure: 3
-pwdFailureCountInterval: 120
-pwdSafeModify: TRUE
-pwdLockout: TRUE
-
-dn: cn=Stricter Policy, ou=Policies, dc=example, dc=com
-objectClass: top
-objectClass: device
-objectClass: pwdPolicy
-cn: Stricter Policy
-pwdAttribute: 2.5.4.35
-pwdLockoutDuration: 15
-pwdInHistory: 6
-pwdCheckQuality: 2
-pwdExpireWarning: 10
-pwdMaxAge: 15
-pwdMinLength: 5
-pwdMaxLength: 13
-pwdAllowUserChange: TRUE
-pwdMustChange: TRUE
-pwdMaxFailure: 3
-pwdFailureCountInterval: 120
-pwdSafeModify: TRUE
-pwdLockout: TRUE
-
 dn: uid=nd, ou=People, dc=example, dc=com
 objectClass: top
 objectClass: person

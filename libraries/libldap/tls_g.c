@@ -181,7 +181,7 @@ tlsg_getfile( const char *path, gnutls_datum_t *buf )
  * initialize a new TLS context
  */
 static int
-tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *errmsg )
+tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 {
 	tlsg_ctx *ctx = lo->ldo_tls_ctx;
 	int rc;
@@ -195,26 +195,20 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
  	}
 
 	if (lo->ldo_tls_cacertdir != NULL) {
-		char **dirs = ldap_str2charray( lt->lt_cacertdir, CERTPATHSEP );
-		int i;
-		for ( i=0; dirs[i]; i++ ) {
-			rc = gnutls_certificate_set_x509_trust_dir(
-				ctx->cred,
-				dirs[i],
-				GNUTLS_X509_FMT_PEM );
-			if ( rc > 0 ) {
-				Debug2( LDAP_DEBUG_TRACE,
-					"TLS: loaded %d CA certificates from directory `%s'.\n",
-					rc, dirs[i] );
-			} else {
-				Debug1( LDAP_DEBUG_ANY,
-					"TLS: warning: no certificate found in CA certificate directory `%s'.\n",
-					dirs[i] );
-				/* only warn, no return */
-				strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
-			}
+		rc = gnutls_certificate_set_x509_trust_dir(
+			ctx->cred,
+			lt->lt_cacertdir,
+			GNUTLS_X509_FMT_PEM );
+		if ( rc > 0 ) {
+			Debug2( LDAP_DEBUG_TRACE,
+				"TLS: loaded %d CA certificates from directory `%s'.\n",
+				rc, lt->lt_cacertdir );
+		} else {
+			Debug1( LDAP_DEBUG_ANY,
+				"TLS: warning: no certificate found in CA certificate directory `%s'.\n",
+				lt->lt_cacertdir );
+			/* only warn, no return */
 		}
-		ldap_charray_free( dirs );
 	}
 
 	if (lo->ldo_tls_cacertfile != NULL) {
@@ -234,7 +228,6 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 				"TLS: warning: no certificate loaded from CA certificate file `%s'.\n",
 				lo->ldo_tls_cacertfile );
 			/* only warn, no return */
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
 		}
 	}
 
@@ -251,7 +244,6 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 				"TLS: could not use CA certificate: %s (%d)\n",
 				gnutls_strerror( rc ),
 				rc );
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
 			return -1;
 		}
 	}
@@ -264,10 +256,7 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 		unsigned int max = VERIFY_DEPTH;
 
 		rc = gnutls_x509_privkey_init( &key );
-		if ( rc ) {
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
-			return -1;
-		}
+		if ( rc ) return -1;
 
 		/* OpenSSL builds the cert chain for us, but GnuTLS
 		 * expects it to be present in the certfile. If it's
@@ -296,7 +285,6 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 				"TLS: could not use private key: %s (%d)\n",
 				gnutls_strerror( rc ),
 				rc );
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
 			return rc;
 		}
 
@@ -322,7 +310,6 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 				"TLS: could not use certificate: %s (%d)\n",
 				gnutls_strerror( rc ),
 				rc );
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
 			return rc;
 		}
 
@@ -346,7 +333,6 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 				"TLS: could not use certificate with key: %s (%d)\n",
 				gnutls_strerror( rc ),
 				rc );
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
 			return -1;
 		}
 	} else if (( lo->ldo_tls_certfile || lo->ldo_tls_keyfile )) {
@@ -364,10 +350,7 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 			ctx->cred,
 			lt->lt_crlfile,
 			GNUTLS_X509_FMT_PEM );
-		if ( rc < 0 ) {
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
-			return -1;
-		}
+		if ( rc < 0 ) return -1;
 		rc = 0;
 	}
 
@@ -386,10 +369,7 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 			rc = gnutls_dh_params_import_pkcs3( ctx->dh_params, &buf,
 				GNUTLS_X509_FMT_PEM );
 		LDAP_FREE( buf.data );
-		if ( rc ) {
-			strncpy( errmsg, gnutls_strerror( rc ), ERRBUFSIZE );
-			return -1;
-		}
+		if ( rc ) return -1;
 		gnutls_certificate_set_dh_params( ctx->cred, ctx->dh_params );
 	}
 

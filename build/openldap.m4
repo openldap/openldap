@@ -613,7 +613,7 @@ dnl ====================================================================
 dnl Look for fetch(3)
 AC_DEFUN([OL_LIB_FETCH],
 [ol_LIBS=$LIBS
-LIBS="-lfetch $LIBS"
+LIBS="-lfetch -lcom_err $LIBS"
 AC_CACHE_CHECK([fetch(3) library],ol_cv_lib_fetch,[
 	AC_LINK_IFELSE([AC_LANG_PROGRAM([[
 #ifdef HAVE_SYS_PARAM_H
@@ -623,7 +623,7 @@ AC_CACHE_CHECK([fetch(3) library],ol_cv_lib_fetch,[
 #include <fetch.h>]], [[struct url *u = fetchParseURL("file:///"); ]])],[ol_cv_lib_fetch=yes],[ol_cv_lib_fetch=no])])
 LIBS=$ol_LIBS
 if test $ol_cv_lib_fetch != no ; then
-	ol_link_fetch="-lfetch"
+	ol_link_fetch="-lfetch -lcom_err"
 	AC_DEFINE(HAVE_FETCH,1,
 		[define if you actually have FreeBSD fetch(3)])
 fi

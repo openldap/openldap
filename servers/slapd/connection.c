@@ -212,7 +212,7 @@ int connections_timeout_idle(time_t now)
 		/* Don't timeout a slow-running request or a persistent
 		 * outbound connection.
 		 */
-		if( c->c_n_ops_executing || c->c_n_ops_async
+		if((( c->c_n_ops_executing || c->c_n_ops_async ) && !c->c_writewaiter)
 			|| c->c_conn_state == SLAP_C_CLIENT ) {
 			continue;
 		}
@@ -244,7 +244,7 @@ void connections_drop()
 		/* Don't close a slow-running request or a persistent
 		 * outbound connection.
 		 */
-		if( c->c_n_ops_executing || c->c_n_ops_async
+		if((( c->c_n_ops_executing || c->c_n_ops_async ) && !c->c_writewaiter)
 			|| c->c_conn_state == SLAP_C_CLIENT ) {
 			continue;
 		}
@@ -734,7 +734,6 @@ static void connection_abandon( Connection *c )
 		LDAP_STAILQ_NEXT(o, o_next) = NULL;
 		slap_op_free( o, NULL );
 	}
-	c->c_n_ops_pending = 0;
 }
 
 static void
@@ -871,14 +870,13 @@ Connection* connection_next( Connection *c, ber_socket_t *index )
 
 	for(; *index < dtblsize; (*index)++) {
 		if( connections[*index].c_sb ) {
-			c = &connections[*index];
+			c = &connections[(*index)++];
 			ldap_pvt_thread_mutex_lock( &c->c_mutex );
 			if ( c->c_conn_state == SLAP_C_INVALID ) {
 				ldap_pvt_thread_mutex_unlock( &c->c_mutex );
 				c = NULL;
 				continue;
 			}
-			(*index)++;
 			break;
 		}
 	}
@@ -965,18 +963,18 @@ conn_counter_destroy( void *key, void *data )
 	ldap_pvt_thread_mutex_unlock( &slap_counters.sc_mutex );
 }
 
-void
-operation_counter_init( Operation *op, void *ctx )
+static void
+conn_counter_init( Operation *op, void *ctx )
 {
 	slap_counters_t *sc;
 	void *vsc = NULL;
 
 	if ( ldap_pvt_thread_pool_getkey(
-			ctx, (void *)operation_counter_init, &vsc, NULL ) || !vsc ) {
+			ctx, (void *)conn_counter_init, &vsc, NULL ) || !vsc ) {
 		vsc = ch_malloc( sizeof( slap_counters_t ));
 		sc = vsc;
 		slap_counters_init( sc );
-		ldap_pvt_thread_pool_setkey( ctx, (void*)operation_counter_init, vsc,
+		ldap_pvt_thread_pool_setkey( ctx, (void*)conn_counter_init, vsc,
 			conn_counter_destroy, NULL, NULL );
 
 		ldap_pvt_thread_mutex_lock( &slap_counters.sc_mutex );
@@ -988,7 +986,7 @@ operation_counter_init( Operation *op, void *ctx )
 }
 
 void
-connection_op_finish( Operation *op, int lock )
+connection_op_finish( Operation *op )
 {
 	Connection *conn = op->o_conn;
 	void *memctx_null = NULL;
@@ -997,8 +995,7 @@ connection_op_finish( Operation *op, int lock )
 
 	INCR_OP_COMPLETED( opidx );
 
-	if ( lock )
-		ldap_pvt_thread_mutex_lock( &conn->c_mutex );
+	ldap_pvt_thread_mutex_lock( &conn->c_mutex );
 
 	if ( op->o_tag == LDAP_REQ_BIND && conn->c_conn_state == SLAP_C_BINDING )
 		conn->c_conn_state = SLAP_C_ACTIVE;
@@ -1010,8 +1007,7 @@ connection_op_finish( Operation *op, int lock )
 	conn->c_n_ops_async--;
 	conn->c_n_ops_completed++;
 	connection_resched( conn );
-	if ( lock )
-		ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
+	ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
 }
 
 static void *
@@ -1034,7 +1030,7 @@ connection_operation( void *ctx, void *arg_v )
 		op->o_qtime.tv_sec--;
 	}
 	op->o_qtime.tv_sec -= op->o_time;
-	operation_counter_init( op, ctx );
+	conn_counter_init( op, ctx );
 	ldap_pvt_thread_mutex_lock( &op->o_counters->sc_mutex );
 	/* FIXME: returns 0 in case of failure */
 	ldap_pvt_mp_add_ulong(op->o_counters->sc_ops_initiated, 1);

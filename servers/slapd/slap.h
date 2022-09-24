@@ -159,9 +159,6 @@ LDAP_BEGIN_DECL
 /* pseudo error code indicating async operation */
 #define SLAPD_ASYNCOP (-1027)
 
-/* pseudo error code to suppress frontend response */
-#define SLAPD_NO_REPLY (-1028)
-
 /* We assume "C" locale, that is US-ASCII */
 #define ASCII_SPACE(c)	( (c) == ' ' )
 #define ASCII_LOWER(c)	( (c) >= 'a' && (c) <= 'z' )
@@ -1607,7 +1604,6 @@ LDAP_SLAPD_V (int) slapMode;
 #define	SLAP_TOOL_QUICK		0x0800
 #define SLAP_TOOL_NO_SCHEMA_CHECK	0x1000
 #define SLAP_TOOL_VALUE_CHECK	0x2000
-#define SLAP_TOOL_DRYRUN	0x4000
 
 #define SLAP_SERVER_RUNNING	0x8000
 
@@ -1790,13 +1786,7 @@ struct sync_cookie {
 
 LDAP_STAILQ_HEAD( slap_sync_cookie_s, sync_cookie );
 
-/* Defs for pending_csn_list */
-LDAP_TAILQ_HEAD( be_pclh, slap_csn_entry );
-
-typedef struct be_pcsn {
-	struct be_pclh			be_pcsn_list;
-	ldap_pvt_thread_mutex_t	be_pcsn_mutex;
-} be_pcsn;
+LDAP_TAILQ_HEAD( be_pcl, slap_csn_entry );
 
 #ifndef SLAP_MAX_CIDS
 #define	SLAP_MAX_CIDS	32	/* Maximum number of supported controls */
@@ -1877,16 +1867,15 @@ struct BackendDB {
 #define	SLAP_DBFLAG_GLOBAL_OVERLAY	0x0200U	/* this db struct is a global overlay */
 #define SLAP_DBFLAG_DYNAMIC		0x0400U /* this db allows dynamicObjects */
 #define	SLAP_DBFLAG_MONITORING		0x0800U	/* custom monitoring enabled */
+#define SLAP_DBFLAG_SHADOW		0x8000U /* a shadow */
+#define SLAP_DBFLAG_SINGLE_SHADOW	0x4000U	/* a single-provider shadow */
 #define SLAP_DBFLAG_SYNC_SHADOW		0x1000U /* a sync shadow */
-#define SLAP_DBFLAG_SLURP_SHADOW	0x2000U /* a push replication target */
-#define SLAP_DBFLAG_SINGLE_SHADOW_MASK	(SLAP_DBFLAG_SYNC_SHADOW|SLAP_DBFLAG_SLURP_SHADOW) /* a single-provider shadow */
-#define SLAP_DBFLAG_MULTI_SHADOW	0x4000U /* uses multi-provider */
-#define SLAP_DBFLAG_SHADOW_MASK		(SLAP_DBFLAG_SINGLE_SHADOW_MASK|SLAP_DBFLAG_MULTI_SHADOW)
-/* 0x8000U no longer used */
+#define SLAP_DBFLAG_SLURP_SHADOW	0x2000U /* a slurp shadow */
+#define SLAP_DBFLAG_SHADOW_MASK		(SLAP_DBFLAG_SHADOW|SLAP_DBFLAG_SINGLE_SHADOW|SLAP_DBFLAG_SYNC_SHADOW|SLAP_DBFLAG_SLURP_SHADOW)
 #define SLAP_DBFLAG_CLEAN		0x10000U /* was cleanly shutdown */
 #define SLAP_DBFLAG_ACL_ADD		0x20000U /* check attr ACLs on adds */
 #define SLAP_DBFLAG_SYNC_SUBENTRY	0x40000U /* use subentry for context */
-/* 0x80000U no longer used */
+#define SLAP_DBFLAG_MULTI_SHADOW	0x80000U /* uses multi-provider */
 #define SLAP_DBFLAG_DISABLED	0x100000U
 #define SLAP_DBFLAG_LASTBIND	0x200000U
 #define SLAP_DBFLAG_OPEN	0x400000U	/* db is currently open */
@@ -1911,13 +1900,11 @@ struct BackendDB {
 	(SLAP_DBFLAGS(be) & SLAP_DBFLAG_GLUE_LINKED)
 #define	SLAP_GLUE_ADVERTISE(be)	\
 	(SLAP_DBFLAGS(be) & SLAP_DBFLAG_GLUE_ADVERTISE)
-#define SLAP_SHADOW(be)				(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SHADOW_MASK)
+#define SLAP_SHADOW(be)				(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SHADOW)
 #define SLAP_SYNC_SHADOW(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SYNC_SHADOW)
 #define SLAP_SLURP_SHADOW(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SLURP_SHADOW)
+#define SLAP_SINGLE_SHADOW(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SINGLE_SHADOW)
 #define SLAP_MULTIPROVIDER(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_MULTI_SHADOW)
-#define SLAP_SINGLE_SHADOW(be)		\
-	( (SLAP_DBFLAGS(be) & SLAP_DBFLAG_SINGLE_SHADOW_MASK) && \
-		!SLAP_MULTIPROVIDER(be) )
 #define SLAP_DBCLEAN(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_CLEAN)
 #define SLAP_DBOPEN(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_OPEN)
 #define SLAP_DBACL_ADD(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_ACL_ADD)
@@ -2000,13 +1987,11 @@ struct BackendDB {
 	slap_access_t	be_dfltaccess;	/* access given if no acl matches	   */
 	AttributeName	*be_extra_anlist;	/* attributes that need to be added to search requests (ITS#6513) */
 
-	unsigned int be_lastbind_precision;
-
 	/* Consumer Information */
 	struct berval be_update_ndn;	/* allowed to make changes (in replicas) */
 	BerVarray	be_update_refs;	/* where to refer modifying clients to */
-	be_pcsn	be_pcsn_st;			/* be_pending_csn_list now inside this */
-	be_pcsn	*be_pcsn_p;
+	struct		be_pcl	*be_pending_csn_list;
+	ldap_pvt_thread_mutex_t					be_pcl_mutex;
 	struct syncinfo_s						*be_syncinfo; /* For syncrepl */
 
 	void    *be_pb;         /* Netscape plugin */
@@ -2080,8 +2065,6 @@ typedef struct req_modrdn_s {
 	struct berval rs_nnewrdn;
 	struct berval *rs_newSup;
 	struct berval *rs_nnewSup;
-	struct berval rs_newDN;
-	struct berval rs_nnewDN;
 } req_modrdn_s;
 
 typedef struct req_add_s {
@@ -2704,8 +2687,6 @@ struct Operation {
 #define orr_nnewrdn oq_modrdn.rs_nnewrdn
 #define orr_newSup oq_modrdn.rs_newSup
 #define orr_nnewSup oq_modrdn.rs_nnewSup
-#define orr_newDN oq_modrdn.rs_newDN
-#define orr_nnewDN oq_modrdn.rs_nnewDN
 
 #define orc_ava oq_compare.rs_ava
 

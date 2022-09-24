@@ -44,7 +44,7 @@ ldap_turn(
 {
 #ifdef LDAP_EXOP_X_TURN
 	BerElement *turnvalber = NULL;
-	struct berval turnval;
+	struct berval *turnvalp = NULL;
 	int rc;
 
 	turnvalber = ber_alloc_t( LBER_USE_DER );
@@ -53,10 +53,10 @@ ldap_turn(
 	} else {
 		ber_printf( turnvalber, "{s}", identifier );
 	}
-	ber_flatten2( turnvalber, &turnval, 0 );
+	ber_flatten( turnvalber, &turnvalp );
 
 	rc = ldap_extended_operation( ld, LDAP_EXOP_X_TURN,
-			&turnval, sctrls, cctrls, msgidp );
+			turnvalp, sctrls, cctrls, msgidp );
 	ber_free( turnvalber, 1 );
 	return rc;
 #else
@@ -74,7 +74,7 @@ ldap_turn_s(
 {
 #ifdef LDAP_EXOP_X_TURN
 	BerElement *turnvalber = NULL;
-	struct berval turnval;
+	struct berval *turnvalp = NULL;
 	int rc;
 
 	turnvalber = ber_alloc_t( LBER_USE_DER );
@@ -83,10 +83,10 @@ ldap_turn_s(
 	} else {
 		ber_printf( turnvalber, "{s}", identifier );
 	}
-	ber_flatten2( turnvalber, &turnval, 0 );
+	ber_flatten( turnvalber, &turnvalp );
 
 	rc = ldap_extended_operation_s( ld, LDAP_EXOP_X_TURN,
-			&turnval, sctrls, cctrls, NULL, NULL );
+			turnvalp, sctrls, cctrls, NULL, NULL );
 	ber_free( turnvalber, 1 );
 	return rc;
 #else

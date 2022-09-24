@@ -103,18 +103,12 @@ if test $COUNT != 2 ; then
 	exit 1
 fi
 
-DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
-echo "$DELAYATTR" >> $SEARCHOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*seconds_before_unlock=\(\d*\)/\1/p'`
+DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*seconds_before_unlock=\(\d*\)/\1/p'`
 
-# $DELAY is empty if we were so slow that the lockout expired already,
-# continue test but the next part might fail anyway since we rely on
-# cumulative timing
-if test -n "$DELAY" ; then
-	echo "Waiting $DELAY seconds for lockout to reset..."
-	sleep $DELAY
-	sleep 1
-fi
+echo "Waiting $DELAY seconds for lockout to reset..."
+sleep $DELAY
+sleep 1
 
 $LDAPSEARCH -e ppolicy -H $URI1 -D "$USER" -w $PASS \
 	-b "$BASEDN" -s base >> $SEARCHOUT 2>&1
@@ -125,17 +119,13 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
-echo "$DELAYATTR" >> $SEARCHOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
 
 echo "Testing password expiration"
-# $DELAY is empty if we were so slow that the password expired already
-if test -n "$DELAY" ; then
-	echo "Waiting $DELAY seconds for password to expire..."
-	sleep $DELAY
-	sleep 1
-fi
+echo "Waiting $DELAY seconds for password to expire..."
+sleep $DELAY
+sleep 1
 
 $LDAPSEARCH -e ppolicy -H $URI1 -D "$USER" -w $PASS \
 	-b "$BASEDN" -s base > $SEARCHOUT 2>&1
@@ -251,16 +241,6 @@ if test $RC = 0 ; then
 fi
 
 echo "Testing failed logins when password/policy missing..."
-
-$LDAPSEARCH -e ppolicy -H $URI1 \
-	-D "$PWADMIN" -w hasnopolicy \
-	-b "$BASEDN" -s base > $SEARCHOUT 2>&1
-RC=$?
-if test $RC = 0 ; then
-	echo "Password accepted ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
-fi
 
 $LDAPSEARCH -e ppolicy -H $URI1 \
 	-D "uid=test, ou=People,$BASEDN" -w hasnopolicy \
@@ -488,13 +468,15 @@ if test $RC = 0 ; then
 fi
 
 echo "Testing idle password expiration"
-echo "Switching to a policy with idle expiration..."
+echo "Reconfiguring policy to replace expiration with idle expiration..."
 $LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
 	$TESTOUT 2>&1 << EOMODS
-dn: $USER
+dn: cn=Standard Policy, ou=Policies, dc=example, dc=com
 changetype: modify
-add: description
-description: idle
+delete: pwdMaxAge
+-
+add: pwdMaxIdle
+pwdMaxIdle: 15
 
 EOMODS
 RC=$?
@@ -504,22 +486,11 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
-	"$USER" "pwdPolicySubentry:cn=Idle Expiration Policy, ou=Policies, dc=example, dc=com" \
-	>> $TESTOUT 2>&1
-RC=$?
-if test $RC != 6 ; then
-	echo "ldapcompare failed ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
-fi
-
 $LDAPSEARCH -e ppolicy -H $URI1 -D "$USER" -w $PASS \
 	-b "$BASEDN" -s base > $SEARCHOUT 2>&1
 
-DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
-echo "$DELAYATTR" >> $SEARCHOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
 
 echo "Waiting $DELAY seconds for password to expire..."
 sleep $DELAY
@@ -534,13 +505,15 @@ if test $RC != 49 ; then
 	exit 1
 fi
 
-echo "Reverting to Standard policy..."
+echo "Reverting policy changes..."
 $LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
 	$TESTOUT 2>&1 << EOMODS
-dn: $USER
+dn: cn=Standard Policy, ou=Policies, dc=example, dc=com
 changetype: modify
-delete: description
-description: idle
+delete: pwdMaxIdle
+-
+add: pwdMaxAge
+pwdMaxAge: 30
 
 EOMODS
 RC=$?
@@ -548,16 +521,6 @@ if test $RC != 0 ; then
 	echo "ldapmodify failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
-fi
-
-$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
-	"$USER" "pwdPolicySubentry:cn=Standard Policy, ou=Policies, dc=example, dc=com" \
-	>> $TESTOUT 2>&1
-RC=$?
-if test $RC != 6 ; then
-	echo "ldapcompare failed ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
 fi
 
 if test "$BACKLDAP" != "ldapno" && test "$SYNCPROV" != "syncprovno"  ; then 
@@ -568,12 +531,12 @@ mkdir $DBDIR2
 sed -e "s,$DBDIR1,$DBDIR2," < $CONF1 > $CONF2
 echo "Starting slapd consumer on TCP/IP port $PORT2..."
 $SLAPD -f $CONF2 -h $URI2 -d $LVL > $LOG2 2>&1 &
-CONSUMERPID=$!
+PID=$!
 if test $WAIT != 0 ; then
-    echo CONSUMERPID $CONSUMERPID
+    echo PID $PID
     read foo
 fi
-KILLPIDS="$KILLPIDS $CONSUMERPID"
+KILLPIDS="$KILLPIDS $PID"
 
 echo "Configuring syncprov on provider..."
 if [ "$SYNCPROV" = syncprovmod ]; then
@@ -732,13 +695,15 @@ if test $RC != 0 ; then
 fi
 
 echo "Reconfiguring policy to remove grace logins..."
-$LDAPMODIFY -v -D cn=config -H $URI1 -y $CONFIGPWF >> \
+$LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
 	$TESTOUT 2>&1 << EOMODS
-dn: olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
+dn: cn=Standard Policy, ou=Policies, dc=example, dc=com
 changetype: modify
-add: olcPPolicyRules
-olcPPolicyRules: {0}"ldap:///dc=example,dc=com???(!(description=grace))"
-  "cn=Stricter Policy, ou=Policies, dc=example, dc=com"
+delete: pwdGraceAuthnLimit
+-
+replace: pwdMaxAge
+pwdMaxAge: 15
+-
 
 EOMODS
 RC=$?
@@ -746,45 +711,6 @@ if test $RC != 0 ; then
 	echo "ldapmodify failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
-fi
-
-$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
-	"$USER" "pwdPolicySubentry:cn=Stricter Policy, ou=Policies, dc=example, dc=com" \
-	>> $TESTOUT 2>&1
-RC=$?
-if test $RC != 6 ; then
-	echo "ldapcompare failed ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
-fi
-
-# URI2 is not running unless we performed chaining test above
-if test -n "$CONSUMERPID"; then
-$LDAPMODIFY -v -D cn=config -H $URI2 -y $CONFIGPWF >> \
-	$TESTOUT 2>&1 << EOMODS
-dn: olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
-changetype: modify
-add: olcPPolicyRules
-olcPPolicyRules: {0}"ldap:///dc=example,dc=com???(!(description=grace))"
-  "cn=Stricter Policy, ou=Policies, dc=example, dc=com"
-
-EOMODS
-RC=$?
-if test $RC != 0 ; then
-	echo "ldapmodify failed ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
-fi
-
-$LDAPCOMPARE -D "$MANAGERDN" -H $URI2 -w $PASSWD \
-	"$USER" "pwdPolicySubentry:cn=Stricter Policy, ou=Policies, dc=example, dc=com" \
-	>> $TESTOUT 2>&1
-RC=$?
-if test $RC != 6 ; then
-	echo "ldapcompare failed ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
-fi
 fi
 
 OLDPASS=$PASS
@@ -808,18 +734,13 @@ delete: pwdReset
 
 EOMODS
 
-DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
-echo "$DELAYATTR" >> $TESTOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
 DELAY=`expr $DELAY - 10`
 
 echo "Testing password expiration"
-# $DELAY is empty if we were so slow that the password expired already
-if test -n "$DELAY" ; then
-	echo "Waiting $DELAY seconds for password to expire..."
-	sleep $DELAY
-	sleep 1
-fi
+echo "Waiting $DELAY seconds for password to expire..."
+sleep $DELAY
 
 $LDAPSEARCH -H $URI1 -D "$USER" -w $PASS \
 	-b "$BASEDN" -s base > $SEARCHOUT 2>&1

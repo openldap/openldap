@@ -197,12 +197,8 @@ This directive defines the maximum size of the privileged connections pool.
 
 .TP
 .B conn\-ttl <time>
-This directive causes a cached connection to be dropped after a given ttl,
-regardless of being idle or not.  If a client connection outlives the remote
-connection, the client will receive
-.IR LDAP_UNAVAILABLE
-when it executes the next operation.
-
+This directive causes a cached connection to be dropped and recreated
+after a given ttl, regardless of being idle or not.
 
 .TP
 .B idassert\-authzFrom <authz-regexp>
@@ -272,9 +268,7 @@ where
 .B none
 is the default, i.e. no \fIidentity assertion\fP is performed.
 
-The
-.B authz
-parameter is used to instruct the SASL bind to exploit
+The authz parameter is used to instruct the SASL bind to exploit 
 .B native 
 SASL authorization, if available; since connections are cached,
 this should only be used when authorizing with a fixed identity
@@ -426,11 +420,8 @@ for details on the syntax of this field.
 
 .TP
 .B idle\-timeout <time>
-This directive causes a cached connection to be dropped after it has been idle
-for the specified time.  If a client connection outlives the remote connection,
-the client will receive
-.IR LDAP_UNAVAILABLE
-when it executes the next operation.
+This directive causes a cached connection to be dropped an recreated
+after it has been idle for the specified time.
 
 .TP
 .B keepalive  <idle>:<probes>:<interval>
@@ -545,11 +536,6 @@ or when chasing a referral, if
 .B chase\-referrals
 is set to
 .IR yes .
-Note, however, that connection is not re-established automatically after it
-was dropped due to
-.B idle\-timeout
-or
-.B conn\-ttl .
 
 .TP
 .B session\-tracking\-request {NO|yes}

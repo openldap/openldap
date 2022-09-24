@@ -55,20 +55,9 @@ after the
 .B overlay
 directive.
 .TP
-.B ppolicy_rules <LDAP URI> <policyDN>
-Specify which pwdPolicy object to use when no specific policy is set on
-a given user's entry. If there is no pwdPolicySubentry set, the URIs are
-checked in order and the first one to match will apply. If one is selected
-and the object at
-.B policyDN
-does not exist or is not a password policy, then no policies will be
-enforced.
-.TP
 .B ppolicy_default <policyDN>
 Specify the DN of the pwdPolicy object to use when no specific policy is
-set on a given user's entry and none of the
-.B ppolicy_rules
-apply. If there is no specific policy for an entry
+set on a given user's entry. If there is no specific policy for an entry
 and no default is given, then no policies will be enforced.
 .TP
 .B ppolicy_forward_updates
@@ -111,24 +100,6 @@ If set, ppolicy will send the password policy expired (2.16.840.1.113730.3.4.4)
 and password policy expiring (2.16.840.1.113730.3.4.5) controls when
 appropriate. The controls are not sent for bind requests where the Password
 policy control has already been requested. Default is not to send the controls.
-.TP
-.B ppolicy_check_module <path>
-Specify the path of a loadable module containing a
-.B check_password()
-function for additional password quality checks. The use of this module
-is described further below in the description of the
-.B pwdPolicyChecker
-objectclass.
-
-Note: The user-defined loadable module must be in
-.B slapd's
-standard executable search PATH, or an absolute path must be provided.
-
-Note: Use of a
-.B ppolicy_check_module
-is a non-standard extension to the LDAP password
-policy proposal.
-
 
 .SH OBJECT CLASS
 The 
@@ -167,15 +138,14 @@ attribute, suitable as the policy entry's rDN.
 
 This implementation also provides an additional
 .B pwdPolicyChecker
-objectclass, used for password quality checking (see specific attributes
-below for usage).
+objectclass, used for password quality checking (see below).
 .LP
 .RS 4
 (  1.3.6.1.4.1.4754.2.99.1
     NAME 'pwdPolicyChecker'
     AUXILIARY
     SUP top
-    MAY ( pwdCheckModule $ pwdCheckModuleArg $ pwdUseCheckModule ) )
+    MAY ( pwdCheckModule $ pwdCheckModuleArg ) )
 .RE
 .P
 Every account that should be subject to password policy control should
@@ -309,9 +279,8 @@ without checking it (if
 is zero (0) or one (1)) or refuse it (if
 .B pwdCheckQuality
 is two (2)). If the number of characters should be enforced with regards
-to a particular encoding, the use of an appropriate
-.B ppolicy_check_module
-is required.
+to a particular encoding, the use of an appropriate pwdCheckModule is
+required.
 .LP
 .RS 4
 (  1.3.6.1.4.1.42.2.27.8.1.6
@@ -340,9 +309,8 @@ without checking it (if
 is zero (0) or one (1)) or refuse it (if
 .B pwdCheckQuality
 is two (2)). If the number of characters should be enforced with regards
-to a particular encoding, the use of an appropriate
-.B ppolicy_check_module
-is required.
+to a particular encoding, the use of an appropriate pwdCheckModule is
+required.
 .LP
 .RS 4
 (  1.3.6.1.4.1.42.2.27.8.1.31
@@ -654,13 +622,9 @@ is set to
    SINGLE\-VALUE )
 .RE
 
-.BR pwdUseCheckModule / pwdCheckModuleArg
+.BR pwdCheckModule / pwdCheckModuleArg
 .P
-The
-.B pwdUseCheckModule
-attribute enables use of a loadable module previously configured with
-.B ppolicy_check_module
-for the current policy. The module must
+This attribute names a user-defined loadable module that must
 instantiate the check_password() function.  This function
 will be called to further check a new password if
 .B pwdCheckQuality
@@ -671,22 +635,14 @@ function prototype:
 .RS 4
 int
 .I check_password
-(char *pPasswd, struct berval *pErrmsg, Entry *pEntry, struct berval *pArg);
+(char *pPasswd, char **ppErrStr, Entry *pEntry, struct berval *pArg);
 .RE
 The
 .B pPasswd
 parameter contains the clear-text user password, the
-.B pErrmsg
-parameter points to a
-.B struct berval
-containing space
+.B ppErrStr
+parameter contains a double pointer that allows the function
 to return human-readable details about any error it encounters.
-The
-.B bv_len
-field must contain the size of the space provided
-by the
-.B bv_val
-field.
 
 The
 .B pEntry
@@ -702,31 +658,24 @@ containing the value of
 in the effective password policy, if set, otherwise NULL.
 
 If
-.B pErrmsg
+.B ppErrStr
 is NULL, then 
 .I funcName
-must NOT attempt to use it.
+must NOT attempt to use it/them.
 A return value of LDAP_SUCCESS from the called
 function indicates that the password is ok, any other value
 indicates that the password is unacceptable.  If the password is
 unacceptable, the server will return an error to the client, and
-.B pErrmsg
+.B ppErrStr
 may be used to return a human-readable textual explanation of the
-error. If the space passed in by the caller is too small, the function
-may replace it with a dynamically allocated buffer, which will
+error. The error string must be dynamically allocated as it will
 be free()'d by slapd.
-
-The
-.B pwdCheckModule
-attribute is now obsolete and is ignored.
-
 .LP
 .RS 4
 (  1.3.6.1.4.1.4754.1.99.1
    NAME 'pwdCheckModule'
    EQUALITY caseExactIA5Match
    SYNTAX 1.3.6.1.4.1.1466.115.121.1.26
-   OBSOLETE
    SINGLE\-VALUE )
 
 ( 1.3.6.1.4.1.4754.1.99.2
@@ -735,13 +684,19 @@ attribute is now obsolete and is ignored.
    SYNTAX 1.3.6.1.4.1.1466.115.121.1.40
    DESC 'Argument to pass to check_password() function'
    SINGLE\-VALUE )
-
-(  1.3.6.1.4.1.4754.1.99.3
-   NAME 'pwdUseCheckModule'
-   EQUALITY booleanMatch
-   SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
-   SINGLE\-VALUE )
 .RE
+.P
+Note: 
+The user-defined loadable module named by
+.B pwdCheckModule     
+must be in
+.B slapd's
+standard executable search PATH.
+.P
+Note:
+.B pwdCheckModule
+is a non-standard extension to the LDAP password
+policy proposal.
 
 .SH OPERATIONAL ATTRIBUTES
 .P

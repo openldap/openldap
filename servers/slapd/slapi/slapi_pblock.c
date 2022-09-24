@@ -1019,18 +1019,6 @@ pblock_set( Slapi_PBlock *pb, int param, void *value )
 			rc = pblock_set_dn( value, &pb->pb_op->orr_newrdn, &pb->pb_op->orr_nnewrdn, pb->pb_op->o_tmpmemctx );
 			if ( rc == LDAP_SUCCESS )
 				rc = rdn_validate( &pb->pb_op->orr_nnewrdn );
-			if ( rc == LDAP_SUCCESS ) {
-				struct berval pdn, pndn;
-				if ( pb->pb_op->orr_nnewSup ) {
-					pdn = *pb->pb_op->orr_newSup;
-					pndn = *pb->pb_op->orr_nnewSup;
-				} else {
-					dnParent( &pb->pb_op->o_req_dn, &pdn );
-					dnParent( &pb->pb_op->o_req_ndn, &pndn );
-				}
-				build_new_dn( &pb->pb_op->orr_newDN, &pdn, &pb->pb_op->orr_newrdn, pb->pb_op->o_tmpmemctx );
-				build_new_dn( &pb->pb_op->orr_nnewDN, &pndn, &pb->pb_op->orr_nnewrdn, pb->pb_op->o_tmpmemctx );
-			}
 		} else {
 			rc = PBLOCK_ERROR;
 		}
@@ -1040,7 +1028,6 @@ pblock_set( Slapi_PBlock *pb, int param, void *value )
 		PBLOCK_VALIDATE_IS_INTOP( pb );
 		if ( pb->pb_op->o_tag == LDAP_REQ_MODRDN ) {
 			if ( value == NULL ) {
-				struct berval pdn, pndn;
 				if ( pb->pb_op->orr_newSup != NULL ) {
 					pb->pb_op->o_tmpfree( pb->pb_op->orr_newSup, pb->pb_op->o_tmpmemctx );
 					BER_BVZERO( pb->pb_op->orr_newSup );
@@ -1051,10 +1038,6 @@ pblock_set( Slapi_PBlock *pb, int param, void *value )
 					BER_BVZERO( pb->pb_op->orr_nnewSup );
 					pb->pb_op->orr_nnewSup = NULL;
 				}
-				dnParent( &pb->pb_op->o_req_dn, &pdn );
-				build_new_dn( &pb->pb_op->orr_newDN, &pdn, &pb->pb_op->orr_newrdn, pb->pb_op->o_tmpmemctx );
-				dnParent( &pb->pb_op->o_req_ndn, &pndn );
-				build_new_dn( &pb->pb_op->orr_nnewDN, &pndn, &pb->pb_op->orr_nnewrdn, pb->pb_op->o_tmpmemctx );
 			} else {
 				if ( pb->pb_op->orr_newSup == NULL ) {
 					pb->pb_op->orr_newSup = (struct berval *)pb->pb_op->o_tmpalloc(
@@ -1067,10 +1050,6 @@ pblock_set( Slapi_PBlock *pb, int param, void *value )
 					BER_BVZERO( pb->pb_op->orr_nnewSup );
 				}
 				rc = pblock_set_dn( value, pb->pb_op->orr_newSup, pb->pb_op->orr_nnewSup, pb->pb_op->o_tmpmemctx );
-				if ( rc == LDAP_SUCCESS ) {
-					build_new_dn( &pb->pb_op->orr_newDN, pb->pb_op->orr_newSup, &pb->pb_op->orr_newrdn, pb->pb_op->o_tmpmemctx );
-					build_new_dn( &pb->pb_op->orr_nnewDN, pb->pb_op->orr_nnewSup, &pb->pb_op->orr_nnewrdn, pb->pb_op->o_tmpmemctx );
-				}
 			}
 		} else {
 			rc = PBLOCK_ERROR;

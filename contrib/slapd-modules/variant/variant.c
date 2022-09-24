@@ -868,7 +868,8 @@ variant_set_dn( ConfigArgs *ca )
 
 		dnMatch( &diff, 0, NULL, NULL, &vei->dn, &vei2->dn );
 		if ( !diff ) {
-			return LDAP_CONSTRAINT_VIOLATION;
+			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
+			return ca->reply.err;
 		}
 	}
 
@@ -911,15 +912,16 @@ variant_set_regex( ConfigArgs *ca )
 		if ( !ber_bvcmp( &ca->value_bv, &vei2->dn ) ) {
 			ch_free( vei );
 			ca->ca_private = NULL;
-			return LDAP_CONSTRAINT_VIOLATION;
+			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
+			return ca->reply.err;
 		}
 	}
 
 	vei->regex = ch_calloc( 1, sizeof(regex_t) );
 	if ( regcomp( vei->regex, vei->dn.bv_val, REG_EXTENDED ) ) {
 		ch_free( vei->regex );
-		ch_free( vei->dn.bv_val );
-		return LDAP_CONSTRAINT_VIOLATION;
+		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
+		return ca->reply.err;
 	}
 
 	return LDAP_SUCCESS;
@@ -970,7 +972,8 @@ variant_set_alt_pattern( ConfigArgs *ca )
 			Debug( LDAP_DEBUG_ANY, "variant_set_alt_pattern: "
 					"invalid replacement pattern supplied '%s'\n",
 					ca->value_bv.bv_val );
-			return LDAP_CONSTRAINT_VIOLATION;
+			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
+			return ca->reply.err;
 		}
 	}
 
@@ -1005,7 +1008,8 @@ variant_set_attribute( ConfigArgs *ca )
 	if ( *s == '{' ) {
 		s = strchr( s, '}' );
 		if ( !s ) {
-			return LDAP_UNDEFINED_TYPE;
+			ca->reply.err = LDAP_UNDEFINED_TYPE;
+			return ca->reply.err;
 		}
 		s += 1;
 	}
@@ -1020,7 +1024,8 @@ variant_set_attribute( ConfigArgs *ca )
 	if ( vai->attr && vai->alternative &&
 			vai->attr->ad_type->sat_syntax !=
 					vai->alternative->ad_type->sat_syntax ) {
-		return LDAP_CONSTRAINT_VIOLATION;
+		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
+		return ca->reply.err;
 	}
 
 	if ( ca->type == VARIANT_ATTR ) {
@@ -1028,7 +1033,8 @@ variant_set_attribute( ConfigArgs *ca )
 		LDAP_SLIST_FOREACH( vai2, &vai->variant->attributes, next ) {
 			if ( vai == vai2 ) continue;
 			if ( vai->attr == vai2->attr ) {
-				return LDAP_CONSTRAINT_VIOLATION;
+				ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
+				return ca->reply.err;
 			}
 		}
 	}
@@ -1085,6 +1091,8 @@ variant_add_alt_attr( ConfigArgs *ca )
 done:
 	if ( rc == LDAP_SUCCESS ) {
 		LDAP_SLIST_INSERT_HEAD( &vei->attributes, vai, next );
+	} else {
+		ca->reply.err = rc;
 	}
 
 	return rc;
@@ -1129,6 +1137,8 @@ variant_add_alt_attr_regex( ConfigArgs *ca )
 done:
 	if ( rc == LDAP_SUCCESS ) {
 		LDAP_SLIST_INSERT_HEAD( &vei->attributes, vai, next );
+	} else {
+		ca->reply.err = rc;
 	}
 
 	return rc;
@@ -1143,7 +1153,6 @@ variant_ldadd_cleanup( ConfigArgs *ca )
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
 		assert( LDAP_SLIST_EMPTY(&vei->attributes) );
-		ch_free( vei->dn.bv_val );
 		ch_free( vei );
 		return LDAP_SUCCESS;
 	}
@@ -1224,7 +1233,6 @@ variant_attr_ldadd_cleanup( ConfigArgs *ca )
 	variantEntry_info *vei = vai->variant;
 
 	if ( ca->reply.err != LDAP_SUCCESS ) {
-		ch_free( vai->dn.bv_val );
 		ch_free( vai );
 		return LDAP_SUCCESS;
 	}
@@ -1375,8 +1383,6 @@ variant_db_destroy( BackendDB *be, ConfigReply *cr )
 				ch_free( vai );
 			}
 			ber_memfree( vei->dn.bv_val );
-			regfree( vei->regex );
-			ch_free( vei->regex );
 			ch_free( vei );
 		}
 		ch_free( ov );

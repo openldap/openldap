@@ -1520,6 +1520,7 @@ memberof_res_modrdn( Operation *op, SlapReply *rs )
 	slap_overinst	*on = mci->on;
 	memberof_t	*mo = (memberof_t *)on->on_bi.bi_private;
 
+	struct berval	newPDN, newDN = BER_BVNULL, newPNDN, newNDN;
 	int		i, rc;
 	BerVarray	vals;
 
@@ -1534,11 +1535,20 @@ memberof_res_modrdn( Operation *op, SlapReply *rs )
 		mci->what |= MEMBEROF_IS_MEMBER;
 	}
 
+	if ( op->orr_nnewSup ) {
+		newPNDN = *op->orr_nnewSup;
+
+	} else {
+		dnParent( &op->o_req_ndn, &newPNDN );
+	}
+
+	build_new_dn( &newNDN, &newPNDN, &op->orr_nnewrdn, op->o_tmpmemctx ); 
+
 	save_dn = op->o_req_dn;
 	save_ndn = op->o_req_ndn;
 
-	op->o_req_dn = op->orr_newDN;
-	op->o_req_ndn = op->orr_nnewDN;
+	op->o_req_dn = newNDN;
+	op->o_req_ndn = newNDN;
 	rc = memberof_isGroupOrMember( op, mci );
 	op->o_req_dn = save_dn;
 	op->o_req_ndn = save_ndn;
@@ -1547,9 +1557,18 @@ memberof_res_modrdn( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
+	if ( op->orr_newSup ) {
+		newPDN = *op->orr_newSup;
+
+	} else {
+		dnParent( &op->o_req_dn, &newPDN );
+	}
+
+	build_new_dn( &newDN, &newPDN, &op->orr_newrdn, op->o_tmpmemctx ); 
+
 	if ( mci->what & MEMBEROF_IS_GROUP ) {
 		op->o_bd->bd_info = (BackendInfo *)on->on_info;
-		rc = backend_attribute( op, NULL, &op->orr_nnewDN,
+		rc = backend_attribute( op, NULL, &newNDN,
 				mo->mo_ad_member, &vals, ACL_READ );
 		op->o_bd->bd_info = (BackendInfo *)on;
 
@@ -1558,7 +1577,7 @@ memberof_res_modrdn( Operation *op, SlapReply *rs )
 				memberof_value_modify( op,
 						&vals[ i ], mo->mo_ad_memberof,
 						&op->o_req_dn, &op->o_req_ndn,
-						&op->orr_newDN, &op->orr_nnewDN );
+						&newDN, &newNDN );
 			}
 			ber_bvarray_free_x( vals, op->o_tmpmemctx );
 		}
@@ -1566,7 +1585,7 @@ memberof_res_modrdn( Operation *op, SlapReply *rs )
 
 	if ( MEMBEROF_REFINT( mo ) && ( mci->what & MEMBEROF_IS_MEMBER ) ) {
 		op->o_bd->bd_info = (BackendInfo *)on->on_info;
-		rc = backend_attribute( op, NULL, &op->orr_nnewDN,
+		rc = backend_attribute( op, NULL, &newNDN,
 				mo->mo_ad_memberof, &vals, ACL_READ );
 		op->o_bd->bd_info = (BackendInfo *)on;
 
@@ -1575,13 +1594,18 @@ memberof_res_modrdn( Operation *op, SlapReply *rs )
 				memberof_value_modify( op,
 						&vals[ i ], mo->mo_ad_member,
 						&op->o_req_dn, &op->o_req_ndn,
-						&op->orr_newDN, &op->orr_nnewDN );
+						&newDN, &newNDN );
 			}
 			ber_bvarray_free_x( vals, op->o_tmpmemctx );
 		}
 	}
 
 done:;
+	if ( !BER_BVISNULL( &newDN ) ) {
+		op->o_tmpfree( newDN.bv_val, op->o_tmpmemctx );
+	}
+	op->o_tmpfree( newNDN.bv_val, op->o_tmpmemctx );
+
 	return SLAP_CB_CONTINUE;
 }
 

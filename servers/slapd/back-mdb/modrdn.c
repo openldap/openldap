@@ -28,6 +28,7 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
 	struct berval	p_dn, p_ndn;
+	struct berval	new_dn = {0, NULL}, new_ndn = {0, NULL};
 	Entry		*e = NULL;
 	Entry		*p = NULL;
 	/* LDAP v2 supporting correct attribute handling. */
@@ -369,12 +370,20 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 		new_parent_dn = np_dn;
 	}
 
-	/* Make sure target entry doesn't exist already. */
+	/* Build target dn and make sure target entry doesn't exist already. */
+	if (!new_dn.bv_val) {
+		build_new_dn( &new_dn, new_parent_dn, &op->oq_modrdn.rs_newrdn, op->o_tmpmemctx );
+	}
+
+	if (!new_ndn.bv_val) {
+		dnNormalize( 0, NULL, NULL, &new_dn, &new_ndn, op->o_tmpmemctx );
+	}
+
 	Debug( LDAP_DEBUG_TRACE, LDAP_XSTRING(mdb_modrdn) ": new ndn=%s\n",
-		op->orr_nnewDN.bv_val );
+		new_ndn.bv_val );
 
 	/* Shortcut the search */
-	rs->sr_err = mdb_dn2id ( op, txn, NULL, &op->orr_nnewDN, &nid, NULL, NULL, NULL );
+	rs->sr_err = mdb_dn2id ( op, txn, NULL, &new_ndn, &nid, NULL, NULL, NULL );
 	switch( rs->sr_err ) {
 	case MDB_NOTFOUND:
 		break;
@@ -426,8 +435,8 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 
 	/* copy the entry, then override some fields */
 	dummy = *e;
-	dummy.e_name = op->orr_newDN;
-	dummy.e_nname = op->orr_nnewDN;
+	dummy.e_name = new_dn;
+	dummy.e_nname = new_ndn;
 	dummy.e_attrs = NULL;
 
 	/* add new DN */
@@ -572,6 +581,9 @@ return_results:
 
 done:
 	slap_graduate_commit_csn( op );
+
+	if( new_ndn.bv_val != NULL ) op->o_tmpfree( new_ndn.bv_val, op->o_tmpmemctx );
+	if( new_dn.bv_val != NULL ) op->o_tmpfree( new_dn.bv_val, op->o_tmpmemctx );
 
 	/* LDAP v3 Support */
 	if( np != NULL ) {

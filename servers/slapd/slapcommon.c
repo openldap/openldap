@@ -50,6 +50,7 @@ static LDIFFP dummy;
 
 #if defined(LDAP_SYSLOG) && defined(LDAP_DEBUG)
 int start_syslog;
+static char **syslog_unknowns;
 #ifdef LOG_LOCAL4
 static int syslogUser = SLAP_DEFAULT_SYSLOG_USER;
 #endif /* LOG_LOCAL4 */
@@ -177,20 +178,20 @@ parse_slapopt( int tool, int *mode )
 
 #if defined(LDAP_SYSLOG) && defined(LDAP_DEBUG)
 	} else if ( strncasecmp( optarg, "syslog", len ) == 0 ) {
-		if ( slap_parse_debug_level( p, &ldap_syslog, 1 ) ) {
+		if ( parse_debug_level( p, &ldap_syslog, &syslog_unknowns ) ) {
 			return -1;
 		}
 		start_syslog = 1;
 
 	} else if ( strncasecmp( optarg, "syslog-level", len ) == 0 ) {
-		if ( slap_parse_syslog_level( p, &ldap_syslog_level ) ) {
+		if ( parse_syslog_level( p, &ldap_syslog_level ) ) {
 			return -1;
 		}
 		start_syslog = 1;
 
 #ifdef LOG_LOCAL4
 	} else if ( strncasecmp( optarg, "syslog-user", len ) == 0 ) {
-		if ( slap_parse_syslog_user( p, &syslogUser ) ) {
+		if ( parse_syslog_user( p, &syslogUser ) ) {
 			return -1;
 		}
 		start_syslog = 1;
@@ -285,6 +286,7 @@ slap_tool_init(
 	char *filterstr = NULL;
 	char *subtree = NULL;
 	char *ldiffile	= NULL;
+	char **debug_unknowns = NULL;
 	int rc, i;
 	int mode = SLAP_TOOL_MODE;
 	int truncatemode = 0;
@@ -382,7 +384,7 @@ slap_tool_init(
 		case 'd': {	/* turn on debugging */
 			int	level = 0;
 
-			if ( slap_parse_debug_level( optarg, &level, 0 ) ) {
+			if ( parse_debug_level( optarg, &level, &debug_unknowns ) ) {
 				usage( tool, progname );
 			}
 #ifdef LDAP_DEBUG
@@ -552,7 +554,6 @@ slap_tool_init(
 
 		case 'u':	/* dry run */
 			dryrun++;
-			mode |= SLAP_TOOL_DRYRUN;
 			break;
 
 		case 'v':	/* turn on verbose */
@@ -572,7 +573,6 @@ slap_tool_init(
 			break;
 		}
 	}
-	slap_debug_orig = slap_debug;
 
 #if defined(LDAP_SYSLOG) && defined(LDAP_DEBUG)
 	if ( start_syslog ) {
@@ -687,9 +687,23 @@ slap_tool_init(
 		exit( EXIT_FAILURE );
 	}
 
-	rc = slap_parse_debug_unknowns();
-	if ( rc )
-		exit( EXIT_FAILURE );
+	if ( debug_unknowns ) {
+		rc = parse_debug_unknowns( debug_unknowns, &slap_debug );
+		ldap_charray_free( debug_unknowns );
+		debug_unknowns = NULL;
+		if ( rc )
+			exit( EXIT_FAILURE );
+	}
+
+#if defined(LDAP_SYSLOG) && defined(LDAP_DEBUG)
+	if ( syslog_unknowns ) {
+		rc = parse_debug_unknowns( syslog_unknowns, &ldap_syslog );
+		ldap_charray_free( syslog_unknowns );
+		syslog_unknowns = NULL;
+		if ( rc )
+			exit( EXIT_FAILURE );
+	}
+#endif
 
 	at_oc_cache = 1;
 
@@ -1177,7 +1191,7 @@ slap_tool_entry_check(
 	op->o_bd = be;
 
 	if ( (slapMode & SLAP_TOOL_NO_SCHEMA_CHECK) == 0) {
-		int rc = entry_schema_check( op, e, manage, 1, NULL,
+		int rc = entry_schema_check( op, e, NULL, manage, 1, NULL,
 			text, textbuf, textlen );
 
 		if( rc != LDAP_SUCCESS ) {

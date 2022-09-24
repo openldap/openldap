@@ -1236,7 +1236,7 @@ apply_modify_to_entry(
 			entry->e_ocflags = 0;
 		}
 		/* check that the entry still obeys the schema */
-		rc = entry_schema_check( op, entry, 0, 0, NULL,
+		rc = entry_schema_check( op, entry, NULL, 0, 0, NULL,
 			  &rs->sr_text, textbuf, SLAP_TEXT_BUFLEN );
 	}
 
@@ -1400,15 +1400,9 @@ ldif_back_add( Operation *op, SlapReply *rs )
 	char textbuf[SLAP_TEXT_BUFLEN];
 	int rc;
 
-	LDAPControl **postread_ctrl = NULL;
-	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
-	int num_ctrls = 0;
-
-	ctrls[num_ctrls] = NULL;
-
 	Debug( LDAP_DEBUG_TRACE, "ldif_back_add: \"%s\"\n", e->e_dn );
 
-	rc = entry_schema_check( op, e, 0, 1, NULL,
+	rc = entry_schema_check( op, e, NULL, 0, 1, NULL,
 		&rs->sr_text, textbuf, sizeof( textbuf ) );
 	if ( rc != LDAP_SUCCESS )
 		goto send_res;
@@ -1420,26 +1414,6 @@ ldif_back_add( Operation *op, SlapReply *rs )
 	ldap_pvt_thread_mutex_lock( &li->li_modop_mutex );
 
 	rc = ldif_prepare_create( op, e, &path, &parentdir, &rs->sr_text );
-
-	if ( rc == LDAP_SUCCESS && op->o_postread ) {
-		if ( postread_ctrl == NULL ) {
-			postread_ctrl = &ctrls[num_ctrls++];
-			ctrls[num_ctrls] = NULL;
-		}
-		if ( slap_read_controls( op, rs, e,
-			&slap_post_read_bv, postread_ctrl ) )
-		{
-			Debug( LDAP_DEBUG_ANY, "ldif_back_add: "
-				"post-read failed \"%s\"\n",
-				e->e_name.bv_val );
-			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
-				/* FIXME: is it correct to abort
-					* operation if control fails? */
-				rc = rs->sr_err;
-			}
-		}
-	}
-
 	if ( rc == LDAP_SUCCESS ) {
 		ldap_pvt_thread_rdwr_wlock( &li->li_rdwr );
 		rc = ldif_write_entry( op, e, &path, parentdir, &rs->sr_text );
@@ -1454,7 +1428,6 @@ ldif_back_add( Operation *op, SlapReply *rs )
 
  send_res:
 	rs->sr_err = rc;
-	if ( num_ctrls ) rs->sr_ctrls = ctrls;
 	Debug( LDAP_DEBUG_TRACE, "ldif_back_add: err: %d text: %s\n",
 		rc, rs->sr_text ? rs->sr_text : "" );
 	send_ldap_result( op, rs );
@@ -1473,59 +1446,13 @@ ldif_back_modify( Operation *op, SlapReply *rs )
 	char textbuf[SLAP_TEXT_BUFLEN];
 	int rc;
 
-	LDAPControl **preread_ctrl = NULL;
-	LDAPControl **postread_ctrl = NULL;
-	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
-	int num_ctrls = 0;
-
-	ctrls[num_ctrls] = NULL;
-
 	slap_mods_opattrs( op, &op->orm_modlist, 1 );
 
 	ldap_pvt_thread_mutex_lock( &li->li_modop_mutex );
 
 	rc = get_entry( op, &entry, &path, &rs->sr_text );
 	if ( rc == LDAP_SUCCESS ) {
-		if ( op->o_preread ) {
-			if ( preread_ctrl == NULL ) {
-				preread_ctrl = &ctrls[num_ctrls++];
-				ctrls[num_ctrls] = NULL;
-			}
-			if ( slap_read_controls( op, rs, entry,
-				&slap_pre_read_bv, preread_ctrl ) )
-			{
-				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
-					"pre-read failed \"%s\"\n",
-					entry->e_name.bv_val );
-				if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
-					/* FIXME: is it correct to abort
-					 * operation if control fails? */
-					rc = rs->sr_err;
-				}
-			}
-		}
-
 		rc = apply_modify_to_entry( entry, modlst, op, rs, textbuf );
-
-		if ( rc == LDAP_SUCCESS && op->o_postread ) {
-			if ( postread_ctrl == NULL ) {
-				postread_ctrl = &ctrls[num_ctrls++];
-				ctrls[num_ctrls] = NULL;
-			}
-			if ( slap_read_controls( op, rs, entry,
-				&slap_post_read_bv, postread_ctrl ) )
-			{
-				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
-					"post-read failed \"%s\"\n",
-					entry->e_name.bv_val );
-				if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
-					/* FIXME: is it correct to abort
-					 * operation if control fails? */
-					rc = rs->sr_err;
-				}
-			}
-		}
-
 		if ( rc == LDAP_SUCCESS ) {
 			ldap_pvt_thread_rdwr_wlock( &li->li_rdwr );
 			rc = ldif_write_entry( op, entry, &path, NULL, &rs->sr_text );
@@ -1539,7 +1466,6 @@ ldif_back_modify( Operation *op, SlapReply *rs )
 	ldap_pvt_thread_mutex_unlock( &li->li_modop_mutex );
 
 	rs->sr_err = rc;
-	if ( num_ctrls ) rs->sr_ctrls = ctrls;
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
 	rs->sr_text = NULL;	/* remove possible pointer to textbuf */
@@ -1553,12 +1479,6 @@ ldif_back_delete( Operation *op, SlapReply *rs )
 	struct berval path;
 	int rc = LDAP_SUCCESS;
 	char ebuf[128];
-
-	LDAPControl **preread_ctrl = NULL;
-	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
-	int num_ctrls = 0;
-
-	ctrls[num_ctrls] = NULL;
 
 	if ( BER_BVISEMPTY( &op->o_csn )) {
 		struct berval csn;
@@ -1598,30 +1518,6 @@ ldif_back_delete( Operation *op, SlapReply *rs )
 		}
 	}
 
-	/* pre-read */
-	if ( op->o_preread ) {
-		Entry *e = NULL;
-
-		if ( preread_ctrl == NULL ) {
-			preread_ctrl = &ctrls[num_ctrls++];
-			ctrls[num_ctrls] = NULL;
-		}
-		rc = get_entry( op, &e, &path, &rs->sr_text );
-		if ( rc == LDAP_SUCCESS && slap_read_controls( op, rs, e,
-			&slap_pre_read_bv, preread_ctrl ) )
-		{
-			Debug( LDAP_DEBUG_ANY, "ldif_back_delete: "
-				"pre-read failed \"%s\"\n",
-				e->e_name.bv_val );
-			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
-				/* FIXME: is it correct to abort
-				 * operation if control fails? */
-				rc = rs->sr_err;
-			}
-		}
-		entry_free( e );
-	}
-
 	if ( rc == LDAP_SUCCESS ) {
 		dir2ldif_name( path );
 		if ( unlink( path.bv_val ) < 0 ) {
@@ -1643,7 +1539,6 @@ ldif_back_delete( Operation *op, SlapReply *rs )
 	ldap_pvt_thread_rdwr_wunlock( &li->li_rdwr );
 	ldap_pvt_thread_mutex_unlock( &li->li_modop_mutex );
 	rs->sr_err = rc;
-	if ( num_ctrls ) rs->sr_ctrls = ctrls;
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
 	return rs->sr_err;
@@ -1737,7 +1632,8 @@ static int
 ldif_back_modrdn( Operation *op, SlapReply *rs )
 {
 	struct ldif_info *li = (struct ldif_info *) op->o_bd->be_private;
-	struct berval old_path;
+	struct berval new_dn = BER_BVNULL, new_ndn = BER_BVNULL;
+	struct berval p_dn, old_path;
 	Entry *entry;
 	char textbuf[SLAP_TEXT_BUFLEN];
 	int rc, same_ndn;
@@ -1748,9 +1644,19 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 
 	rc = get_entry( op, &entry, &old_path, &rs->sr_text );
 	if ( rc == LDAP_SUCCESS ) {
-		same_ndn = !ber_bvcmp( &entry->e_nname, &op->orr_nnewDN );
-		ber_bvreplace( &entry->e_name, &op->orr_newDN );
-		ber_bvreplace( &entry->e_nname, &op->orr_nnewDN );
+		/* build new dn, and new ndn for the entry */
+		if ( op->oq_modrdn.rs_newSup != NULL ) {
+			p_dn = *op->oq_modrdn.rs_newSup;
+		} else {
+			dnParent( &entry->e_name, &p_dn );
+		}
+		build_new_dn( &new_dn, &p_dn, &op->oq_modrdn.rs_newrdn, NULL );
+		dnNormalize( 0, NULL, NULL, &new_dn, &new_ndn, NULL );
+		same_ndn = !ber_bvcmp( &entry->e_nname, &new_ndn );
+		ber_memfree_x( entry->e_name.bv_val, NULL );
+		ber_memfree_x( entry->e_nname.bv_val, NULL );
+		entry->e_name = new_dn;
+		entry->e_nname = new_ndn;
 
 		/* perform the modifications */
 		rc = apply_modify_to_entry( entry, op->orr_modlist, op, rs, textbuf );
@@ -1837,9 +1743,6 @@ ldif_tool_entry_open( BackendDB *be, int mode )
 {
 	struct ldif_tool *tl = &((struct ldif_info *) be->be_private)->li_tool;
 
-	if ( slapMode & SLAP_TOOL_DRYRUN )
-		return 0;
-
 	tl->ecurrent = 0;
 	return 0;
 }
@@ -1850,9 +1753,6 @@ ldif_tool_entry_close( BackendDB *be )
 	struct ldif_tool *tl = &((struct ldif_info *) be->be_private)->li_tool;
 	Entry **entries = tl->entries;
 	ID i;
-
-	if ( slapMode & SLAP_TOOL_DRYRUN )
-		return 0;
 
 	for ( i = tl->ecount; i--; )
 		if ( entries[i] )
@@ -1953,9 +1853,6 @@ ldif_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 	struct berval path;
 	char *parentdir;
 	Operation op = {0};
-
-	if ( slapMode & SLAP_TOOL_DRYRUN )
-		return 0;
 
 	op.o_bd = be;
 	rc = ldif_prepare_create( &op, e, &path, &parentdir, &errmsg );
@@ -2091,8 +1988,6 @@ ldif_back_initialize( BackendInfo *bi )
 {
 	static char *controls[] = {
 		LDAP_CONTROL_MANAGEDSAIT,
-		LDAP_CONTROL_PRE_READ,
-		LDAP_CONTROL_POST_READ,
 		NULL
 	};
 	int rc;

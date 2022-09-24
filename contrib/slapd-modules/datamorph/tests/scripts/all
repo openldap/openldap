@@ -46,6 +46,16 @@ for CMD in ${SCRIPTDIR}/test*; do
 	else
 		/bin/rm -rf $TESTDIR
 	fi
+	if test $BACKEND = ndb ; then
+		mysql --user root <<EOF
+		drop database if exists db_1;
+		drop database if exists db_2;
+		drop database if exists db_3;
+		drop database if exists db_4;
+		drop database if exists db_5;
+		drop database if exists db_6;
+EOF
+	fi
 
 	BCMD=`basename $CMD`
 	if [ -x "$CMD" ]; then

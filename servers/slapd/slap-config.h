@@ -176,8 +176,7 @@ typedef struct config_args_s {
 #define SLAP_CONFIG_CLEANUP_MAX	16
 #endif
 	ConfigDriver *cleanups[SLAP_CONFIG_CLEANUP_MAX];
-	ConfigType table;	/* what kind of config table did we come from */
-	ConfigTable *ca_desc;
+	ConfigType table;	/* which config table did we come from */
 	int num_cleanups;
 } ConfigArgs;
 

@@ -195,7 +195,7 @@ attributetype ( 2.5.4.24 NAME 'x121Address'
 	SUBSTR numericStringSubstringsMatch
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.36{15} )
 
-attributetype ( 2.5.4.25 NAME 'internationalISDNNumber'
+attributetype ( 2.5.4.25 NAME 'internationaliSDNNumber'
 	DESC 'RFC2256: international ISDN number'
 	EQUALITY numericStringMatch
 	SUBSTR numericStringSubstringsMatch
@@ -385,7 +385,7 @@ objectclass ( 2.5.6.4 NAME 'organization'
 	MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $
 		x121Address $ registeredAddress $ destinationIndicator $
 		preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
-		telephoneNumber $ internationalISDNNumber $ 
+		telephoneNumber $ internationaliSDNNumber $ 
 		facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $
 		postalAddress $ physicalDeliveryOfficeName $ st $ l $ description ) )
 
@@ -396,7 +396,7 @@ objectclass ( 2.5.6.5 NAME 'organizationalUnit'
 	MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $
 		x121Address $ registeredAddress $ destinationIndicator $
 		preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
-		telephoneNumber $ internationalISDNNumber $
+		telephoneNumber $ internationaliSDNNumber $
 		facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $
 		postalAddress $ physicalDeliveryOfficeName $ st $ l $ description ) )
 
@@ -411,7 +411,7 @@ objectclass ( 2.5.6.7 NAME 'organizationalPerson'
 	SUP person STRUCTURAL
 	MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $
 		preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
-		telephoneNumber $ internationalISDNNumber $ 
+		telephoneNumber $ internationaliSDNNumber $ 
 		facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $
 		postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )
 
@@ -421,7 +421,7 @@ objectclass ( 2.5.6.8 NAME 'organizationalRole'
 	MUST cn
 	MAY ( x121Address $ registeredAddress $ destinationIndicator $
 		preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
-		telephoneNumber $ internationalISDNNumber $ facsimileTelephoneNumber $
+		telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $
 		seeAlso $ roleOccupant $ preferredDeliveryMethod $ street $
 		postOfficeBox $ postalCode $ postalAddress $
 		physicalDeliveryOfficeName $ ou $ st $ l $ description ) )
@@ -438,7 +438,7 @@ objectclass ( 2.5.6.10 NAME 'residentialPerson'
 	MUST l
 	MAY ( businessCategory $ x121Address $ registeredAddress $
 		destinationIndicator $ preferredDeliveryMethod $ telexNumber $
-		teletexTerminalIdentifier $ telephoneNumber $ internationalISDNNumber $
+		teletexTerminalIdentifier $ telephoneNumber $ internationaliSDNNumber $
 		facsimileTelephoneNumber $ preferredDeliveryMethod $ street $
 		postOfficeBox $ postalCode $ postalAddress $
 		physicalDeliveryOfficeName $ st $ l ) )
@@ -505,7 +505,7 @@ objectclass ( 2.5.6.20 NAME 'dmd'
 	MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $
 		x121Address $ registeredAddress $ destinationIndicator $
 		preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
-		telephoneNumber $ internationalISDNNumber $ facsimileTelephoneNumber $
+		telephoneNumber $ internationaliSDNNumber $ facsimileTelephoneNumber $
 		street $ postOfficeBox $ postalCode $ postalAddress $
 		physicalDeliveryOfficeName $ st $ l $ description ) )
 

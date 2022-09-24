@@ -2662,6 +2662,7 @@ idassert-authzFrom	"dn:<rootdn>"
 						c->fname, c->lineno, ca.argc, ca.argv );
 				}
 				assert( rc == 0 );
+				ch_free( ca.argv );
 				ch_free( ca.tline );
 			}
 		}
@@ -2698,9 +2699,9 @@ idassert-authzFrom	"dn:<rootdn>"
 						c->fname, c->lineno, ca.argc, argv );
 				}
 				assert( rc == 0 );
+				ch_free( ca.argv );
 				ch_free( ca.tline );
 			}
-			ch_free( ca.argv );
 		}
 
 		/* save the rule info */
@@ -2717,7 +2718,7 @@ idassert-authzFrom	"dn:<rootdn>"
 			/* move it to the right slot */
 			if ( ix < cnt ) {
 				for ( i=cnt; i>ix; i-- )
-					mt->mt_rwmap.rwm_bva_rewrite[i] = mt->mt_rwmap.rwm_bva_rewrite[i-1];
+					mt->mt_rwmap.rwm_bva_rewrite[i+1] = mt->mt_rwmap.rwm_bva_rewrite[i];
 				mt->mt_rwmap.rwm_bva_rewrite[i] = bv;
 
 				/* destroy old rules */
@@ -2729,7 +2730,7 @@ idassert-authzFrom	"dn:<rootdn>"
 	case LDAP_BACK_CFG_MAP: {
 	/* objectclass/attribute mapping */
 		ConfigArgs ca = { 0 };
-		char *argv[5], **argvp;
+		char *argv[5];
 		struct ldapmap rwm_oc;
 		struct ldapmap rwm_at;
 		int cnt = 0, ix = c->valx;
@@ -2762,8 +2763,7 @@ idassert-authzFrom	"dn:<rootdn>"
 				argv[2] = ca.argv[1];
 				argv[3] = ca.argv[2];
 				argv[4] = ca.argv[3];
-
-				argvp = ca.argv;
+				ch_free( ca.argv );
 				ca.argv = argv;
 				ca.argc++;
 				rc = ldap_back_map_config( &ca, &mt->mt_rwmap.rwm_oc,
@@ -2771,7 +2771,7 @@ idassert-authzFrom	"dn:<rootdn>"
 
 				ch_free( ca.tline );
 				ca.tline = NULL;
-				ca.argv = argvp;
+				ca.argv = NULL;
 
 				/* in case of failure, restore
 				 * the existing mapping */
@@ -2788,7 +2788,7 @@ idassert-authzFrom	"dn:<rootdn>"
 		}
 
 		if ( ix < cnt ) {
-			for ( ; i<cnt ; i++ ) {
+			for ( ; i<cnt ; cnt++ ) {
 				ca.line = mt->mt_rwmap.rwm_bva_map[ i ].bv_val;
 				ca.argc = 0;
 				config_fp_parse_line( &ca );
@@ -2798,7 +2798,7 @@ idassert-authzFrom	"dn:<rootdn>"
 				argv[3] = ca.argv[2];
 				argv[4] = ca.argv[3];
 
-				argvp = ca.argv;
+				ch_free( ca.argv );
 				ca.argv = argv;
 				ca.argc++;
 				rc = ldap_back_map_config( &ca, &mt->mt_rwmap.rwm_oc,
@@ -2806,7 +2806,7 @@ idassert-authzFrom	"dn:<rootdn>"
 
 				ch_free( ca.tline );
 				ca.tline = NULL;
-				ca.argv = argvp;
+				ca.argv = NULL;
 
 				/* in case of failure, restore
 				 * the existing mapping */
@@ -2814,7 +2814,6 @@ idassert-authzFrom	"dn:<rootdn>"
 					goto map_fail;
 				}
 			}
-			ch_free( ca.argv );
 		}
 
 		/* save the map info */
@@ -2826,7 +2825,7 @@ idassert-authzFrom	"dn:<rootdn>"
 			/* move it to the right slot */
 			if ( ix < cnt ) {
 				for ( i=cnt; i>ix; i-- )
-					mt->mt_rwmap.rwm_bva_map[i] = mt->mt_rwmap.rwm_bva_map[i-1];
+					mt->mt_rwmap.rwm_bva_map[i+1] = mt->mt_rwmap.rwm_bva_map[i];
 				mt->mt_rwmap.rwm_bva_map[i] = bv;
 
 				/* destroy old mapping */
@@ -2842,7 +2841,6 @@ map_fail:;
 			meta_back_map_free( &mt->mt_rwmap.rwm_at );
 			mt->mt_rwmap.rwm_oc = rwm_oc;
 			mt->mt_rwmap.rwm_at = rwm_at;
-			ch_free( ca.argv );
 		}
 		} break;
 
@@ -2915,11 +2913,9 @@ map_fail:;
 		break;
 #endif /* SLAPD_META_CLIENT_PR */
 
-	case LDAP_BACK_CFG_KEEPALIVE: {
-		struct berval bv;
-		ber_str2bv( c->argv[ 1 ], 0, 1, &bv );
-		slap_keepalive_parse( &bv, &mt->mt_tls.sb_keepalive, 0, 0, 0 );
-		}
+	case LDAP_BACK_CFG_KEEPALIVE:
+		slap_keepalive_parse( ber_bvstrdup(c->argv[1]),
+				 &mt->mt_tls.sb_keepalive, 0, 0, 0);
 		break;
 
 	case LDAP_BACK_CFG_TCP_USER_TIMEOUT:

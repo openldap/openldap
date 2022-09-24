@@ -8,10 +8,10 @@ dnl Process this file with autoconf to produce a configure script.
 AC_COPYRIGHT([[Copyright 2000-2022 The OpenLDAP Foundation. All rights reserved.
 Restrictions apply, see COPYRIGHT and LICENSE files.]])
 AC_REVISION([$Id$])
-AC_INIT([ldapcpplib],[ ],[http://www.openldap.org/its/ ])
+AC_INIT(ldapcpplib, [] , [http://www.openldap.org/its/] )
 AC_CONFIG_SRCDIR(src/LDAPConnection.h)
 AM_INIT_AUTOMAKE(foreign)
-AC_CONFIG_HEADERS([src/config.h])
+AM_CONFIG_HEADER(src/config.h)
 
 eval `$ac_aux_dir/version.sh`
 if test -z "$OL_CPP_API_RELEASE"; then
@@ -27,8 +27,8 @@ AC_PROG_INSTALL
 dnl AC_PROG_CC
 AC_PROG_CXX
 dnl AC_PROG_RANLIB
-dnl AC_DISABLE_SHARED([])
-LT_INIT
+dnl AM_DISABLE_SHARED
+AC_PROG_LIBTOOL
 dnl AC_PROG_MAKE_SET
 AC_ARG_ENABLE(debug,[  --enable-debug],[
 	CXXFLAGS="-g -O0 -Wall"
@@ -72,6 +72,7 @@ dnl NOOP
     -llber
     ])
 dnl Checks for header files.
+AC_HEADER_TIME
 AC_CHECK_HEADERS(termios.h ldap.h)
 AC_EGREP_HEADER(ldap_add_ext,ldap.h,[
 dnl NOOP
@@ -97,5 +98,4 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 
 dnl Checks for library functions.
 
-AC_CONFIG_FILES([Makefile src/Makefile examples/Makefile])
-AC_OUTPUT
+AC_OUTPUT(Makefile src/Makefile examples/Makefile)

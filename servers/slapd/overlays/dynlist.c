@@ -846,24 +846,15 @@ dynlist_compare( Operation *op, SlapReply *rs )
 			 */
 			BerVarray id = NULL, authz = NULL;
 
-			if ( e == NULL && ( overlay_entry_get_ov( &o, &o.o_req_ndn, NULL, NULL, 0, &e, on ) !=
-				LDAP_SUCCESS || e == NULL ))
-			{
-				return SLAP_CB_CONTINUE;
-			}
-			if ( !is_entry_objectclass_or_sub( e, dli->dli_oc )) {
-				continue;
-			}
-
 			o.o_do_not_cache = 1;
 
-			if ( ad_dgIdentity && backend_attribute( &o, e, &o.o_req_ndn,
+			if ( ad_dgIdentity && backend_attribute( &o, NULL, &o.o_req_ndn,
 				ad_dgIdentity, &id, ACL_READ ) == LDAP_SUCCESS )
 			{
 				/* if not rootdn and dgAuthz is present,
 				 * check if user can be authorized as dgIdentity */
 				if ( ad_dgAuthz && !BER_BVISEMPTY( id ) && !be_isroot( op )
-					&& backend_attribute( &o, e, &o.o_req_ndn,
+					&& backend_attribute( &o, NULL, &o.o_req_ndn,
 						ad_dgAuthz, &authz, ACL_READ ) == LDAP_SUCCESS )
 				{
 					
@@ -880,7 +871,7 @@ dynlist_compare( Operation *op, SlapReply *rs )
 				o.o_groups = NULL; /* authz changed, invalidate cached groups */
 			}
 
-			rs->sr_err = backend_group( &o, e, &o.o_req_ndn,
+			rs->sr_err = backend_group( &o, NULL, &o.o_req_ndn,
 				&o.oq_compare.rs_ava->aa_value, dli->dli_oc, dli->dli_ad );
 			switch ( rs->sr_err ) {
 			case LDAP_SUCCESS:
@@ -908,7 +899,6 @@ dynlist_compare( Operation *op, SlapReply *rs )
 
 done:;
 			if ( id ) ber_bvarray_free_x( id, o.o_tmpmemctx );
-			overlay_entry_release_ov( &o, e, 0, on );
 
 			send_ldap_result( op, rs );
 			return rs->sr_err;
@@ -920,8 +910,8 @@ done:;
 		return SLAP_CB_CONTINUE;
 	}
 
-	if ( e == NULL && ( overlay_entry_get_ov( &o, &o.o_req_ndn, NULL, NULL, 0, &e, on ) !=
-		LDAP_SUCCESS || e == NULL ))
+	if ( overlay_entry_get_ov( &o, &o.o_req_ndn, NULL, NULL, 0, &e, on ) !=
+		LDAP_SUCCESS || e == NULL )
 	{
 		return SLAP_CB_CONTINUE;
 	}
@@ -1218,16 +1208,13 @@ dynlist_filter_stgroup( Operation *op, Filter *n, Attribute *a )
 	Filter *dnf, *orf = NULL;
 	int i;
 
-	if ( a->a_numvals == 1 && n->f_choice == SLAPD_FILTER_COMPUTED ) {
+	if ( a->a_numvals == 1 ) {
 		dnf = n;
 	} else {
 		orf = n;
-		if ( n->f_choice != LDAP_FILTER_OR ) {
-			orf->f_choice = LDAP_FILTER_OR;
-			orf->f_list = NULL;
-		}
+		orf->f_choice = LDAP_FILTER_OR;
 		dnf = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
-		dnf->f_next = orf->f_list;
+		dnf->f_next = NULL;
 		orf->f_list = dnf;
 	}
 
@@ -1311,9 +1298,9 @@ dynlist_filter_dup( Operation *op, Filter *f, AttributeDescription *ad, dynlist_
 		break;
 
 	case LDAP_FILTER_EQUALITY:
+		n->f_choice = SLAPD_FILTER_COMPUTED;
 		if ( f->f_av_desc == ad ) {
 			dynlist_name_t *dyn = ldap_tavl_find( ds->ds_names, &f->f_av_value, dynlist_avl_cmp );
-			n->f_choice = SLAPD_FILTER_COMPUTED;
 			if ( dyn && !dynlist_filter_group( op, dyn, n, ds ))
 				break;
 		}

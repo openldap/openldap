@@ -279,13 +279,8 @@ retry:;
 	}
 
 	rc = ldap_parse_result( ld, res, &code, &matcheddn, &text, &refs, &ctrls, 1 );
-	if( rc != LDAP_SUCCESS ) {
-		fprintf( stderr, "%s: ldap_parse_result: %s (%d)\n",
-			prog, ldap_err2string( rc ), rc );
-		return rc;
-	}
 
-	switch ( code ) {
+	switch ( rc ) {
 	case LDAP_SUCCESS:
 		break;
 
@@ -297,7 +292,9 @@ retry:;
 		/* fallthru */
 
 	default:
-		break;
+		fprintf( stderr, "%s: ldap_parse_result: %s (%d)\n",
+			prog, ldap_err2string( rc ), rc );
+		return rc;
 	}
 
 	if( code != LDAP_SUCCESS ) {

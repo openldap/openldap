@@ -658,6 +658,7 @@ ldap_back_prepare_conn( ldapconn_t *lc, Operation *op, SlapReply *rs, ldap_back_
 #ifdef HAVE_TLS
 	int		is_tls = op->o_conn->c_is_tls;
 	int		flags = li->li_flags;
+	time_t		lctime = (time_t)(-1);
 	slap_bindconf *sb;
 #endif /* HAVE_TLS */
 
@@ -743,6 +744,10 @@ ldap_back_prepare_conn( ldapconn_t *lc, Operation *op, SlapReply *rs, ldap_back_
 		ldap_unbind_ext( ld, NULL, NULL );
 		rs->sr_text = "Start TLS failed";
 		goto error_return;
+
+	} else if ( li->li_idle_timeout ) {
+		/* only touch when activity actually took place... */
+		lctime = op->o_time;
 	}
 #endif /* HAVE_TLS */
 
@@ -753,6 +758,9 @@ ldap_back_prepare_conn( ldapconn_t *lc, Operation *op, SlapReply *rs, ldap_back_
 		LDAP_BACK_CONN_ISTLS_SET( lc );
 	} else {
 		LDAP_BACK_CONN_ISTLS_CLEAR( lc );
+	}
+	if ( lctime != (time_t)(-1) ) {
+		lc->lc_time = lctime;
 	}
 #endif /* HAVE_TLS */
 
@@ -767,8 +775,9 @@ error_return:;
 		}
 
 	} else {
-		lc->lc_create_time = op->o_time;
-		lc->lc_time = op->o_time;
+		if ( li->li_conn_ttl > 0 ) {
+			lc->lc_create_time = op->o_time;
+		}
 	}
 
 	return rs->sr_err;
@@ -1417,7 +1426,7 @@ retry_lock:;
 				sb->sb_realm.bv_val,
 				sb->sb_authcId.bv_val,
 				sb->sb_cred.bv_val,
-				sb->sb_authzId.bv_val );
+				NULL );
 		if ( defaults == NULL ) {
 			rs->sr_err = LDAP_OTHER;
 			LDAP_BACK_CONN_ISBOUND_CLEAR( lc );
@@ -1473,26 +1482,9 @@ retry_lock:;
 retry:;
 	if ( BER_BVISNULL( &lc->lc_cred ) ) {
 		tmp_dn = "";
-		/*
-		 * Bind is requested with DN but without credentials.
-		 * This can happen when connection to remote server has been
-		 * lost either due to remote server disconnecting it or due to
-		 * proxy disconnecting it by itself (idle-timeout, conn-ttl).
-		 * See comment in ldap_back_conn_prune().
-		 */
 		if ( !BER_BVISNULL( &lc->lc_bound_ndn ) && !BER_BVISEMPTY( &lc->lc_bound_ndn ) ) {
-			Debug( LDAP_DEBUG_ANY,
-			       "%s ldap_back_dobind_int: DN=\"%s\" connection "
-			       "was re-established but cannot rebind without creds\n",
-			       op->o_log_prefix, lc->lc_bound_ndn.bv_val );
-			rs->sr_text = "Proxy lost connection to remote server";
-			rs->sr_err = LDAP_UNAVAILABLE;
-			if ( sendok & LDAP_BACK_SENDERR ) {
-				send_ldap_result( op, rs );
-			}
-			rs->sr_err = SLAPD_DISCONNECT;
-			rc = 0;
-			goto done;
+			Debug( LDAP_DEBUG_ANY, "%s ldap_back_dobind_int: DN=\"%s\" without creds, binding anonymously",
+				op->o_log_prefix, lc->lc_bound_ndn.bv_val );
 		}
 
 	} else {
@@ -3082,22 +3074,6 @@ ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc) {
 	return -1;
 }
 
-/*
- * Iterate though connections and close those that are past the expiry time.
- * Also calculate the time for next connection to expire.
- *
- * Note:
- * When the client sends a request after remote connection is pruned, a new
- * connection is created but bind cannot be replayed even if "rebind-as-user"
- * was set to "yes". The client credentials are stored in ldapconn_t and lost
- * when the connection is freed.
- *
- * LDAP_DISCONNECT is sent to signal the client that it needs to reconnect to
- * the proxy and rebind itself (see "Bind is requested with DN but without
- * credentials" in ldap_back_dobind_int()). Better implementation would not
- * free ldapconn_t but instead just close the socket. This is not implemented
- * currently as it is considerable work for what is assumed to be a corner case.
- */
 static void
 ldap_back_conn_prune( ldapinfo_t *li )
 {
@@ -3106,6 +3082,10 @@ ldap_back_conn_prune( ldapinfo_t *li )
 	TAvlnode	*edge;
 	int		c;
 
+	/*
+	 * Iterate though connections and close those that are pass the expiry time.
+	 * Also calculate the time for next connection to to expire.
+	 */
 	ldap_pvt_thread_mutex_lock( &li->li_conninfo.lai_mutex );
 
 	for ( c = LDAP_BACK_PCONN_FIRST; c < LDAP_BACK_PCONN_LAST; c++ ) {
@@ -3113,38 +3093,6 @@ ldap_back_conn_prune( ldapinfo_t *li )
 
 		while ( lc ) {
 			ldapconn_t *next = LDAP_TAILQ_NEXT( lc, lc_q );
-
-			if ( !LDAP_BACK_CONN_TAINTED( lc ) ) {
-				time_t conn_expires = ldap_back_conn_expire_time( li, lc );
-
-				if ( now >= conn_expires ) {
-					if ( lc->lc_refcnt == 0 ) {
-						Debug( LDAP_DEBUG_TRACE,
-							"ldap_back_conn_prune: closing expired connection lc=%p\n",
-							lc );
-						ldap_back_freeconn( li, lc, 0 );
-					} else {
-						Debug( LDAP_DEBUG_TRACE,
-							"ldap_back_conn_prune: tainting expired connection lc=%p\n",
-							lc );
-						LDAP_BACK_CONN_TAINTED_SET( lc );
-					}
-				} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
-					/* next_timeout was not yet initialized or current connection expires sooner */
-					next_timeout = conn_expires;
-				}
-			}
-
-			lc = next;
-		}
-	}
-
-	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
-	while ( edge ) {
-		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
-		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
-
-		if ( !LDAP_BACK_CONN_TAINTED( lc ) ) {
 			time_t conn_expires = ldap_back_conn_expire_time( li, lc );
 
 			if ( now >= conn_expires ) {
@@ -3160,8 +3108,34 @@ ldap_back_conn_prune( ldapinfo_t *li )
 					LDAP_BACK_CONN_TAINTED_SET( lc );
 				}
 			} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
+				/* next_timeout was not yet initialized or current connection expires sooner */
 				next_timeout = conn_expires;
 			}
+
+			lc = next;
+		}
+	}
+
+	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
+	while ( edge ) {
+		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
+		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
+		time_t conn_expires = ldap_back_conn_expire_time( li, lc );
+
+		if ( now >= conn_expires ) {
+			if ( lc->lc_refcnt == 0 ) {
+				Debug( LDAP_DEBUG_TRACE,
+					"ldap_back_conn_prune: closing expired connection lc=%p\n",
+					lc );
+				ldap_back_freeconn( li, lc, 0 );
+			} else {
+				Debug( LDAP_DEBUG_TRACE,
+					"ldap_back_conn_prune: tainting expired connection lc=%p\n",
+					lc );
+				LDAP_BACK_CONN_TAINTED_SET( lc );
+			}
+		} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
+			next_timeout = conn_expires;
 		}
 
 		edge = next;
@@ -3178,6 +3152,12 @@ ldap_back_conn_prune( ldapinfo_t *li )
 		li->li_conn_expire_task->interval.tv_sec = next_timeout - now;
 		ldap_pvt_runqueue_resched( &slapd_rq, li->li_conn_expire_task, 0 );
 
+		/*
+		 * The thread that handles runqueue might have already processed all tasks
+		 * before we insertered new task or rescheduled the existing task with new
+		 * timeout period. Wake it up to ensure that the task will be picked up.
+		 */
+		slap_wake_listener();
 		Debug( LDAP_DEBUG_TRACE,
 			"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
 			li->li_conn_expire_task->interval.tv_sec );
@@ -3205,24 +3185,18 @@ ldap_back_schedule_conn_expiry( ldapinfo_t *li, ldapconn_t *lc ) {
 	 * timeout of this connection.
 	 *
 	 * If the task is already running, this connection cannot be next one
-	 * to expire (all connections share the same timeout) and therefore timeout
-	 * does not need to be re-calculated.
+	 * to expire and therefore timeout does not need to be re-calculated.
 	 */
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 	if ( li->li_conn_expire_task == NULL ) {
-		li->li_conn_expire_task = ldap_pvt_runqueue_insert( &slapd_rq, 0,
+		li->li_conn_expire_task = ldap_pvt_runqueue_insert( &slapd_rq,
+			ldap_back_conn_expire_time( li, lc ) - slap_get_time(),
 			ldap_back_conn_expire_fn, li, "ldap_back_conn_expire_fn",
 			"ldap_back_conn_expire_timer" );
-
-		li->li_conn_expire_task->interval.tv_sec =
-			ldap_back_conn_expire_time( li, lc ) - slap_get_time();
-		ldap_pvt_runqueue_resched( &slapd_rq, li->li_conn_expire_task, 0 );
+		slap_wake_listener();
 		Debug( LDAP_DEBUG_TRACE,
 			"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
 			li->li_conn_expire_task->interval.tv_sec );
-
-		/* Make this a one-shot task */
-		li->li_conn_expire_task->interval.tv_sec = 0;
 	}
 	ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 

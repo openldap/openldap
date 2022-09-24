@@ -65,8 +65,9 @@ asyncmeta_back_bind( Operation *op, SlapReply *rs )
 			gotit = 0,
 			isroot = 0;
 
-	SlapReply	*candidates = NULL;
+	SlapReply	*candidates;
 
+	candidates = op->o_tmpcalloc(mi->mi_ntargets, sizeof(SlapReply),op->o_tmpmemctx);
 	rs->sr_err = LDAP_SUCCESS;
 
 	Debug( LDAP_DEBUG_ARGS, "%s asyncmeta_back_bind: dn=\"%s\".\n",
@@ -90,16 +91,6 @@ asyncmeta_back_bind( Operation *op, SlapReply *rs )
 		/* be_rootdn_bind() sent result */
 		return rs->sr_err;
 	}
-
-
-	if ( mi->mi_ntargets == 0 ) {
-		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
-		rs->sr_text = "No targets are configured for this database";
-		send_ldap_result(op, rs);
-		return rs->sr_err;
-	}
-
-	candidates = op->o_tmpcalloc(mi->mi_ntargets, sizeof(SlapReply),op->o_tmpmemctx);
 
 	/* we need asyncmeta_getconn() not send result even on error,
 	 * because we want to intercept the error and make it

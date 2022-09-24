@@ -44,7 +44,7 @@ monitor_subsys_time_init(
 {
 	monitor_info_t	*mi;
 	
-	Entry		*e, *e_time;
+	Entry		*e, **ep, *e_time;
 	monitor_entry_t	*mp;
 	struct berval	bv, value;
 
@@ -62,6 +62,10 @@ monitor_subsys_time_init(
 			ms->mss_ndn.bv_val );
 		return( -1 );
 	}
+
+	mp = ( monitor_entry_t * )e_time->e_private;
+	mp->mp_children = NULL;
+	ep = &mp->mp_children;
 
 	BER_BVSTR( &bv, "cn=Start" );
 	e = monitor_entry_stub( &ms->mss_dn, &ms->mss_ndn, &bv,
@@ -85,7 +89,7 @@ monitor_subsys_time_init(
 	mp->mp_flags = ms->mss_flags \
 		| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 
-	if ( monitor_cache_add( mi, e, e_time ) ) {
+	if ( monitor_cache_add( mi, e ) ) {
 		Debug( LDAP_DEBUG_ANY,
 			"monitor_subsys_time_init: "
 			"unable to add entry \"%s,%s\"\n",
@@ -93,6 +97,9 @@ monitor_subsys_time_init(
 		return( -1 );
 	}
 	
+	*ep = e;
+	ep = &mp->mp_next;
+
 	/*
 	 * Current
 	 */
@@ -118,7 +125,7 @@ monitor_subsys_time_init(
 	mp->mp_flags = ms->mss_flags \
 		| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 
-	if ( monitor_cache_add( mi, e, e_time ) ) {
+	if ( monitor_cache_add( mi, e ) ) {
 		Debug( LDAP_DEBUG_ANY,
 			"monitor_subsys_time_init: "
 			"unable to add entry \"%s,%s\"\n",
@@ -126,6 +133,9 @@ monitor_subsys_time_init(
 		return( -1 );
 	}
 	
+	*ep = e;
+	ep = &mp->mp_next;
+
 	/*
 	 * Uptime
 	 */
@@ -152,7 +162,7 @@ monitor_subsys_time_init(
 	mp->mp_flags = ms->mss_flags \
 		| MONITOR_F_SUB | MONITOR_F_PERSISTENT;
 
-	if ( monitor_cache_add( mi, e, e_time ) ) {
+	if ( monitor_cache_add( mi, e ) ) {
 		Debug( LDAP_DEBUG_ANY,
 			"monitor_subsys_time_init: "
 			"unable to add entry \"%s,%s\"\n",
@@ -160,6 +170,9 @@ monitor_subsys_time_init(
 		return( -1 );
 	}
 	
+	*ep = e;
+	ep = &mp->mp_next;
+
 	monitor_cache_release( mi, e_time );
 
 	return( 0 );

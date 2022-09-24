@@ -20,9 +20,6 @@
 
 LDAP_BEGIN_DECL
 
-struct runqueue_s;
-typedef void (ldap_pvt_rq_notify_cb) LDAP_P(( struct runqueue_s *rq ));
-
 typedef struct re_s {
 	struct timeval next_sched;
 	struct timeval interval;
@@ -39,7 +36,6 @@ typedef struct runqueue_s {
 	LDAP_STAILQ_HEAD(l, re_s) task_list;
 	LDAP_STAILQ_HEAD(rl, re_s) run_list;
 	ldap_pvt_thread_mutex_t	rq_mutex;
-	ldap_pvt_rq_notify_cb *rq_notify_cb;
 } runqueue_t;
 
 LDAP_F( struct re_s* )

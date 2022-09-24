@@ -729,8 +729,7 @@ ldif_open(
 	if ( fp ) {
 		lfp = ber_memalloc( sizeof( LDIFFP ));
 		if ( lfp == NULL ) {
-			fclose( fp );
-			return NULL;
+		    return NULL;
 		}
 		lfp->fp = fp;
 		lfp->prev = NULL;
@@ -797,7 +796,6 @@ ldif_read_record(
 		 * back to a previous file. (return from an include)
 		 */
 		while ( feof( lfp->fp )) {
-pop:
 			if ( lfp->prev ) {
 				LDIFFP *tmp = lfp->prev;
 				fclose( lfp->fp );
@@ -810,10 +808,6 @@ pop:
 		}
 		if ( !stop ) {
 			if ( fgets( line, sizeof( line ), lfp->fp ) == NULL ) {
-				if ( !found_entry && !ferror( lfp->fp ) ) {
-					/* ITS#9811 Reached the end looking for an entry, try again */
-					goto pop;
-				}
 				stop = 1;
 				len = 0;
 			} else {

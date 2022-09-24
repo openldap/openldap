@@ -204,12 +204,12 @@ remoteauth_cf_gen( ConfigArgs *c )
 						str = ch_malloc( strlen( map->domain ) +
 								strlen( map->realm ) + 2 );
 						sprintf( str, "%s %s", map->domain, map->realm );
-						ber_str2bv( str, 0, 0, &bv );
-						rc = value_add_one( &c->rvalue_vals, &bv );
-						if ( !rc )
-							rc = value_add_one( &c->rvalue_nvals, &bv );
+						ber_str2bv( str, strlen( str ), 1, &bv );
 						ch_free( str );
-						if ( rc ) break;
+						rc = value_add_one( &c->rvalue_vals, &bv );
+						if ( rc ) return rc;
+						rc = value_add_one( &c->rvalue_nvals, &bv );
+						if ( rc ) return rc;
 					}
 					break;
 				case REMOTE_AUTH_DN_ATTRIBUTE:
@@ -223,13 +223,13 @@ remoteauth_cf_gen( ConfigArgs *c )
 					break;
 				case REMOTE_AUTH_DEFAULT_DOMAIN:
 					if ( ad->default_domain ) {
-						ber_str2bv( ad->default_domain, 0, 0, &bv );
+						ber_str2bv( ad->default_domain, 0, 1, &bv );
 						value_add_one( &c->rvalue_vals, &bv );
 					}
 					break;
 				case REMOTE_AUTH_DEFAULT_REALM:
 					if ( ad->default_realm ) {
-						ber_str2bv( ad->default_realm, 0, 0, &bv );
+						ber_str2bv( ad->default_realm, 0, 1, &bv );
 						value_add_one( &c->rvalue_vals, &bv );
 					}
 					break;
@@ -246,7 +246,6 @@ remoteauth_cf_gen( ConfigArgs *c )
 					}
 
 					value_add_one( &c->rvalue_vals, &bv );
-					ch_free( bv.bv_val );
 					break;
 				case REMOTE_AUTH_TLS_PIN: {
 					ad_pin *pin = ad->pins;
@@ -951,19 +950,14 @@ remoteauth_db_destroy( BackendDB *be, ConfigReply *cr )
 	ad_info *ai = ap->mappings;
 
 	while ( ai ) {
-		ad_info *next = ai->next;
-
 		if ( ai->domain ) ch_free( ai->domain );
 		if ( ai->realm ) ch_free( ai->realm );
-
-		ch_free( ai );
-		ai = next;
+		ai = ai->next;
 	}
 
 	if ( ap->dn ) ch_free( ap->dn );
 	if ( ap->default_domain ) ch_free( ap->default_domain );
 	if ( ap->default_realm ) ch_free( ap->default_realm );
-	if ( ap->domain_attr ) ch_free( ap->domain_attr );
 
 	bindconf_free( &ap->ad_tls );
 

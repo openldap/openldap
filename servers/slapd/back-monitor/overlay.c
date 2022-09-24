@@ -37,7 +37,7 @@ monitor_subsys_overlay_init(
 )
 {
 	monitor_info_t		*mi;
-	Entry			*e_overlay;
+	Entry			*e_overlay, **ep;
 	int			i;
 	monitor_entry_t		*mp;
 	slap_overinst		*on;
@@ -62,6 +62,10 @@ monitor_subsys_overlay_init(
 			ms->mss_ndn.bv_val );
 		return( -1 );
 	}
+
+	mp = ( monitor_entry_t * )e_overlay->e_private;
+	mp->mp_children = NULL;
+	ep = &mp->mp_children;
 
 	for ( on = overlay_next( NULL ), i = 0; on; on = overlay_next( on ), i++ ) {
 		char 		buf[ BACKMONITOR_BUFSIZE ];
@@ -117,13 +121,16 @@ monitor_subsys_overlay_init(
 		mp->mp_flags = ms->mss_flags
 			| MONITOR_F_SUB;
 
-		if ( monitor_cache_add( mi, e, e_overlay ) ) {
+		if ( monitor_cache_add( mi, e ) ) {
 			Debug( LDAP_DEBUG_ANY,
 				"monitor_subsys_overlay_init: "
 				"unable to add entry \"cn=Overlay %d,%s\"\n",
 				i, ms->mss_ndn.bv_val );
 			return( -1 );
 		}
+
+		*ep = e;
+		ep = &mp->mp_next;
 	}
 	
 	monitor_cache_release( mi, e_overlay );

@@ -51,7 +51,6 @@ asyncmeta_error_cleanup(Operation *op,
 	}
 	asyncmeta_drop_bc(mc, bc);
 	slap_sl_mem_setctx(op->o_threadctx, op->o_tmpmemctx);
-	operation_counter_init( op, op->o_threadctx );
 	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex);
 	send_ldap_result(op, rs);
 	return LDAP_SUCCESS;
@@ -254,13 +253,6 @@ asyncmeta_back_add( Operation *op, SlapReply *rs )
 	if (current_time > op->o_time) {
 		Debug(asyncmeta_debug, "==> asyncmeta_back_add[%s]: o_time:[%ld], current time: [%ld]\n",
 		      op->o_log_prefix, op->o_time, current_time );
-	}
-
-	if ( mi->mi_ntargets == 0 ) {
-		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
-		rs->sr_text = "No targets are configured for this database";
-		send_ldap_result(op, rs);
-		return rs->sr_err;
 	}
 
 	asyncmeta_new_bm_context(op, rs, &bc, mi->mi_ntargets, mi );

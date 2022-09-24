@@ -42,6 +42,7 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 	backsql_oc_map_rec	*oc = NULL;
 	struct berval		pdn = BER_BVNULL, pndn = BER_BVNULL,
 				*new_pdn = NULL, *new_npdn = NULL,
+				new_dn = BER_BVNULL, new_ndn = BER_BVNULL,
 				realnew_dn = BER_BVNULL;
 	Entry			r = { 0 },
 				p = { 0 },
@@ -257,10 +258,15 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
+	build_new_dn( &new_dn, new_pdn, &op->oq_modrdn.rs_newrdn,
+			op->o_tmpmemctx );
+	build_new_dn( &new_ndn, new_npdn, &op->oq_modrdn.rs_nnewrdn,
+			op->o_tmpmemctx );
+	
 	Debug( LDAP_DEBUG_TRACE, "   backsql_modrdn(): new entry dn is \"%s\"\n",
-			op->orr_newDN.bv_val );
+			new_dn.bv_val );
 
-	realnew_dn = op->orr_newDN;
+	realnew_dn = new_dn;
 	if ( backsql_api_dn2odbc( op, rs, &realnew_dn ) ) {
 		Debug( LDAP_DEBUG_TRACE, "   backsql_modrdn(\"%s\"): "
 			"backsql_api_dn2odbc(\"%s\") failed\n", 
@@ -388,7 +394,7 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 		(void)backsql_free_entryID( &e_id, 0, op->o_tmpmemctx );
 
 		bsi.bsi_e = &r;
-		rs->sr_err = backsql_init_search( &bsi, &op->orr_nnewDN,
+		rs->sr_err = backsql_init_search( &bsi, &new_ndn,
 				LDAP_SCOPE_BASE, 
 				(time_t)(-1), NULL, dbh, op, rs,
 				slap_anlist_all_attributes,
@@ -399,7 +405,7 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 
 		case LDAP_REFERRAL:
 			if ( manageDSAit && !BER_BVISNULL( &bsi.bsi_e->e_nname ) &&
-					dn_match( &op->orr_nnewDN, &bsi.bsi_e->e_nname ) )
+					dn_match( &new_ndn, &bsi.bsi_e->e_nname ) )
 			{
 				rs->sr_err = LDAP_SUCCESS;
 				rs->sr_text = NULL;
@@ -428,7 +434,7 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 
 		e_id = bsi.bsi_base_id;
 
-		rs->sr_err = entry_schema_check( op, &r, 0, 0, NULL,
+		rs->sr_err = entry_schema_check( op, &r, NULL, 0, 0, NULL,
 			&rs->sr_text, textbuf, sizeof( textbuf ) );
 		if ( rs->sr_err != LDAP_SUCCESS ) {
 			Debug( LDAP_DEBUG_TRACE, "   backsql_modrdn(\"%s\"): "
@@ -474,10 +480,18 @@ done:;
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
 
-	if ( !BER_BVISNULL( &realnew_dn ) && realnew_dn.bv_val != op->orr_newDN.bv_val ) {
+	if ( !BER_BVISNULL( &realnew_dn ) && realnew_dn.bv_val != new_dn.bv_val ) {
 		ch_free( realnew_dn.bv_val );
 	}
 
+	if ( !BER_BVISNULL( &new_dn ) ) {
+		slap_sl_free( new_dn.bv_val, op->o_tmpmemctx );
+	}
+	
+	if ( !BER_BVISNULL( &new_ndn ) ) {
+		slap_sl_free( new_ndn.bv_val, op->o_tmpmemctx );
+	}
+	
 	if ( !BER_BVISNULL( &e_id.eid_ndn ) ) {
 		(void)backsql_free_entryID( &e_id, 0, op->o_tmpmemctx );
 	}

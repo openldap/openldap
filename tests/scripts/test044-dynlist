@@ -202,7 +202,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -230,7 +230,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -263,7 +263,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)"
@@ -289,7 +289,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -378,7 +378,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -406,7 +406,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -515,7 +515,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -544,7 +544,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -573,7 +573,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -606,7 +606,7 @@ case $RC in
 0)
 	echo "ldapcompare returned success ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
+	exit -1
 	;;
 *)
 	echo "ldapcompare failed ($RC)!"
@@ -1041,17 +1041,6 @@ echo "# Testing filtered nested memberOf functionality..." >> $SEARCHOUT
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
 	-D "$BABSDN" -w bjensen \
 	"(memberOf=cn=bonus group,ou=groups,$BASEDN)" '*' 'memberOf' \
-	>> $SEARCHOUT 2>&1
-RC=$?
-if test $RC != 0 ; then
-	echo "ldapsearch failed ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
-fi
-
-$LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
-	-D "$BABSDN" -w bjensen \
-	"(&(uid=jjones)(memberOf=cn=jjs,ou=groups,$BASEDN))" 'uid' \
 	>> $SEARCHOUT 2>&1
 RC=$?
 if test $RC != 0 ; then

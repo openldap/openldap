@@ -64,8 +64,6 @@ void mdb_ad_unwind( struct mdb_info *mdb, int prev_ads );
  */
 
 int mdb_back_init_cf( BackendInfo *bi );
-int mdb_resume_index( BackendDB *be, MDB_txn *txn );
-void mdb_start_index_task( BackendDB *be );
 
 /*
  * dn2entry.c

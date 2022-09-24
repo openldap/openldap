@@ -54,15 +54,18 @@ ldap_back_extended_one( Operation *op, SlapReply *rs, ldap_back_exop_f exop )
 	 * called twice; maybe we could avoid the 
 	 * ldap_back_dobind() call inside each extended()
 	 * call ... */
-	if ( !ldap_back_dobind( &lc, op, rs, LDAP_BACK_DONTSEND ) ) {
-		return rs->sr_err;
+	if ( !ldap_back_dobind( &lc, op, rs, LDAP_BACK_SENDERR ) ) {
+		return -1;
 	}
 
 	ctrls = oldctrls = op->o_ctrls;
 	if ( ldap_back_controls_add( op, rs, lc, &ctrls ) )
 	{
 		op->o_ctrls = oldctrls;
-		rc = rs->sr_err;
+		send_ldap_extended( op, rs );
+		rs->sr_text = NULL;
+		/* otherwise frontend resends result */
+		rc = rs->sr_err = SLAPD_ABANDON;
 		goto done;
 	}
 
@@ -239,22 +242,11 @@ retry:
 		}
 	}
 
-	if ( text ) {
-		/* copy to tmpmem, doesn't need to be freed */
-		rs->sr_text = op->o_tmpalloc( strlen( text ) + 1, op->o_tmpmemctx );
-		strcpy( rs->sr_text, text );
-		ch_free( text );
-	}
-	if ( rs->sr_matched )
-		rs->sr_flags |= REP_MATCHED_MUSTBEFREED;
-	if ( rs->sr_ctrls )
-		rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
-
 	if ( rc != LDAP_SUCCESS ) {
 		rs->sr_err = slap_map_api2result( rs );
 		if ( rs->sr_err == LDAP_UNAVAILABLE && do_retry ) {
 			do_retry = 0;
-			if ( ldap_back_retry( &lc, op, rs, LDAP_BACK_DONTSEND ) ) {
+			if ( ldap_back_retry( &lc, op, rs, LDAP_BACK_SENDERR ) ) {
 				goto retry;
 			}
 		}
@@ -262,6 +254,11 @@ retry:
 		if ( LDAP_BACK_QUARANTINE( li ) ) {
 			ldap_back_quarantine( op, rs );
 		}
+
+		if ( text ) rs->sr_text = text;
+		send_ldap_extended( op, rs );
+		/* otherwise frontend resends result */
+		rc = rs->sr_err = SLAPD_ABANDON;
 
 	} else if ( LDAP_BACK_QUARANTINE( li ) ) {
 		ldap_back_quarantine( op, rs );
@@ -274,6 +271,22 @@ retry:
 	if ( freedn ) {
 		op->o_tmpfree( dn.bv_val, op->o_tmpmemctx );
 		op->o_tmpfree( ndn.bv_val, op->o_tmpmemctx );
+	}
+
+	/* these have to be freed anyway... */
+	if ( rs->sr_matched ) {
+		free( (char *)rs->sr_matched );
+		rs->sr_matched = NULL;
+	}
+
+	if ( rs->sr_ctrls ) {
+		ldap_controls_free( rs->sr_ctrls );
+		rs->sr_ctrls = NULL;
+	}
+
+	if ( text ) {
+		free( text );
+		rs->sr_text = NULL;
 	}
 
 	/* in case, cleanup handler */
@@ -350,7 +363,7 @@ retry:
 		rs->sr_err = slap_map_api2result( rs );
 		if ( rs->sr_err == LDAP_UNAVAILABLE && do_retry ) {
 			do_retry = 0;
-			if ( ldap_back_retry( &lc, op, rs, LDAP_BACK_DONTSEND ) ) {
+			if ( ldap_back_retry( &lc, op, rs, LDAP_BACK_SENDERR ) ) {
 				goto retry;
 			}
 		}
@@ -358,6 +371,12 @@ retry:
 		if ( LDAP_BACK_QUARANTINE( li ) ) {
 			ldap_back_quarantine( op, rs );
 		}
+
+		if ( text ) rs->sr_text = text;
+		send_ldap_extended( op, rs );
+		/* otherwise frontend resends result */
+		rc = rs->sr_err = SLAPD_ABANDON;
+
 	} else if ( LDAP_BACK_QUARANTINE( li ) ) {
 		ldap_back_quarantine( op, rs );
 	}
@@ -366,16 +385,21 @@ retry:
 	ldap_pvt_mp_add( li->li_ops_completed[ SLAP_OP_EXTENDED ], 1 );
 	ldap_pvt_thread_mutex_unlock( &li->li_counter_mutex );
 
-	if ( text ) {
-		/* copy to tmpmem, doesn't need to be freed */
-		rs->sr_text = op->o_tmpalloc( strlen( text ) + 1, op->o_tmpmemctx );
-		strcpy( rs->sr_text, text );
-		ch_free( text );
+	/* these have to be freed anyway... */
+	if ( rs->sr_matched ) {
+		free( (char *)rs->sr_matched );
+		rs->sr_matched = NULL;
 	}
-	if ( rs->sr_matched )
-		rs->sr_flags |= REP_MATCHED_MUSTBEFREED;
-	if ( rs->sr_ctrls )
-		rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
+
+	if ( rs->sr_ctrls ) {
+		ldap_controls_free( rs->sr_ctrls );
+		rs->sr_ctrls = NULL;
+	}
+
+	if ( text ) {
+		free( text );
+		rs->sr_text = NULL;
+	}
 
 	/* in case, cleanup handler */
 	if ( lc == NULL ) {
