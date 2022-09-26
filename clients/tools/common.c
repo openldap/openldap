@@ -2211,7 +2211,7 @@ print_vlv( LDAP *ld, LDAPControl *ctrl )
 			ber_memfree( bv.bv_val );
 
 		tool_write_ldif( ldif ? LDIF_PUT_COMMENT : LDIF_PUT_VALUE,
-			ldif ? "vlvResult" : "vlvResult", buf, rc );
+			ldif ? "vlvResult: " : "vlvResult", buf, rc );
 	}
 
 	return rc;
