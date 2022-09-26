@@ -176,7 +176,7 @@ typedef struct syncinfo_s {
 	/* monitor info */
 	int		si_monitorInited;
 	time_t	si_lastconnect;
-	time_t	si_lastcontact;
+	struct timeval	si_lastcontact;
 	struct berval	si_connaddr;
 	struct berval	si_lastCookieRcvd;
 	struct berval	si_lastCookieSent;
@@ -1361,7 +1361,7 @@ do_syncrep2(
 			rc = SYNC_SHUTDOWN;
 			goto done;
 		}
-		si->si_lastcontact = slap_get_time();
+		gettimeofday( &si->si_lastcontact, NULL );
 		switch( ldap_msgtype( msg ) ) {
 		case LDAP_RES_SEARCH_ENTRY:
 #ifdef LDAP_CONTROL_X_DIRSYNC
@@ -7095,8 +7095,9 @@ syncrepl_monitor_update(
 		if ( a->a_desc != ad_olmLastContact )
 			return SLAP_CB_CONTINUE;
 
-		if ( si->si_lastcontact ) {
-			ldap_pvt_gmtime( &si->si_lastcontact, &tm );
+		if ( si->si_lastcontact.tv_sec ) {
+			time_t last_contact = si->si_lastcontact.tv_sec;
+			ldap_pvt_gmtime( &last_contact, &tm );
 			lutil_gentime( tmbuf, sizeof( tmbuf ), &tm );
 			len = strlen( tmbuf );
 			assert( len == a->a_vals[0].bv_len );
