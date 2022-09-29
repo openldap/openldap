@@ -439,7 +439,7 @@ deref_response( Operation *op, SlapReply *rs )
 						rc = ber_printf( ber, "{O[W]}",
 							&dr->dr_spec.ds_attributes[ j ]->ad_cname,
 							dr->dr_vals[ i ].dv_attrVals[ j ] );
-						op->o_tmpfree( dr->dr_vals[ i ].dv_attrVals[ j ],
+						ber_bvarray_free_x( dr->dr_vals[ i ].dv_attrVals[ j ],
 							op->o_tmpmemctx );
 					}
 				}
