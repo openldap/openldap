@@ -1655,7 +1655,7 @@ write_cdata(char *opath)
     }
 #endif
 
-#ifdef HARDCODE_DATA
+#if HARDCODE_DATA
     fprintf(out, PREF "ac_uint4 _uckdcmp_size = %ld;\n\n",
         kdecomps_used * 2L);
 
@@ -1753,7 +1753,7 @@ write_cdata(char *opath)
      * Generate the combining class data.
      *
      *****************************************************************/
-#ifdef HARDCODE_DATA
+#if HARDCODE_DATA
     fprintf(out, PREF "ac_uint4 _uccmcl_size = %ld;\n\n", (long) ccl_used);
 
     fprintf(out, PREF "ac_uint4 _uccmcl_nodes[] = {");
