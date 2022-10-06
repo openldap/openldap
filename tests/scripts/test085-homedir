@@ -23,6 +23,10 @@ fi
 
 mkdir -p $TESTDIR $DBDIR1 $TESTDIR/home $TESTDIR/archive
 
+# copy skel dir so we can create symlinks in it
+cp -r $DATADIR/homedir/skel $TESTDIR
+(cd $TESTDIR/skel; ln -s directory symlink; cd directory; ln -s ../target "broken link")
+
 $SLAPPASSWD -g -n >$CONFIGPWF
 echo "rootpw `$SLAPPASSWD -T $CONFIGPWF`" >$TESTDIR/configpw.conf
 
