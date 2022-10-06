@@ -14,6 +14,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed slapo-remoteauth memory leaks (ITS#9438)
 	Build Environment
 		Fixed build process to not use gmake specific features (ITS#9894)
+		Fixed source tree to remove symlinks (ITS#9926)
 		Fixed slapo-otp testdir creation (ITS#9437)
 		Fixed slapd-tester memory leak (ITS#9908)
 		Fixed usage of non-standard C syntax (ITS#9898, ITS#9899, ITS#9901)
