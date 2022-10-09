@@ -1548,7 +1548,8 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 
 	if ( rs->sr_type == REP_SEARCH && rs->sr_entry != NULL ) {
 		rc = SLAP_CB_CONTINUE;
-		/* See if this is one of our dynamic entries */
+		/* See if this is one of our dynamic groups */
+		dyn = NULL;
 		if ( ds->ds_names ) {
 			dyn = ldap_tavl_find( ds->ds_names, &rs->sr_entry->e_nname, dynlist_avl_cmp );
 			if ( dyn ) {
@@ -1557,7 +1558,9 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 					rc = dynlist_prepare_entry( op, rs, dyn->dy_dli, dyn );
 			} else if ( ds->ds_want )
 				dynlist_add_memberOf( op, rs, ds );
-		} else {
+		}
+		/* Then check for dynamic lists */
+		if ( dyn == NULL ) {
 			dynlist_info_t	*dli;
 			Attribute *a = attr_find ( rs->sr_entry->e_attrs, slap_schema.si_ad_objectClass );
 			if ( a ) {
