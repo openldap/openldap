@@ -1708,13 +1708,24 @@ dynlist_search( Operation *op, SlapReply *rs )
 	/* Find all groups in scope. For group expansion
 	 * we only need the groups within the search scope, but
 	 * for memberOf populating, we need all dyngroups.
+	 *
+	 * We ignore dynamic lists here; they're handled later.
 	 */
 	for ( dli = dlg->dlg_dli; dli; dli = dli->dli_next ) {
+		int got_dn = 1;
 		static_oc = NULL;
 		nested = 0;
 		tmpwant = 0;
 		if ( dlg->dlg_memberOf ) {
+			if ( !dli->dli_dlm )
+				continue;
+
 			for ( dlm = dli->dli_dlm; dlm; dlm = dlm->dlm_next ) {
+				if ( dlm->dlm_mapped_ad ) {
+					got_dn = 0;
+					break;
+				}
+
 				if ( dlm->dlm_memberOf_ad ) {
 					int want = 0;
 
@@ -1773,6 +1784,9 @@ dynlist_search( Operation *op, SlapReply *rs )
 				}
 			}
 		}
+
+		if ( !got_dn )
+			continue;
 
 		if ( static_oc ) {
 			f[0].f_choice = LDAP_FILTER_OR;
