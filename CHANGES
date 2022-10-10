@@ -11,6 +11,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed slapd-monitor to free remembered cookies (ITS#9339)
 	Fixed slapo-deref memory leak (ITS#9924)
 	Fixed slapo-dynlist to ignore irrelevant objectClasses (ITS#9897)
+	Fixed slapo-dynlist to avoid unnecessary searches (ITS#9929)
 	Fixed slapo-remoteauth memory leaks (ITS#9438)
 	Build Environment
 		Fixed build process to not use gmake specific features (ITS#9894)
