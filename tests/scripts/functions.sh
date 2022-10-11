@@ -15,6 +15,8 @@
 
 timer() {
 	if [ -n "$STARTTIME" ]; then
-		date -u -d "now - $STARTTIME sec" +%T
+		now=`date +%s`
+		delta=`expr $now - $STARTTIME`
+		date -u $DATEOPT$delta +%T
 	fi
 }
