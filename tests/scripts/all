@@ -25,6 +25,15 @@ FAILCOUNT=0
 SKIPCOUNT=0
 SLEEPTIME=10
 
+# check for BSD vs GNU date
+date -j >/dev/null 2>&1
+RC=$?
+if [ $RC -ne 0 ]; then
+	DATEOPT="-d @"
+else
+	DATEOPT="-r "
+fi
+
 echo ">>>>> Executing all LDAP tests for $BACKEND"
 
 if [ -n "$NOEXIT" ]; then
