@@ -310,7 +310,7 @@ KILLPIDS="$BACKEND_PID"
 sleep $SLEEP0
 
 echo "Testing slapd.conf support..."
-sed -e "s,database\\s*monitor,\\
+sed -e "s,database.*monitor,\\
 TLSCACertificateFile $TESTDIR/tls/ca/certs/testsuiteCA.crt\\
 \\
 #remoteauthmod#moduleload ../servers/slapd/overlays/remoteauth.la\\
