@@ -124,6 +124,9 @@ lload_global_destroy( void )
     if ( lload_tls_ld ) {
         ldap_unbind_ext( lload_tls_ld, NULL, NULL );
     }
+    if ( lload_tls_ctx ) {
+        ldap_pvt_tls_ctx_free( lload_tls_ctx );
+    }
 #endif
 
     ldap_pvt_thread_mutex_destroy( &lload_wait_mutex );

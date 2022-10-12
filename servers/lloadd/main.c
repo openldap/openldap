@@ -890,10 +890,6 @@ stop:
     lloadd_daemon_destroy();
 
 #ifdef HAVE_TLS
-    if ( lload_tls_ld ) {
-        ldap_pvt_tls_ctx_free( lload_tls_ctx );
-        ldap_unbind_ext( lload_tls_ld, NULL, NULL );
-    }
     ldap_pvt_tls_destroy();
 #endif
 
