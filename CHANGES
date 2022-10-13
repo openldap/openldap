@@ -14,6 +14,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed slapo-dynlist to avoid unnecessary searches (ITS#9929)
 	Fixed slapo-remoteauth memory leaks (ITS#9438)
 	Build Environment
+		Fixed ancient DOS related ifdef checks (ITS#9925)
 		Fixed build process to not use gmake specific features (ITS#9894)
 		Fixed source tree to remove symlinks (ITS#9926)
 		Fixed slapo-otp testdir creation (ITS#9437)
