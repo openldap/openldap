@@ -509,7 +509,11 @@ dynlist_prepare_entry( Operation *op, SlapReply *rs, dynlist_info_t *dli, dynlis
 			|| ad_infilter( ad, op->ors_filter ))
 			break;
 	}
-	if ( dli->dli_dlm && !dlm )
+
+	/* If nothing matched and this was a search, skip over to nesting check.
+	 * If this was a compare, keep on going.
+	 */
+	if ( dli->dli_dlm && !dlm && o.o_acl_priv != ACL_COMPARE )
 		goto checkdyn;
 
 	if ( ad_dgIdentity && ( id = attrs_find( rs->sr_entry->e_attrs, ad_dgIdentity ))) {
@@ -815,6 +819,22 @@ dynlist_sc_compare_entry( Operation *op, SlapReply *rs )
 }
 
 static int
+dynlist_check_scope( Operation *op, Entry *e, dynlist_info_t *dli )
+{
+	if ( dli->dli_lud ) {
+		if ( !BER_BVISNULL( &dli->dli_uri_nbase ) &&
+			!dnIsSuffixScope( &e->e_nname,
+				&dli->dli_uri_nbase,
+				dli->dli_lud->lud_scope ))
+			return 0;
+		if ( dli->dli_uri_filter && test_filter( op, e,
+			dli->dli_uri_filter ) != LDAP_COMPARE_TRUE )
+			return 0;
+	}
+	return 1;
+}
+
+static int
 dynlist_compare( Operation *op, SlapReply *rs )
 {
 	slap_overinst	*on = (slap_overinst *)op->o_bd->bd_info;
@@ -851,7 +871,8 @@ dynlist_compare( Operation *op, SlapReply *rs )
 			{
 				return SLAP_CB_CONTINUE;
 			}
-			if ( !is_entry_objectclass_or_sub( e, dli->dli_oc )) {
+			if ( !is_entry_objectclass_or_sub( e, dli->dli_oc ) ||
+				!dynlist_check_scope( op, e, dli )) {
 				continue;
 			}
 
@@ -928,7 +949,8 @@ done:;
 
 	/* check for dynlist objectClass; done if not found */
 	dli = (dynlist_info_t *)dlg->dlg_dli;
-	while ( dli != NULL && !is_entry_objectclass_or_sub( e, dli->dli_oc ) ) {
+	while ( dli != NULL && !is_entry_objectclass_or_sub( e, dli->dli_oc ) &&
+		!dynlist_check_scope( op, e, dli )) {
 		dli = dli->dli_next;
 	}
 	if ( dli == NULL ) {
@@ -1049,6 +1071,11 @@ dynlist_search1resp( Operation *op, SlapReply *rs )
 		if ( ds->ds_dlm && ds->ds_dlm->dlm_static_oc && is_entry_objectclass( rs->sr_entry, ds->ds_dlm->dlm_static_oc, 0 ))
 			b = attr_find( rs->sr_entry->e_attrs, ds->ds_dlm->dlm_member_ad );
 		a = attr_find( rs->sr_entry->e_attrs, ds->ds_dli->dli_ad );
+
+		/* enforce scope of dynamic entries */
+		if ( a && !dynlist_check_scope( op, rs->sr_entry, ds->ds_dli ))
+			a = NULL;
+
 		if ( a || b ) {
 			unsigned len;
 			dynlist_name_t *dyn;
@@ -1522,21 +1549,6 @@ dynlist_add_memberOf(Operation *op, SlapReply *rs, dynlist_search_t *ds)
 	}
 }
 
-static int
-dynlist_check_scope( Operation *op, Entry *e, dynlist_info_t *dli )
-{
-	if ( dli->dli_lud ) {
-		if ( !BER_BVISNULL( &dli->dli_uri_nbase ) &&
-			!dnIsSuffixScope( &e->e_nname,
-				&dli->dli_uri_nbase,
-				dli->dli_lud->lud_scope ))
-			return 0;
-		if ( dli->dli_uri_filter && test_filter( op, e,
-			dli->dli_uri_filter ) != LDAP_COMPARE_TRUE )
-			return 0;
-	}
-	return 1;
-}
 
 /* process the search responses */
 static int
@@ -1554,8 +1566,7 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 			dyn = ldap_tavl_find( ds->ds_names, &rs->sr_entry->e_nname, dynlist_avl_cmp );
 			if ( dyn ) {
 				dyn->dy_seen = 1;
-				if ( dynlist_check_scope( op, rs->sr_entry, dyn->dy_dli ))
-					rc = dynlist_prepare_entry( op, rs, dyn->dy_dli, dyn );
+				rc = dynlist_prepare_entry( op, rs, dyn->dy_dli, dyn );
 			} else if ( ds->ds_want )
 				dynlist_add_memberOf( op, rs, ds );
 		}
@@ -1743,24 +1754,25 @@ dynlist_search( Operation *op, SlapReply *rs )
 	/* Find all groups in scope. For group expansion
 	 * we only need the groups within the search scope, but
 	 * for memberOf populating, we need all dyngroups.
-	 *
-	 * We ignore dynamic lists here; they're handled later.
 	 */
 	for ( dli = dlg->dlg_dli; dli; dli = dli->dli_next ) {
-		int got_dn = 1;
 		static_oc = NULL;
 		nested = 0;
 		tmpwant = 0;
-		if ( dlg->dlg_memberOf ) {
-			if ( !dli->dli_dlm )
-				continue;
 
+		if ( !dli->dli_dlm ) {
+			/* A dynamic list returning arbitrary attrs:
+			 * we don't know what attrs it might return,
+			 * so we can't check if any of its attrs are
+			 * in the filter. So assume none of them are.
+			 *
+			 * If filtering is desired, the filterable attrs
+			 * must be explicitly mapped (even to
+			 * themselves if nothing else).
+			 */
+			continue;
+		} else {
 			for ( dlm = dli->dli_dlm; dlm; dlm = dlm->dlm_next ) {
-				if ( dlm->dlm_mapped_ad || !dlm->dlm_member_ad ) {
-					got_dn = 0;
-					break;
-				}
-
 				if ( dlm->dlm_memberOf_ad ) {
 					int want = 0;
 
@@ -1817,15 +1829,15 @@ dynlist_search( Operation *op, SlapReply *rs )
 						}
 					}
 				} else {
-					if ( ad_infilter( dlm->dlm_member_ad, op->ors_filter ) ||
-						userattrs || ad_inlist( dlm->dlm_member_ad, op->ors_attrs )) {
+					AttributeDescription *ad = dlm->dlm_mapped_ad ? dlm->dlm_mapped_ad : dlm->dlm_member_ad;
+					if ( ad_infilter( ad, op->ors_filter )) {
 						ds->ds_want = tmpwant = WANT_MEMBER;
 					}
 				}
 			}
 		}
 
-		if ( got_dn ) {
+		if ( tmpwant ) {
 
 			if ( static_oc ) {
 				f[0].f_choice = LDAP_FILTER_OR;
