@@ -112,7 +112,10 @@ attributes are not filled by expanded DN, but are remapped as
 .B mapped-ad 
 attributes.  Multiple mapping statements can be used. The
 .B memberOf-ad
-option is not used in this case.
+option is not used in this case. Note that in order for dynamic lists
+to be usable in a search filter, the dynamic attributes to be filtered
+in the list must be explicitly mapped. They can be mapped to themselves
+if no transformation is required.
 
 .LP
 The dynlist overlay may be used with any backend, but it is mainly 
@@ -175,6 +178,24 @@ then add to the database an entry like
 
 If no <attrs> are provided in the URI, all (non-operational) attributes are
 collected.
+
+The values of the above list can not be evaluated in a search filter. To enable
+filter evaluation on the dynamic list, the configuration must be changed to
+explicitly map the dynamic attributes to be filtered. In this case
+.B mail
+is just mapped to itself.
+
+.LP
+.nf
+    include /path/to/dyngroup.schema
+    # ...
+
+    database <database>
+    # ...
+
+    overlay dynlist
+    dynlist\-attrset groupOfURLs memberURL mail:mail
+.fi
 
 This example implements the dynamic group feature on the 
 .B member
