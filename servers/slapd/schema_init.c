@@ -1823,6 +1823,8 @@ UTF8StringValidate(
 	for( ; u < end; u += len ) {
 		/* get the length indicated by the first byte */
 		len = LDAP_UTF8_CHARLEN2( u, len );
+		if ( u + len > end )
+			return LDAP_INVALID_SYNTAX;
 
 		/* very basic checks */
 		switch( len ) {
