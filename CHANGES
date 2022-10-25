@@ -7,6 +7,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed libldap ldap_url_parsehosts check for failure (ITS#9904)
 	Fixed slapd memory leak with olcAuthIDRewrite (ITS#6035)
 	Fixed slapd transactions extended operations cleanup after write (ITS#9892)
+	Fixed slapd deadlock with replicated cn=config (ITS#9930)
 	Fixed slapd-mdb max number of index databases to 256 (ITS#9895)
 	Fixed slapd-monitor to free remembered cookies (ITS#9339)
 	Fixed slapo-deref memory leak (ITS#9924)
