@@ -25,6 +25,10 @@ OpenLDAP 2.5.14 Engineering
 		Fixed test suite portability (ITS#9931)
 	Documentation
 		Fixed slapo-unique(5) to clarify when quoting should be used (ITS#9915)
+	Minor cleanup
+		ITS#9935
+		ITS#9336
+		ITS#9337
 
 OpenLDAP 2.5.13 Release (2022/07/14)
 	Fixed librewrite declaration of calloc (ITS#9841)
