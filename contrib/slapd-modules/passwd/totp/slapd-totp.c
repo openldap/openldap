@@ -133,15 +133,15 @@ static const char Pad32 = '=';
 
 static int
 totp_b32_ntop(
-	u_char const *src,
+	unsigned char const *src,
 	size_t srclength,
 	char *target,
 	size_t targsize)
 {
 	size_t datalength = 0;
-	u_char input0;
-	u_int input1;	/* assumed to be at least 32 bits */
-	u_char output[8];
+	unsigned char input0;
+	unsigned int input1;	/* assumed to be at least 32 bits */
+	unsigned char output[8];
 	int i;
 
 	while (4 < srclength) {
@@ -204,7 +204,7 @@ totp_b32_ntop(
 static int
 totp_b32_pton(
 	char const *src,
-	u_char *target, 
+	unsigned char *target, 
 	size_t targsize)
 {
 	int tarindex, state, ch;
