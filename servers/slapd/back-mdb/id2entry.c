@@ -552,17 +552,23 @@ int mdb_entry_release(
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	struct mdb_op_info *moi = NULL;
+	int release = 1;
  
 	/* slapMode : SLAP_SERVER_MODE, SLAP_TOOL_MODE,
 			SLAP_TRUNCATE_MODE, SLAP_UNDEFINED_MODE */
  
-	int release = 1;
 	if ( slapMode & SLAP_SERVER_MODE ) {
 		OpExtra *oex;
+
+		/* Only Add ops call with rw set, and in that case the entry
+		 * was not created by the backend. So always just release it.
+		 *
+		 * Otherwise, the entry was read from a backend, and we need
+		 * to be sure it was read from this backend, otherwise leave
+		 * it alone for someone else to release.
+		 */
 		LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
-			release = 0;
 			if ( oex->oe_key == mdb ) {
-				mdb_entry_return( op, e );
 				moi = (mdb_op_info *)oex;
 				/* If it was setup by entry_get we should probably free it */
 				if (( moi->moi_flag & (MOI_FREEIT|MOI_KEEPER)) == MOI_FREEIT ) {
@@ -577,12 +583,15 @@ int mdb_entry_release(
 				break;
 			}
 		}
+		/* If read, other backends were in use, and not ours, don't release */
+		if ( !rw && ( LDAP_SLIST_FIRST( &op->o_extra ) && !oex ))
+			release = 0;
 	}
 
 	if (release)
 		mdb_entry_return( op, e );
  
-	return 0;
+	return release ? 0 : SLAP_CB_CONTINUE;
 }
 
 /* return LDAP_SUCCESS IFF we can retrieve the specified entry.
