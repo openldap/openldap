@@ -1,7 +1,6 @@
 # with first backend
 dn: cn=Load Balancer,cn=Backends,cn=Monitor
 objectClass: olmBalancer
-olmIncomingConnections: 0
 olmOutgoingConnections: 4
 
 dn: cn=Incoming Connections,cn=Load Balancer,cn=Backends,cn=Monitor
@@ -87,7 +86,6 @@ olmFailedOps: 0
 # second backend and a rejected search, paged search (19 times x 1 entry), pwmod
 dn: cn=Load Balancer,cn=Backends,cn=Monitor
 objectClass: olmBalancer
-olmIncomingConnections: 0
 olmOutgoingConnections: 13
 
 dn: cn=Incoming Connections,cn=Load Balancer,cn=Backends,cn=Monitor
@@ -274,7 +272,6 @@ olmFailedOps: 0
 # two runs of modifies (with and without TXN)
 dn: cn=Load Balancer,cn=Backends,cn=Monitor
 objectClass: olmBalancer
-olmIncomingConnections: 0
 olmOutgoingConnections: 13
 
 dn: cn=Incoming Connections,cn=Load Balancer,cn=Backends,cn=Monitor
