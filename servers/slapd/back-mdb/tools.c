@@ -419,7 +419,9 @@ mdb_tool_entry_get_int( BackendDB *be, ID id, Entry **ep )
 		e->e_name = dn;
 		e->e_nname = ndn;
 	} else {
+		e->e_name.bv_len = 0;
 		e->e_name.bv_val = NULL;
+		e->e_nname.bv_len = 0;
 		e->e_nname.bv_val = NULL;
 	}
 
