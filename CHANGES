@@ -25,7 +25,6 @@ OpenLDAP 2.6.4 Engineering
 		Fixed ancient DOS related ifdef checks (ITS#9925)
 		Fixed build process to not use gmake specific features (ITS#9894)
 		Fixed source tree to remove symlinks (ITS#9926)
-		Fixed slapd cyrus.c usage of non-portable GNU extension (ITS#9899)
 		Fixed slapo-otp testdir creation (ITS#9437)
 		Fixed slapd-tester memory leak (ITS#9908)
 		Fixed usage of non-standard C syntax (ITS#9898, ITS#9899, ITS#9901)
