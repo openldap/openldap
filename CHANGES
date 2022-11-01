@@ -25,6 +25,7 @@ OpenLDAP 2.5.14 Engineering
 		Fixed usage of bashism (ITS#9900)
 		Fixed test suite portability (ITS#9931)
 	Documentation
+		Fixed slapo-asyncmeta(5) to clarify scheduling for target connections (ITS#9941)
 		Fixed slapo-unique(5) to clarify when quoting should be used (ITS#9915)
 	Minor cleanup
 		ITS#9935
