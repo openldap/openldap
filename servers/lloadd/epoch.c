@@ -181,67 +181,42 @@ epoch_leave( epoch_t epoch )
      * Anything could happen between the subtract and the lock being acquired
      * above, so check again. But once we hold this lock (and confirm no more
      * threads still observe either prospective epoch), noone will be able to
-     * finish epoch_join until we've released epoch_mutex since it holds that:
+     * finish epoch_join until we've released epoch_mutex since we *first* make
+     * sure it holds that:
      *
      * epoch_threads[EPOCH_PREV(current_epoch)] == 0
      *
      * and that leads epoch_join() to acquire a write lock on &epoch_mutex.
      */
-    if ( __atomic_load_n( &epoch_threads[epoch], __ATOMIC_RELAXED ) ) {
-        /* Epoch counter has run full circle */
+    if ( epoch != current_epoch && epoch != EPOCH_PREV(current_epoch) ) {
+        /* Epoch counter has run away from us, no need to do anything */
         ldap_pvt_thread_rdwr_runlock( &epoch_mutex );
         return;
-    } else if ( epoch == current_epoch ) {
-        if ( __atomic_load_n(
-                     &epoch_threads[EPOCH_PREV(epoch)], __ATOMIC_RELAXED ) ) {
-            /* There is another (older) thread still running */
-            ldap_pvt_thread_rdwr_runlock( &epoch_mutex );
-            return;
-        }
-
-        /* We're all alone, it's safe to claim all references and free them. */
-        __atomic_exchange( &references[EPOCH_PREV(epoch)], &old_refs,
-                &old_refs, __ATOMIC_ACQ_REL );
-        __atomic_exchange( &references[epoch], &current_refs, &current_refs,
-                __ATOMIC_ACQ_REL );
-    } else if ( epoch == EPOCH_PREV(current_epoch) ) {
-        if ( __atomic_load_n(
-                     &epoch_threads[EPOCH_NEXT(epoch)], __ATOMIC_RELAXED ) ) {
-            /* There is another (newer) thread still running */
-            ldap_pvt_thread_rdwr_runlock( &epoch_mutex );
-            return;
-        }
-
-        /* We're all alone, it's safe to claim all references and free them. */
-        __atomic_exchange(
-                &references[epoch], &old_refs, &old_refs, __ATOMIC_ACQ_REL );
-        __atomic_exchange( &references[EPOCH_NEXT(epoch)], &current_refs,
-                &current_refs, __ATOMIC_ACQ_REL );
     }
-    /*
-     * Else the current_epoch has moved far enough that no references remain to
-     * be freed.
-     */
-    ldap_pvt_thread_rdwr_runlock( &epoch_mutex );
+    if ( __atomic_load_n(
+                &epoch_threads[EPOCH_PREV(current_epoch)],
+                __ATOMIC_ACQUIRE ) ) {
+        /* There is another thread still running */
+        ldap_pvt_thread_rdwr_runlock( &epoch_mutex );
+        return;
+    }
+    if ( __atomic_load_n( &epoch_threads[current_epoch], __ATOMIC_ACQUIRE ) ) {
+        /* There is another thread still running */
+        ldap_pvt_thread_rdwr_runlock( &epoch_mutex );
+        return;
+    }
 
     /*
-     * Trigger a memory-independent read fence to make sure we're reading the
-     * state after all threads actually finished - which might have happened
-     * after we acquired epoch_mutex so ldap_pvt_thread_rdwr_rlock would not
-     * catch everything.
-     *
-     * TODO is to confirm the below:
-     * It might be that the tests and exchanges above only enforce a fence for
-     * the locations affected, so we could still read stale memory for
-     * unrelated locations? At least that's the only explanation I've been able
-     * to establish for repeated crashes that seem to have gone away with this
-     * in place.
-     *
-     * But then that's contrary to the second example in Acquire/Release
-     * section here:
-     * https://gcc.gnu.org/wiki/Atomic/GCCMM/AtomicSync
+     * We're all alone (apart from anyone who reached epoch_leave() at the same
+     * time), it's safe to claim all references and free them.
      */
-    __atomic_thread_fence( __ATOMIC_ACQUIRE );
+    __atomic_exchange(
+            &references[EPOCH_PREV(current_epoch)], &old_refs, &old_refs,
+            __ATOMIC_ACQ_REL );
+    __atomic_exchange(
+            &references[current_epoch], &current_refs, &current_refs,
+            __ATOMIC_ACQ_REL );
+    ldap_pvt_thread_rdwr_runlock( &epoch_mutex );
 
     for ( p = old_refs; p; p = next ) {
         next = p->next;
