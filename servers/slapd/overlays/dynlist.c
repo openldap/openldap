@@ -369,6 +369,7 @@ done:;
 }
 
 typedef struct dynlist_name_t {
+	struct berval dy_nname;
 	struct berval dy_name;
 	dynlist_info_t *dy_dli;
 	dynlist_map_t *dy_dlm;
@@ -432,10 +433,10 @@ dynlist_nested_memberOf( Entry *e, AttributeDescription *ad, TAvlnode *sups )
 			if ( attr_valfind( a, SLAP_MR_EQUALITY | SLAP_MR_VALUE_OF_ASSERTION_SYNTAX |
 				SLAP_MR_ASSERTED_VALUE_NORMALIZED_MATCH |
 				SLAP_MR_ATTRIBUTE_VALUE_NORMALIZED_MATCH,
-				&dyn->dy_name, &slot, NULL ) == LDAP_SUCCESS )
+				&dyn->dy_nname, &slot, NULL ) == LDAP_SUCCESS )
 				continue;
 		}
-		attr_merge_one( e, ad, &dyn->dy_name, &dyn->dy_name );
+		attr_merge_one( e, ad, &dyn->dy_name, &dyn->dy_nname );
 		if ( !a )
 			a = attr_find( e->e_attrs, ad );
 		if ( dyn->dy_sups )
@@ -494,7 +495,7 @@ dynlist_nested_member( Operation *op, dynlist_member_t *dm, TAvlnode *subs )
 		dyn = ptr->avl_data;
 		if ( ldap_tavl_insert( &dm->dm_groups, dyn, dynlist_ptr_cmp, ldap_avl_dup_error ))
 			continue;
-		if ( overlay_entry_get_ov( op, &dyn->dy_name, NULL, NULL, 0, &ne, on ) != LDAP_SUCCESS || ne == NULL )
+		if ( overlay_entry_get_ov( op, &dyn->dy_nname, NULL, NULL, 0, &ne, on ) != LDAP_SUCCESS || ne == NULL )
 			continue;
 		b = attr_find( ne->e_attrs, dm->dm_ad );
 		if ( b ) {
@@ -1097,9 +1098,9 @@ dynlist_avl_cmp( const void *c1, const void *c2 )
 	int rc;
 	n1 = c1; n2 = c2;
 
-	rc = n1->dy_name.bv_len - n2->dy_name.bv_len;
+	rc = n1->dy_nname.bv_len - n2->dy_nname.bv_len;
 	if ( rc ) return rc;
-	return ber_bvcmp( &n1->dy_name, &n2->dy_name );
+	return ber_bvcmp( &n1->dy_nname, &n2->dy_nname );
 }
 
 /* build a list of dynamic entries */
@@ -1130,11 +1131,14 @@ dynlist_search1resp( Operation *op, SlapReply *rs )
 			else
 				len = 0;
 
-			dyn = ch_calloc(1, sizeof(dynlist_name_t)+rs->sr_entry->e_nname.bv_len + 1 + len);
+			dyn = ch_calloc(1, sizeof(dynlist_name_t)+rs->sr_entry->e_nname.bv_len + 1 +
+				rs->sr_entry->e_name.bv_len + 1 + len);
 			dyn->dy_name.bv_val = ((char *)(dyn+1)) + len;
+			dyn->dy_name.bv_len = rs->sr_entry->e_name.bv_len;
+			dyn->dy_nname.bv_val = dyn->dy_name.bv_val + dyn->dy_name.bv_len + 1;
+			dyn->dy_nname.bv_len = rs->sr_entry->e_nname.bv_len;
 			dyn->dy_dli = ds->ds_dli;
 			dyn->dy_dlm = ds->ds_dlm;
-			dyn->dy_name.bv_len = rs->sr_entry->e_nname.bv_len;
 			if ( a ) {
 				Filter *f;
 				/* parse and validate the URIs */
@@ -1172,7 +1176,8 @@ dynlist_search1resp( Operation *op, SlapReply *rs )
 				}
 			}
 			dyn->dy_numuris = j;
-			memcpy(dyn->dy_name.bv_val, rs->sr_entry->e_nname.bv_val, rs->sr_entry->e_nname.bv_len );
+			memcpy(dyn->dy_name.bv_val, rs->sr_entry->e_name.bv_val, rs->sr_entry->e_name.bv_len );
+			memcpy(dyn->dy_nname.bv_val, rs->sr_entry->e_nname.bv_val, rs->sr_entry->e_nname.bv_len );
 			if ( b )
 				dyn->dy_staticmember = ds->ds_dlm->dlm_member_ad;
 
@@ -1329,7 +1334,7 @@ dynlist_filter_group( Operation *op, dynlist_name_t *dyn, Filter *n, dynlist_sea
 	if ( ldap_tavl_insert( &ds->ds_fnodes, dyn, dynlist_ptr_cmp, ldap_avl_dup_error ))
 		return 0;
 
-	if ( overlay_entry_get_ov( op, &dyn->dy_name, NULL, NULL, 0, &e, on ) !=
+	if ( overlay_entry_get_ov( op, &dyn->dy_nname, NULL, NULL, 0, &e, on ) !=
 		LDAP_SUCCESS || e == NULL ) {
 		return -1;
 	}
@@ -1540,7 +1545,7 @@ dynlist_test_membership(Operation *op, dynlist_name_t *dyn, Entry *e)
 {
 	if ( dyn->dy_staticmember ) {
 		Entry *grp;
-		if ( overlay_entry_get_ov( op, &dyn->dy_name, NULL, NULL, 0, &grp, (slap_overinst *)op->o_bd->bd_info ) == LDAP_SUCCESS && grp ) {
+		if ( overlay_entry_get_ov( op, &dyn->dy_nname, NULL, NULL, 0, &grp, (slap_overinst *)op->o_bd->bd_info ) == LDAP_SUCCESS && grp ) {
 			Attribute *a = attr_find( grp->e_attrs, dyn->dy_staticmember );
 			int rc;
 			if ( a ) {
@@ -1584,11 +1589,11 @@ dynlist_add_memberOf(Operation *op, SlapReply *rs, dynlist_search_t *ds)
 						if ( attr_valfind( a, SLAP_MR_EQUALITY | SLAP_MR_VALUE_OF_ASSERTION_SYNTAX |
 							SLAP_MR_ASSERTED_VALUE_NORMALIZED_MATCH |
 							SLAP_MR_ATTRIBUTE_VALUE_NORMALIZED_MATCH,
-							&dyn->dy_name, &slot, NULL ) != LDAP_SUCCESS )
+							&dyn->dy_nname, &slot, NULL ) != LDAP_SUCCESS )
 							a = NULL;
 					}
 					if ( !a )
-						attr_merge_one( e, dlm->dlm_memberOf_ad, &dyn->dy_name, &dyn->dy_name );
+						attr_merge_one( e, dlm->dlm_memberOf_ad, &dyn->dy_name, &dyn->dy_nname );
 					if ( dyn->dy_sups ) {
 						dynlist_nested_memberOf( e, dlm->dlm_memberOf_ad, dyn->dy_sups );
 					}
@@ -1678,11 +1683,11 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 			if ( dyn->dy_seen )
 				goto next;
 			dyn->dy_seen = 1;
-			if ( !dnIsSuffixScope( &dyn->dy_name, &op->o_req_ndn, op->ors_scope ))
+			if ( !dnIsSuffixScope( &dyn->dy_nname, &op->o_req_ndn, op->ors_scope ))
 				goto next;
 			/* can only pre-check if this is a dyngroup, otherwise just build the entry */
 			if ( dyn->dy_dli->dli_dlm && !dyn->dy_dli->dli_dlm->dlm_next &&
-				!dyn->dy_dlm->dlm_mapped_ad ) {
+				dyn->dy_dlm && !dyn->dy_dlm->dlm_mapped_ad ) {
 				if ( !dlm ) {
 					AttributeDescription *ad;
 					int i;
@@ -1706,7 +1711,7 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 				if ( !dyn->dy_sups && !dyn->dy_subs && ndf && !dynmember( dyn, f, ndf, df ))
 					goto next;
 			}
-			if ( overlay_entry_get_ov( op, &dyn->dy_name, NULL, NULL, 0, &r.sr_entry, on ) != LDAP_SUCCESS ||
+			if ( overlay_entry_get_ov( op, &dyn->dy_nname, NULL, NULL, 0, &r.sr_entry, on ) != LDAP_SUCCESS ||
 				r.sr_entry == NULL )
 				goto next;
 			r.sr_flags = REP_ENTRY_MUSTRELEASE;
@@ -1809,7 +1814,7 @@ dynlist_nestlink( Operation *op, dynlist_search_t *ds )
 		ptr = ldap_tavl_next( ptr, TAVL_DIR_RIGHT )) {
 		di = ptr->avl_data;
 		if ( ds->ds_dlm ) {
-			if ( overlay_entry_get_ov( op, &di->dy_name, NULL, NULL, 0, &e, on ) != LDAP_SUCCESS || e == NULL )
+			if ( overlay_entry_get_ov( op, &di->dy_nname, NULL, NULL, 0, &e, on ) != LDAP_SUCCESS || e == NULL )
 				continue;
 			a = attr_find( e->e_attrs, ds->ds_dlm->dlm_member_ad );
 			if ( a ) {
