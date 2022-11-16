@@ -541,6 +541,17 @@ done:
     return rc;
 }
 
+static void *
+lload_monitor_release_conn( void *ctx, void *arg )
+{
+    LloadConnection *c = arg;
+    epoch_t epoch = epoch_join();
+
+    RELEASE_REF( c, c_refcnt, c->c_destroy );
+    epoch_leave( epoch );
+    return NULL;
+}
+
 static int
 lload_monitor_conn_modify( Operation *op, SlapReply *rs, Entry *e, void *priv )
 {
@@ -573,9 +584,21 @@ lload_monitor_conn_modify( Operation *op, SlapReply *rs, Entry *e, void *priv )
             goto done;
         }
     }
+
 done:
-    RELEASE_REF( c, c_refcnt, c->c_destroy );
     epoch_leave( epoch );
+    /*
+     * The connection might have been ready to disappear in epoch_leave(), that
+     * involves deleting this monitor entry. Make sure that doesn't happen
+     * punting the decref into a separate task that's not holding any locks and
+     * finishes after we did.
+     *
+     * FIXME: It would probably be cleaner to defer the entry deletion into a
+     * separate task instead but the entry holds a pointer to this connection
+     * that might not be safe to manipulate.
+     */
+    ldap_pvt_thread_pool_submit(
+            &connection_pool, lload_monitor_release_conn, c );
     return rc;
 }
 
