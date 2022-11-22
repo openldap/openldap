@@ -274,6 +274,17 @@ at_clean( AttributeType *a )
 		}
 	}
 
+	if ( a->sat_ordering ) {
+		MatchingRule	*mr;
+
+		mr = mr_find( a->sat_ordering->smr_oid );
+		assert( mr != NULL );
+		if ( mr != a->sat_ordering ) {
+			ch_free( a->sat_ordering );
+			a->sat_ordering = NULL;
+		}
+	}
+
 	assert( a->sat_syntax != NULL );
 	if ( a->sat_syntax != NULL ) {
 		Syntax		*syn;
