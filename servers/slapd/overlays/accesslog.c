@@ -2668,7 +2668,7 @@ int accesslog_initialize()
 {
 	int i, rc;
 	Syntax *rdnTimestampSyntax;
-	MatchingRule *rdnTimestampMatch;
+	MatchingRule *rdnTimestampMatch, *rdnTimestampOrdering;
 
 	accesslog.on_bi.bi_type = "accesslog";
 	accesslog.on_bi.bi_db_init = accesslog_db_init;
@@ -2732,21 +2732,26 @@ int accesslog_initialize()
 
 	/* Inject custom normalizer for reqStart/reqEnd */
 	rdnTimestampMatch = ch_malloc( sizeof( MatchingRule ));
+	rdnTimestampOrdering = ch_malloc( sizeof( MatchingRule ));
 	rdnTimestampSyntax = ch_malloc( sizeof( Syntax ));
 	*rdnTimestampMatch = *ad_reqStart->ad_type->sat_equality;
 	rdnTimestampMatch->smr_normalize = rdnTimestampNormalize;
+	*rdnTimestampOrdering = *ad_reqStart->ad_type->sat_ordering;
+	rdnTimestampOrdering->smr_normalize = rdnTimestampNormalize;
 	*rdnTimestampSyntax = *ad_reqStart->ad_type->sat_syntax;
 	rdnTimestampSyntax->ssyn_validate = rdnTimestampValidate;
 	ad_reqStart->ad_type->sat_equality = rdnTimestampMatch;
+	ad_reqStart->ad_type->sat_ordering = rdnTimestampOrdering;
 	ad_reqStart->ad_type->sat_syntax = rdnTimestampSyntax;
 
 	rdnTimestampMatch = ch_malloc( sizeof( MatchingRule ));
+	rdnTimestampOrdering = ch_malloc( sizeof( MatchingRule ));
 	rdnTimestampSyntax = ch_malloc( sizeof( Syntax ));
 	*rdnTimestampMatch = *ad_reqStart->ad_type->sat_equality;
-	rdnTimestampMatch->smr_normalize = rdnTimestampNormalize;
+	*rdnTimestampOrdering = *ad_reqStart->ad_type->sat_ordering;
 	*rdnTimestampSyntax = *ad_reqStart->ad_type->sat_syntax;
-	rdnTimestampSyntax->ssyn_validate = rdnTimestampValidate;
 	ad_reqEnd->ad_type->sat_equality = rdnTimestampMatch;
+	ad_reqEnd->ad_type->sat_ordering = rdnTimestampOrdering;
 	ad_reqEnd->ad_type->sat_syntax = rdnTimestampSyntax;
 
 	for ( i=0; locs[i].ot; i++ ) {
