@@ -240,6 +240,17 @@ fail:
 		if ( approx ) {
 			for ( j = 0; j < ucsoutlen; j++ ) {
 				if ( ucsout[j] < 0x80 ) {
+					if ( outpos >= outsize ) {
+						outsize += ( ucsoutlen - j ) + 1;
+						outtmp = (char *) ber_memrealloc_x( out, outsize, ctx );
+						if ( outtmp == NULL ) {
+							ber_memfree_x( ucsout, ctx );
+							ber_memfree_x( ucs, ctx );
+							ber_memfree_x( out, ctx );
+							goto fail;
+						}
+						out = outtmp;
+					}
 					out[outpos++] = ucsout[j];
 				}
 			}
