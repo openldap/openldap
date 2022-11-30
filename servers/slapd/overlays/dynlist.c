@@ -832,35 +832,6 @@ checkdyn:
 	return SLAP_CB_CONTINUE;
 }
 
-/* dynlist_sc_compare_entry() callback set by dynlist_compare() */
-typedef struct dynlist_cc_t {
-	slap_callback dc_cb;
-#	define dc_ava	dc_cb.sc_private /* attr:val to compare with */
-	int *dc_res;
-} dynlist_cc_t;
-
-static int
-dynlist_sc_compare_entry( Operation *op, SlapReply *rs )
-{
-	if ( rs->sr_type == REP_SEARCH && rs->sr_entry != NULL ) {
-		dynlist_cc_t *dc = (dynlist_cc_t *)op->o_callback;
-		AttributeAssertion *ava = dc->dc_ava;
-		Attribute *a = attrs_find( rs->sr_entry->e_attrs, ava->aa_desc );
-
-		if ( a != NULL ) {
-			while ( LDAP_SUCCESS != attr_valfind( a,
-					SLAP_MR_ATTRIBUTE_VALUE_NORMALIZED_MATCH |
-						SLAP_MR_ASSERTED_VALUE_NORMALIZED_MATCH,
-					&ava->aa_value, NULL, op->o_tmpmemctx )
-				&& (a = attrs_find( a->a_next, ava->aa_desc )) != NULL )
-				;
-			*dc->dc_res = a ? LDAP_COMPARE_TRUE : LDAP_COMPARE_FALSE;
-		}
-	}
-
-	return 0;
-}
-
 static int
 dynlist_check_scope( Operation *op, Entry *e, dynlist_info_t *dli )
 {
