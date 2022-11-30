@@ -1593,7 +1593,7 @@ fe_acl_group(
 							if ( rc2 != 0 ) {
 								/* give up... */
 								rc = (rc2 == LDAP_NO_SUCH_OBJECT) ? rc2 : LDAP_OTHER;
-								goto loopit;
+								goto nouser;
 							}
 						}
 
@@ -1602,6 +1602,7 @@ fe_acl_group(
 						{
 							rc = 0;
 						}
+nouser:
 						filter_free_x( op, filter, 1 );
 					}
 loopit:

@@ -53,6 +53,22 @@ ava_free(
 	if ( freeit ) op->o_tmpfree( (char *) ava, op->o_tmpmemctx );
 }
 
+AttributeAssertion *
+ava_dup(
+	AttributeAssertion *ava,
+	void *memctx )
+{
+	BerMemoryFunctions *mf = &slap_sl_mfuncs;
+	AttributeAssertion *nava;
+
+	nava = mf->bmf_malloc( sizeof(AttributeAssertion), memctx );
+	*nava = *ava;
+	if ( ava->aa_desc->ad_flags & SLAP_DESC_TEMPORARY )
+		nava->aa_desc = slap_bv2tmp_ad( &ava->aa_desc->ad_cname, memctx );
+	ber_dupbv_x( &nava->aa_value, &ava->aa_value, memctx );
+	return nava;
+}
+
 int
 get_ava(
 	Operation *op,

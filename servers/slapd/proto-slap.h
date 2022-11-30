@@ -331,6 +331,9 @@ LDAP_SLAPD_F (void) ava_free LDAP_P((
 	Operation *op,
 	AttributeAssertion *ava,
 	int freeit ));
+LDAP_SLAPD_F (AttributeAssertion *) ava_dup LDAP_P((
+	AttributeAssertion *ava,
+	void *memctx ));
 
 /*
  * backend.c

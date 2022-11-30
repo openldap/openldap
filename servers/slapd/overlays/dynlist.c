@@ -1338,47 +1338,32 @@ dynlist_filter_group( Operation *op, dynlist_name_t *dyn, Filter *n, dynlist_sea
 static Filter *
 dynlist_filter_dup( Operation *op, Filter *f, AttributeDescription *ad, dynlist_search_t *ds )
 {
-	Filter *n = NULL;
+	Filter *n;
 
 	if ( !f )
 		return NULL;
 
-	n = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
-	n->f_next = NULL;
 	switch( f->f_choice & SLAPD_FILTER_MASK ) {
-	case SLAPD_FILTER_COMPUTED:
-		n->f_choice = f->f_choice;
-		n->f_result = f->f_result;
-		break;
-
-	case LDAP_FILTER_PRESENT:
-		n->f_choice = f->f_choice;
-		n->f_desc = f->f_desc;
-		break;
-
 	case LDAP_FILTER_EQUALITY:
+		n = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
+		n->f_next = NULL;
 		if ( f->f_av_desc == ad ) {
 			dynlist_name_t *dyn = ldap_tavl_find( ds->ds_names, &f->f_av_value, dynlist_avl_cmp );
 			n->f_choice = SLAPD_FILTER_COMPUTED;
 			if ( dyn && !dynlist_filter_group( op, dyn, n, ds ))
 				break;
 		}
-		/* FALLTHRU */
+		n->f_choice = LDAP_FILTER_EQUALITY;
+		n->f_ava = ava_dup( f->f_ava, op->o_tmpmemctx );
+		break;
+	case SLAPD_FILTER_COMPUTED:
+	case LDAP_FILTER_PRESENT:
 	case LDAP_FILTER_GE:
 	case LDAP_FILTER_LE:
 	case LDAP_FILTER_APPROX:
-		n->f_choice = f->f_choice;
-		n->f_ava = f->f_ava;
-		break;
-
 	case LDAP_FILTER_SUBSTRINGS:
-		n->f_choice = f->f_choice;
-		n->f_sub = f->f_sub;
-		break;
-
 	case LDAP_FILTER_EXT:
-		n->f_choice = f->f_choice;
-		n->f_mra = f->f_mra;
+		n = filter_dup( f, op->o_tmpmemctx );
 		break;
 
 	case LDAP_FILTER_NOT:
@@ -1386,6 +1371,8 @@ dynlist_filter_dup( Operation *op, Filter *f, AttributeDescription *ad, dynlist_
 	case LDAP_FILTER_OR: {
 		Filter **p;
 
+		n = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
+		n->f_next = NULL;
 		n->f_choice = f->f_choice;
 
 		for ( p = &n->f_list, f = f->f_list; f; f = f->f_next ) {
@@ -1398,29 +1385,6 @@ dynlist_filter_dup( Operation *op, Filter *f, AttributeDescription *ad, dynlist_
 		break;
 	}
 	return n;
-}
-
-static void
-dynlist_filter_free( Operation *op, Filter *f )
-{
-	Filter *p, *next;
-
-	if ( f == NULL )
-		return;
-
-	f->f_choice &= SLAPD_FILTER_MASK;
-	switch( f->f_choice ) {
-	case LDAP_FILTER_AND:
-	case LDAP_FILTER_OR:
-	case LDAP_FILTER_NOT:
-		for ( p = f->f_list; p; p = next ) {
-			next = p->f_next;
-			op->o_tmpfree( p, op->o_tmpmemctx );
-		}
-		break;
-	default:
-		op->o_tmpfree( f, op->o_tmpmemctx );
-	}
 }
 
 static void
@@ -1457,7 +1421,7 @@ dynlist_search_cleanup( Operation *op, SlapReply *rs )
 			ldap_tavl_free( ds->ds_fnodes, NULL );
 		if ( ds->ds_origfilter ) {
 			op->o_tmpfree( op->ors_filterstr.bv_val, op->o_tmpmemctx );
-			dynlist_filter_free( op, op->ors_filter );
+			filter_free_x( op, op->ors_filter, 1 );
 			op->ors_filter = ds->ds_origfilter;
 			op->ors_filterstr = ds->ds_origfilterbv;
 		}
@@ -1733,7 +1697,7 @@ dynlist_fix_filter( Operation *op, AttributeDescription *ad, dynlist_search_t *d
 	Filter *f;
 	f = dynlist_filter_dup( op, op->ors_filter, ad, ds );
 	if ( ds->ds_origfilter ) {
-		dynlist_filter_free( op, op->ors_filter );
+		filter_free_x( op, op->ors_filter, 1 );
 		op->o_tmpfree( op->ors_filterstr.bv_val, op->o_tmpmemctx );
 	} else {
 		ds->ds_origfilter = op->ors_filter;
@@ -1994,6 +1958,8 @@ dynlist_search( Operation *op, SlapReply *rs )
 				SlapReply	r = { REP_SEARCH };
 				(void)o.o_bd->be_search( &o, &r );
 			}
+			o.o_tmpfree( o.ors_filterstr.bv_val, o.o_tmpmemctx );
+			o.ors_filterstr.bv_val = NULL;
 			if ( found != ds->ds_found && nested )
 				dynlist_nestlink( op, ds );
 		}
