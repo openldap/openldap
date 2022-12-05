@@ -10,6 +10,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed slapd deadlock with replicated cn=config (ITS#9930)
 	Fixed slapd-mdb max number of index databases to 256 (ITS#9895)
 	Fixed slapd-mdb to always release entries from ADD operations (ITS#9942)
+	Fixed slapd-mdb to fully init empty DN in tool_entry_get (ITS#9940)
 	Fixed slapd-monitor to free remembered cookies (ITS#9339)
 	Fixed slapo-deref memory leak (ITS#9924)
 	Fixed slapo-dynlist to ignore irrelevant objectClasses (ITS#9897)
