@@ -5,6 +5,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed ldapsearch memory leak with paged results (ITS#9860)
 	Fixed libldap ldif_open_urlto check for failure (ITS#9904)
 	Fixed libldap ldap_url_parsehosts check for failure (ITS#9904)
+	Fixed liblunicode UTF8bvnormalize buffer size (ITS#9955)
 	Fixed lloadd race in epoch.c (ITS#9947)
 	Fixed slapd memory leak with olcAuthIDRewrite (ITS#6035)
 	Fixed slapd transactions extended operations cleanup after write (ITS#9892)
