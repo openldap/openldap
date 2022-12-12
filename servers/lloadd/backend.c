@@ -60,7 +60,8 @@ upstream_connect_cb( evutil_socket_t s, short what, void *arg )
             return;
         } else if ( error ) {
             goto done;
-        } else if ( upstream_init( s, conn->backend ) == NULL ) {
+        } else if ( upstream_init( s, &conn->localbv, &conn->peerbv,
+                    conn->backend ) == NULL ) {
             goto done;
         }
         rc = LDAP_SUCCESS;
@@ -99,6 +100,10 @@ upstream_name_cb( int result, struct evutil_addrinfo *res, void *arg )
 {
     LloadBackend *b = arg;
     ber_socket_t s = AC_SOCKET_INVALID;
+    char localname[LDAP_IPADDRLEN], peername[LDAP_IPADDRLEN];
+    struct berval localbv = BER_BVC(localname), peerbv = BER_BVC(peername);
+    Sockaddr local_addr;
+    socklen_t addrlen = sizeof(local_addr);
     epoch_t epoch;
     int rc;
 
@@ -223,11 +228,20 @@ upstream_name_cb( int result, struct evutil_addrinfo *res, void *arg )
         struct sockaddr_in *ai = (struct sockaddr_in *)res->ai_addr;
         ai->sin_port = htons( b->b_port );
         rc = connect( s, (struct sockaddr *)ai, res->ai_addrlen );
+        ldap_pvt_sockaddrstr( (Sockaddr *)ai, &peerbv );
     } else {
         struct sockaddr_in6 *ai = (struct sockaddr_in6 *)res->ai_addr;
         ai->sin6_port = htons( b->b_port );
         rc = connect( s, (struct sockaddr *)ai, res->ai_addrlen );
+        ldap_pvt_sockaddrstr( (Sockaddr *)ai, &peerbv );
     }
+
+    if ( !getsockname( s, (struct sockaddr *)&local_addr, &addrlen ) ) {
+        ldap_pvt_sockaddrstr( (Sockaddr *)&local_addr, &localbv );
+    } else {
+        ber_str2bv( "unknown", 0, 0, &localbv );
+    }
+
     /* Asynchronous connect */
     if ( rc ) {
         LloadPendingConnection *conn;
@@ -240,10 +254,19 @@ upstream_name_cb( int result, struct evutil_addrinfo *res, void *arg )
             goto fail;
         }
 
-        conn = ch_calloc( 1, sizeof(LloadPendingConnection) );
+        conn = ch_calloc( 1, sizeof(LloadPendingConnection) +
+                peerbv.bv_len + localbv.bv_len );
         LDAP_LIST_ENTRY_INIT( conn, next );
         conn->backend = b;
         conn->fd = s;
+
+        conn->localbv.bv_val = (char *)(conn + 1);
+        memcpy( conn->localbv.bv_val, localbv.bv_val, localbv.bv_len );
+        conn->localbv.bv_len = localbv.bv_len;
+
+        conn->peerbv.bv_val = conn->localbv.bv_val + localbv.bv_len;
+        memcpy( conn->peerbv.bv_val, peerbv.bv_val, peerbv.bv_len );
+        conn->peerbv.bv_len = peerbv.bv_len;
 
         conn->event = event_new( lload_get_base( s ), s, EV_WRITE|EV_PERSIST,
                 upstream_connect_cb, conn );
@@ -261,7 +284,7 @@ upstream_name_cb( int result, struct evutil_addrinfo *res, void *arg )
         Debug( LDAP_DEBUG_CONNS, "upstream_name_cb: "
                 "connection to backend uri=%s in progress\n",
                 b->b_uri.bv_val );
-    } else if ( upstream_init( s, b ) == NULL ) {
+    } else if ( upstream_init( s, &localbv, &peerbv, b ) == NULL ) {
         goto fail;
     }
 
@@ -509,6 +532,8 @@ backend_connect( evutil_socket_t s, short what, void *arg )
     if ( b->b_proto == LDAP_PROTO_IPC ) {
         struct sockaddr_un addr;
         ber_socket_t s = socket( PF_LOCAL, SOCK_STREAM, 0 );
+        char peerbuf[sizeof("PATH=")+sizeof(addr.sun_path)];
+        struct berval peerbv = BER_BVC(peerbuf);
         int rc;
 
         if ( s == AC_SOCKET_INVALID ) {
@@ -528,6 +553,8 @@ backend_connect( evutil_socket_t s, short what, void *arg )
         memset( &addr, '\0', sizeof(addr) );
         addr.sun_family = AF_LOCAL;
         strcpy( addr.sun_path, b->b_host );
+        peerbv.bv_len = snprintf( peerbuf, sizeof(peerbuf), "PATH=%s",
+                b->b_host );
 
         rc = connect(
                 s, (struct sockaddr *)&addr, sizeof(struct sockaddr_un) );
@@ -561,7 +588,7 @@ backend_connect( evutil_socket_t s, short what, void *arg )
             Debug( LDAP_DEBUG_CONNS, "backend_connect: "
                     "connection to backend uri=%s in progress\n",
                     b->b_uri.bv_val );
-        } else if ( upstream_init( s, b ) == NULL ) {
+        } else if ( upstream_init( s, &peerbv, &peerbv, b ) == NULL ) {
             goto fail;
         }
 

@@ -382,7 +382,8 @@ lload_open_listener(
     struct sockaddr **sal = NULL, **psal;
     int socktype = SOCK_STREAM; /* default to COTS */
     ber_socket_t s;
-    char ebuf[128];
+    char ebuf[LDAP_IPADDRLEN];
+    struct berval namebv = BER_BVC(ebuf);
 
 #if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
     /*
@@ -598,51 +599,22 @@ lload_open_listener(
 
         switch ( (*sal)->sa_family ) {
 #ifdef LDAP_PF_LOCAL
-            case AF_LOCAL: {
+            case AF_LOCAL: /* {
                 char *path = ((struct sockaddr_un *)*sal)->sun_path;
                 l.sl_name.bv_len = strlen( path ) + STRLENOF("PATH=");
                 l.sl_name.bv_val = ch_malloc( l.sl_name.bv_len + 1 );
                 snprintf( l.sl_name.bv_val, l.sl_name.bv_len + 1, "PATH=%s",
                         path );
-            } break;
+            } break; */
 #endif /* LDAP_PF_LOCAL */
 
-            case AF_INET: {
-                char addr[INET_ADDRSTRLEN];
-                const char *s;
-#if defined(HAVE_GETADDRINFO) && defined(HAVE_INET_NTOP)
-                s = inet_ntop( AF_INET,
-                        &((struct sockaddr_in *)*sal)->sin_addr, addr,
-                        sizeof(addr) );
-#else /* ! HAVE_GETADDRINFO || ! HAVE_INET_NTOP */
-                s = inet_ntoa( ((struct sockaddr_in *)*sal)->sin_addr );
-#endif /* ! HAVE_GETADDRINFO || ! HAVE_INET_NTOP */
-                if ( !s ) s = SLAP_STRING_UNKNOWN;
-                port = ntohs( ((struct sockaddr_in *)*sal)->sin_port );
-                l.sl_name.bv_val =
-                        ch_malloc( sizeof("IP=255.255.255.255:65535") );
-                snprintf( l.sl_name.bv_val,
-                        sizeof("IP=255.255.255.255:65535"), "IP=%s:%d", s,
-                        port );
-                l.sl_name.bv_len = strlen( l.sl_name.bv_val );
-            } break;
-
+            case AF_INET:
 #ifdef LDAP_PF_INET6
-            case AF_INET6: {
-                char addr[INET6_ADDRSTRLEN];
-                const char *s;
-                s = inet_ntop( AF_INET6,
-                        &((struct sockaddr_in6 *)*sal)->sin6_addr, addr,
-                        sizeof(addr) );
-                if ( !s ) s = SLAP_STRING_UNKNOWN;
-                port = ntohs( ((struct sockaddr_in6 *)*sal)->sin6_port );
-                l.sl_name.bv_len = strlen( s ) + sizeof("IP=[]:65535");
-                l.sl_name.bv_val = ch_malloc( l.sl_name.bv_len );
-                snprintf( l.sl_name.bv_val, l.sl_name.bv_len, "IP=[%s]:%d", s,
-                        port );
-                l.sl_name.bv_len = strlen( l.sl_name.bv_val );
-            } break;
+            case AF_INET6:
 #endif /* LDAP_PF_INET6 */
+                ldap_pvt_sockaddrstr( (Sockaddr *)*sal, &namebv );
+                ber_dupbv( &l.sl_name, &namebv );
+                break;
 
             default:
                 Debug( LDAP_DEBUG_ANY, "lload_open_listener: "
@@ -920,7 +892,8 @@ lload_listener(
             cflag |= CONN_IS_IPC;
 
             /* FIXME: apparently accept doesn't fill the sun_path member */
-            sprintf( peername, "PATH=%s", sl->sl_sa.sa_un_addr.sun_path );
+            peerbv.bv_len = sprintf(
+                    peername, "PATH=%s", sl->sl_sa.sa_un_addr.sun_path );
             break;
 #endif /* LDAP_PF_LOCAL */
 
@@ -939,7 +912,7 @@ lload_listener(
 #ifdef HAVE_TLS
     if ( sl->sl_is_tls ) cflag |= CONN_IS_TLS;
 #endif
-    c = client_init( s, peername, lload_daemon[tid].base, cflag );
+    c = client_init( s, &sl->sl_name, &peerbv, lload_daemon[tid].base, cflag );
 
     if ( !c ) {
         Debug( LDAP_DEBUG_ANY, "lload_listener: "

@@ -207,6 +207,8 @@ struct LloadPendingConnection {
     struct event *event;
     ber_socket_t fd;
 
+    struct berval localbv, peerbv;
+
     LDAP_LIST_ENTRY(LloadPendingConnection) next;
 };
 
@@ -442,6 +444,7 @@ struct LloadConnection {
     /* set by connection_init */
     unsigned long c_connid;    /* unique id of this connection */
     struct berval c_peer_name; /* peer name (trans=addr:port) */
+    struct berval c_local_name; /* local name (trans=addr:port) */
     time_t c_starttime;        /* when the connection was opened */
 
     time_t c_activitytime;  /* when the connection was last used */

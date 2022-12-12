@@ -409,6 +409,14 @@ connection_destroy( LloadConnection *c )
         ber_memfree( c->c_sasl_bind_mech.bv_val );
         BER_BVZERO( &c->c_sasl_bind_mech );
     }
+    if ( !BER_BVISNULL( &c->c_local_name ) ) {
+        ber_memfree( c->c_local_name.bv_val );
+        BER_BVZERO( &c->c_local_name );
+    }
+    if ( !BER_BVISNULL( &c->c_peer_name ) ) {
+        ber_memfree( c->c_peer_name.bv_val );
+        BER_BVZERO( &c->c_peer_name );
+    }
 #ifdef HAVE_CYRUS_SASL
     if ( c->c_sasl_defaults ) {
         lutil_sasl_freedefs( c->c_sasl_defaults );
@@ -578,11 +586,16 @@ lload_connection_close( LloadConnection *c, void *arg )
 }
 
 LloadConnection *
-lload_connection_init( ber_socket_t s, const char *peername, int flags )
+lload_connection_init(
+        ber_socket_t s,
+        struct berval *localname,
+        struct berval *peername,
+        int flags )
 {
     LloadConnection *c;
 
-    assert( peername != NULL );
+    assert( localname && !BER_BVISNULL( localname ) );
+    assert( peername && !BER_BVISNULL( peername ) );
 
     if ( s == AC_SOCKET_INVALID ) {
         Debug( LDAP_DEBUG_ANY, "lload_connection_init: "
@@ -598,6 +611,8 @@ lload_connection_init( ber_socket_t s, const char *peername, int flags )
     c->c_fd = s;
     c->c_sb = ber_sockbuf_alloc();
     ber_sockbuf_ctrl( c->c_sb, LBER_SB_OPT_SET_FD, &s );
+    ber_dupbv( &c->c_local_name, localname );
+    ber_dupbv( &c->c_peer_name, peername );
 
 #ifdef LDAP_PF_LOCAL
     if ( flags & CONN_IS_IPC ) {
@@ -636,7 +651,7 @@ lload_connection_init( ber_socket_t s, const char *peername, int flags )
 
     Debug( LDAP_DEBUG_CONNS, "lload_connection_init: "
             "connection connid=%lu allocated for socket fd=%d peername=%s\n",
-            c->c_connid, s, peername );
+            c->c_connid, s, peername->bv_val );
 
     c->c_state = LLOAD_C_ACTIVE;
 

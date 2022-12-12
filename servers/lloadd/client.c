@@ -538,7 +538,8 @@ fail:
 LloadConnection *
 client_init(
         ber_socket_t s,
-        const char *peername,
+        struct berval *localname,
+        struct berval *peername,
         struct event_base *base,
         int flags )
 {
@@ -547,7 +548,8 @@ client_init(
     event_callback_fn read_cb = connection_read_cb,
                       write_cb = connection_write_cb;
 
-    if ( (c = lload_connection_init( s, peername, flags) ) == NULL ) {
+    if ( (c = lload_connection_init(
+                    s, localname, peername, flags )) == NULL ) {
         return NULL;
     }
 

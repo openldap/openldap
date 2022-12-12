@@ -62,7 +62,11 @@ LDAP_SLAPD_F (int) request_abandon( LloadConnection *c, LloadOperation *op );
 LDAP_SLAPD_F (int) request_process( LloadConnection *c, LloadOperation *op );
 LDAP_SLAPD_F (int) handle_one_request( LloadConnection *c );
 LDAP_SLAPD_F (void) client_tls_handshake_cb( evutil_socket_t s, short what, void *arg );
-LDAP_SLAPD_F (LloadConnection *) client_init( ber_socket_t s, const char *peername, struct event_base *base, int use_tls );
+LDAP_SLAPD_F (LloadConnection *) client_init( ber_socket_t s,
+        struct berval *localname,
+        struct berval *peername,
+        struct event_base *base,
+        int use_tls );
 LDAP_SLAPD_F (void) client_reset( LloadConnection *c );
 LDAP_SLAPD_F (void) client_destroy( LloadConnection *c );
 LDAP_SLAPD_F (void) clients_destroy( int gentle );
@@ -94,7 +98,10 @@ LDAP_SLAPD_F (void *) handle_pdus( void *ctx, void *arg );
 LDAP_SLAPD_F (void) connection_write_cb( evutil_socket_t s, short what, void *arg );
 LDAP_SLAPD_F (void) connection_read_cb( evutil_socket_t s, short what, void *arg );
 LDAP_SLAPD_F (int) lload_connection_close( LloadConnection *c, void *arg );
-LDAP_SLAPD_F (LloadConnection *) lload_connection_init( ber_socket_t s, const char *peername, int use_tls );
+LDAP_SLAPD_F (LloadConnection *) lload_connection_init( ber_socket_t s,
+        struct berval *localname,
+        struct berval *peername,
+        int use_tls );
 LDAP_SLAPD_F (void) connection_destroy( LloadConnection *c );
 LDAP_SLAPD_F (void) connections_walk_last( ldap_pvt_thread_mutex_t *cq_mutex,
         lload_c_head *cq,
@@ -220,7 +227,10 @@ LDAP_SLAPD_F (int) lload_upstream_entry_cmp( const void *l, const void *r );
 LDAP_SLAPD_F (int) forward_final_response( LloadConnection *client, LloadOperation *op, BerElement *ber );
 LDAP_SLAPD_F (int) forward_response( LloadConnection *client, LloadOperation *op, BerElement *ber );
 LDAP_SLAPD_F (void *) upstream_bind( void *ctx, void *arg );
-LDAP_SLAPD_F (LloadConnection *) upstream_init( ber_socket_t s, LloadBackend *b );
+LDAP_SLAPD_F (LloadConnection *) upstream_init( ber_socket_t s,
+        struct berval *localbv,
+        struct berval *peerbv,
+        LloadBackend *b );
 LDAP_SLAPD_F (void) upstream_destroy( LloadConnection *c );
 
 LDAP_SLAPD_V (ber_len_t) sockbuf_max_incoming_client;

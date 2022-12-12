@@ -922,7 +922,11 @@ fail:
  * We must already hold b->b_mutex when called.
  */
 LloadConnection *
-upstream_init( ber_socket_t s, LloadBackend *b )
+upstream_init(
+        ber_socket_t s,
+        struct berval *localbv,
+        struct berval *peerbv,
+        LloadBackend *b )
 {
     LloadConnection *c;
     struct event_base *base = lload_get_base( s );
@@ -932,7 +936,7 @@ upstream_init( ber_socket_t s, LloadBackend *b )
     assert( b != NULL );
 
     flags = (b->b_proto == LDAP_PROTO_IPC) ? CONN_IS_IPC : 0;
-    if ( (c = lload_connection_init( s, b->b_host, flags )) == NULL ) {
+    if ( (c = lload_connection_init( s, localbv, peerbv, flags )) == NULL ) {
         return NULL;
     }
 
