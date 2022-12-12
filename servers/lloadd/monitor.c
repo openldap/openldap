@@ -88,6 +88,9 @@ static AttributeDescription *ad_olmCompletedOps;
 static AttributeDescription *ad_olmFailedOps;
 static AttributeDescription *ad_olmConnectionType;
 static AttributeDescription *ad_olmConnectionState;
+static AttributeDescription *ad_olmConnectionLocalAddress;
+static AttributeDescription *ad_olmConnectionPeerAddress;
+static AttributeDescription *ad_olmConnectionAuthzDN;
 static AttributeDescription *ad_olmPendingOps;
 static AttributeDescription *ad_olmPendingConnections;
 static AttributeDescription *ad_olmActiveConnections;
@@ -208,6 +211,28 @@ static struct {
       "SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
       "USAGE dSAOperation )",
         &ad_olmConnectionState },
+    { "( olmBalancerAttributes:14 "
+      "NAME ( 'olmConnectionLocalAddress' ) "
+      "DESC 'Connection local address' "
+      "EQUALITY caseIgnoreMatch "
+      "SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
+      "USAGE dSAOperation )",
+        &ad_olmConnectionLocalAddress },
+    { "( olmBalancerAttributes:15 "
+      "NAME ( 'olmConnectionPeerAddress' ) "
+      "DESC 'Connection peer address' "
+      "EQUALITY caseIgnoreMatch "
+      "SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
+      "USAGE dSAOperation )",
+        &ad_olmConnectionPeerAddress },
+    { "( olmBalancerAttributes:16 "
+      "NAME ( 'olmConnectionAuthzDN' ) "
+      "DESC 'AuthZ DN of last successful bind' "
+      /* "SUP distinguishedName " */
+      "EQUALITY distinguishedNameMatch "
+      "SYNTAX 1.3.6.1.4.1.1466.115.121.1.12 "
+      "USAGE dSAOperation )",
+        &ad_olmConnectionAuthzDN },
 
     { NULL }
 };
@@ -265,6 +290,9 @@ static struct {
       "MAY ( "
       "olmConnectionType "
       "$ olmConnectionState "
+      "$ olmConnectionLocalAddress "
+      "$ olmConnectionPeerAddress "
+      "$ olmConnectionAuthzDN "
       "$ olmPendingOps "
       "$ olmReceivedOps "
       "$ olmCompletedOps "
@@ -695,6 +723,12 @@ lload_monitor_conn_update( Operation *op, SlapReply *rs, Entry *e, void *priv )
     }
     a->a_vals[0] = bv_state;
 
+    attr_delete( &e->e_attrs, ad_olmConnectionAuthzDN );
+    if ( !BER_BVISNULL( &c->c_auth ) ) {
+        attr_merge_normalize_one( e, ad_olmConnectionAuthzDN,
+                &c->c_auth, op->o_tmpmemctx );
+    }
+
     a = attr_find( e->e_attrs, ad_olmPendingOps );
     assert( a != NULL );
     UI2BV( &a->a_vals[0], pending );
@@ -777,6 +811,8 @@ lload_monitor_conn_entry_create( LloadConnection *c, monitor_subsys_t *ms )
 
     attr_merge_one( e, ad_olmConnectionType, &value, NULL );
     attr_merge_one( e, ad_olmConnectionState, &value, NULL );
+    attr_merge_one( e, ad_olmConnectionLocalAddress, &c->c_local_name, NULL );
+    attr_merge_one( e, ad_olmConnectionPeerAddress, &c->c_peer_name, NULL );
     attr_merge_one( e, ad_olmPendingOps, &zero, NULL );
     attr_merge_one( e, ad_olmReceivedOps, &zero, NULL );
     attr_merge_one( e, ad_olmCompletedOps, &zero, NULL );
