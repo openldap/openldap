@@ -395,6 +395,7 @@ dynlist_urlmembers( Operation *op, dynlist_name_t *dyn, slap_callback *sc )
 	o.ors_attrs = NULL;
 	memset( o.o_ctrlflag, 0, sizeof( o.o_ctrlflag ));
 	o.o_callback = sc;
+	o.o_do_not_cache = 1;
 
 	for (i=0; i<dyn->dy_numuris; i++) {
 		ludp = dyn->dy_uris[i];
@@ -595,6 +596,7 @@ dynlist_prepare_entry( Operation *op, SlapReply *rs, dynlist_info_t *dli, dynlis
 	o.ors_limit = NULL;
 	o.ors_tlimit = SLAP_NO_LIMIT;
 	o.ors_slimit = SLAP_NO_LIMIT;
+	o.o_do_not_cache = 1;
 	memset( o.o_ctrlflag, 0, sizeof( o.o_ctrlflag ));
 
 	for ( url = a->a_nvals; !BER_BVISNULL( url ); url++ ) {
@@ -1807,6 +1809,7 @@ dynlist_search( Operation *op, SlapReply *rs )
 
 	memset( o.o_ctrlflag, 0, sizeof( o.o_ctrlflag ));
 	o.o_managedsait = SLAP_CONTROL_CRITICAL;
+	o.o_do_not_cache = 1;
 
 	/* Are we using memberOf, and does it affect this request? */
 	if ( dlg->dlg_memberOf ) {
