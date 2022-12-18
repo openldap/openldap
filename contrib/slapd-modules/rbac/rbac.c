@@ -1077,7 +1077,7 @@ decoding_error:;
 	return rc;
 }
 
-// checkAcess F  (ALL)
+// checkAccess F  (ALL)
 static int
 rbac_check_access( Operation *op, SlapReply *rs )
 {
@@ -1146,7 +1146,7 @@ done:
 	return rs->sr_err;
 }
 
-// checkAcess A loop back
+// checkAccess A loop back
 static int
 rbac_check_accessA( Operation *op, SlapReply *rs )
 {
@@ -1162,7 +1162,7 @@ rbac_check_accessA( Operation *op, SlapReply *rs )
 	return rc;
 }
 
-// checkAcess B parse
+// checkAccess B parse
 static int
 rbac_check_accessB( Operation *op, SlapReply *rs )
 {
@@ -1190,7 +1190,7 @@ rbac_check_accessB( Operation *op, SlapReply *rs )
 	return rc;
 }
 
-// checkAcess C - parse request & read session record
+// checkAccess C - parse request & read session record
 static int
 rbac_check_accessC( Operation *op, SlapReply *rs )
 {
@@ -1230,7 +1230,7 @@ done:
 	return rc;
 }
 
-// checkAcess D, parse, read perm
+// checkAccess D, parse, read perm
 static int
 rbac_check_accessD( Operation *op, SlapReply *rs )
 {
@@ -1282,7 +1282,7 @@ done:
 	return rc;
 }
 
-// checkAcess E everything but the audit insert
+// checkAccess E everything but the audit insert
 static int
 rbac_check_accessE( Operation *op, SlapReply *rs )
 {

@@ -3577,7 +3577,7 @@ syncprov_setup_accesslog(void)
 		if ( slap_str2ad( "reqType", &ad_reqType, &text ) ) {
 			Debug( LDAP_DEBUG_ANY, "syncprov_setup_accesslog: "
 					"couldn't get definition for attribute reqType, "
-					"is accessslog configured?\n" );
+					"is accesslog configured?\n" );
 			return rc;
 		}
 	}
@@ -3586,7 +3586,7 @@ syncprov_setup_accesslog(void)
 		if ( slap_str2ad( "reqResult", &ad_reqResult, &text ) ) {
 			Debug( LDAP_DEBUG_ANY, "syncprov_setup_accesslog: "
 					"couldn't get definition for attribute reqResult, "
-					"is accessslog configured?\n" );
+					"is accesslog configured?\n" );
 			return rc;
 		}
 	}
@@ -3595,7 +3595,7 @@ syncprov_setup_accesslog(void)
 		if ( slap_str2ad( "reqDN", &ad_reqDN, &text ) ) {
 			Debug( LDAP_DEBUG_ANY, "syncprov_setup_accesslog: "
 					"couldn't get definition for attribute reqDN, "
-					"is accessslog configured?\n" );
+					"is accesslog configured?\n" );
 			return rc;
 		}
 	}
@@ -3604,7 +3604,7 @@ syncprov_setup_accesslog(void)
 		if ( slap_str2ad( "reqEntryUUID", &ad_reqEntryUUID, &text ) ) {
 			Debug( LDAP_DEBUG_ANY, "syncprov_setup_accesslog: "
 					"couldn't get definition for attribute reqEntryUUID, "
-					"is accessslog configured?\n" );
+					"is accesslog configured?\n" );
 			return rc;
 		}
 	}

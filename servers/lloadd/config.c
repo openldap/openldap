@@ -636,7 +636,7 @@ static ConfigTable config_back_cf_table[] = {
         &config_generic,
         "( OLcfgBkAt:13.26 "
             "NAME 'olcBkLloadIOTimeout' "
-            "DESC 'I/O timeout threshold in miliseconds' "
+            "DESC 'I/O timeout threshold in milliseconds' "
             "EQUALITY integerMatch "
             "SYNTAX OMsInteger "
             "SINGLE-VALUE )",
