@@ -118,7 +118,7 @@ SLAPD_OBJECTS = $(@PLAT@_SLAPD_OBJECTS)
 #
 # 2) be used to generate the symdummy.c file.
 #
-# 3) be used to help create slapd.exp, the binary-formated slapd export file.
+# 3) be used to help create slapd.exp, the binary-formatted slapd export file.
 #
 # The import library is used by dynamic modules at link time. With this
 # library, dynamic modules indicate to the linker that it will resolve
