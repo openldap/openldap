@@ -76,7 +76,7 @@ $SLAPCAT -F $CFPRO -g -b "dc=example,dc=com" -l $TESTDIR/slapcat.out >> $TESTOUT
 RC=$?
 
 if test $RC != 0 ; then
-        echo "slapcat -g failed for root databse ($RC)!"
+        echo "slapcat -g failed for root database ($RC)!"
         exit $RC
 fi
 

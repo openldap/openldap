@@ -678,7 +678,7 @@ presence_candidates(
 		rc = 0;
 	} else if( rc != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_TRACE,
-			"<= mdb_presense_candidates: (%s) "
+			"<= mdb_presence_candidates: (%s) "
 			"key read failed (%d)\n",
 			desc->ad_cname.bv_val, rc );
 		goto done;

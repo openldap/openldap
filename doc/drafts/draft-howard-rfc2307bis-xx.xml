@@ -1319,7 +1319,7 @@
     Naming context                        ObjectClass
     ============================================================
     ou=people,dc=...                      posixAccount
-                                          shadowAcount
+                                          shadowAccount
     ou=group,dc=...                       posixGroup
     ou=services,dc=...                    ipService
     ou=protocols,dc=...                   ipProtocol

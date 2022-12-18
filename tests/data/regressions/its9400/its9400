@@ -139,7 +139,7 @@ if test $RC != 0 ; then
 fi
 
 #
-# UNSUCCESFUL SEARCH
+# UNSUCCESSFUL SEARCH
 #
 echo "Using ldapsearch with idassert-bind..."
 $LDAPSEARCH -S "" -b "$BASEDN" -D "cn=Manager,dc=local,dc=com" -H $URI2 -w "secret"  \
