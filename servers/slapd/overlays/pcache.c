@@ -3514,7 +3514,7 @@ consistency_check(
 	Operation *op;
 
 	CachedQuery *query, *qprev;
-	CachedQuery *expires = NULL;
+	CachedQuery *expires;
 	int return_val, pause = PCACHE_CC_PAUSED;
 	QueryTemplate *templ;
 
@@ -3537,6 +3537,7 @@ consistency_check(
 		time_t ttl;
 		if ( !templ->query_last ) continue;
 		pause = 0;
+		expires = NULL;
 		op->o_time = slap_get_time();
 		if ( !templ->ttr ) {
 			ttl = templ->ttl;
