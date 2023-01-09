@@ -158,6 +158,9 @@ call to
 The result must be additionally parsed by
 .BR ldap_parse_sasl_bind_result ()
 to obtain any server credentials sent from the server.
+
+Any returned server credentials should be freed using
+.BR ber_bvfree ().
 .LP
 Many SASL mechanisms require multiple message exchanges to perform a
 complete authentication. Applications should generally use
