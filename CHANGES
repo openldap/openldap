@@ -14,6 +14,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed slapd-mdb to always release entries from ADD operations (ITS#9942)
 	Fixed slapd-mdb to fully init empty DN in tool_entry_get (ITS#9940)
 	Fixed slapd-monitor to free remembered cookies (ITS#9339)
+	Fixed slapo-accesslog reqStart ordering matching rule (ITS#9880)
 	Fixed slapo-deref memory leak (ITS#9924)
 	Fixed slapo-dynlist to ignore irrelevant objectClasses (ITS#9897)
 	Fixed slapo-dynlist to avoid unnecessary searches (ITS#9929)
