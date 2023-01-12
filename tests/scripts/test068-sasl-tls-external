@@ -75,6 +75,7 @@ $LDAPSASLWHOAMI -o tls_cacert=$TESTDIR/tls/ca/certs/testsuiteCA.crt -o tls_reqce
 RC=$?
 if test $RC != 0 ; then
 	echo "ldapwhoami (startTLS) failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $PID
 	exit $RC
 else
 	echo "success"
