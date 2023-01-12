@@ -241,6 +241,12 @@ slappasswd( int argc, char *argv[] )
 	}
 #endif
 
+	if ( !lutil_passwd_scheme( scheme ) ) {
+		fprintf( stderr, "Password scheme not recognised\n" );
+		rc = EXIT_FAILURE;
+		goto destroy;
+	}
+
 	if( pwfile != NULL ) {
 		if( lutil_get_filed_password( pwfile, &passwd )) {
 			rc = EXIT_FAILURE;
