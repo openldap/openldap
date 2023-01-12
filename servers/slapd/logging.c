@@ -743,8 +743,9 @@ config_logging(ConfigArgs *c) {
 	} else if ( c->op == LDAP_MOD_DELETE ) {
 		switch(c->type) {
 		case CFG_LOGLEVEL:
+			/* If missing, the default is stored in ldap_syslog? */
 			if ( !c->line ) {
-				config_syslog = 0;
+				config_syslog = LDAP_DEBUG_NONE;
 			} else {
 				i = verb_to_mask( c->line, loglevel_ops );
 				config_syslog &= ~loglevel_ops[i].mask;

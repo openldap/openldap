@@ -1580,7 +1580,7 @@ config_generic(ConfigArgs *c) {
 			break;
 
 		case CFG_LASTBIND_PRECISION:
-			c->be->be_lastbind_precision = 0;
+			c->be->be_lastbind_precision = c->ca_desc->arg_default.v_uint;
 			break;
 
 		case CFG_LASTBIND_ASSERT:
@@ -2011,7 +2011,9 @@ config_generic(ConfigArgs *c) {
 				mask |= 1;
 			}
 			new_daemon_threads = mask+1;
-			config_push_cleanup( c, config_resize_lthreads );
+			if ( CONFIG_ONLINE_ADD( c ) ) {
+				config_push_cleanup( c, config_resize_lthreads );
+			}
 			}
 			break;
 
@@ -5689,7 +5691,9 @@ done:
 			schema_destroy_one( ca, colst, nocs, last );
 		} else if ( ca->num_cleanups ) {
 			ca->reply.err = rc;
-			config_run_cleanup( ca );
+			if ( slapMode & SLAP_SERVER_MODE ) {
+				config_run_cleanup( ca );
+			}
 		}
 	}
 done_noop:
