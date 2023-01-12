@@ -32,7 +32,7 @@ or
 The \fIreferralsp\fP parameter will be filled in with an allocated array of
 character strings. The strings are copies of the referrals contained in
 the parsed message. The array should be freed by calling
-.BR ldap_value_free (3) .
+.BR ldap_memvfree (3) .
 If \fIreferralsp\fP is NULL, no referrals are returned.
 If no referrals were returned, \fI*referralsp\fP is set to NULL.
 .LP
