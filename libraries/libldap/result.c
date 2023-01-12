@@ -175,7 +175,7 @@ chkResponseList(
 		nextlm = lm->lm_next;
 		++cnt;
 
-		if ( ldap_abandoned( ld, lm->lm_msgid ) ) {
+		if ( ldap_abandoned( ld, lm->lm_msgid ) > 0 ) {
 			Debug2( LDAP_DEBUG_ANY,
 				"response list msg abandoned, "
 				"msgid %d message type %s\n",
@@ -610,7 +610,7 @@ fail:
 	
 	/* if it's been abandoned, toss it */
 	if ( id > 0 ) {
-		if ( ldap_abandoned( ld, id ) ) {
+		if ( ldap_abandoned( ld, id ) > 0 ) {
 			/* the message type */
 			tag = ber_peek_tag( ber, &len );
 			switch ( tag ) {
@@ -1433,8 +1433,8 @@ ldap_msgdelete( LDAP *ld, int msgid )
 /*
  * ldap_abandoned
  *
- * return the location of the message id in the array of abandoned
- * message ids, or -1
+ * return 1 if message id is in the array of abandoned message ids,
+ * 0 if not, -1 on error.
  */
 static int
 ldap_abandoned( LDAP *ld, ber_int_t msgid )
