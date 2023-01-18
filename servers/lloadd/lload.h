@@ -422,8 +422,8 @@ struct LloadConnection {
 #define CONNECTION_UNLINK_(c) \
     do { \
         if ( __atomic_exchange_n( &(c)->c_live, 0, __ATOMIC_ACQ_REL ) ) { \
-            RELEASE_REF( (c), c_refcnt, c->c_destroy ); \
             (c)->c_unlink( (c) ); \
+            RELEASE_REF( (c), c_refcnt, c->c_destroy ); \
         } \
     } while (0)
 #define CONNECTION_DESTROY(c) \
