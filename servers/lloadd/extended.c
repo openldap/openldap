@@ -90,7 +90,7 @@ handle_starttls( LloadConnection *c, LloadOperation *op )
     output = c->c_pendingber;
     if ( output == NULL && (output = ber_alloc()) == NULL ) {
         checked_unlock( &c->c_io_mutex );
-        operation_unlink( op );
+        OPERATION_UNLINK(op);
         CONNECTION_LOCK_DESTROY(c);
         return -1;
     }
@@ -115,7 +115,7 @@ handle_starttls( LloadConnection *c, LloadOperation *op )
     op->o_res = LLOAD_OP_COMPLETED;
     CONNECTION_UNLOCK(c);
 
-    operation_unlink( op );
+    OPERATION_UNLINK(op);
 
     return -1;
 #endif /* HAVE_TLS */

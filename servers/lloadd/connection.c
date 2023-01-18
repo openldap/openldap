@@ -545,7 +545,7 @@ lload_connection_close( LloadConnection *c, void *arg )
         }
 
         CONNECTION_UNLOCK(c);
-        operation_unlink( op );
+        OPERATION_UNLINK(op);
         CONNECTION_LOCK(c);
     } while ( c->c_ops );
 

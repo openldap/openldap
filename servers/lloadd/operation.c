@@ -223,12 +223,7 @@ operation_unlink( LloadOperation *op )
     uintptr_t prev_refcnt;
     int result = 0;
 
-    if ( !( prev_refcnt = try_release_ref(
-                    &op->o_refcnt, op, (dispose_cb *)operation_destroy ) ) ) {
-        return result;
-    }
-
-    assert( prev_refcnt == 1 );
+    assert( op->o_refcnt == 0 );
 
     Debug( LDAP_DEBUG_TRACE, "operation_unlink: "
             "unlinking operation between client connid=%lu and upstream "
@@ -432,7 +427,7 @@ operation_abandon( LloadOperation *op )
     }
 
 done:
-    operation_unlink( op );
+    OPERATION_UNLINK(op);
 }
 
 void
@@ -499,7 +494,7 @@ operation_send_reject(
     connection_write_cb( -1, 0, c );
 
 done:
-    operation_unlink( op );
+    OPERATION_UNLINK(op);
 }
 
 /*
@@ -592,7 +587,7 @@ connection_timeout( LloadConnection *upstream, void *arg )
         if ( upstream->c_type != LLOAD_C_BIND && rc == LDAP_SUCCESS ) {
             rc = operation_send_abandon( op, upstream );
         }
-        operation_unlink( op );
+        OPERATION_UNLINK(op);
     }
 
     if ( rc == LDAP_SUCCESS ) {
