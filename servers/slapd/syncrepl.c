@@ -2065,13 +2065,7 @@ do_syncrepl(
 
 	Debug( LDAP_DEBUG_TRACE, "=>do_syncrepl %s\n", si->si_ridtxt );
 
-	/* Don't get stuck here while a pause is initiated */
-	while ( ldap_pvt_thread_mutex_trylock( &si->si_mutex )) {
-		if ( slapd_shutdown )
-			return NULL;
-		if ( !ldap_pvt_thread_pool_pausewait( &connection_pool ))
-			ldap_pvt_thread_yield();
-	}
+	ldap_pvt_thread_mutex_lock( &si->si_mutex );
 
 	si->si_too_old = 0;
 
