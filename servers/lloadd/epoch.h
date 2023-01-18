@@ -108,7 +108,11 @@ int acquire_ref( uintptr_t *refp );
  * @return 0 if reference was already zero, non-zero if reference
  * count was non-zero at the time of call
  */
-int try_release_ref( uintptr_t *refp, void *object, dispose_cb *cb );
+int try_release_ref(
+        uintptr_t *refp,
+        void *object,
+        dispose_cb *unlink_cb,
+        dispose_cb *destroy_cb );
 
 /** @brief Read reference count
  *

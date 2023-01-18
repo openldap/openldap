@@ -129,7 +129,7 @@ forward_final_response(
 
     op->o_res = LLOAD_OP_COMPLETED;
     if ( !op->o_pin_id ) {
-        operation_unlink( op );
+        OPERATION_UNLINK(op);
     }
 
     return rc;

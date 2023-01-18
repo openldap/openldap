@@ -289,7 +289,11 @@ acquire_ref( uintptr_t *refp )
 }
 
 int
-try_release_ref( uintptr_t *refp, void *object, dispose_cb *cb )
+try_release_ref(
+        uintptr_t *refp,
+        void *object,
+        dispose_cb *unlink_cb,
+        dispose_cb *destroy_cb )
 {
     uintptr_t refcnt, new_refcnt;
 
@@ -307,7 +311,10 @@ try_release_ref( uintptr_t *refp, void *object, dispose_cb *cb )
     assert( new_refcnt == refcnt - 1 );
 
     if ( !new_refcnt ) {
-        epoch_append( object, cb );
+        if ( unlink_cb ) {
+            unlink_cb( object );
+        }
+        epoch_append( object, destroy_cb );
     }
 
     return refcnt;
