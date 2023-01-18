@@ -949,7 +949,8 @@ lload_listener(
 static void *
 lload_listener_thread( void *ctx )
 {
-    int rc = event_base_dispatch( listener_base );
+    /* ITS#9984 Survive the listeners being paused if we run out of fds */
+    int rc = event_base_loop( listener_base, EVLOOP_NO_EXIT_ON_EMPTY );
     Debug( LDAP_DEBUG_ANY, "lload_listener_thread: "
             "event loop finished: rc=%d\n",
             rc );
