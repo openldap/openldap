@@ -11,6 +11,7 @@ OpenLDAP 2.6.4 Engineering
 	Fixed lloadd race in epoch.c (ITS#9947)
 	Fixed lloadd potential deadlock with cn=monitor (ITS#9951)
 	Fixed lloadd to keep listener base around when not active (ITS#9984)
+	Fixed lloadd object reclamation sequencing (ITS#9983)
 	Fixed slapd memory leak with olcAuthIDRewrite (ITS#6035)
 	Fixed slapd free of redundant cmdline option (ITS#9912)
 	Fixed slapd transactions extended operations cleanup after write (ITS#9892)
