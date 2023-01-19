@@ -24,6 +24,7 @@ OpenLDAP 2.6.4 Engineering
 	Fixed slapo-deref memory leak (ITS#9924)
 	Fixed slapo-dynlist to ignore irrelevant objectClasses (ITS#9897)
 	Fixed slapo-dynlist to avoid unnecessary searches (ITS#9929)
+	Fixed slapo-dynlist to mark internal searches as such (ITS#9960)
 	Fixed slapo-remoteauth memory leaks (ITS#9438)
 	Fixed slapo-rwm memory leaks (ITS#9817)
 	Build Environment
