@@ -8,6 +8,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed liblunicode UTF8bvnormalize buffer size (ITS#9955)
 	Fixed lloadd race in epoch.c (ITS#9947)
 	Fixed lloadd to keep listener base around when not active (ITS#9984)
+	Fixed lloadd object reclamation sequencing (ITS#9983)
 	Fixed slapd memory leak with olcAuthIDRewrite (ITS#6035)
 	Fixed slapd transactions extended operations cleanup after write (ITS#9892)
 	Fixed slapd deadlock with replicated cn=config (ITS#9930)
