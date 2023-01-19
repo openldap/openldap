@@ -39,6 +39,7 @@ OpenLDAP 2.6.4 Engineering
 		Fixed test suite portability (ITS#9931)
 	Documentation
 		Fixed slapo-asyncmeta(5) to clarify scheduling for target connections (ITS#9941)
+		Fixed slapo-dynlist(5) to clarify configuration settings (ITS#9957)
 		Fixed slapo-unique(5) to clarify when quoting should be used (ITS#9915)
 	Minor cleanup
 		ITS#9935
