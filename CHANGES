@@ -19,6 +19,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed slapo-dynlist to ignore irrelevant objectClasses (ITS#9897)
 	Fixed slapo-dynlist to avoid unnecessary searches (ITS#9929)
 	Fixed slapo-dynlist to mark internal searches as such (ITS#9960)
+	Fixed slapo-pcache crash in consistency_check (ITS#9966)
 	Fixed slapo-remoteauth memory leaks (ITS#9438)
 	Build Environment
 		Fixed ancient DOS related ifdef checks (ITS#9925)
