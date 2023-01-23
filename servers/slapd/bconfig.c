@@ -6900,13 +6900,16 @@ int config_back_entry_get(
 	CfBackInfo *cfb;
 	CfEntryInfo *ce, *last;
 	Entry *e = NULL;
-	int locked = 0, rc = LDAP_NO_SUCH_OBJECT;
+	int paused = 0, rc = LDAP_NO_SUCH_OBJECT;
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
-	if ( !ldap_pvt_thread_pool_pausequery( &connection_pool ) ) {
+	if ( ldap_pvt_thread_pool_query( &connection_pool,
+			LDAP_PVT_THREAD_POOL_PARAM_PAUSED, &paused ) ) {
+		return -1;
+	}
+	if ( !paused ) {
 		ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
-		locked = 1;
 	}
 	ce = config_find_base( cfb->cb_root, ndn, &last );
 	if ( ce ) {
@@ -6922,7 +6925,7 @@ int config_back_entry_get(
 	if ( e ) {
 		*ent = entry_dup( e );
 	}
-	if ( locked )
+	if ( !paused )
 		ldap_pvt_thread_rdwr_runlock( &cfb->cb_rwlock );
 
 	return rc;
