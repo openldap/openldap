@@ -769,6 +769,12 @@ ldap_pvt_thread_pool_query(
 		}
 		break;
 
+	case LDAP_PVT_THREAD_POOL_PARAM_PAUSED:
+		ldap_pvt_thread_mutex_lock(&pool->ltp_mutex);
+		count = (pool->ltp_pause == PAUSED);
+		ldap_pvt_thread_mutex_unlock(&pool->ltp_mutex);
+		break;
+
 	case LDAP_PVT_THREAD_POOL_PARAM_UNKNOWN:
 		break;
 	}
