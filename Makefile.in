@@ -29,7 +29,7 @@ clean-local: FORCE
 	$(RM) -r autom4te.cache
 
 veryclean-local: FORCE
-	$(RM) config.status libtool stamp-h stamp-h.in
+	$(RM) config.status libtool stamp-h stamp-h.in libraries/libldap/ldap.pc libraries/liblber/lber.pc
 
 distclean: veryclean FORCE
 
