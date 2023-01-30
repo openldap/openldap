@@ -1292,6 +1292,10 @@ get_pmutex(
 				ldap_pvt_thread_yield();
 		}
 	}
+	if ( si->si_ctype < 0 ) {
+		ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_pmutex );
+		return SYNC_SHUTDOWN;
+	}
 
 	return 0;
 }
