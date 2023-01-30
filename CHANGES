@@ -11,7 +11,7 @@ OpenLDAP 2.5.14 Engineering
 	Fixed lloadd object reclamation sequencing (ITS#9983)
 	Fixed slapd memory leak with olcAuthIDRewrite (ITS#6035)
 	Fixed slapd transactions extended operations cleanup after write (ITS#9892)
-	Fixed slapd deadlock with replicated cn=config (ITS#9930)
+	Fixed slapd deadlock with replicated cn=config (ITS#9930,ITS#8102)
 	Fixed slapd bconfig locking of cn=config entries (ITS#9045)
 	Fixed slapd-mdb max number of index databases to 256 (ITS#9895)
 	Fixed slapd-mdb to always release entries from ADD operations (ITS#9942)
