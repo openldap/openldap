@@ -398,7 +398,9 @@ fail:
 			conn->c_writing = 0;
 			ldap_pvt_thread_mutex_unlock( &conn->c_write1_mutex );
 			ldap_pvt_thread_mutex_lock( &conn->c_mutex );
-			connection_closing( conn, close_reason );
+			/* conn may have been reused by the time we get the mutex */
+			if ( op->o_connid == conn->c_connid )
+				connection_closing( conn, close_reason );
 			ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
 			return -1;
 		}
