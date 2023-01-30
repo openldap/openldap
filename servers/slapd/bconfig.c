@@ -6941,7 +6941,6 @@ out:
 	return rs->sr_err;
 }
 
-/* no-op, we never free entries */
 int config_entry_release(
 	Operation *op,
 	Entry *e,
@@ -6961,6 +6960,8 @@ int config_entry_release(
 		} else {
 			entry_free( e );
 		}
+	} else {
+		entry_free( e );
 	}
 	return rc;
 }
@@ -6977,21 +6978,31 @@ int config_back_entry_get(
 {
 	CfBackInfo *cfb;
 	CfEntryInfo *ce, *last;
-	int rc = LDAP_NO_SUCH_OBJECT;
+	Entry *e = NULL;
+	int locked = 0, rc = LDAP_NO_SUCH_OBJECT;
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
+	if ( !ldap_pvt_thread_pool_pausequery( &connection_pool ) ) {
+		ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
+		locked = 1;
+	}
 	ce = config_find_base( cfb->cb_root, ndn, &last );
 	if ( ce ) {
-		*ent = ce->ce_entry;
-		if ( *ent ) {
+		e = ce->ce_entry;
+		if ( e ) {
 			rc = LDAP_SUCCESS;
-			if ( oc && !is_entry_objectclass_or_sub( *ent, oc ) ) {
+			if ( oc && !is_entry_objectclass_or_sub( e, oc ) ) {
 				rc = LDAP_NO_SUCH_ATTRIBUTE;
-				*ent = NULL;
+				e = NULL;
 			}
 		}
 	}
+	if ( e ) {
+		*ent = entry_dup( e );
+	}
+	if ( locked )
+		ldap_pvt_thread_rdwr_runlock( &cfb->cb_rwlock );
 
 	return rc;
 }
