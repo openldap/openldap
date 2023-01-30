@@ -49,6 +49,7 @@ OpenLDAP 2.6.4 Engineering
 		ITS#9935
 		ITS#9336
 		ITS#9337
+		ITS#9985
 
 OpenLDAP 2.6.3 Release (2022/07/14)
 	Fixed libldap to check for NULL ld (ITS#9157)
