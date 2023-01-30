@@ -104,7 +104,7 @@ if test $COUNT != 2 ; then
 fi
 
 DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
-    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*seconds_before_unlock=\(\d*\)/\1/p'`
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*seconds_before_unlock=\([[:digit:]]*\)/\1/p'`
 
 echo "Waiting $DELAY seconds for lockout to reset..."
 sleep $DELAY
@@ -120,7 +120,7 @@ if test $RC != 0 ; then
 fi
 
 DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
-    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\([[:digit:]]*\)/\1/p'`
 
 echo "Testing password expiration"
 echo "Waiting $DELAY seconds for password to expire..."
@@ -490,7 +490,7 @@ $LDAPSEARCH -e ppolicy -H $URI1 -D "$USER" -w $PASS \
 	-b "$BASEDN" -s base > $SEARCHOUT 2>&1
 
 DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
-    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\([[:digit:]]*\)/\1/p'`
 
 echo "Waiting $DELAY seconds for password to expire..."
 sleep $DELAY
@@ -735,7 +735,7 @@ delete: pwdReset
 EOMODS
 
 DELAY=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD \
-    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+    -b "$USER" -E accountUsability 1.1 | sed -n -e 's/.*expire=\([[:digit:]]*\)/\1/p'`
 DELAY=`expr $DELAY - 10`
 
 echo "Testing password expiration"
