@@ -6138,7 +6138,7 @@ syncinfo_free( syncinfo_t *sie, int free_all )
 		}
 		if ( sie->si_cookieState ) {
 			/* Could be called from do_syncrepl (server unpaused) */
-			refresh_finished( sie );
+			if ( !free_all ) refresh_finished( sie );
 
 			sie->si_cookieState->cs_ref--;
 			if ( !sie->si_cookieState->cs_ref ) {
