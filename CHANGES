@@ -43,6 +43,7 @@ OpenLDAP 2.5.14 Engineering
 		ITS#9935
 		ITS#9336
 		ITS#9337
+		ITS#9985
 
 OpenLDAP 2.5.13 Release (2022/07/14)
 	Fixed librewrite declaration of calloc (ITS#9841)
