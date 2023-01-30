@@ -105,7 +105,7 @@ fi
 
 DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
 echo "$DELAYATTR" >> $SEARCHOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*seconds_before_unlock=\(\d*\)/\1/p'`
+DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*seconds_before_unlock=\([[:digit:]]*\)/\1/p'`
 
 # $DELAY is empty if we were so slow that the lockout expired already,
 # continue test but the next part might fail anyway since we rely on
@@ -127,7 +127,7 @@ fi
 
 DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
 echo "$DELAYATTR" >> $SEARCHOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\([[:digit:]]*\)/\1/p'`
 
 echo "Testing password expiration"
 # $DELAY is empty if we were so slow that the password expired already
@@ -519,7 +519,7 @@ $LDAPSEARCH -e ppolicy -H $URI1 -D "$USER" -w $PASS \
 
 DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
 echo "$DELAYATTR" >> $SEARCHOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\([[:digit:]]*\)/\1/p'`
 
 echo "Waiting $DELAY seconds for password to expire..."
 sleep $DELAY
@@ -810,7 +810,7 @@ EOMODS
 
 DELAYATTR=`$LDAPSEARCH -D "$MANAGERDN" -H $URI1 -w $PASSWD -b "$USER" -E accountUsability 1.1`
 echo "$DELAYATTR" >> $TESTOUT
-DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\(\d*\)/\1/p'`
+DELAY=`echo "$DELAYATTR" | sed -n -e 's/.*expire=\([[:digit:]]*\)/\1/p'`
 DELAY=`expr $DELAY - 10`
 
 echo "Testing password expiration"
