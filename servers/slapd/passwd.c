@@ -291,6 +291,8 @@ old_good:
 	} else {
 		slap_callback **sc;
 
+		cb.sc_next = op->o_callback;
+
 		op->o_tag = LDAP_REQ_MODIFY;
 		op->o_callback = &cb;
 		op->orm_modlist = qpw->rs_mods;
