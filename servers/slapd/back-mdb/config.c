@@ -214,6 +214,10 @@ mdb_online_index( void *ctx, void *arg )
 	int i, first = 1;
 	int intr = 0;
 
+	Debug( LDAP_DEBUG_ARGS,
+		LDAP_XSTRING(mdb_online_index) ": database %s: "
+		"starting\n", be->be_suffix[0].bv_val );
+
 	connection_fake_init( &conn, &opbuf, ctx );
 	op = &opbuf.ob_op;
 
@@ -275,6 +279,10 @@ mdb_online_index( void *ctx, void *arg )
 			memcpy( &id, key.mv_data, sizeof( id ));
 		}
 
+		Debug( LDAP_DEBUG_ARGS,
+			LDAP_XSTRING(mdb_online_index) ": database %s: "
+			"indexing %lx\n", be->be_suffix[0].bv_val, (long)id );
+
 		rc = mdb_id2entry( op, curs, id, &e );
 		mdb_cursor_close( curs );
 		if ( rc ) {
@@ -308,22 +316,33 @@ mdb_online_index( void *ctx, void *arg )
 
 	/* all done */
 	if ( !intr ) {
-		for ( i = 0; i < mdb->mi_nattrs; i++ ) {
-			if ( mdb->mi_attrs[ i ]->ai_indexmask & MDB_INDEX_DELETING
-				|| mdb->mi_attrs[ i ]->ai_newmask == 0 )
-			{
-				continue;
-			}
-			mdb->mi_attrs[ i ]->ai_indexmask = mdb->mi_attrs[ i ]->ai_newmask;
-			mdb->mi_attrs[ i ]->ai_newmask = 0;
-		}
-		/* zero out checkpoint DB */
 		rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txn );
-		if ( !rc ) {
+		if ( rc ) {
+			Debug( LDAP_DEBUG_ANY,
+				LDAP_XSTRING(mdb_online_index) ": database %s: "
+				"final txn_begin failed: %s (%d)\n",
+				be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+			intr = 1; /* maybe it will succeed on a future retry */
+		} else {
+			for ( i = 0; i < mdb->mi_nattrs; i++ ) {
+				if ( mdb->mi_attrs[ i ]->ai_indexmask & MDB_INDEX_DELETING
+					|| mdb->mi_attrs[ i ]->ai_newmask == 0 )
+				{
+					continue;
+				}
+				mdb->mi_attrs[ i ]->ai_indexmask = mdb->mi_attrs[ i ]->ai_newmask;
+				mdb->mi_attrs[ i ]->ai_newmask = 0;
+			}
+
+			/* zero out checkpoint DB */
 			mdb_drop( txn, mdb->mi_idxckp, 0 );
 			mdb_txn_commit( txn );
 		}
 	}
+
+	Debug( LDAP_DEBUG_ARGS,
+		LDAP_XSTRING(mdb_online_index) ": database %s: "
+		"stopping, %s done\n", be->be_suffix[0].bv_val, intr ? "not" : "all" );
 
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 	if ( ldap_pvt_runqueue_isrunning( &slapd_rq, rtask ))
@@ -361,6 +380,10 @@ mdb_setup_indexer( struct mdb_info *mdb )
 		return rc;
 	}
 
+	Debug( LDAP_DEBUG_ARGS,
+		LDAP_XSTRING(mdb_setup_indexer) ": path %s: "
+		"starting\n", mdb->mi_dbenv_home );
+
 	key.mv_size = sizeof( s );
 	key.mv_data = &s;
 
@@ -389,6 +412,9 @@ mdb_setup_indexer( struct mdb_info *mdb )
 		data.mv_size = sizeof( ID );
 		data.mv_data = &id;
 		rc = mdb_cursor_put( curs, &key, &data, 0 );
+		Debug( LDAP_DEBUG_ARGS,
+			LDAP_XSTRING(mdb_setup_indexer) ": path %s: "
+			"resetting to 0\n", mdb->mi_dbenv_home );
 	}
 
 done:
