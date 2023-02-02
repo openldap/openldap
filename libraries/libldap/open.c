@@ -585,9 +585,9 @@ ldap_open_internal_connection( LDAP **ldp, ber_socket_t *fdp )
 	/* Attach the passed socket as the *LDAP's connection */
 	c = ldap_new_connection( ld, NULL, 1, 0, NULL, 0, 0 );
 	if( c == NULL ) {
+		LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		ldap_unbind_ext( ld, NULL, NULL );
 		*ldp = NULL;
-		LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		return( LDAP_NO_MEMORY );
 	}
 	ber_sockbuf_ctrl( c->lconn_sb, LBER_SB_OPT_SET_FD, fdp );
