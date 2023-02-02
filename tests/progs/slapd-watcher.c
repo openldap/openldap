@@ -539,12 +539,12 @@ setup_server( struct tester_conn_args *config, server *sv )
 						}
 					}
 				}
-				ldap_msgfree( res );
 				break;
 
 			default:
 				tester_ldap_error( ld, "ldap_search_ext_s(baseDN)", sv->url );
 			}
+			ldap_msgfree( res );
 		}
 	}
 
