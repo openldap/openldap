@@ -386,7 +386,9 @@ more:;
 		break;
 	default:
 		tool_perror( "ldap_search", srch_rc, NULL, NULL, NULL, NULL );
-		return( srch_rc );
+		rc = srch_rc;
+		srch_rc = 0;
+		goto leave;
 	}
 
 	entries = ldap_count_entries( ld, res );
@@ -402,15 +404,14 @@ more:;
 			if( dn == NULL ) {
 				ldap_get_option( ld, LDAP_OPT_RESULT_CODE, &rc );
 				tool_perror( "ldap_prune", rc, NULL, NULL, NULL, NULL );
-				ber_memfree( dn );
-				return rc;
+				goto leave;
 			}
 
 			rc = deletechildren( ld, dn, 0 );
 			if ( rc != LDAP_SUCCESS ) {
 				tool_perror( "ldap_prune", rc, NULL, NULL, NULL, NULL );
 				ber_memfree( dn );
-				return rc;
+				goto leave;
 			}
 
 			if ( verbose ) {
@@ -421,7 +422,7 @@ more:;
 			if ( rc != LDAP_SUCCESS ) {
 				tool_perror( "ldap_delete", rc, NULL, NULL, NULL, NULL );
 				ber_memfree( dn );
-				return rc;
+				goto leave;
 
 			}
 			
@@ -433,6 +434,7 @@ more:;
 		}
 	}
 
+leave:
 	ldap_msgfree( res );
 
 	if ( srch_rc == LDAP_SIZELIMIT_EXCEEDED ) {
