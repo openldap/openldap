@@ -343,6 +343,7 @@ do_bind:;
 			NULL, NULL, NULL );
 		if ( rc == LDAP_SERVER_DOWN && first_try ) {
 			first_try = 0;
+			ldap_unbind_ext( ld, NULL, NULL );
 			if ( ldap_initialize( &ld, data->lm_url ) != LDAP_SUCCESS ) {
 				rc = REWRITE_ERR;
 				goto rc_return;
@@ -360,6 +361,7 @@ do_bind:;
 			data->lm_attrs, 0, NULL, NULL, NULL, 1, &res );
 	if ( rc == LDAP_SERVER_DOWN && first_try ) {
 		first_try = 0;
+		ldap_unbind_ext( ld, NULL, NULL );
 		if ( ldap_initialize( &ld, data->lm_url ) != LDAP_SUCCESS ) {
 			rc = REWRITE_ERR;
 			goto rc_return;
