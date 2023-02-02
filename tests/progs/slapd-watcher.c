@@ -537,7 +537,6 @@ setup_server( struct tester_conn_args *config, server *sv, int first )
 						}
 					}
 				}
-				ldap_msgfree( res );
 				break;
 
 			default:
@@ -545,6 +544,7 @@ setup_server( struct tester_conn_args *config, server *sv, int first )
 				if ( first )
 					exit( EXIT_FAILURE );
 			}
+			ldap_msgfree( res );
 		}
 	}
 
