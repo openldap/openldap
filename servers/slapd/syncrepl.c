@@ -604,8 +604,10 @@ ldap_sync_search(
 			lattrs[2] = NULL;
 			rc = ldap_search_ext_s( si->si_ld, "", LDAP_SCOPE_BASE, generic_filterstr.bv_val, lattrs, 0,
 				NULL, NULL, NULL, si->si_slimit, &res );
-			if ( rc )
+			if ( rc ) {
+				ldap_msgfree( res );
 				return rc;
+			}
 			msg = ldap_first_message( si->si_ld, res );
 			if ( msg && ldap_msgtype( msg ) == LDAP_RES_SEARCH_ENTRY ) {
 				BerElement *ber = NULL;
