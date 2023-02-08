@@ -1,6 +1,6 @@
 OpenLDAP 2.5 Change Log
 
-OpenLDAP 2.5.14 Engineering
+OpenLDAP 2.5.14 Release (2023/02/08)
 	Fixed client tools to remove 'h' and 'p' options (ITS#9917,ITS#8618)
 	Fixed ldapsearch memory leak with paged results (ITS#9860)
 	Fixed libldap ldif_open_urlto check for failure (ITS#9904)
