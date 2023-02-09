@@ -209,7 +209,7 @@ openlog(const char *ident, int logstat, int logfac)
 }
 
 void
-closelog()
+closelog(void)
 {
 	(void)close(LogFile);
 	LogFile = -1;
