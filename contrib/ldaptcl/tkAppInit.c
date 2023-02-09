@@ -37,16 +37,9 @@ int (*tclDummyMathPtr)() = matherr;
  * This is the main program for the application.
  *-----------------------------------------------------------------------------
  */
-#ifdef __cplusplus
 int
 main (int    argc,
       char **argv)
-#else
-int
-main (argc, argv)
-    int    argc;
-    char **argv;
-#endif
 {
 #ifdef USE_TCLX
     TkX_Main(argc, argv, Tcl_AppInit);
@@ -68,14 +61,8 @@ main (argc, argv)
  * interp->result if an error occurs.
  *-----------------------------------------------------------------------------
  */
-#ifdef __cplusplus
 int
 Tcl_AppInit (Tcl_Interp *interp)
-#else
-int
-Tcl_AppInit (interp)
-    Tcl_Interp *interp;
-#endif
 {
     if (Tcl_Init (interp) == TCL_ERROR) {
         return TCL_ERROR;
