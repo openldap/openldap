@@ -45,9 +45,7 @@ EXTERN int		Tcltest_Init _ANSI_ARGS_((Tcl_Interp *interp));
  */
 
 int
-main(argc, argv)
-    int argc;			/* Number of command-line arguments. */
-    char **argv;		/* Values of command-line arguments. */
+main(int argc, char **argv)
 {
 #ifdef USE_TCLX
     TclX_Main(argc, argv, Tcl_AppInit);
