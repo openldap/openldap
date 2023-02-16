@@ -282,9 +282,7 @@ variant_op_add( Operation *op, SlapReply *rs )
 	variantEntry_info *vei;
 	int rc;
 
-	/* Replication always uses the rootdn */
-	if ( ov->passReplication && SLAPD_SYNC_IS_SYNCCONN(op->o_connid) &&
-			be_isroot( op ) ) {
+	if ( ov->passReplication && be_shadow_update( op ) ) {
 		return SLAP_CB_CONTINUE;
 	}
 
@@ -431,9 +429,7 @@ variant_op_mod( Operation *op, SlapReply *rs )
 	regmatch_t pmatch[10];
 	int rc, nmatch = sizeof(pmatch) / sizeof(regmatch_t);
 
-	/* Replication always uses the rootdn */
-	if ( ov->passReplication && SLAPD_SYNC_IS_SYNCCONN(op->o_connid) &&
-			be_isroot( op ) ) {
+	if ( ov->passReplication && be_shadow_update( op ) ) {
 		return SLAP_CB_CONTINUE;
 	}
 

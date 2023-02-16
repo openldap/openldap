@@ -2223,7 +2223,7 @@ ppolicy_add(
 		return rs->sr_err;
 
 	/* If this is a replica, assume the provider checked everything */
-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) )
+	if ( be_shadow_update( op ) )
 		return SLAP_CB_CONTINUE;
 
 	ppolicy_get( op, op->ora_e, &pp );
@@ -2390,7 +2390,7 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 	/* If this is a replica, we may need to tweak some of the
 	 * provider's modifications. Otherwise, just pass it through.
 	 */
-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) ) {
+	if ( be_shadow_update( op ) ) {
 		Modifications **prev;
 		Attribute *a_grace, *a_lock, *a_fail, *a_success;
 
