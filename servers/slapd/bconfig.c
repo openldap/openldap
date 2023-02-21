@@ -5471,7 +5471,8 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 			goto done_noop;
 		}
 		if ( renum && *renum && coptr->co_type != Cft_Database &&
-			coptr->co_type != Cft_Overlay )
+			coptr->co_type != Cft_Overlay &&
+			( coptr->co_type != Cft_Misc || !coptr->co_ldmove ) )
 		{
 			snprintf( ca->cr_msg, sizeof( ca->cr_msg ),
 				"operation requires sibling renumbering" );
@@ -6467,8 +6468,9 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 
 	/* Current behavior, subject to change as needed:
 	 *
-	 * For backends and overlays, we only allow renumbering.
 	 * For schema, we allow renaming with the same number.
+	 * For backends, overlays, we only allow renumbering.
+	 * For misc we let the co_ldmove handler decide.
 	 * Otherwise, the op is not allowed.
 	 */
 
@@ -6493,8 +6495,8 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 			rs->sr_text = "schema reordering not supported";
 			goto out;
 		}
-	} else if ( ce->ce_type == Cft_Database ||
-		ce->ce_type == Cft_Overlay ) {
+	} else if ( ce->ce_type >= Cft_Database &&
+		ce->ce_type <= Cft_Misc ) {
 		char *ptr1, *ptr2, *iptr1, *iptr2;
 		int len1, len2;
 
@@ -6517,8 +6519,9 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		len1 = ptr1 - rdn.bv_val;
 		len2 = ptr2 - op->orr_newrdn.bv_val;
 
-		if ( rdn.bv_len - len1 != op->orr_newrdn.bv_len - len2 ||
-			strncmp( ptr1, ptr2, rdn.bv_len - len1 )) {
+		if ( ce->ce_type != Cft_Misc && (
+				rdn.bv_len - len1 != op->orr_newrdn.bv_len - len2 ||
+				strncmp( ptr1, ptr2, rdn.bv_len - len1 ) ) ) {
 			rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 			rs->sr_text = "changing database/overlay type not allowed";
 			goto out;
@@ -6631,7 +6634,50 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 			backend_db_move( ce->ce_be, ixnew );
 		else if ( ce->ce_type == Cft_Overlay )
 			overlay_move( ce->ce_be, (slap_overinst *)ce->ce_bi, ixnew );
-			
+		else if ( ce->ce_type == Cft_Misc ) {
+#ifdef SLAP_CONFIG_RENAME
+			/*
+			 * only Cft_Misc objects that have a co_lddel handler set in
+			 * the ConfigOCs struct can be deleted. This code also
+			 * assumes that the entry can be only have one objectclass
+			 * with co_type == Cft_Misc
+			 */
+			ConfigOCs co, *coptr;
+			Attribute *oc_at;
+
+			oc_at = attr_find( ce->ce_entry->e_attrs,
+					slap_schema.si_ad_objectClass );
+			if ( !oc_at ) {
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "objectclass not found";
+				goto out2;
+			}
+			for ( i=0; !BER_BVISNULL(&oc_at->a_nvals[i]); i++ ) {
+				co.co_name = &oc_at->a_nvals[i];
+				coptr = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
+				if ( coptr == NULL || coptr->co_type != Cft_Misc ) {
+					continue;
+				}
+				if ( !coptr->co_ldmove ||
+						coptr->co_ldmove( ce, op, rs, ixold, ixnew ) ) {
+					rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+					if ( ! coptr->co_ldmove ) {
+						rs->sr_text = "No rename handler found";
+					} else {
+						rs->sr_err = LDAP_OTHER;
+						/* FIXME: We should return a helpful error message
+						 * here, hope the co_ldmove handler took care of it */
+					}
+					goto out2;
+				}
+				break;
+			}
+#else
+			rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+			goto out2;
+#endif /* SLAP_CONFIG_RENAME */
+		}
+
 		if ( ixold < ixnew ) {
 			rs->sr_err = config_rename_del( op, rs, ce, ceold, ixold,
 				cfb->cb_use_ldif );
@@ -6656,6 +6702,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		}
 	}
 
+out2:;
 	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
 
 out:

@@ -122,6 +122,12 @@ typedef int (ConfigCfAdd)(
 /* Called when deleting a Cft_Misc Child object from cn=config */
 typedef int (ConfigLDAPdel)(
 	CfEntryInfo *ce, Operation *op );
+
+#ifdef SLAP_CONFIG_RENAME
+/* Called when attempting to move a Cft_Misc object in cn=config */
+typedef int (ConfigLDAPmove)(
+	CfEntryInfo *ce, Operation *op, SlapReply *rs, int ixold, int ixnew );
+#endif
 #endif
 
 typedef struct ConfigOCs {
@@ -132,6 +138,9 @@ typedef struct ConfigOCs {
 	ConfigCfAdd *co_cfadd;
 #ifdef SLAP_CONFIG_DELETE
 	ConfigLDAPdel *co_lddel;
+#ifdef SLAP_CONFIG_RENAME
+	ConfigLDAPmove *co_ldmove;
+#endif
 #endif
 	ObjectClass *co_oc;
 	struct berval *co_name;
