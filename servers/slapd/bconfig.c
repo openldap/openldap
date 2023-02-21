@@ -6595,7 +6595,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 	} else {
 		CfEntryInfo *ce2, **cprev, **cbprev, *ceold;
 		req_modrdn_s modr = op->oq_modrdn;
-		int i;
+		int i, rc = LDAP_SUCCESS;
 
 		/* Advance to first of this type */
 		cprev = &ce->ce_parent->ce_kids;
@@ -6652,21 +6652,19 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 				rs->sr_text = "objectclass not found";
 				goto out2;
 			}
-			for ( i=0; !BER_BVISNULL(&oc_at->a_nvals[i]); i++ ) {
+			for ( i=0; !BER_BVISNULL( &oc_at->a_nvals[i] ); i++ ) {
 				co.co_name = &oc_at->a_nvals[i];
 				coptr = ldap_avl_find( CfOcTree, &co, CfOc_cmp );
 				if ( coptr == NULL || coptr->co_type != Cft_Misc ) {
 					continue;
 				}
-				if ( !coptr->co_ldmove ||
-						coptr->co_ldmove( ce, op, rs, ixold, ixnew ) ) {
+				if ( !coptr->co_ldmove ) {
 					rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
-					if ( ! coptr->co_ldmove ) {
-						rs->sr_text = "No rename handler found";
-					} else {
+					rs->sr_text = "No rename handler found";
+					goto out2;
+				} else if ( coptr->co_ldmove( ce, op, rs, ixold, ixnew ) ) {
+					if ( rs->sr_err == LDAP_SUCCESS ) {
 						rs->sr_err = LDAP_OTHER;
-						/* FIXME: We should return a helpful error message
-						 * here, hope the co_ldmove handler took care of it */
 					}
 					goto out2;
 				}

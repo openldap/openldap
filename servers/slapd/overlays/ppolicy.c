@@ -53,12 +53,55 @@
 typedef	int (check_func)( char *passwd, struct berval *errmsg, Entry *ent, struct berval *arg );
 #define ERRBUFSIZ	256
 
+typedef enum policy_action_e {
+	POLICY_RULE_STOP = 0, /* Default, stop if matched and policy entry exists */
+	POLICY_RULE_CONTINUE, /* Keep going, remember policy if exists, can be overriden by later rules */
+	POLICY_RULE_NO_POLICY, /* Decide that no policy should apply to this entry */
+
+	POLICY_RULE_LAST
+} policy_action_t;
+
+slap_verbmasks selections[] = {
+	{ BER_BVC("stop"), POLICY_RULE_STOP },
+	{ BER_BVC("continue"), POLICY_RULE_CONTINUE },
+	{ BER_BVC("no_policy"), POLICY_RULE_NO_POLICY },
+	{ BER_BVNULL, 0 }
+};
+
+slap_verbmasks scopes[] = {
+	{ BER_BVC("base"), ACL_STYLE_BASE },
+	{ BER_BVC("baseObject"), ACL_STYLE_BASE },
+	{ BER_BVC("exact"), ACL_STYLE_BASE },
+	{ BER_BVC("one"), ACL_STYLE_ONE },
+	{ BER_BVC("oneLevel"), ACL_STYLE_ONE },
+	{ BER_BVC("sub"), ACL_STYLE_SUBTREE },
+	{ BER_BVC("subtree"), ACL_STYLE_SUBTREE },
+	{ BER_BVC("children"), ACL_STYLE_CHILDREN },
+	{ BER_BVC("regex"), ACL_STYLE_REGEX },
+	{ BER_BVNULL, 0 }
+};
+
 typedef struct policy_rule {
-	struct berval uri; /* straight from configuration, unparsed below */
-	struct berval base;
-	int scope;
+	struct berval object_pat, object_ndn;
+	slap_style_t object_style;
+	regex_t object_regex;
+
+	int require_password;
+
+	char *filterstr;
 	Filter *filter;
-	struct berval policy_dn; /* DN of policy entry to select */
+
+	slap_style_t group_style;
+	struct berval group_pat, group_ndn;
+	ObjectClass *group_oc;
+	AttributeDescription *group_at;
+
+	/* DN/pattern of policy entry to select or BVNULL for none */
+	struct berval policy_dn, policy_ndn;
+	int policy_dn_style;
+
+	policy_action_t action;
+
 	struct policy_rule *next;
 } policy_rule;
 
@@ -467,9 +510,19 @@ enum {
 	PPOLICY_DISABLE_WRITE,
 	PPOLICY_CHECK_MODULE,
 	PPOLICY_DEFAULT_RULES,
+	PPOLICY_RULE_OBJECT,
+	PPOLICY_RULE_SCOPE,
+	PPOLICY_RULE_REQUIRE_PASS,
+	PPOLICY_RULE_FILTER,
+	PPOLICY_RULE_GROUP,
+	PPOLICY_RULE_GROUP_OC,
+	PPOLICY_RULE_GROUP_ATTR,
+	PPOLICY_RULE_POLICY,
+	PPOLICY_RULE_ACTION,
 };
 
-static ConfigDriver ppolicy_cf_default, ppolicy_cf_rule, ppolicy_cf_checkmod;
+static ConfigDriver ppolicy_cf_default, ppolicy_cf_rule, ppolicy_cf_checkmod,
+	ppolicy_rule;
 
 static ConfigTable ppolicycfg[] = {
 	{ "ppolicy_default", "policyDN", 2, 2, 0,
@@ -524,15 +577,124 @@ static ConfigTable ppolicycfg[] = {
 	  "EQUALITY caseExactIA5Match "
 	  "SYNTAX OMsIA5String "
 	  "SINGLE-VALUE )", NULL, NULL },
-	{ "ppolicy_rules", "URL> <policyDN", 3, 3, 0,
-	  ARG_QUOTE|ARG_MAGIC|PPOLICY_DEFAULT_RULES,
+
+	/* slapd.conf compatibility */
+	{ "ppolicy_rules", "rule", 3, 0, 0,
+	  ARG_MAGIC|PPOLICY_DEFAULT_RULES,
 	  ppolicy_cf_rule,
-	  "( OLcfgOvAt:12.8 NAME 'olcPPolicyRules' "
-	  "DESC 'rules to apply the right ppolicy object for entry' "
+	  NULL, NULL, NULL },
+
+	/* cn=config only attributes */
+	{ "", "dn/regex", 2, 2, 0,
+	  ARG_BERVAL|ARG_MAGIC|PPOLICY_RULE_OBJECT,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.8 "
+	  "NAME 'olcPPolicyRuleObject' "
+	  "DESC 'DN/pattern for object' "
 	  "EQUALITY caseIgnoreMatch "
-	  "SYNTAX OMsDirectoryString X-ORDERED 'VALUES' )", NULL, NULL },
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
+	{ "", "scope", 2, 2, 0,
+	  ARG_BERVAL|ARG_MAGIC|PPOLICY_RULE_SCOPE,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.9 "
+	  "NAME 'olcPPolicyRuleScope' "
+	  "DESC 'scope for olcPPolicyRuleObject DN' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
+	{ "", "require_password", 2, 2, 0,
+	  ARG_ON_OFF|ARG_MAGIC|PPOLICY_RULE_REQUIRE_PASS,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.10 "
+	  "NAME 'olcPPolicyRuleRequirePassword' "
+	  "DESC 'Require that password attribute is present' "
+	  "EQUALITY booleanMatch "
+	  "SYNTAX OMsBoolean "
+	  "SINGLE-VALUE )",
+	  NULL, { .v_int = 1 },
+	},
+	{ "", "filter", 2, 2, 0,
+	  ARG_STRING|ARG_MAGIC|PPOLICY_RULE_FILTER,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.11 "
+	  "NAME 'olcPPolicyRuleFilter' "
+	  "DESC 'Filter required for rule to match' "
+	  "EQUALITY caseExactMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
+	{ "", "dn/pattern", 2, 2, 0,
+	  ARG_BERVAL|ARG_MAGIC|PPOLICY_RULE_GROUP,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.12 "
+	  "NAME 'olcPPolicyRuleGroup' "
+	  "DESC 'Group membership required for rule to match' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
+	{ "", "oc", 2, 2, 0,
+	  ARG_STRING|ARG_MAGIC|PPOLICY_RULE_GROUP_OC,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.13 "
+	  "NAME 'olcPPolicyRuleGroupOC' "
+	  "DESC 'What objectClass to use for group membership' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
+	{ "", "attr", 2, 2, 0,
+	  ARG_ATDESC|ARG_MAGIC|PPOLICY_RULE_GROUP_ATTR,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.14 "
+	  "NAME 'olcPPolicyRuleGroupAttr' "
+	  "DESC 'What attribute to use for group membership' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
+	{ "", "dn/pattern", 2, 2, 0,
+	  ARG_BERVAL|ARG_MAGIC|PPOLICY_RULE_POLICY,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.15 "
+	  "NAME 'olcPPolicyRulePolicy' "
+	  "DESC 'Policy to use' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
+	{ "", "action", 2, 2, 0,
+	  ARG_BERVAL|ARG_MAGIC|PPOLICY_RULE_ACTION,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.16 "
+	  "NAME 'olcPPolicyRuleAction' "
+	  "DESC 'Whether to keep looking on match' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
 };
+
+static ConfigCfAdd ppolicy_cfadd;
+static ConfigLDAPadd ppolicy_rule_ldadd;
+#ifdef SLAP_CONFIG_DELETE
+static ConfigLDAPdel ppolicy_rule_lddel;
+#ifdef SLAP_CONFIG_RENAME
+static ConfigLDAPmove ppolicy_rule_ldmove;
+#endif /* SLAP_CONFIG_RENAME */
+#endif /* SLAP_CONFIG_DELETE */
 
 static ConfigOCs ppolicyocs[] = {
 	{ "( OLcfgOvOc:12.1 "
@@ -542,8 +704,51 @@ static ConfigOCs ppolicyocs[] = {
 	  "MAY ( olcPPolicyDefault $ olcPPolicyHashCleartext $ "
 	  "olcPPolicyUseLockout $ olcPPolicyForwardUpdates $ "
 	  "olcPPolicyDisableWrite $ olcPPolicySendNetscapeControls $ "
-	  "olcPPolicyCheckModule $ olcPPolicyRules ) )",
-	  Cft_Overlay, ppolicycfg },
+	  "olcPPolicyCheckModule ) )",
+	  Cft_Overlay, ppolicycfg,
+	  NULL,
+	  ppolicy_cfadd,
+	},
+	{ "( OLcfgOvOc:12.2 "
+	  "NAME 'olcPPolicyAbstractRule' "
+	  "DESC 'Password policy rule definitions' "
+	  "ABSTRACT "
+	  "MUST ( cn ) "
+	  "MAY ( description $ olcPPolicyRuleObject $ olcPPolicyRuleRequirePassword $ "
+	  "olcPPolicyRuleFilter $ olcPPolicyRuleGroup $ olcPPolicyRuleGroupOC $ "
+	  "olcPPolicyRuleGroupAttr $ olcPPolicyRulePolicy $ olcPPolicyRuleAction ) )",
+	  Cft_Misc, ppolicycfg,
+	},
+	{ "( OLcfgOvOc:12.3 "
+	  "NAME 'olcPPolicyScopedRule' "
+	  "DESC 'Password policy rule scope based definition' "
+	  "SUP olcPPolicyAbstractRule STRUCTURAL "
+	  "MAY ( olcPPolicyRuleScope ) )",
+	  Cft_Misc, ppolicycfg,
+	  ppolicy_rule_ldadd,
+	  NULL,
+#ifdef SLAP_CONFIG_DELETE
+	  ppolicy_rule_lddel,
+#ifdef SLAP_CONFIG_RENAME
+	  ppolicy_rule_ldmove,
+#endif /* SLAP_CONFIG_RENAME */
+#endif /* SLAP_CONFIG_DELETE */
+	},
+	{ "( OLcfgOvOc:12.4 "
+	  "NAME 'olcPPolicyRegexRule' "
+	  "DESC 'Password policy rule regex-based definition' "
+	  "SUP olcPPolicyAbstractRule STRUCTURAL "
+	  "MUST ( olcPPolicyRuleObject ) )",
+	  Cft_Misc, ppolicycfg,
+	  ppolicy_rule_ldadd,
+	  NULL,
+#ifdef SLAP_CONFIG_DELETE
+	  ppolicy_rule_lddel,
+#ifdef SLAP_CONFIG_RENAME
+	  ppolicy_rule_ldmove,
+#endif /* SLAP_CONFIG_RENAME */
+#endif /* SLAP_CONFIG_DELETE */
+	},
 	{ NULL, 0, NULL }
 };
 
@@ -598,104 +803,728 @@ ppolicy_cf_default( ConfigArgs *c )
 	return rc;
 }
 
+static void
+ppolicy_rule_free( policy_rule *pr )
+{
+	if ( !BER_BVISNULL( &pr->object_pat ) ) {
+		ch_free( pr->object_pat.bv_val );
+	}
+	if ( !BER_BVISNULL( &pr->object_ndn ) ) {
+		ch_free( pr->object_ndn.bv_val );
+	}
+	if ( pr->object_style == ACL_STYLE_REGEX ) {
+		regfree( &pr->object_regex );
+	}
+	if ( pr->filterstr ) {
+		ch_free( pr->filterstr );
+	}
+	if ( pr->filter ) {
+		filter_free( pr->filter );
+	}
+	if ( !BER_BVISNULL( &pr->group_pat ) ) {
+		ch_free( pr->group_pat.bv_val );
+	}
+	if ( !BER_BVISNULL( &pr->group_ndn ) ) {
+		ch_free( pr->group_ndn.bv_val );
+	}
+	if ( !BER_BVISNULL( &pr->policy_dn ) ) {
+		ch_free( pr->policy_dn.bv_val );
+	}
+	if ( !BER_BVISNULL( &pr->policy_ndn ) ) {
+		ch_free( pr->policy_ndn.bv_val );
+	}
+	pr->next = NULL;
+	ch_free( pr );
+}
+
+static int
+ppolicy_rule_parse( policy_rule **prp, ConfigArgs *c )
+{
+	policy_rule *pr = ch_calloc( 1, sizeof(policy_rule) );
+	int rc = ARG_BAD_CONF, i = 1, j, have_policy = 0;
+
+	pr->action = POLICY_RULE_LAST;
+	pr->require_password = -1;
+
+	for ( ; i < c->argc; i++ ) {
+		char *p = c->argv[i], *value = NULL, *style = NULL;
+
+		value = strchr( p, '=' );
+		if ( value ) *value++ = '\0';
+
+		style = strchr( p, '.' );
+		if ( style ) *style++ = '\0';
+
+		if ( !value ) {
+			if ( style ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: keyword \"%s\" doesn't accept style \"%s\"",
+						c->argv[0], p, style );
+				goto done;
+			}
+
+			j = verb_to_mask( p, selections );
+			if ( BER_BVISNULL( &selections[j].word ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: keyword \"%s\" unknown or requires argument",
+						c->argv[0], p );
+				goto done;
+			} else if ( selections[j].mask == POLICY_RULE_NO_POLICY ) {
+				if ( have_policy ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s>: \"%s\" or policy_dn specified multiple times",
+							c->argv[0], p );
+					goto done;
+				}
+				have_policy = 1;
+			} else if ( pr->action != POLICY_RULE_LAST ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: more that one action specified: \"%s\"",
+						c->argv[0], p );
+				goto done;
+			}
+			pr->action = selections[j].mask;
+			continue;
+		}
+
+		if ( strcasecmp( p, "dn" ) == 0 ) {
+			if ( !BER_BVISNULL( &pr->object_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: \"%s\" specified multiple times",
+						c->argv[0], p );
+				goto done;
+			}
+
+			j = 0;
+			if ( style ) {
+				j = verb_to_mask( style, scopes );
+			}
+
+			if ( BER_BVISNULL( &scopes[j].word ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> unknown dn style: %s",
+						c->argv[0], style );
+				goto done;
+			}
+
+			pr->object_style = scopes[j].mask;
+			if ( pr->object_style == ACL_STYLE_REGEX ) {
+				if ( *value == '\0' ) {
+					/* empty regex should match empty DN */
+					pr->object_style = ACL_STYLE_BASE;
+				} else {
+					int e = regcomp( &pr->object_regex, value,
+							REG_EXTENDED | REG_ICASE );
+					if ( e ) {
+						char err[SLAP_TEXT_BUFLEN];
+
+						regerror( e, &pr->object_regex, err, sizeof( err ) );
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+								"<%s> regular expression \"%s\" bad because of %s",
+								c->argv[0], value, err );
+						goto done;
+					}
+
+					pr->object_style = ACL_STYLE_REGEX;
+				}
+			}
+			ber_str2bv( value, 0, 1, &pr->object_pat );
+		} else if ( strcasecmp( p, "require_password" ) == 0 ) {
+			if ( pr->require_password >= 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: \"%s\" specified multiple times",
+						c->argv[0], p );
+				goto done;
+			}
+
+			if ( style ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: \"%s\" does not accept a style modifier",
+						c->argv[0], p );
+				goto done;
+			}
+
+			if ( !strcasecmp(c->argv[1], "true") ||
+					!strcasecmp(c->argv[1], "yes") ) {
+				pr->require_password = 1;
+			} else if ( !strcasecmp(c->argv[1], "false") ||
+					!strcasecmp(c->argv[1], "no") ) {
+				pr->require_password = 0;
+			} else {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> unknown value for \"%s\": %s",
+						c->argv[0], p, value );
+				goto done;
+			}
+		} else if ( strcasecmp( p, "filter" ) == 0 ) {
+			if ( pr->filter ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: \"%s\" specified multiple times",
+						c->argv[0], p );
+				goto done;
+			}
+
+			if ( style ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: \"%s\" does not accept a style modifier",
+						c->argv[0], p );
+				goto done;
+			}
+
+			pr->filter = str2filter( value );
+			if ( !pr->filter ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: bad filter: %s",
+						c->argv[0], value );
+				goto done;
+			}
+			pr->filterstr = ch_strdup( value );
+		} else if ( strncasecmp( p, "group", STRLENOF("group") ) == 0 ) {
+			char *name = NULL;
+			char *oc_name = NULL;
+			char *attr_name = SLAPD_GROUP_ATTR;
+			const char *text;
+
+			if ( p[STRLENOF("group")] != '\0' && p[STRLENOF("group")] != '/' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: unknown option \"%s\"",
+						c->argv[0], p );
+				goto done;
+			}
+
+			if ( style && strcasecmp( style, "expand" ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> unknown style \"%s\" for group.",
+						c->argv[0], c->argv[i] );
+				goto done;
+			}
+			if ( style ) {
+				if ( pr->object_style != ACL_STYLE_REGEX ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s> group dn expansion requires a regex scope",
+							c->argv[0] );
+					goto done;
+				}
+				pr->group_style = ACL_STYLE_EXPAND;
+			} else {
+				pr->group_style = ACL_STYLE_BASE;
+			}
+
+			/* format of string is
+			   "group/objectClassValue/groupAttrName" */
+			if ( ( oc_name = strchr( p, '/' ) ) != NULL ) {
+				*oc_name++ = '\0';
+				if ( *oc_name && ( name = strchr( oc_name, '/' ) ) != NULL ) {
+					*name++ = '\0';
+				}
+			}
+
+			if ( !BER_BVISNULL( &pr->group_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: \"%s\" specified multiple times",
+						c->argv[0], p );
+				goto done;
+			}
+
+			if ( oc_name && *oc_name ) {
+				pr->group_oc = oc_find( oc_name );
+
+				if ( pr->group_oc == NULL ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s>: group objectclass \"%s\" unknown",
+							c->argv[0], oc_name );
+					goto done;
+				}
+
+			} else {
+				pr->group_oc = oc_find( SLAPD_GROUP_CLASS );
+
+				if ( pr->group_oc == NULL ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s>: group default objectclass \"%s\" unknown",
+							c->argv[0], SLAPD_GROUP_CLASS );
+					goto done;
+				}
+			}
+
+			if ( is_object_subclass( slap_schema.si_oc_referral,
+						pr->group_oc ) )
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: group objectclass \"%s\" "
+						"is subclass of referral.",
+						c->argv[0], oc_name );
+				goto done;
+			}
+
+			if ( is_object_subclass( slap_schema.si_oc_alias,
+						pr->group_oc ) )
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: group objectclass \"%s\" "
+						"is subclass of alias.\n",
+						c->argv[0], oc_name );
+				goto done;
+			}
+
+			if ( name && *name ) {
+				attr_name = name;
+			}
+
+			rc = slap_str2ad( attr_name, &pr->group_at, &text );
+			if ( rc != LDAP_SUCCESS ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> group \"%s\": %s.\n",
+						c->argv[0], value, text );
+				goto done;
+			}
+
+			if ( !is_at_syntax( pr->group_at->ad_type,
+						SLAPD_DN_SYNTAX ) /* e.g. "member" */
+					&& !is_at_syntax( pr->group_at->ad_type,
+						SLAPD_NAMEUID_SYNTAX ) /* e.g. memberUID */
+					&& !is_at_subtype( pr->group_at->ad_type,
+						slap_schema.si_ad_labeledURI->ad_type ) /* e.g. memberURL */ )
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> group \"%s\" attr \"%s\": inappropriate syntax %s; "
+						"must be " SLAPD_DN_SYNTAX " (DN), " SLAPD_NAMEUID_SYNTAX
+						" (NameUID) or a subtype of labeledURI.",
+						c->argv[0], value, attr_name, at_syntax(pr->group_at->ad_type) );
+				goto done;
+			}
+
+			{
+				ObjectClass *ocs[2];
+
+				ocs[0] = pr->group_oc;
+				ocs[1] = NULL;
+
+				if ( oc_check_allowed( pr->group_at->ad_type, ocs, NULL ) ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s> group: \"%s\" not allowed by \"%s\".",
+							c->argv[0], pr->group_at->ad_cname.bv_val,
+							pr->group_oc->soc_oid );
+					goto done;
+				}
+			}
+			ber_str2bv( value, 0, 1, &pr->group_pat );
+
+			if ( pr->group_style != ACL_STYLE_EXPAND &&
+					dnNormalize( 0, NULL, NULL,
+						&pr->group_pat, &pr->group_ndn, NULL ) != LDAP_SUCCESS ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> unable to normalize group DN \"%s\"",
+						c->argv[0], value );
+				goto done;
+			}
+		} else if ( strcasecmp( p, "policy_dn" ) == 0 ) {
+			if ( have_policy ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: \"%s\" or no_policy specified multiple times",
+						c->argv[0], p );
+				goto done;
+			}
+			have_policy = 1;
+
+			if ( style && strcasecmp( style, "expand" ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> unknown style \"%s\" for policy_dn.",
+						c->argv[0], c->argv[i] );
+				goto done;
+			}
+			if ( style ) {
+				if ( pr->object_style != ACL_STYLE_REGEX ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s> policy dn expansion requires a regex scope",
+							c->argv[0] );
+					goto done;
+				}
+				pr->policy_dn_style = ACL_STYLE_EXPAND;
+			} else {
+				pr->policy_dn_style = ACL_STYLE_BASE;
+			}
+			ber_str2bv( value, 0, 1, &pr->policy_dn );
+		} else {
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"<%s> unknown keyword \"%s\".",
+					c->argv[0], c->argv[i] );
+			goto done;
+		}
+	}
+
+	if ( pr->action == POLICY_RULE_LAST ) {
+		pr->action = POLICY_RULE_STOP;
+	}
+	if ( pr->require_password < 0 ) {
+		pr->require_password = 1;
+	}
+
+	if ( i != c->argc ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"<%s> extra cruft after policy specification",
+				c->argv[0] );
+		goto done;
+	}
+
+	if ( !have_policy ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"<%s> need to specify policy_dn or no_policy",
+				c->argv[0] );
+		goto done;
+	}
+
+	if ( !BER_BVISNULL( &pr->policy_dn ) &&
+			pr->policy_dn_style != ACL_STYLE_EXPAND &&
+			dnNormalize( 0, NULL, NULL,
+				&pr->policy_dn, &pr->policy_ndn, NULL ) != LDAP_SUCCESS ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"<%s> unable to normalize policy_dn=\"%s\"",
+				c->argv[0], pr->object_pat.bv_val );
+		goto done;
+	}
+
+	if ( pr->object_style != ACL_STYLE_REGEX &&
+			!BER_BVISNULL( &pr->object_pat ) ) {
+		if ( dnNormalize( 0, NULL, NULL,
+					&pr->object_pat, &pr->object_ndn, NULL ) != LDAP_SUCCESS )
+		{
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"<%s> unable to normalize dn=\"%s\"",
+					c->argv[0], pr->object_pat.bv_val );
+			goto done;
+		}
+	}
+
+	*prp = pr;
+	rc = LDAP_SUCCESS;
+done:
+	if ( rc ) {
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+		ppolicy_rule_free( pr );
+	}
+	return rc;
+}
+
 static int
 ppolicy_cf_rule( ConfigArgs *c )
 {
 	slap_overinst *on = (slap_overinst *)c->bi;
 	pp_info *pi = (pp_info *)on->on_bi.bi_private;
-	policy_rule *pr = NULL, **prp;
-	LDAPURLDesc *lud = NULL;
-	struct berval bv;
-	int i, rc = ARG_BAD_CONF;
+	policy_rule **prp;
+	int rc = ARG_BAD_CONF;
 
+	assert( c->op == SLAP_CONFIG_ADD );
 	assert( c->type == PPOLICY_DEFAULT_RULES );
-	Debug( LDAP_DEBUG_TRACE, "==> ppolicy_rules\n" );
+	Debug( LDAP_DEBUG_TRACE, "==> ppolicy_cf_rule\n" );
+
+	for ( prp = &pi->policy_rules; *prp; prp = &(*prp)->next )
+		/* scroll to the end */ ;
+
+	if ( (rc = ppolicy_rule_parse( prp, c )) ) {
+		return rc;
+	}
+
+	return LDAP_SUCCESS;
+}
+
+static int
+ppolicy_group_finish( ConfigArgs *c )
+{
+	policy_rule *pr = c->ca_private;
+	ObjectClass *ocs[2];
+
+	ocs[0] = pr->group_oc;
+	ocs[1] = NULL;
+
+	if ( oc_check_allowed( pr->group_at->ad_type, ocs, NULL ) ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"<%s> group: \"%s\" not allowed by \"%s\".",
+				c->argv[0], pr->group_at->ad_cname.bv_val,
+				pr->group_oc->soc_oid );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+		return ARG_BAD_CONF;
+	}
+
+	return LDAP_SUCCESS;
+}
+
+static int
+ppolicy_rule( ConfigArgs *c )
+{
+	policy_rule *pr = c->ca_private;
+	struct berval ndn = BER_BVNULL;
+	const char *text;
+	int rc = ARG_BAD_CONF;
 
 	if ( c->op == SLAP_CONFIG_EMIT ) {
-		if ( pi->policy_rules ) {
-			Attribute a = {
-				.a_desc = c->ca_desc->ad,
-				.a_vals = c->rvalue_vals,
-			};
-
-			for ( pr = pi->policy_rules; pr; pr = pr->next ) {
-				bv.bv_len = pr->uri.bv_len + pr->policy_dn.bv_len +
-					STRLENOF("\"\" \"\"");
-				bv.bv_val = ch_malloc( bv.bv_len + 1 );
-
-				snprintf( bv.bv_val, bv.bv_len + 1, "\"%s\" \"%s\"",
-						pr->uri.bv_val, pr->policy_dn.bv_val );
-				ber_bvarray_add( &a.a_vals, &bv );
-				a.a_numvals++;
-			}
-
-			ordered_value_renumber( &a );
-			c->rvalue_vals = a.a_vals;
-			return LDAP_SUCCESS;
-		}
-		return 1;
-	} else if ( c->op == LDAP_MOD_DELETE ) {
-		if ( pi->policy_rules ) {
-			for ( prp = &pi->policy_rules, i=0; *prp; i++ ) {
-				pr = *prp;
-
-				if ( c->valx == -1 || i == c->valx ) {
-					*prp = pr->next;
-					pr->next = NULL;
-
-					ch_free( pr->uri.bv_val );
-					ch_free( pr->base.bv_val );
-					ch_free( pr->policy_dn.bv_val );
-					filter_free( pr->filter );
-					ch_free( pr );
-
-					if ( i == c->valx )
-						break;
-				} else {
-					prp = &pr->next;
+		switch ( c->type ) {
+			case PPOLICY_RULE_OBJECT:
+				c->value_bv = pr->object_pat;
+				return LDAP_SUCCESS;
+			case PPOLICY_RULE_SCOPE:
+				if ( pr->object_style != ACL_STYLE_REGEX ) {
+					enum_to_verb( scopes, pr->object_style, &c->value_bv );
+					return LDAP_SUCCESS;
 				}
-			}
+				break;
+			case PPOLICY_RULE_REQUIRE_PASS:
+				c->value_int = pr->require_password;
+				return LDAP_SUCCESS;
+			case PPOLICY_RULE_FILTER:
+				if ( pr->filterstr ) {
+					c->value_string = ch_strdup( pr->filterstr );
+				}
+				return LDAP_SUCCESS;
+			case PPOLICY_RULE_GROUP:
+				c->value_bv = pr->group_pat;
+				return LDAP_SUCCESS;
+			case PPOLICY_RULE_GROUP_OC:
+				if ( pr->group_oc ) {
+					c->value_string = ch_strdup( pr->group_oc->soc_cname.bv_val );
+					return LDAP_SUCCESS;
+				}
+				break;
+			case PPOLICY_RULE_GROUP_ATTR:
+				c->value_ad = pr->group_at;
+				return LDAP_SUCCESS;
+			case PPOLICY_RULE_POLICY:
+				c->value_bv = pr->policy_dn;
+				return LDAP_SUCCESS;
+			case PPOLICY_RULE_ACTION:
+				enum_to_verb( selections, pr->action, &c->value_bv );
+				return LDAP_SUCCESS;
+
+			default:
+				assert(0);
+		}
+		return rc;
+	} else if ( c->op == LDAP_MOD_DELETE ) {
+		switch ( c->type ) {
+			case PPOLICY_RULE_OBJECT:
+				ch_free( pr->object_pat.bv_val );
+				BER_BVZERO( &pr->object_pat );
+				ch_free( pr->object_ndn.bv_val );
+				BER_BVZERO( &pr->object_ndn );
+				break;
+			case PPOLICY_RULE_SCOPE:
+				pr->object_style = ACL_STYLE_BASE;
+				break;
+			case PPOLICY_RULE_REQUIRE_PASS:
+				pr->require_password = c->ca_desc->arg_default.v_int;
+				break;
+			case PPOLICY_RULE_FILTER:
+				filter_free( pr->filter );
+
+				ch_free( pr->filterstr );
+				pr->filterstr = NULL;
+				break;
+			case PPOLICY_RULE_GROUP:
+				ch_free( pr->group_pat.bv_val );
+				BER_BVZERO( &pr->group_pat );
+				ch_free( pr->group_ndn.bv_val );
+				BER_BVZERO( &pr->group_ndn );
+				break;
+			case PPOLICY_RULE_GROUP_OC:
+				pr->group_oc = oc_find( SLAPD_GROUP_CLASS );
+				if ( !pr->group_oc ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"group default objectclass \"%s\" unknown",
+							SLAPD_GROUP_CLASS );
+					Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+					return rc;
+				}
+				config_push_cleanup( c, ppolicy_group_finish );
+				break;
+			case PPOLICY_RULE_GROUP_ATTR:
+				rc = slap_str2ad( SLAPD_GROUP_ATTR, &pr->group_at, &text );
+				if ( rc != LDAP_SUCCESS ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"group default attribute \"%s\" unknown: %s.\n",
+							SLAPD_GROUP_ATTR, text );
+					Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+					return rc;
+				}
+
+				if ( !is_at_syntax( pr->group_at->ad_type,
+							SLAPD_DN_SYNTAX ) /* e.g. "member" */
+						&& !is_at_syntax( pr->group_at->ad_type,
+							SLAPD_NAMEUID_SYNTAX ) /* e.g. memberUID */
+						&& !is_at_subtype( pr->group_at->ad_type,
+							slap_schema.si_ad_labeledURI->ad_type ) /* e.g. memberURL */ )
+				{
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s> group attr \"%s\": inappropriate syntax %s; "
+							"must be " SLAPD_DN_SYNTAX " (DN), " SLAPD_NAMEUID_SYNTAX
+							" (NameUID) or a subtype of labeledURI.",
+							c->argv[0], pr->group_at->ad_cname.bv_val,
+							at_syntax(pr->group_at->ad_type) );
+					Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+					return ARG_BAD_CONF;
+				}
+
+				config_push_cleanup( c, ppolicy_group_finish );
+				break;
+			case PPOLICY_RULE_POLICY:
+				ch_free( pr->policy_dn.bv_val );
+				BER_BVZERO( &pr->policy_dn );
+				ch_free( pr->policy_ndn.bv_val );
+				BER_BVZERO( &pr->policy_ndn );
+				break;
+			case PPOLICY_RULE_ACTION:
+				pr->action = POLICY_RULE_STOP;
+				break;
+
+			default:
+				assert(0);
 		}
 		return LDAP_SUCCESS;
 	}
 
-	if ( ldap_url_parse_ext( c->argv[1], &lud, 0 ) != LDAP_SUCCESS ) {
-		snprintf( c->cr_msg, sizeof( c->cr_msg ),
-				"ppolicy_rules: bad policy URL");
-		return rc;
-	}
-
-	pr = ch_calloc( 1, sizeof(policy_rule) );
-	ber_str2bv( c->argv[1], 0, 1, &pr->uri );
-	pr->scope = lud->lud_scope;
-
-	ber_str2bv( lud->lud_dn, 0, 0, &bv );
-	if ( dnNormalize( 0, NULL, NULL, &bv, &pr->base, NULL ) ) {
-		snprintf( c->cr_msg, sizeof( c->cr_msg ),
-				"ppolicy_rules: bad URL base" );
-		rc = ARG_BAD_CONF;
-		goto done;
-	}
-
-	if ( lud->lud_filter ) {
-		pr->filter = str2filter( lud->lud_filter );
-		if ( !pr->filter ) {
-			snprintf( c->cr_msg, sizeof( c->cr_msg ),
-					"ppolicy_rules: bad filter" );
-			rc = ARG_BAD_CONF;
-			goto done;
-		}
-	}
-
-	ber_str2bv( c->argv[2], 0, 0, &bv );
-	if ( dnNormalize( 0, NULL, NULL, &bv, &pr->policy_dn, NULL ) ) {
-		snprintf( c->cr_msg, sizeof( c->cr_msg ),
-				"ppolicy_rules: bad policy DN" );
-		rc = ARG_BAD_CONF;
-		goto done;
-	}
-
 	rc = LDAP_SUCCESS;
+
+	switch ( c->type ) {
+		case PPOLICY_RULE_OBJECT:
+			if ( pr->object_style != ACL_STYLE_REGEX ) {
+				rc = dnNormalize( 0, NULL, NULL, &c->value_bv, &ndn, NULL );
+			}
+			if ( rc == LDAP_SUCCESS ) {
+				pr->object_pat = c->value_bv;
+				pr->object_ndn = ndn;
+			}
+			break;
+		case PPOLICY_RULE_SCOPE: {
+			int i = bverb_to_mask( &c->value_bv, scopes );
+			if ( BER_BVISNULL( &scopes[i].word ) ||
+				scopes[i].mask == ACL_STYLE_REGEX ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> unknown dn style: %s",
+						c->argv[0], c->value_bv.bv_val );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				return ARG_BAD_CONF;
+			}
+			ch_free( c->value_bv.bv_val );
+			pr->object_style = scopes[i].mask;
+		} break;
+		case PPOLICY_RULE_REQUIRE_PASS:
+			pr->require_password = c->value_int;
+			break;
+		case PPOLICY_RULE_FILTER:
+			pr->filter = str2filter( c->value_string );
+			if ( !pr->filter ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: bad filter: %s",
+						c->argv[0], c->value_string );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				return ARG_BAD_CONF;
+			}
+			pr->filterstr = c->value_string;
+			break;
+		case PPOLICY_RULE_GROUP:
+			if ( pr->object_style != ACL_STYLE_REGEX ) {
+				rc = dnNormalize( 0, NULL, NULL, &c->value_bv, &ndn, NULL );
+			}
+			if ( rc == LDAP_SUCCESS ) {
+				pr->group_pat = c->value_bv;
+				pr->group_ndn = ndn;
+			}
+			break;
+		case PPOLICY_RULE_GROUP_OC:
+			pr->group_oc = oc_find( c->value_string );
+			if ( !pr->group_oc ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: group objectclass \"%s\" unknown",
+						c->argv[0], SLAPD_GROUP_CLASS );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				return ARG_BAD_CONF;
+			}
+			config_push_cleanup( c, ppolicy_group_finish );
+			break;
+		case PPOLICY_RULE_GROUP_ATTR:
+			rc = slap_str2ad( c->value_string, &pr->group_at, &text );
+			if ( rc != LDAP_SUCCESS ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: group \"%s\": %s.\n",
+						c->argv[0], SLAPD_GROUP_ATTR, text );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				return ARG_BAD_CONF;
+			}
+
+			if ( !is_at_syntax( pr->group_at->ad_type,
+						SLAPD_DN_SYNTAX ) /* e.g. "member" */
+					&& !is_at_syntax( pr->group_at->ad_type,
+						SLAPD_NAMEUID_SYNTAX ) /* e.g. memberUID */
+					&& !is_at_subtype( pr->group_at->ad_type,
+						slap_schema.si_ad_labeledURI->ad_type ) /* e.g. memberURL */ )
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> group attr \"%s\": inappropriate syntax %s; "
+						"must be " SLAPD_DN_SYNTAX " (DN), " SLAPD_NAMEUID_SYNTAX
+						" (NameUID) or a subtype of labeledURI.",
+						c->argv[0], pr->group_at->ad_cname.bv_val,
+						at_syntax(pr->group_at->ad_type) );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				return ARG_BAD_CONF;
+			}
+
+			config_push_cleanup( c, ppolicy_group_finish );
+			break;
+		case PPOLICY_RULE_POLICY:
+			if ( pr->object_style != ACL_STYLE_REGEX ) {
+				rc = dnNormalize( 0, NULL, NULL, &c->value_bv, &ndn, NULL );
+			}
+			if ( rc == LDAP_SUCCESS ) {
+				pr->policy_dn = c->value_bv;
+				pr->policy_ndn = ndn;
+			}
+			break;
+		case PPOLICY_RULE_ACTION: {
+			int i = bverb_to_mask( &c->value_bv, selections );
+			if ( BER_BVISNULL( &selections[i].word ) ) {
+				snprintf( c->cr_msg, sizeof(c->cr_msg),
+						"<%s>: invalid selection configuration \"%s\"",
+						c->argv[0], c->value_bv.bv_val );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				return ARG_BAD_CONF;
+			}
+		} break;
+
+		default:
+			assert(0);
+	}
+	return LDAP_SUCCESS;
+}
+
+static int
+ppolicy_rule_finish( ConfigArgs *c )
+{
+	slap_overinst *on = (slap_overinst *)c->bi;
+	pp_info *pi = (pp_info *)on->on_bi.bi_private;
+	policy_rule *pr = c->ca_private, **prp;
+	struct berval bv;
+	Attribute *a;
+	char *p, *next;
+	int i;
+
+	if ( c->reply.err != LDAP_SUCCESS ) {
+		ppolicy_rule_free( pr );
+		return LDAP_SUCCESS;
+	}
+
+	/*
+	 * TODO: It would be nice if we didn't have to extract it manually,
+	 * relying on something like c->valx.
+	 */
+	a = attr_find( c->ca_entry->e_attrs, slap_schema.si_ad_cn );
+	assert( a && a->a_numvals == 1 );
+	bv = a->a_nvals[0];
+
+	p = strchr( bv.bv_val, '}' );
+	assert( p && bv.bv_val[0] == '{' );
+
+	c->valx = strtol( &bv.bv_val[1], &next, 0 );
+	assert( next == p && c->valx >= -1 );
+
 	for ( i = 0, prp = &pi->policy_rules;
 		*prp && ( c->valx < 0 || i < c->valx );
 		prp = &(*prp)->next, i++ )
@@ -703,15 +1532,177 @@ ppolicy_cf_rule( ConfigArgs *c )
 	pr->next = *prp;
 	*prp = pr;
 
-done:
-	ldap_free_urldesc( lud );
-	if ( rc != LDAP_SUCCESS ) {
-		ch_free( pr->uri.bv_val );
-		ch_free( pr->policy_dn.bv_val );
-		filter_free( pr->filter );
-		ch_free( pr );
+	Debug( LDAP_DEBUG_TRACE, "%s ppolicy_rule_finish: "
+			"added a new rule at index %d\n",
+			c->ca_op->o_log_prefix, i );
+
+	return LDAP_SUCCESS;
+}
+
+static int
+ppolicy_rule_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
+{
+	AttributeDescription *ad = NULL;
+	ObjectClass *regex_oc = oc_find( "olcPPolicyRegexRule" );
+	Attribute *a;
+	policy_rule *pr;
+	struct berval bv, type, rdn;
+	const char *text;
+	char *name;
+
+	Debug( LDAP_DEBUG_TRACE, "%s ppolicy_rule_ldadd: "
+			"a new rule is being added e=\"%s\"\n",
+			ca->ca_op->o_log_prefix, e->e_name.bv_val );
+
+	if ( p->ce_type != Cft_Overlay || !p->ce_bi ||
+			p->ce_bi->bi_cf_ocs != ppolicyocs )
+		return LDAP_CONSTRAINT_VIOLATION;
+
+	dnRdn( &e->e_name, &rdn );
+	type.bv_len = strchr( rdn.bv_val, '=' ) - rdn.bv_val;
+	type.bv_val = rdn.bv_val;
+
+	/* Find attr */
+	slap_bv2ad( &type, &ad, &text );
+	if ( ad != slap_schema.si_ad_cn ) return LDAP_NAMING_VIOLATION;
+
+	a = attr_find( e->e_attrs, ad );
+	if ( !a || a->a_numvals != 1 ) return LDAP_NAMING_VIOLATION;
+	bv = a->a_vals[0];
+
+	if ( bv.bv_val[0] == '{' && ( name = strchr( bv.bv_val, '}' ) ) ) {
+		name++;
+		bv.bv_len -= name - bv.bv_val;
+		bv.bv_val = name;
 	}
-	return rc;
+
+	pr = ch_calloc( 1, sizeof(policy_rule) );
+
+	/* Set defaults based on whether this is a plain/regex rule, would be nice
+	 * if the caller gave us the ConfigOCs pointer though */
+	if ( is_entry_objectclass( e, regex_oc, 0 ) ) {
+		pr->object_style = ACL_STYLE_REGEX;
+	} else {
+		pr->object_style = ACL_STYLE_BASE;
+	}
+
+	pr->group_oc = oc_find( SLAPD_GROUP_CLASS );
+	if ( pr->group_oc == NULL ) {
+		snprintf( ca->cr_msg, sizeof( ca->cr_msg ),
+				"<%s>: group default objectclass \"%s\" unknown",
+				ca->argv[0], SLAPD_GROUP_CLASS );
+		ch_free( pr );
+		return LDAP_OTHER;
+	}
+
+	if ( slap_str2ad( SLAPD_GROUP_ATTR, &pr->group_at, &text ) ) {
+		snprintf( ca->cr_msg, sizeof( ca->cr_msg ),
+				"group default attribute \"%s\" unknown: %s.\n",
+				SLAPD_GROUP_ATTR, text );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
+		ch_free( pr );
+		return LDAP_OTHER;
+	}
+
+	ca->bi = p->ce_bi;
+	ca->ca_entry = e;
+	ca->ca_private = pr;
+	config_push_cleanup( ca, ppolicy_rule_finish );
+
+	/* ca cleanups are only run in the case of online config but we use it to
+	 * save the new config when done with the entry */
+	ca->lineno = 0;
+
+	return LDAP_SUCCESS;
+}
+
+#ifdef SLAP_CONFIG_DELETE
+static int
+ppolicy_rule_lddel( CfEntryInfo *ce, Operation *op )
+{
+	slap_overinst *on = (slap_overinst *)ce->ce_bi;
+	pp_info *pi = (pp_info *)on->on_bi.bi_private;
+	policy_rule *pr = ce->ce_private, **prp;
+
+	for ( prp = &pi->policy_rules; *prp != pr; prp = &(*prp)->next )
+		/* Find it */;
+
+	*prp = pr->next;
+	ppolicy_rule_free( pr );
+
+	return LDAP_SUCCESS;
+}
+
+#ifdef SLAP_CONFIG_RENAME
+static int
+ppolicy_rule_ldmove( CfEntryInfo *ce, Operation *op, SlapReply *rs,
+	int ixold, int ixnew )
+{
+	slap_overinst *on = (slap_overinst *)ce->ce_bi;
+	pp_info *pi = (pp_info *)on->on_bi.bi_private;
+	policy_rule *pr = ce->ce_private, **prp;
+	int i;
+
+	for ( prp = &pi->policy_rules; *prp != pr; prp = &(*prp)->next, i++ )
+		/* Find removal point */;
+
+	assert( i == ixold );
+
+	*prp = pr->next;
+	i = 0;
+
+	for ( prp = &pi->policy_rules, i=0; i < ixnew; prp = &(*prp)->next, i++ )
+		/* Find insertion point */;
+
+	pr->next = *prp;
+	*prp = pr;
+
+	return LDAP_SUCCESS;
+}
+#endif /* SLAP_CONFIG_RENAME */
+#endif /* SLAP_CONFIG_DELETE */
+
+static int
+ppolicy_cfadd( Operation *op, SlapReply *rs, Entry *p, ConfigArgs *c )
+{
+	slap_overinst *on = (slap_overinst *)c->bi;
+	pp_info *pi = (pp_info *)on->on_bi.bi_private;
+	policy_rule *pr;
+	struct berval bv;
+	int i = 0;
+
+	bv.bv_val = c->cr_msg;
+
+	for ( pr = pi->policy_rules; pr; pr = pr->next, i++ ) {
+		ObjectClass *oc = oc_find( "olcPPolicyScopedRule" );
+		ConfigOCs *coc;
+		Entry *e;
+
+		bv.bv_len = snprintf( c->cr_msg, sizeof(c->cr_msg),
+				"cn=" SLAP_X_ORDERED_FMT "rule %d", i, i );
+
+		if ( pr->object_style == ACL_STYLE_REGEX ) {
+			oc = oc_find( "olcPPolicyRegexRule" );
+		}
+		assert( oc );
+
+		c->ca_private = pr;
+		c->valx = i;
+
+		for ( coc = ppolicyocs; coc->co_type; coc++ ) {
+			if ( coc->co_oc == oc ) {
+				break;
+			}
+		}
+		assert( coc->co_type );
+
+		e = config_build_entry( op, rs, p->e_private, c, &bv, coc, NULL );
+		if ( !e ) {
+			return 1;
+		}
+	}
+
+	return LDAP_SUCCESS;
 }
 
 #ifdef SLAPD_MODULES
@@ -1059,6 +2050,7 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
 	pp_info *pi = on->on_bi.bi_private;
 	Entry *e = rs->sr_entry;
+	int have_password = 0;
 
 	/* This allows clients to find out if there's a value stored directly in
 	 * the DB (and syncrepl clients not to commit our generated copy), callers
@@ -1071,33 +2063,167 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 	if ( !e || attr_find( e->e_attrs, ad_pwdPolicySubentry ) )
 		return SLAP_CB_CONTINUE;
 
+	/* TODO: When we support different pwdAttribute values, move this into the
+	 * loop */
+	if ( attr_find( e->e_attrs, slap_schema.si_ad_userPassword ) )
+		have_password = 1;
+
 	if ( SLAP_OPATTRS( rs->sr_attr_flags ) ||
 		ad_inlist( ad_pwdPolicySubentry, rs->sr_attrs )) {
+		struct berval value = BER_BVNULL;
 		Attribute *a, **ap = NULL;
 		policy_rule *pr;
-		BerVarray vals;
+		int freeval = 0, matched = 0;
+		AclRegexMatches *matches = op->o_tmpalloc(
+				sizeof(AclRegexMatches), op->o_tmpmemctx );
 
 		for ( pr = pi->policy_rules; pr; pr = pr->next ) {
-			if ( !dnIsSuffixScope( &e->e_nname, &pr->base, pr->scope ) ) continue;
-			if ( pr->filter && test_filter( op, e, pr->filter ) != LDAP_COMPARE_TRUE ) continue;
+			int freendn = 0;
+			struct berval policy_ndn = BER_BVNULL;
 
-			/* We found a match */
-			break;
+			if ( pr->require_password && !have_password ) {
+				goto skip;
+			}
+
+			if ( !BER_BVISNULL( &pr->object_pat ) ) {
+				if ( pr->object_style == ACL_STYLE_REGEX ) {
+					Debug( LDAP_DEBUG_TRACE, "ppolicy_operational: %s nsub: %d\n",
+							pr->object_pat.bv_val, (int)pr->object_regex.re_nsub );
+
+					memset( matches, 0, sizeof(AclRegexMatches) );
+					matches->dn_count = sizeof(matches->dn_data) / sizeof(matches->dn_data[0]);
+
+					if ( regexec( &pr->object_regex, e->e_ndn,
+								matches->dn_count, matches->dn_data, 0 ) != 0 ) {
+						goto skip;
+					}
+				} else {
+					int scope = LDAP_SCOPE_BASE;
+
+					switch ( pr->object_style ) {
+						case ACL_STYLE_BASE:
+							scope = LDAP_SCOPE_BASE;
+							break;
+						case ACL_STYLE_SUBTREE:
+							scope = LDAP_SCOPE_SUBTREE;
+							break;
+						case ACL_STYLE_ONE:
+							scope = LDAP_SCOPE_ONE;
+							break;
+						case ACL_STYLE_CHILDREN:
+							scope = LDAP_SCOPE_CHILDREN;
+							break;
+						default:
+							assert(0);
+					}
+					if ( !dnIsSuffixScope( &e->e_nname, &pr->object_ndn, scope ) ) {
+						goto skip;
+					}
+				}
+			}
+
+			if ( !BER_BVISNULL( &pr->group_pat ) ) {
+				char buffer[1024];
+				struct berval ndn, dn = BER_BVC(buffer);
+
+				if ( pr->group_style == ACL_STYLE_EXPAND ) {
+					if ( acl_string_expand( &dn, &pr->group_pat,
+								&e->e_nname, NULL, matches ) ) {
+						goto skip;
+					} else if ( dnNormalize( 0, NULL, NULL, &dn, &ndn,
+								op->o_tmpmemctx ) != LDAP_SUCCESS )
+					{
+						/* did not expand to a valid dn */
+						BER_BVZERO( &ndn );
+						goto skip;
+					}
+				} else {
+					ndn = pr->group_ndn;
+				}
+
+				if ( backend_group( op, e, &ndn, &e->e_nname, pr->group_oc,
+							pr->group_at ) ) {
+					goto skip;
+				}
+				if ( pr->group_style == ACL_STYLE_EXPAND &&
+						!BER_BVISNULL( &ndn ) ) {
+					op->o_tmpfree( ndn.bv_val, op->o_tmpmemctx );
+				}
+			}
+
+			if ( pr->filter &&
+					test_filter( NULL, e, pr->filter ) != LDAP_COMPARE_TRUE ) {
+				goto skip;
+			}
+
+			/* entry matches criteria, construct policy dn if necessary */
+			if ( pr->policy_dn_style == ACL_STYLE_EXPAND ) {
+				char buffer[1024];
+				struct berval dn = BER_BVC(buffer);
+
+				if ( acl_string_expand( &dn, &pr->policy_dn,
+							&e->e_nname, NULL, matches ) ) {
+					goto skip;
+				} else if ( dnNormalize( 0, NULL, NULL, &dn, &policy_ndn,
+							op->o_tmpmemctx ) != LDAP_SUCCESS )
+				{
+					/* did not expand to a valid dn */
+					goto skip;
+				} else {
+					freendn = 1;
+				}
+			} else {
+				policy_ndn = pr->policy_ndn;
+			}
+
+			/* Check such a policy entry actually exists */
+			if ( !BER_BVISNULL( &policy_ndn ) ) {
+				BackendDB *bd, *bd_orig = op->o_bd;
+				Entry *pe = NULL;
+
+				op->o_bd = bd = select_backend( &policy_ndn, 0 );
+				if ( op->o_bd && be_entry_get_rw( op, &policy_ndn,
+							oc_pwdPolicy, NULL, 0, &pe ) == LDAP_SUCCESS ) {
+					ber_bvreplace( &value, &pe->e_nname );
+					be_entry_release_r( op, pe );
+				} else {
+					op->o_bd = bd_orig;
+					goto skip;
+				}
+				op->o_bd = bd_orig;
+			}
+
+			matched = 1;
+			if ( pr->action == POLICY_RULE_STOP ) {
+				pr = NULL;
+			}
+skip:
+			if ( freendn ) {
+				op->o_tmpfree( policy_ndn.bv_val, op->o_tmpmemctx );
+			}
+			if ( !pr ) break;
 		}
 
-		if ( pr ) {
-			vals = &pr->policy_dn;
-		} else if ( !BER_BVISNULL( &pi->def_policy ) ) {
-			vals = &pi->def_policy;
-		} else {
+		op->o_tmpfree( matches, op->o_tmpmemctx );
+		if ( matched ) {
+			freeval = 1;
+		} else if ( have_password ) {
+			value = pi->def_policy;
+		}
+
+		if ( BER_BVISNULL( &value ) ) {
 			return SLAP_CB_CONTINUE;
 		}
 
 		a = attr_alloc( ad_pwdPolicySubentry );
-		attr_valadd( a, vals, vals, 1 );
+		attr_valadd( a, &value, &value, 1 );
 
 		for ( ap = &rs->sr_operational_attrs; *ap; ap=&(*ap)->a_next );
 		*ap = a;
+
+		if ( freeval ) {
+			ch_free( value.bv_val );
+		}
 	}
 
 	return SLAP_CB_CONTINUE;
@@ -1344,7 +2470,7 @@ defaultpol:
 			vals->bv_val, ad ? ad->ad_cname.bv_val : "" );
 	} else {
 		Debug( LDAP_DEBUG_TRACE,
-			"ppolicy_get: using default policy\n" );
+			"ppolicy_get: using empty policy\n" );
 	}
 
 	if ( freeval )
@@ -3578,12 +4704,7 @@ ppolicy_db_destroy(
 	free( pi->def_policy.bv_val );
 	while ( pr ) {
 		next = pr->next;
-
-		ch_free( pr->uri.bv_val );
-		ch_free( pr->base.bv_val );
-		ch_free( pr->policy_dn.bv_val );
-		filter_free( pr->filter );
-		ch_free( pr );
+		ppolicy_rule_free( pr );
 		pr = next;
 	}
 	free( pi );

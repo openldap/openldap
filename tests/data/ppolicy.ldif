@@ -10,6 +10,21 @@ objectClass: top
 objectClass: organizationalUnit
 ou: People
 
+dn: ou=Groups, dc=example, dc=com
+objectClass: organizationalUnit
+ou: Groups
+
+dn: cn=Policy Group, ou=Groups, dc=example, dc=com
+objectClass: groupOfNames
+cn: Policy Group
+member: uid=nd, ou=People, dc=example, dc=com
+owner: uid=ndadmin, ou=People, dc=example, dc=com
+
+dn: cn=Test Group, ou=Groups, dc=example, dc=com
+objectClass: groupOfNames
+cn: Policy Group
+member: uid=another, ou=People, dc=example, dc=com
+
 dn: ou=Policies, dc=example, dc=com
 objectClass: top
 objectClass: organizationalUnit
@@ -77,6 +92,13 @@ pwdFailureCountInterval: 120
 pwdSafeModify: TRUE
 pwdLockout: TRUE
 
+dn: cn=Another Policy, ou=Policies, dc=example, dc=com
+objectClass: top
+objectClass: device
+objectClass: pwdPolicy
+cn: Test Policy
+pwdAttribute: 2.5.4.35
+
 dn: uid=nd, ou=People, dc=example, dc=com
 objectClass: top
 objectClass: person
@@ -107,4 +129,14 @@ sn: Test
 givenName:  Test
 userPassword: kfhgkjhfdgkfd
 pwdPolicySubEntry: cn=No Policy, ou=Policies, dc=example, dc=com
+
+dn: uid=another, ou=People, dc=example, dc=com
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+cn: Another Test
+uid: another
+sn: Test
+givenName:  Another
+userPassword: testing
 

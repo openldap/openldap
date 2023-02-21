@@ -87,6 +87,18 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
+echo "Testing group based matching..."
+$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+	"uid=another, ou=People, dc=example, dc=com" \
+	"pwdPolicySubentry:cn=Another Policy, ou=Policies, dc=example, dc=com" \
+	>> $TESTOUT 2>&1
+RC=$?
+if test $RC != 6 ; then
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 echo "Testing account lockout..."
 $LDAPSEARCH -H $URI1 -D "$USER" -w wrongpw >$SEARCHOUT 2>&1
 sleep 2
@@ -734,11 +746,13 @@ fi
 echo "Reconfiguring policy to remove grace logins..."
 $LDAPMODIFY -v -D cn=config -H $URI1 -y $CONFIGPWF >> \
 	$TESTOUT 2>&1 << EOMODS
-dn: olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
-changetype: modify
-add: olcPPolicyRules
-olcPPolicyRules: {0}"ldap:///dc=example,dc=com???(!(description=grace))"
-  "cn=Stricter Policy, ou=Policies, dc=example, dc=com"
+dn: cn={0}Stricter Policy,olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
+changetype: add
+objectClass: olcPPolicyScopedRule
+olcPPolicyRuleObject: dc=example,dc=com
+olcPPolicyRuleScope: sub
+olcPPolicyRuleGroup: cn=Policy Group, ou=Groups, dc=example, dc=com
+olcPPolicyRulePolicy: cn=Stricter Policy, ou=Policies, dc=example, dc=com
 
 EOMODS
 RC=$?
@@ -762,11 +776,13 @@ fi
 if test -n "$CONSUMERPID"; then
 $LDAPMODIFY -v -D cn=config -H $URI2 -y $CONFIGPWF >> \
 	$TESTOUT 2>&1 << EOMODS
-dn: olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
-changetype: modify
-add: olcPPolicyRules
-olcPPolicyRules: {0}"ldap:///dc=example,dc=com???(!(description=grace))"
-  "cn=Stricter Policy, ou=Policies, dc=example, dc=com"
+dn: cn={0}Stricter Policy,olcOverlay={0}ppolicy,olcDatabase={1}$BACKEND,cn=config
+changetype: add
+objectClass: olcPPolicyScopedRule
+olcPPolicyRuleObject: dc=example,dc=com
+olcPPolicyRuleScope: sub
+olcPPolicyRuleGroup: cn=Policy Group, ou=Groups, dc=example, dc=com
+olcPPolicyRulePolicy: cn=Stricter Policy, ou=Policies, dc=example, dc=com
 
 EOMODS
 RC=$?
