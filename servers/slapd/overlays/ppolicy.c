@@ -152,6 +152,9 @@ static AttributeDescription *ad_pwdMinAge, *ad_pwdMaxAge, *ad_pwdMaxIdle,
 	*ad_pwdMustChange, *ad_pwdAllowUserChange, *ad_pwdSafeModify,
 	*ad_pwdAttribute, *ad_pwdMaxRecordedFailure;
 
+/* Policy objectclasses */
+static ObjectClass *oc_pwdPolicyChecker, *oc_pwdPolicy;
+
 static struct schema_info {
 	char *def;
 	AttributeDescription **ad;
@@ -425,24 +428,33 @@ static struct schema_info {
 	{ NULL, NULL }
 };
 
-static char *pwd_ocs[] = {
-	"( 1.3.6.1.4.1.4754.2.99.1 "
-		"NAME 'pwdPolicyChecker' "
-		"SUP top "
-		"AUXILIARY "
-		"MAY ( pwdCheckModule $ pwdCheckModuleArg $ pwdUseCheckModule ) )" ,
-	"( 1.3.6.1.4.1.42.2.27.8.2.1 "
-		"NAME 'pwdPolicy' "
-		"SUP top "
-		"AUXILIARY "
-		"MUST ( pwdAttribute ) "
-		"MAY ( pwdMinAge $ pwdMaxAge $ pwdInHistory $ pwdCheckQuality $ "
-		"pwdMinLength $ pwdMaxLength $ pwdExpireWarning $ "
-		"pwdGraceAuthNLimit $ pwdGraceExpiry $ pwdLockout $ "
-		"pwdLockoutDuration $ pwdMaxFailure $ pwdFailureCountInterval $ "
-		"pwdMustChange $ pwdAllowUserChange $ pwdSafeModify $ "
-		"pwdMinDelay $ pwdMaxDelay $ pwdMaxIdle $ "
-		"pwdMaxRecordedFailure ) )",
+static struct oc_info {
+	char *def;
+	ObjectClass **oc;
+} pwd_ocs[] = {
+	{
+		"( 1.3.6.1.4.1.4754.2.99.1 "
+			"NAME 'pwdPolicyChecker' "
+			"SUP top "
+			"AUXILIARY "
+			"MAY ( pwdCheckModule $ pwdCheckModuleArg $ pwdUseCheckModule ) )" ,
+		&oc_pwdPolicyChecker,
+	},
+	{
+		"( 1.3.6.1.4.1.42.2.27.8.2.1 "
+			"NAME 'pwdPolicy' "
+			"SUP top "
+			"AUXILIARY "
+			"MUST ( pwdAttribute ) "
+			"MAY ( pwdMinAge $ pwdMaxAge $ pwdInHistory $ pwdCheckQuality $ "
+			"pwdMinLength $ pwdMaxLength $ pwdExpireWarning $ "
+			"pwdGraceAuthNLimit $ pwdGraceExpiry $ pwdLockout $ "
+			"pwdLockoutDuration $ pwdMaxFailure $ pwdFailureCountInterval $ "
+			"pwdMustChange $ pwdAllowUserChange $ pwdSafeModify $ "
+			"pwdMinDelay $ pwdMaxDelay $ pwdMaxIdle $ "
+			"pwdMaxRecordedFailure ) )",
+		&oc_pwdPolicy,
+	},
 	NULL
 };
 
@@ -1141,7 +1153,7 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 		goto defaultpol;
 	}
 
-	rc = be_entry_get_rw( op, vals, NULL, NULL, 0, &pe );
+	rc = be_entry_get_rw( op, vals, oc_pwdPolicy, NULL, 0, &pe );
 	op->o_bd = bd_orig;
 
 	if ( rc ) goto defaultpol;
@@ -1263,20 +1275,22 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 		goto defaultpol;
 	}
 
-	ad = ad_pwdCheckModule;
-	if ( attr_find( pe->e_attrs, ad )) {
-		Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
-				"WARNING: Ignoring OBSOLETE attribute %s in policy %s.\n",
-				ad->ad_cname.bv_val, pe->e_name.bv_val );
-	}
+	if ( is_entry_objectclass_or_sub( pe, oc_pwdPolicyChecker ) ) {
+		ad = ad_pwdCheckModule;
+		if ( attr_find( pe->e_attrs, ad )) {
+			Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
+					"WARNING: Ignoring OBSOLETE attribute %s in policy %s.\n",
+					ad->ad_cname.bv_val, pe->e_name.bv_val );
+		}
 
-	ad = ad_pwdUseCheckModule;
-	if ( (a = attr_find( pe->e_attrs, ad )) )
-		pp->pwdUseCheckModule = bvmatch( &a->a_nvals[0], &slap_true_bv );
+		ad = ad_pwdUseCheckModule;
+		if ( (a = attr_find( pe->e_attrs, ad )) )
+			pp->pwdUseCheckModule = bvmatch( &a->a_nvals[0], &slap_true_bv );
 
-	ad = ad_pwdCheckModuleArg;
-	if ( (a = attr_find( pe->e_attrs, ad )) ) {
-		ber_dupbv_x( &pp->pwdCheckModuleArg, &a->a_vals[0], op->o_tmpmemctx );
+		ad = ad_pwdCheckModuleArg;
+		if ( (a = attr_find( pe->e_attrs, ad )) ) {
+			ber_dupbv_x( &pp->pwdCheckModuleArg, &a->a_vals[0], op->o_tmpmemctx );
+		}
 	}
 
 	ad = ad_pwdLockout;
@@ -3624,8 +3638,8 @@ int ppolicy_initialize()
 		ad_pwdAttribute->ad_type->sat_equality = mr;
 	}
 
-	for (i=0; pwd_ocs[i]; i++) {
-		code = register_oc( pwd_ocs[i], NULL, 0 );
+	for (i=0; pwd_ocs[i].def; i++) {
+		code = register_oc( pwd_ocs[i].def, pwd_ocs[i].oc, 0 );
 		if ( code ) {
 			Debug( LDAP_DEBUG_ANY, "ppolicy_initialize: "
 				"register_oc failed\n" );
