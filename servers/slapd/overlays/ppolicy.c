@@ -984,36 +984,7 @@ create_passexpiry( Operation *op, int expired, int warn )
 	return cp;
 }
 
-static LDAPControl **
-add_passcontrol( Operation *op, SlapReply *rs, LDAPControl *ctrl )
-{
-	LDAPControl **ctrls, **oldctrls = rs->sr_ctrls;
-	int n;
-
-	n = 0;
-	if ( oldctrls ) {
-		for ( ; oldctrls[n]; n++ )
-			;
-	}
-	n += 2;
-
-	ctrls = op->o_tmpcalloc( sizeof( LDAPControl * ), n, op->o_tmpmemctx );
-
-	n = 0;
-	if ( oldctrls ) {
-		for ( ; oldctrls[n]; n++ ) {
-			ctrls[n] = oldctrls[n];
-		}
-	}
-	ctrls[n] = ctrl;
-	ctrls[n+1] = NULL;
-
-	rs->sr_ctrls = ctrls;
-
-	return oldctrls;
-}
-
-static void
+static int
 add_account_control(
 	Operation *op,
 	SlapReply *rs,
@@ -1023,8 +994,8 @@ add_account_control(
 {
 	BerElementBuffer berbuf;
 	BerElement *ber = (BerElement *) &berbuf;
-	LDAPControl c = { 0 }, *cp = NULL, **ctrls;
-	int i = 0;
+	LDAPControl c = { 0 }, *cp = NULL, *ctrls[2] = { NULL, NULL };
+	int rc = -1;
 
 	BER_BVZERO( &c.ldctl_value );
 
@@ -1048,28 +1019,26 @@ add_account_control(
 		goto fail;
 	}
 
-	if ( rs->sr_ctrls != NULL ) {
-		for ( ; rs->sr_ctrls[ i ] != NULL; i++ ) /* Count */;
-	}
-
-	ctrls = op->o_tmprealloc( rs->sr_ctrls, sizeof(LDAPControl *)*( i + 2 ), op->o_tmpmemctx );
-	if ( ctrls == NULL ) {
+	cp = op->o_tmpalloc( sizeof( LDAPControl ) + c.ldctl_value.bv_len, op->o_tmpmemctx );
+	if ( !cp ) {
 		goto fail;
 	}
 
-	cp = op->o_tmpalloc( sizeof( LDAPControl ) + c.ldctl_value.bv_len, op->o_tmpmemctx );
 	cp->ldctl_oid = (char *)ppolicy_account_ctrl_oid;
 	cp->ldctl_iscritical = 0;
 	cp->ldctl_value.bv_val = (char *)&cp[1];
 	cp->ldctl_value.bv_len = c.ldctl_value.bv_len;
 	AC_MEMCPY( cp->ldctl_value.bv_val, c.ldctl_value.bv_val, c.ldctl_value.bv_len );
 
-	ctrls[ i ] = cp;
-	ctrls[ i + 1 ] = NULL;
-	rs->sr_ctrls = ctrls;
+	/* TODO: ITS#10013 Use something like slap_add_ctrl when it exists */
+	ctrls[ 0 ] = cp;
+	slap_add_ctrls( op, rs, ctrls );
 
+	rc = LDAP_SUCCESS;
 fail:
 	(void)ber_free_buf(ber);
+
+	return rc;
 }
 
 static int
@@ -1141,7 +1110,7 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 	AttributeDescription *ad = NULL;
 	Attribute *a;
 	BerVarray vals = NULL;
-	int rc = LDAP_SUCCESS;
+	int freeval = 0, rc = LDAP_SUCCESS;
 	Entry *pe = NULL;
 
 	ppolicy_get_default( pp );
@@ -1156,6 +1125,7 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 				"got rc=%d getting value for policySubEntry\n", rc );
 			goto defaultpol;
 		}
+		freeval = 1;
 	} else {
 		vals = a->a_nvals;
 		if (vals[0].bv_val == NULL) {
@@ -1342,6 +1312,8 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 	be_entry_release_r( op, pe );
 	op->o_bd = bd_orig;
 
+	if ( freeval )
+		ber_bvarray_free_x( vals, op->o_tmpmemctx );
 	return LDAP_SUCCESS;
 
 defaultpol:
@@ -1361,6 +1333,8 @@ defaultpol:
 			"ppolicy_get: using default policy\n" );
 	}
 
+	if ( freeval )
+		ber_bvarray_free_x( vals, op->o_tmpmemctx );
 	ppolicy_get_default( pp );
 
 	return -1;
@@ -1660,14 +1634,15 @@ typedef struct ppbind {
 	BackendDB *be;
 	int send_ctrl;
 	int set_restrict;
-	LDAPControl **oldctrls;
 	Modifications *mod;
 	LDAPPasswordPolicyError pErr;
 	PassPolicy pp;
 } ppbind;
 
-static void
-ctrls_cleanup( Operation *op, SlapReply *rs, LDAPControl **oldctrls )
+static int ppolicy_account_usability_entry_cb( Operation *op, SlapReply *rs );
+
+static int
+ppolicy_ctrls_cleanup( Operation *op, SlapReply *rs )
 {
 	int n;
 
@@ -1675,31 +1650,19 @@ ctrls_cleanup( Operation *op, SlapReply *rs, LDAPControl **oldctrls )
 	assert( rs->sr_ctrls[0] != NULL );
 
 	for ( n = 0; rs->sr_ctrls[n]; n++ ) {
+		/* We only add one control */
 		if ( rs->sr_ctrls[n]->ldctl_oid == ppolicy_ctrl_oid ||
 			rs->sr_ctrls[n]->ldctl_oid == ppolicy_pwd_expired_oid ||
 			rs->sr_ctrls[n]->ldctl_oid == ppolicy_pwd_expiring_oid ) {
 			op->o_tmpfree( rs->sr_ctrls[n], op->o_tmpmemctx );
-			rs->sr_ctrls[n] = (LDAPControl *)(-1);
 			break;
 		}
 	}
 
-	if ( rs->sr_ctrls[n] == NULL ) {
-		/* missed? */
+	for ( ; rs->sr_ctrls[n]; n++ ) {
+		rs->sr_ctrls[n] = rs->sr_ctrls[n+1];
 	}
 
-	op->o_tmpfree( rs->sr_ctrls, op->o_tmpmemctx );
-
-	rs->sr_ctrls = oldctrls;
-}
-
-static int
-ppolicy_ctrls_cleanup( Operation *op, SlapReply *rs )
-{
-	ppbind *ppb = op->o_callback->sc_private;
-	if ( ppb->send_ctrl ) {
-		ctrls_cleanup( op, rs, ppb->oldctrls );
-	}
 	return SLAP_CB_CONTINUE;
 }
 
@@ -1719,7 +1682,7 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 	char nowstr_usec[ LDAP_LUTIL_GENTIME_BUFSIZE+8 ];
 	struct berval timestamp, timestamp_usec;
 	BackendDB *be = op->o_bd;
-	LDAPControl *ctrl = NULL;
+	LDAPControl *ctrls[2] = { NULL, NULL };
 	Entry *e;
 
 	ldap_pvt_thread_mutex_lock( &pi->pwdFailureTime_mutex );
@@ -1733,8 +1696,7 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 	op->o_bd = be;
 
 	if ( rc != LDAP_SUCCESS ) {
-		ldap_pvt_thread_mutex_unlock( &pi->pwdFailureTime_mutex );
-		return SLAP_CB_CONTINUE;
+		goto out;
 	}
 
 	/* ITS#7089 Skip lockout checks/modifications if password attribute missing */
@@ -2093,18 +2055,21 @@ locked:
 		if ( ppb->pErr == PP_accountLocked && !pi->use_lockout ) {
 			ppb->pErr = PP_noError;
 		}
-		ctrl = create_passcontrol( op, warn, ngut, ppb->pErr );
+		ctrls[0] = create_passcontrol( op, warn, ngut, ppb->pErr );
 	} else if ( pi->send_netscape_controls ) {
 		if ( ppb->pErr != PP_noError || pwExpired ) {
-			ctrl = create_passexpiry( op, 1, 0 );
+			ctrls[0] = create_passexpiry( op, 1, 0 );
 		} else if ( warn > 0 ) {
-			ctrl = create_passexpiry( op, 0, warn );
+			ctrls[0] = create_passexpiry( op, 0, warn );
 		}
 	}
-	if ( ctrl ) {
-		ppb->oldctrls = add_passcontrol( op, rs, ctrl );
+	if ( ctrls[0] ) {
+		slap_add_ctrls( op, rs, ctrls );
 		op->o_callback->sc_cleanup = ppolicy_ctrls_cleanup;
 	}
+out:
+	op->o_tmpfree( op->o_callback, op->o_tmpmemctx );
+	op->o_callback = NULL;
 	ldap_pvt_thread_mutex_unlock( &pi->pwdFailureTime_mutex );
 	return SLAP_CB_CONTINUE;
 }
@@ -2199,7 +2164,6 @@ ppolicy_restrict(
 	}
 
 	if ( op->o_conn && !BER_BVISEMPTY( &pwcons[op->o_conn->c_conn_idx].dn )) {
-		LDAPControl **oldctrls;
 		/* if the current authcDN doesn't match the one we recorded,
 		 * then an intervening Bind has succeeded and the restriction
 		 * no longer applies. (ITS#4516)
@@ -2214,15 +2178,15 @@ ppolicy_restrict(
 		Debug( LDAP_DEBUG_TRACE,
 			"connection restricted to password changing only\n" );
 		if ( send_ctrl ) {
-			LDAPControl *ctrl = NULL;
-			ctrl = create_passcontrol( op, -1, -1, PP_changeAfterReset );
-			oldctrls = add_passcontrol( op, rs, ctrl );
+			LDAPControl *ctrls[2] = { NULL, NULL };
+			ctrls[0] = create_passcontrol( op, -1, -1, PP_changeAfterReset );
+			slap_add_ctrls( op, rs, ctrls );
 		}
 		op->o_bd->bd_info = (BackendInfo *)on->on_info;
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, 
 			"Operations are restricted to bind/unbind/abandon/StartTLS/modify password" );
 		if ( send_ctrl ) {
-			ctrls_cleanup( op, rs, oldctrls );
+			ppolicy_ctrls_cleanup( op, rs );
 		}
 		return rs->sr_err;
 	}
@@ -2231,11 +2195,26 @@ ppolicy_restrict(
 }
 
 static int
+ppolicy_account_usability_cb_cleanup( Operation *op, SlapReply *rs )
+{
+	if ( rs->sr_type == REP_RESULT || op->o_abandon ||
+		rs->sr_err == SLAPD_ABANDON ) {
+		op->o_tmpfree( op->o_callback, op->o_tmpmemctx );
+		op->o_callback = NULL;
+		return SLAP_CB_CONTINUE;
+	}
+
+	if ( rs->sr_ctrls && rs->sr_ctrls[0] ) {
+		ppolicy_ctrls_cleanup( op, rs );
+	}
+	return SLAP_CB_CONTINUE;
+}
+
+static int
 ppolicy_account_usability_entry_cb( Operation *op, SlapReply *rs )
 {
 	slap_overinst *on = op->o_callback->sc_private;
 	BackendInfo *bi = op->o_bd->bd_info;
-	LDAPControl *ctrl = NULL;
 	PassPolicy pp;
 	Attribute *a;
 	Entry *e = NULL;
@@ -2369,6 +2348,7 @@ ppolicy_search(
 		cb = op->o_tmpcalloc( sizeof(slap_callback), 1, op->o_tmpmemctx );
 
 		cb->sc_response = ppolicy_account_usability_entry_cb;
+		cb->sc_cleanup = ppolicy_account_usability_cb_cleanup;
 		cb->sc_private = on;
 		overlay_callback_after_backover( op, cb, 1 );
 	}
@@ -2544,19 +2524,18 @@ ppolicy_add(
 			rc = check_password_quality( bv, pi, &pp, &pErr, op->ora_e, &errmsg );
 			if (rc != LDAP_SUCCESS) {
 				char *txt = errmsg.bv_val;
-				LDAPControl **oldctrls = NULL;
 				op->o_bd->bd_info = (BackendInfo *)on->on_info;
 				if ( send_ctrl ) {
-					LDAPControl *ctrl = NULL;
-					ctrl = create_passcontrol( op, -1, -1, pErr );
-					oldctrls = add_passcontrol( op, rs, ctrl );
+					LDAPControl *ctrls[2] = { NULL, NULL };
+					ctrls[0] = create_passcontrol( op, -1, -1, pErr );
+					slap_add_ctrls( op, rs, ctrls );
 				}
 				send_ldap_error( op, rs, rc, txt && txt[0] ? txt : "Password fails quality checking policy" );
 				if ( txt != errbuf ) {
 					free( txt );
 				}
 				if ( send_ctrl ) {
-					ctrls_cleanup( op, rs, oldctrls );
+					ppolicy_ctrls_cleanup( op, rs );
 				}
 				return rs->sr_err;
 			}
@@ -2657,8 +2636,7 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 	struct berval		newpw = BER_BVNULL, oldpw = BER_BVNULL,
 				*bv, cr[2];
 	LDAPPasswordPolicyError pErr = PP_noError;
-	LDAPControl		*ctrl = NULL;
-	LDAPControl 		**oldctrls = NULL;
+	LDAPControl		*ctrls[2] = { NULL, NULL };
 	int			is_pwdexop = 0, is_pwdadmin = 0;
 	int got_del_grace = 0, got_del_lock = 0, got_pw = 0, got_del_fail = 0,
 		got_del_success = 0;
@@ -3394,8 +3372,12 @@ return_results:
 	op->o_bd->bd_info = (BackendInfo *)on->on_info;
 	be_entry_release_r( op, e );
 	if ( send_ctrl ) {
-		ctrl = create_passcontrol( op, -1, -1, pErr );
-		oldctrls = add_passcontrol( op, rs, ctrl );
+		ctrls[0] = create_passcontrol( op, -1, -1, pErr );
+		slap_add_ctrls( op, rs, ctrls );
+		if ( is_pwdexop ) {
+			/* Retain controls for the actual response */
+			rs->sr_flags &= ~REP_CTRLS_MUSTBEFREED;
+		}
 	}
 	send_ldap_result( op, rs );
 	if ( free_txt ) {
@@ -3417,14 +3399,17 @@ return_results:
 	}
 	if ( send_ctrl ) {
 		if ( is_pwdexop ) {
-			if ( rs->sr_flags & REP_CTRLS_MUSTBEFREED ) {
-				op->o_tmpfree( oldctrls, op->o_tmpmemctx );
-			}
-			oldctrls = NULL;
-			rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
+			/* if this is a pwdModify exop. we need to add the
+			 * control later */
+			slap_callback *cb = op->o_tmpcalloc( sizeof(slap_callback),
+				1, op->o_tmpmemctx );
 
+			cb->sc_cleanup = ppolicy_ctrls_cleanup;
+
+			assert( !(rs->sr_flags & REP_CTRLS_MUSTBEFREED) );
+			rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
 		} else {
-			ctrls_cleanup( op, rs, oldctrls );
+			ppolicy_ctrls_cleanup( op, rs );
 		}
 	}
 	return rs->sr_err;
