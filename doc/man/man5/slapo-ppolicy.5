@@ -55,22 +55,6 @@ after the
 .B overlay
 directive.
 .TP
-.B ppolicy_rules <LDAP URI> <policyDN>
-Specify which pwdPolicy object to use when no specific policy is set on
-a given user's entry. If there is no pwdPolicySubentry set, the URIs are
-checked in order and the first one to match will apply. If one is selected
-and the object at
-.B policyDN
-does not exist or is not a password policy, then no policies will be
-enforced.
-.TP
-.B ppolicy_default <policyDN>
-Specify the DN of the pwdPolicy object to use when no specific policy is
-set on a given user's entry and none of the
-.B ppolicy_rules
-apply. If there is no specific policy for an entry
-and no default is given, then no policies will be enforced.
-.TP
 .B ppolicy_forward_updates
 Specify that policy state changes that result from Bind operations (such
 as recording failures, lockout, etc.) on a consumer should be forwarded
@@ -128,6 +112,117 @@ Note: Use of a
 .B ppolicy_check_module
 is a non-standard extension to the LDAP password
 policy proposal.
+
+.HP
+.hy 0
+.B ppolicy_rules
+.B [dn[.<dnstyle>]=<DN/regex>]
+.B [require_password=yes|no]
+.B [filter=<filter str>]
+.B [group[.expand][/<objectclass>[/<attribute>]]=<DN/pattern>]
+.B no_policy|policy_dn=<policyDN>|policy_dn.expand=<pattern>
+.B [stop|continue]
+.RS
+Specify which pwdPolicy object to use when no specific policy is set on
+a given user's entry. The rules are checked in order and the
+first one to match will apply (but see the
+.B continue
+action). If a rule that specifies
+.B no_policy
+is selected or the selected
+.B policyDN
+is an entry with objectclass
+.B pwdPolicy
+but its contents are not valid, then no policies will be
+enforced.
+
+When checking whether a rule applies,
+.B ppolicy
+checks:
+.RS
+.IP \[bu] 2
+The entry's DN against the
+.BR dn[.<dnstyle>]
+.IP \[bu]
+If
+.B require_password
+is
+.BR yes
+(the default), presence of the password attribute (currently only
+.BR userPassword )
+.IP \[bu]
+The entry's contents against the
+.BR filter
+.IP \[bu]
+Whether it is considered a member of the group specified in
+.BR group[.expand]
+.RE
+
+All of which are optional. Matching and meaning of
+.B <dnstyle>
+and
+.B expand
+loosely follow that described in
+.BR slapd.access (5)
+except that the expansions in the pattern space are slightly more
+limited, only the
+.B $<digit>
+form is supported at the moment and only if
+.B dnstyle
+is
+.BR regex .
+It then tries to retrieve
+.B policyDN
+and check that its objectclass is
+.BR pwdPolicy .
+
+If all of the rule checks pass, behaviour depends on the
+.B action
+keyword
+.RB ( stop | continue ).
+If
+.B action
+is
+.BR stop
+(the default), processing ends here with policy that was just
+chosen (or the
+.B no_policy
+decision). If
+.B action
+is
+.BR continue ,
+the decision is remembered, processing continues and can be
+overriden by later rules.
+
+The way to configure this in
+.B cn=config
+is through child entries under the overlay entry with objectclass
+.B olcPPolicyRegexRule
+for regex-based DN matching and
+.B olcPPolicyScopedRule
+for any other
+.BR <dnstyle> .
+
+.RE
+.TP
+.B ppolicy_default <policyDN>
+Specify the DN of the pwdPolicy object to use when no specific policy is
+set on a given user's entry and none of the
+.B ppolicy_rules
+matched. If there is no specific policy for an entry and no
+default is given, then no policies will be enforced. This option
+is deprecated in favour of
+.B ppolicy_rules
+and support for it will be removed in a future release. It
+behaves as if the following rule was the first rule in
+.BR ppolicy_rules :
+.RS
+.LP
+.nf
+    ppolicy_rules policyDN=<policyDN> continue
+.fi
+.LP
+.RE
 
 
 .SH OBJECT CLASS
@@ -783,16 +878,24 @@ its definition.
 This attribute refers directly to the
 .B pwdPolicy
 subentry that is to be used for this particular directory user.
-If
-.B pwdPolicySubentry
-exists, it must contain the DN of a valid
+Every account that should be subject to password policy control will
+have a
+.B
+pwdPolicySubentry
+attribute containing the DN of a
 .B pwdPolicy
-object.  If it does not exist, the
-.B ppolicy
-module will enforce the default password policy rules on the
-user associated with this authenticating DN. If there is no
-default, or the referenced subentry does not exist, then no
-policy rules will be enforced.
+entry. The module will use the one stored in the DB if it
+exists, otherwise it will attempt to derive the correct policy to
+apply based on the rules it has been configured with, see
+.BR ppolicy_rules / olcPPolicyScopedRule / olcPPolicyRegexRule
+configuration options. In this way different users may be managed
+according to configurable policies. The value of the effective
+policy DN will be returned if requested in a search request but
+this is a virtual attribute and is
+.B not
+usable in a filter. Modifying/adding this attribute directly is
+.B deprecated
+and the ability to do so will be removed in a future release.
 .LP
 .RS 4
 (  1.3.6.1.4.1.42.2.27.8.1.23
