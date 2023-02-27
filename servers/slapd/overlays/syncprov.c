@@ -871,6 +871,11 @@ static void free_resinfo( syncres *sr )
 
 #define FS_UNLINK	1
 #define FS_LOCK		2
+#define FS_DEFER	4
+
+#define FSR_NOTFREE	0
+#define FSR_DIDFREE	1
+#define FSR_CANFREE	2
 
 static int
 syncprov_free_syncop( syncops *so, int flags )
@@ -881,12 +886,19 @@ syncprov_free_syncop( syncops *so, int flags )
 	if ( flags & FS_LOCK )
 		ldap_pvt_thread_mutex_lock( &so->s_mutex );
 	/* already being freed, or still in use */
-	if ( !so->s_inuse || --so->s_inuse > 0 ) {
+	if ( !so->s_inuse || so->s_inuse > 1 ) {
 		if ( flags & FS_LOCK )
 			ldap_pvt_thread_mutex_unlock( &so->s_mutex );
-		return 0;
+		if ( !( flags & FS_DEFER ) && so->s_inuse )
+			so->s_inuse--;
+		return FSR_NOTFREE;
 	}
 	ldap_pvt_thread_mutex_unlock( &so->s_mutex );
+
+	/* caller wants to cleanup other stuff before actual free */
+	if ( flags & FS_DEFER )
+		return FSR_CANFREE;
+
 	if (( flags & FS_UNLINK ) && so->s_si ) {
 		syncops **sop;
 		ldap_pvt_thread_mutex_lock( &so->s_si->si_ops_mutex );
@@ -914,7 +926,7 @@ syncprov_free_syncop( syncops *so, int flags )
 	}
 	ldap_pvt_thread_mutex_destroy( &so->s_mutex );
 	ch_free( so );
-	return 1;
+	return FSR_DIDFREE;
 }
 
 /* Send a persistent search response */
@@ -1029,6 +1041,9 @@ syncprov_qplay( Operation *op, syncops *so )
 			} else {
 				rc = syncprov_sendresp( op, sr->s_info, so, sr->s_mode );
 			}
+		} else {
+			/* set rc so we don't do a new qstart */
+			rc = 1;
 		}
 
 		free_resinfo( sr );
@@ -1055,6 +1070,9 @@ syncprov_qplay( Operation *op, syncops *so )
 	return rc;
 }
 
+static int
+syncprov_drop_psearch( syncops *so, int lock );
+
 /* task for playing back queued responses */
 static void *
 syncprov_qtask( void *ctx, void *arg )
@@ -1063,7 +1081,7 @@ syncprov_qtask( void *ctx, void *arg )
 	OperationBuffer opbuf;
 	Operation *op;
 	BackendDB be;
-	int rc;
+	int rc, flag, frc;
 
 	op = &opbuf.ob_op;
 	*op = *so->s_op;
@@ -1092,12 +1110,22 @@ syncprov_qtask( void *ctx, void *arg )
 	if ( !rc && !so->s_res )
 		rc = 1;
 
+	flag = FS_UNLINK;
+	if ( rc && op->o_abandon )
+		flag = FS_DEFER;
+
 	/* decrement use count... */
-	if ( !syncprov_free_syncop( so, FS_UNLINK )) {
+	frc = syncprov_free_syncop( so, flag );
+	if ( frc == FSR_NOTFREE ) {
 		if ( rc )
 			/* if we didn't unlink, and task is no longer queued, clear flag */
 			so->s_flags ^= PS_TASK_QUEUED;
 		ldap_pvt_thread_mutex_unlock( &so->s_mutex );
+	}
+
+	/* if we got abandoned while processing, cleanup now */
+	if ( frc == FSR_CANFREE ) {
+		syncprov_drop_psearch( so, 1 );
 	}
 
 	return NULL;
@@ -1274,7 +1302,9 @@ syncprov_op_abandon( Operation *op, SlapReply *rs )
 				return SLAP_CB_CONTINUE;
 			}
 		}
-		syncprov_drop_psearch( so, 0 );
+		/* if task is active, it must drop itself */
+		if ( !( so->s_flags & PS_TASK_QUEUED ))
+			syncprov_drop_psearch( so, 0 );
 	}
 	return SLAP_CB_CONTINUE;
 }
