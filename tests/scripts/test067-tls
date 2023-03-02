@@ -110,7 +110,7 @@ else
 	echo "success"
 fi
 
-if test $WITH_TLS_TYPE = openssl ; then
+if [ $WITH_TLS_TYPE = openssl ] || [ $WITH_TLS_TYPE = mbedtls ]; then
 	echo -n "Using ldapsearch with startTLS and specific protocol version...."
 	$LDAPSEARCH -o tls_cacert=$TESTDIR/tls/ca/certs/testsuiteCA.crt -o tls_reqcert=hard -o tls_protocol_min=3.3 -ZZ -b "" -s base -H $URIP1 \
 		'@extensibleObject' > $SEARCHOUT 2>&1

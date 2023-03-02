@@ -37,6 +37,7 @@
 /* include socket.h to get sys/types.h and/or winsock2.h */
 #include <ac/socket.h>
 
+#include "slap.h"
 #if HAVE_OPENSSL
 #include <openssl/sha.h>
 #include <openssl/hmac.h>
@@ -124,11 +125,45 @@ static EVP_MAC *evp_mac;
 	hmac_digest( &ctx.outer, &ctx.inner, &ctx.state, h, h->digest_size, dig ); \
 	dlen = h->digest_size
 
+#elif HAVE_MBEDTLS
+
+#include "mbedtls/md.h"
+
+#define TOTP_SHA512_DIGEST_LENGTH MBEDTLS_MD_MAX_SIZE
+#define TOTP_SHA1 mbedtls_md_info_from_type(MBEDTLS_MD_SHA1)
+#define TOTP_SHA224 mbedtls_md_info_from_type(MBEDTLS_MD_SHA224)
+#define TOTP_SHA256 mbedtls_md_info_from_type(MBEDTLS_MD_SHA256)
+#define TOTP_SHA384 mbedtls_md_info_from_type(MBEDTLS_MD_SHA384)
+#define TOTP_SHA512 mbedtls_md_info_from_type(MBEDTLS_MD_SHA512)
+
+static mbedtls_md_context_t *
+HMAC_CTX_new( void )
+{
+	mbedtls_md_context_t *ctx = ch_malloc( sizeof(mbedtls_md_context_t) );
+	if ( ctx != NULL ) {
+		mbedtls_md_init( ctx );
+	}
+	return ctx;
+}
+
+#define TOTP_HMAC_CTX mbedtls_md_context_t*
+#define HMAC_setup( ctx, key, len, hash ) \
+	ctx = HMAC_CTX_new(); \
+	mbedtls_md_setup(ctx, (const mbedtls_md_info_t *)hash, 1); \
+	mbedtls_md_hmac_starts(ctx, key, len)
+
+#define HMAC_crunch( ctx, buf, len ) mbedtls_md_hmac_update( ctx, buf, len )
+
+#define HMAC_finish( ctx, dig, dlen ) \
+	mbedtls_md_hmac_finish(ctx, dig); \
+	dlen = mbedtls_md_get_size((const mbedtls_md_info_t *)hash); \
+	mbedtls_md_free(ctx); \
+	ch_free(ctx)
+
 #else
 #error Unsupported crypto backend.
 #endif
 
-#include "slap.h"
 #include "slap-config.h"
 
 /* Schema from OATH-LDAP project by Michael Ströder */

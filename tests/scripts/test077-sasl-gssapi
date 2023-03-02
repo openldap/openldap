@@ -194,8 +194,13 @@ EOF
 		for icb in "none" "tls-unique" "tls-endpoint" ; do
 
 			# The gnutls implementation of "tls-unique" seems broken
+			# mbedtls does not support "tls-unique"
 			if test $icb = "tls-unique" -o $acb = "tls-unique" ; then
 				if test $WITH_TLS_TYPE = gnutls ; then
+					continue
+				fi
+				if test $WITH_TLS_TYPE = mbedtls ; then
+					echo "mbedtls backend does not support TLS-unique binding, skip"
 					continue
 				fi
 			fi

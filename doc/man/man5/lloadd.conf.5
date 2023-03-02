@@ -462,6 +462,7 @@ option.
 Permits configuring what ciphers will be accepted and the preference order.
 <cipher-suite-spec> should be a cipher specification for the TLS library
 in use (OpenSSL, GnuTLS, or Mozilla NSS).
+This directive is not supported when using MbedTLS.
 Example:
 .RS
 .RS
@@ -577,6 +578,7 @@ You should append "!ADH" to your cipher suites to ensure that these suites
 are not used.
 When using Mozilla NSS these parameters are always generated randomly
 so this directive is ignored.
+This directive is not supported when using MbedTLS.
 .TP
 .B TLSECName <name>
 Specify the name of a curve to use for Elliptic curve Diffie-Hellman

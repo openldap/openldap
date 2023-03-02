@@ -247,8 +247,8 @@ OL_ARG_WITH(threads,
 	[AS_HELP_STRING([--with-threads], [with threads library auto|nt|posix|pth|lwp|manual])],
 	auto, [auto nt posix pth lwp yes no manual] )
 OL_ARG_WITH(tls,
-	[AS_HELP_STRING([--with-tls], [with TLS/SSL support auto|openssl|gnutls])],
-	auto, [auto openssl gnutls yes no] )
+	[AS_HELP_STRING([--with-tls], [with TLS/SSL support auto|openssl|gnutls|mbedtls])],
+	auto, [auto openssl gnutls mbedtls yes no] )
 OL_ARG_WITH(yielding_select,
 	[AS_HELP_STRING([--with-yielding-select], [with implicitly yielding select])],
 	auto, [auto yes no manual] )
@@ -1285,6 +1285,35 @@ if test $ol_link_tls = no ; then
 
 				AC_DEFINE(HAVE_GNUTLS, 1, 
 					[define if you have GNUtls])
+			fi
+		fi
+	fi
+fi
+
+if test $ol_link_tls = no ; then
+	if test $ol_with_tls = mbedtls || test $ol_with_tls = auto ; then
+		AC_CHECK_HEADERS(mbedtls/ssl.h)
+
+		if test $ac_cv_header_mbedtls_ssl_h = yes ; then
+			AC_PREPROC_IFELSE([AC_LANG_SOURCE(
+				[[#include <mbedtls/version.h>]
+[#if MBEDTLS_VERSION_NUMBER < 0x02120000]
+[#error "mbedtls is too old"]
+[#endif]])],
+					, [AC_MSG_FAILURE([mbedtls 2.18.0 or newer required])])
+
+			AC_CHECK_LIB(mbedtls, mbedtls_ssl_init,
+				[have_mbedtls=yes], [have_mbedtls=no], -lmbedx509 -lmbedcrypto)
+
+			if test $have_mbedtls = yes ; then
+				ol_with_tls=mbedtls
+				ol_link_tls=yes
+				WITH_TLS_TYPE=mbedtls
+
+				TLS_LIBS="-lmbedtls -lmbedx509 -lmbedcrypto"
+
+				AC_DEFINE(HAVE_MBEDTLS, 1,
+					[define if you have mbedtls])
 			fi
 		fi
 	fi

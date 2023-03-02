@@ -73,3 +73,29 @@ build-gnutls-mit-standalone-lloadd:
       - obj/tests/testrun/
       - obj/servers/
       - obj/libraries/
+
+build-mbedtls-mit-standalone-lloadd:
+  image: "debian:testing"
+  stage: build
+  script:
+    - export STARTTIME=$(date +%s)
+    - apt update
+    - DEBIAN_FRONTEND=noninteractive apt install -y build-essential python3 gdb procps pkg-config automake libsasl2-dev libltdl-dev groff-base unixodbc-dev libwiredtiger-dev libperl-dev krb5-user krb5-kdc krb5-admin-server libsasl2-modules-gssapi-mit sasl2-bin libmbedtls-dev libevent-dev libargon2-dev libsystemd-dev
+    - autoreconf
+    - mkdir obj
+    - cd obj
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Configuring"
+    - ../configure --with-tls=mbedtls --enable-backends=mod --enable-overlays=mod --disable-autoca --enable-modules --enable-dynamic --enable-balancer=mod --enable-argon2 --with-systemd
+    - make depend
+    - echo "$(date -u -d "now - $STARTTIME sec" +%T) Building"
+    - make
+    - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
+    - SLAPD_COMMON_WRAPPER=gdb make test
+  artifacts:
+    name: testdir
+    when: on_failure
+    expire_in: '1 week'
+    paths:
+      - obj/tests/testrun/
+      - obj/servers/
+      - obj/libraries/

@@ -1133,6 +1133,7 @@ you can specify.
 Permits configuring what ciphers will be accepted and the preference order.
 <cipher-suite-spec> should be a cipher specification for the TLS library
 in use (OpenSSL or GnuTLS).
+This directive is not supported when using MbedTLS.
 Example:
 .RS
 .RS
@@ -1209,6 +1210,7 @@ actual client or server authentication and provide no protection against
 man-in-the-middle attacks.
 You should append "!ADH" to your cipher suites to ensure that these suites
 are not used.
+This directive is not supported when using MbedTLS.
 .TP
 .B TLSECName <name>
 Specify the name of the curve(s) to use for Elliptic curve Diffie-Hellman
