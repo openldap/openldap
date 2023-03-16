@@ -501,6 +501,11 @@ ldap_int_open_connection(
 	if( proto == LDAP_PROTO_UDP ) return 0;
 #endif
 
+	if ( async && rc == -2) {
+		/* Need to let the connect complete asynchronously before we continue */
+		return -2;
+	}
+
 #ifdef HAVE_TLS
 	if ((rc == 0 || rc == -2) && ( ld->ld_options.ldo_tls_mode == LDAP_OPT_X_TLS_HARD ||
 		strcmp( srv->lud_scheme, "ldaps" ) == 0 ))
