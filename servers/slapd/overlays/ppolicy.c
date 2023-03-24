@@ -1687,7 +1687,8 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 		} else if ( ppb->pp.pwdMinDelay ) {
 			int waittime = ppb->pp.pwdMinDelay << fc;
 			time_t wait_end;
-			struct berval lockout_stamp;
+			char lockout_stamp_buf[ LDAP_LUTIL_GENTIME_BUFSIZE ];
+			struct berval lockout_stamp = BER_BVC(lockout_stamp_buf);
 
 			if ( waittime > ppb->pp.pwdMaxDelay ) {
 				waittime = ppb->pp.pwdMaxDelay;
