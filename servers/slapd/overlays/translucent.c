@@ -176,9 +176,9 @@ translucent_cfadd( Operation *op, SlapReply *rs, Entry *e, ConfigArgs *ca )
 
 	/* We can only create this entry if the database is table-driven
 	 */
-	if ( ov->db.bd_info->bi_cf_ocs )
+	if ( ov->db.be_cf_ocs )
 		config_build_entry( op, rs, cei, ca, &bv,
-				    ov->db.bd_info->bi_cf_ocs,
+				    ov->db.be_cf_ocs,
 				    &translucentocs[1] );
 
 	return 0;
