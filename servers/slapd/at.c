@@ -952,11 +952,15 @@ error_return:;
 		}
 
 		if ( oidm ) {
+			if ( *err == at->at_oid )
+				*err = oidm;
 			SLAP_FREE( at->at_oid );
 			at->at_oid = oidm;
 		}
 
 		if ( soidm ) {
+			if ( *err == at->at_syntax_oid )
+				*err = soidm;
 			SLAP_FREE( at->at_syntax_oid );
 			at->at_syntax_oid = soidm;
 		}
