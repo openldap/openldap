@@ -335,7 +335,7 @@ tlso_ctx_cipher13( tlso_ctx *ctx, char *suites )
 				if ( !strncmp( ver, "TLSv", 4 ) && strncmp( ver+4, "1.3", 3 ) >= 0 ) {
 					if ( tls13_suites[0] )
 						ts = tlso_stecpy( ts, ":", te );
-					ts = tlso_stecpy( ts, sname, te );
+					ts = tlso_stecpy( ts, nptr, te );
 				}
 			}
 		}
