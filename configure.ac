@@ -1243,7 +1243,7 @@ if test $ol_with_tls = openssl || test $ol_with_tls = auto ; then
 [#endif]])],
 					, [AC_MSG_FAILURE([OpenSSL 1.1.1 or newer required])])
 
-		AC_CHECK_LIB(ssl, SSL_export_keying_material_early,
+		AC_CHECK_LIB(ssl, SSL_CTX_set_ciphersuites,
 			[have_openssl=yes], [have_openssl=no],
 			[-lcrypto])
 
