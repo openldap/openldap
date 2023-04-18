@@ -1831,6 +1831,21 @@ struct berval session_tracking_formats[] = {
 	BER_BVNULL
 };
 
+static int is_printable( struct berval *bv )
+{
+	unsigned char *c = (unsigned char *)bv->bv_val;
+	ber_len_t i;
+
+	if ( !bv->bv_len || !bv->bv_val )
+		return 0;
+
+	for ( i = 0; i < bv->bv_len; i++ ) {
+		if ( !isascii( c[i] ) || !isprint( c[i] ))
+			return 0;
+	}
+	return 1;
+}
+
 static int parseSessionTracking(
 	Operation *op,
 	SlapReply *rs,
@@ -1897,7 +1912,7 @@ static int parseSessionTracking(
 		tag = ber_scanf( ber, "m", &sessionSourceIp );
 	}
 
-	if ( ldif_is_not_printable( sessionSourceIp.bv_val, sessionSourceIp.bv_len ) ) {
+	if ( !is_printable( &sessionSourceIp ) ) {
 		BER_BVZERO( &sessionSourceIp );
 	}
 
@@ -1920,7 +1935,7 @@ static int parseSessionTracking(
 		tag = ber_scanf( ber, "m", &sessionSourceName );
 	}
 
-	if ( ldif_is_not_printable( sessionSourceName.bv_val, sessionSourceName.bv_len ) ) {
+	if ( !is_printable( &sessionSourceName ) ) {
 		BER_BVZERO( &sessionSourceName );
 	}
 
@@ -1972,7 +1987,7 @@ static int parseSessionTracking(
 	} else {
 		/* note: should not be more than 65536... */
 		tag = ber_scanf( ber, "m", &sessionTrackingIdentifier );
-		if ( ldif_is_not_printable( sessionTrackingIdentifier.bv_val, sessionTrackingIdentifier.bv_len ) ) {
+		if ( !is_printable( &sessionTrackingIdentifier ) ) {
 			/* we want the OID printed, at least */
 			BER_BVSTR( &sessionTrackingIdentifier, "" );
 		}
