@@ -218,17 +218,31 @@ st_value( LDAP *ld, struct berval *value )
 	char		*ip = NULL, *name = NULL;
 	struct berval	id = { 0 };
 	char		namebuf[ MAXHOSTNAMELEN ];
+#ifdef LDAP_PF_INET6
+	char		ip6buf[ INET6_ADDRSTRLEN ];
+#endif
 
 	if ( gethostname( namebuf, sizeof( namebuf ) ) == 0 ) {
-		struct hostent	*h;
-		struct in_addr	addr;
-
 		name = namebuf;
+	}
 
-		h = gethostbyname( name );
-		if ( h != NULL ) {
-			AC_MEMCPY( &addr, h->h_addr, sizeof( addr ) );
-			ip = inet_ntoa( addr );
+	{
+		int sd;
+		if ( ldap_get_option( ld, LDAP_OPT_DESC, &sd ) == LDAP_SUCCESS ) {
+			struct sockaddr_storage sa;
+			socklen_t sl = sizeof(sa);
+			if ( getsockname( sd, &sa, &sl ) == 0 ) {
+				if ( sa.ss_family == AF_INET ) {
+					struct sockaddr_in *sai = (struct sockaddr_in *)&sa;
+					ip = inet_ntoa( sai->sin_addr );
+				}
+#ifdef LDAP_PF_INET6
+				else if ( sa.ss_family == AF_INET6 ) {
+					struct sockaddr_in6 *sai = (struct sockaddr_in6 *)&sa;
+					ip = inet_ntop( AF_INET6, &sai->sin6_addr, ip6buf, sizeof( ip6buf ));
+				}
+#endif
+			}
 		}
 	}
 
@@ -1365,6 +1379,24 @@ dnssrv_free:;
 			tool_exit( ld, EXIT_FAILURE );
 		}
 
+		if ( nettimeout.tv_sec > 0 ) {
+			if ( ldap_set_option( ld, LDAP_OPT_NETWORK_TIMEOUT, (void *) &nettimeout )
+				!= LDAP_OPT_SUCCESS )
+			{
+				fprintf( stderr, "Could not set LDAP_OPT_NETWORK_TIMEOUT %ld\n",
+					(long)nettimeout.tv_sec );
+				tool_exit( ld, EXIT_FAILURE );
+			}
+		}
+
+		rc = ldap_connect( ld );
+		if( rc != LDAP_SUCCESS ) {
+			fprintf( stderr,
+				"Could not connect to URI=%s (%d): %s\n",
+				ldapuri, rc, ldap_err2string(rc) );
+			tool_exit( ld, EXIT_FAILURE );
+		}
+
 		if ( use_tls ) {
 			rc = ldap_start_tls_s( ld, NULL, NULL );
 			if ( rc != LDAP_SUCCESS ) {
@@ -1378,15 +1410,6 @@ dnssrv_free:;
 			}
 		}
 
-		if ( nettimeout.tv_sec > 0 ) {
-	 		if ( ldap_set_option( ld, LDAP_OPT_NETWORK_TIMEOUT, (void *) &nettimeout )
-				!= LDAP_OPT_SUCCESS )
-			{
-		 		fprintf( stderr, "Could not set LDAP_OPT_NETWORK_TIMEOUT %ld\n",
-					(long)nettimeout.tv_sec );
-	 			tool_exit( ld, EXIT_FAILURE );
-			}
-		}
 	}
 
 	return ld;
