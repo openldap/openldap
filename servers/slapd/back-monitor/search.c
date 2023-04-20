@@ -97,7 +97,7 @@ monitor_send_children(
 
 	/* return entries */
 	for ( ; e != NULL; e = e_tmp ) {
-		Entry *sub_nv = NULL, *sub_ch = NULL;
+		Entry *sub_nv = NULL, *sub_ch = NULL, *locked = e;
 
 		monitor_cache_lock( e );
 		monitor_entry_update( op, rs, e );
@@ -109,7 +109,6 @@ monitor_send_children(
 		e_tmp = mp->mp_next;
 
 		if ( op->o_abandon ) {
-			monitor_cache_release( mi, e );
 			rc = SLAPD_ABANDON;
 			goto freeout;
 		}
@@ -128,19 +127,21 @@ monitor_send_children(
 					monitor_cache_lock( e );
 					monitor_cache_release( mi, e );
 				}
-				e = rs->sr_entry;
 				goto freeout;
 			}
 		}
 		if ( sub_nv == NULL ) {
-			monitor_cache_release( mi, e );
+			monitor_cache_release( mi, locked );
+			locked = NULL;
 		}
 
 		if ( sub ) {
 			rc = monitor_send_children( op, rs, sub_nv, sub_ch, sub );
 			if ( rc ) {
 freeout:
-				monitor_cache_release( mi, e );
+				if ( locked ) {
+					monitor_cache_release( mi, locked );
+				}
 				if ( nonvolatile == 0 ) {
 					for ( ; e_tmp != NULL; ) {
 						mp = ( monitor_entry_t * )e_tmp->e_private;
@@ -158,8 +159,8 @@ freeout:
 				return( rc );
 			}
 		}
-		if ( sub_nv != NULL ) {
-			monitor_cache_release( mi, e );
+		if ( locked ) {
+			monitor_cache_release( mi, locked );
 		}
 	}
 	
