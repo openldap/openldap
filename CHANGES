@@ -2,6 +2,8 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.15 Engineering
 	Fixed slapd callback handling with overlays that do extended operations (ITS#9990)
+	Build Environment
+		Fixed compatibility with stricter C99 compilers (ITS#10011)
 
 OpenLDAP 2.5.14 Release (2023/02/08)
 	Fixed client tools to remove 'h' and 'p' options (ITS#9917,ITS#8618)
