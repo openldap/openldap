@@ -99,6 +99,83 @@ ad_infilter( AttributeDescription *ad, Filter *f )
 	return 0;
 }
 
+static Filter *
+transform_filter( Operation *op, dynlist_info_t *dli, int not, Filter *orig )
+{
+	Filter *f;
+	dynlist_map_t *dlm;
+
+	/* Tilt the filter towards TRUE if it could match through this dli */
+	int result = not ? LDAP_COMPARE_FALSE : LDAP_COMPARE_TRUE;
+
+	if ( orig ) {
+		f = orig;
+	} else {
+		f = orig = filter_dup( op->ors_filter, op->o_tmpmemctx );
+	}
+
+	switch( f->f_choice & SLAPD_FILTER_MASK ) {
+	case LDAP_FILTER_EQUALITY:
+	case LDAP_FILTER_GE:
+	case LDAP_FILTER_LE:
+	case LDAP_FILTER_APPROX:
+		for ( dlm = dli->dli_dlm; dlm; dlm = dlm->dlm_next ) {
+			AttributeDescription *ad = dlm->dlm_mapped_ad ? dlm->dlm_mapped_ad : dlm->dlm_member_ad;
+			if ( f->f_av_desc == ad ) {
+				filter_free_x( op, f, 0 );
+				f->f_choice = SLAPD_FILTER_COMPUTED;
+				f->f_result = result;
+				break;
+			}
+		}
+		break;
+	case LDAP_FILTER_PRESENT:
+		for ( dlm = dli->dli_dlm; dlm; dlm = dlm->dlm_next ) {
+			AttributeDescription *ad = dlm->dlm_mapped_ad ? dlm->dlm_mapped_ad : dlm->dlm_member_ad;
+			if ( f->f_sub_desc == ad ) {
+				filter_free_x( op, f, 0 );
+				f->f_choice = SLAPD_FILTER_COMPUTED;
+				f->f_result = result;
+				break;
+			}
+		}
+		break;
+	case LDAP_FILTER_SUBSTRINGS:
+		for ( dlm = dli->dli_dlm; dlm; dlm = dlm->dlm_next ) {
+			AttributeDescription *ad = dlm->dlm_mapped_ad ? dlm->dlm_mapped_ad : dlm->dlm_member_ad;
+			if ( f->f_desc == ad ) {
+				filter_free_x( op, f, 0 );
+				f->f_choice = SLAPD_FILTER_COMPUTED;
+				f->f_result = result;
+				break;
+			}
+		}
+		break;
+	case LDAP_FILTER_EXT:
+		for ( dlm = dli->dli_dlm; dlm; dlm = dlm->dlm_next ) {
+			AttributeDescription *ad = dlm->dlm_mapped_ad ? dlm->dlm_mapped_ad : dlm->dlm_member_ad;
+			if ( f->f_mr_desc == ad ) {
+				filter_free_x( op, f, 0 );
+				f->f_choice = SLAPD_FILTER_COMPUTED;
+				f->f_result = result;
+				break;
+			}
+		}
+		break;
+	case LDAP_FILTER_AND:
+	case LDAP_FILTER_OR:
+		for ( f = f->f_list; f; f = f->f_next )
+			transform_filter( op, dli, not, f );
+		break;
+	case LDAP_FILTER_NOT:
+		transform_filter( op, dli, !not, f->f_list );
+	case SLAPD_FILTER_COMPUTED:
+		break;
+	}
+
+	return orig;
+}
+
 typedef struct dynlist_filterinst_t {
 	AttributeAssertion *df_a;
 	Entry *df_e;
@@ -1790,7 +1867,7 @@ dynlist_search( Operation *op, SlapReply *rs )
 	dynlist_info_t	*dli;
 	Operation o = *op;
 	dynlist_map_t *dlm;
-	Filter f[3];
+	Filter f[4];
 	AttributeAssertion ava[2];
 	AttributeName an[2] = {0};
 
@@ -1908,27 +1985,45 @@ dynlist_search( Operation *op, SlapReply *rs )
 		}
 
 		if ( tmpwant ) {
+			Filter *f_new = NULL;
+
+			if ( tmpwant == WANT_MEMBER ) {
+				/*
+				 * If we only need to list groups, not their members, keep the
+				 * filter, assuming any references to mapped attributes make it
+				 * succeed.
+				 *
+				 * A nested groups search will indicate that it needs both.
+				 */
+				f_new = transform_filter( op, dli, 0, NULL );
+			}
 
 			if ( static_oc ) {
-				f[0].f_choice = LDAP_FILTER_OR;
+				f[0].f_choice = LDAP_FILTER_AND;
+				f[0].f_list = &f[1];
+				f[0].f_next = NULL;
+				f[1].f_choice = LDAP_FILTER_OR;
+				f[1].f_list = &f[2];
+				f[1].f_next = f_new;
+				f[2].f_choice = LDAP_FILTER_EQUALITY;
+				f[2].f_next = &f[3];
+				f[2].f_ava = &ava[0];
+				f[2].f_av_desc = slap_schema.si_ad_objectClass;
+				f[2].f_av_value = dli->dli_oc->soc_cname;
+				f[3].f_choice = LDAP_FILTER_EQUALITY;
+				f[3].f_ava = &ava[1];
+				f[3].f_av_desc = slap_schema.si_ad_objectClass;
+				f[3].f_av_value = static_oc->soc_cname;
+				f[3].f_next = NULL;
+			} else {
+				f[0].f_choice = LDAP_FILTER_AND;
 				f[0].f_list = &f[1];
 				f[0].f_next = NULL;
 				f[1].f_choice = LDAP_FILTER_EQUALITY;
-				f[1].f_next = &f[2];
-				f[1].f_ava = &ava[0];
+				f[1].f_ava = ava;
 				f[1].f_av_desc = slap_schema.si_ad_objectClass;
 				f[1].f_av_value = dli->dli_oc->soc_cname;
-				f[2].f_choice = LDAP_FILTER_EQUALITY;
-				f[2].f_ava = &ava[1];
-				f[2].f_av_desc = slap_schema.si_ad_objectClass;
-				f[2].f_av_value = static_oc->soc_cname;
-				f[2].f_next = NULL;
-			} else {
-				f[0].f_choice = LDAP_FILTER_EQUALITY;
-				f[0].f_ava = ava;
-				f[0].f_av_desc = slap_schema.si_ad_objectClass;
-				f[0].f_av_value = dli->dli_oc->soc_cname;
-				f[0].f_next = NULL;
+				f[1].f_next = f_new;
 			}
 
 			if ( o.o_callback != sc ) {
@@ -1963,6 +2058,7 @@ dynlist_search( Operation *op, SlapReply *rs )
 			}
 			o.o_tmpfree( o.ors_filterstr.bv_val, o.o_tmpmemctx );
 			o.ors_filterstr.bv_val = NULL;
+			filter_free_x( &o, f_new, 1 );
 			if ( found != ds->ds_found && nested )
 				dynlist_nestlink( op, ds );
 		}
