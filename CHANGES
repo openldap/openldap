@@ -5,6 +5,9 @@ OpenLDAP 2.5.15 Engineering
 	Build Environment
 		Fixed compatibility with stricter C99 compilers (ITS#10011)
 		Keep .pc files during make clean (ITS#9989)
+	Minor Cleanup
+		ITS#9995
+		ITS#9996
 
 OpenLDAP 2.5.14 Release (2023/02/08)
 	Fixed client tools to remove 'h' and 'p' options (ITS#9917,ITS#8618)
