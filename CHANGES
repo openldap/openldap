@@ -9,6 +9,7 @@ OpenLDAP 2.6.5 Engineering
 	Minor Cleanup
 		ITS#9995
 		ITS#9996
+		ITS#9997
 
 OpenLDAP 2.6.4 Release (2023/02/08)
 	Fixed client tools to remove 'h' and 'p' options (ITS#9917,ITS#8618)
