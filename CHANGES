@@ -27,6 +27,7 @@ OpenLDAP 2.5.15 Engineering
 		ITS#10000
 		ITS#10003
 		ITS#10004
+		ITS#10037
 
 OpenLDAP 2.5.14 Release (2023/02/08)
 	Fixed client tools to remove 'h' and 'p' options (ITS#9917,ITS#8618)
