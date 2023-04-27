@@ -2,9 +2,14 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.15 Engineering
 	Fixed slapd callback handling with overlays that do extended operations (ITS#9990)
+	Fixed slapo-constraint handling of push replication (ITS#9953)
+	Fixed slapo-ppolicy handling of push replication (ITS#9953)
+	Fixed slapo-unique handling of push replication (ITS#9953)
 	Build Environment
 		Fixed compatibility with stricter C99 compilers (ITS#10011)
 		Keep .pc files during make clean (ITS#9989)
+	Contrib
+		Fixed slapo-variant handling of push replication (ITS#9953)
 	Minor Cleanup
 		ITS#9995
 		ITS#9996
