@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.15 Engineering
+	Fixed libldap handling of TCP KEEPALIVE options (ITS#10015)
 	Fixed slapd callback handling with overlays that do extended operations (ITS#9990)
 	Fixed slapo-constraint handling of push replication (ITS#9953)
 	Fixed slapo-ppolicy handling of push replication (ITS#9953)
