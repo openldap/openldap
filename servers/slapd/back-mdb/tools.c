@@ -58,6 +58,8 @@ static MDB_cursor *mcp = NULL, *mcd = NULL;
 static MDB_val key, data;
 static ID previd = NOID;
 
+static int reindexing;
+
 typedef struct dn_id {
 	ID id;
 	struct berval dn;
@@ -222,6 +224,20 @@ int mdb_tool_entry_close(
 			return -1;
 		}
 		mdb_tool_txn = NULL;
+	}
+	if( reindexing ) {
+		struct mdb_info *mdb = be->be_private;
+		if ( !txi ) {
+			int rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txi );
+			if( rc != 0 ) {
+				Debug( LDAP_DEBUG_ANY,
+					"=> " LDAP_XSTRING(mdb_tool_entry_close) ": database %s: "
+					"txn_begin failed: %s (%d)\n",
+					be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
+				return -1;
+			}
+		}
+		mdb_drop( txi, mdb->mi_idxckp, 0 );
 	}
 	if( txi ) {
 		int rc;
@@ -840,6 +856,8 @@ int mdb_tool_entry_reindex(
 	if (!mi->mi_attrs) {
 		return 0;
 	}
+
+	reindexing = 1;
 
 	/* Check for explicit list of attrs to index */
 	if ( adv ) {
