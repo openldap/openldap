@@ -864,6 +864,9 @@ variant_set_dn( ConfigArgs *ca )
 
 		dnMatch( &diff, 0, NULL, NULL, &vei->dn, &vei2->dn );
 		if ( !diff ) {
+			snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+					"duplicate variant dn: %s", ca->value_ndn.bv_val );
+			Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
 			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
 			return ca->reply.err;
 		}
@@ -885,7 +888,11 @@ variant_set_regex( ConfigArgs *ca )
 	} else if ( ca->op == LDAP_MOD_DELETE ) {
 		ber_memfree( vei->dn.bv_val );
 		BER_BVZERO( &vei->dn );
-		regfree( vei->regex );
+		if ( vei->regex ) {
+			regfree( vei->regex );
+			ch_free( vei->regex );
+			vei->regex = NULL;
+		}
 		return LDAP_SUCCESS;
 	}
 
@@ -906,8 +913,9 @@ variant_set_regex( ConfigArgs *ca )
 		if ( vei == vei2 ) continue;
 
 		if ( !ber_bvcmp( &ca->value_bv, &vei2->dn ) ) {
-			ch_free( vei );
-			ca->ca_private = NULL;
+			snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+					"duplicate variant regex: %s", ca->value_dn.bv_val );
+			Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
 			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
 			return ca->reply.err;
 		}
@@ -916,6 +924,10 @@ variant_set_regex( ConfigArgs *ca )
 	vei->regex = ch_calloc( 1, sizeof(regex_t) );
 	if ( regcomp( vei->regex, vei->dn.bv_val, REG_EXTENDED ) ) {
 		ch_free( vei->regex );
+		vei->regex = NULL;
+		snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+				"cannot process regex: %s", vei->dn.bv_val );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
 		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
 		return ca->reply.err;
 	}
@@ -965,9 +977,10 @@ variant_set_alt_pattern( ConfigArgs *ca )
 		if ( ( ( *p >= '0' ) && ( *p <= '9' ) ) || ( *p == '$' ) ) {
 			p += 1;
 		} else {
-			Debug( LDAP_DEBUG_ANY, "variant_set_alt_pattern: "
-					"invalid replacement pattern supplied '%s'\n",
+			snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+					"invalid replacement pattern supplied '%s'",
 					ca->value_bv.bv_val );
+			Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
 			ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
 			return ca->reply.err;
 		}
@@ -1013,6 +1026,9 @@ variant_set_attribute( ConfigArgs *ca )
 	rc = slap_str2ad( s, ad, &text );
 	ber_memfree( ca->value_string );
 	if ( rc ) {
+		snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+				"attribute %s invalid: %s", s, text );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
 		return rc;
 	}
 
@@ -1020,6 +1036,10 @@ variant_set_attribute( ConfigArgs *ca )
 	if ( vai->attr && vai->alternative &&
 			vai->attr->ad_type->sat_syntax !=
 					vai->alternative->ad_type->sat_syntax ) {
+		snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+				"attribute '%s' syntax doesn't match alternative attribute '%s'",
+				vai->attr->ad_cname.bv_val, vai->alternative->ad_cname.bv_val );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
 		ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
 		return ca->reply.err;
 	}
@@ -1029,6 +1049,9 @@ variant_set_attribute( ConfigArgs *ca )
 		LDAP_SLIST_FOREACH( vai2, &vai->variant->attributes, next ) {
 			if ( vai == vai2 ) continue;
 			if ( vai->attr == vai2->attr ) {
+				snprintf( ca->cr_msg, sizeof(ca->cr_msg),
+						"duplicate attribute '%s'", vai->attr->ad_cname.bv_val );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
 				ca->reply.err = LDAP_CONSTRAINT_VIOLATION;
 				return ca->reply.err;
 			}
