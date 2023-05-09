@@ -313,7 +313,7 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 	mdb->mi_flags |= MDB_IS_OPEN;
 
 	if ( do_index )
-		mdb_start_index_task( be );
+		mdb_start_index_task( be->bd_self );
 
 	return 0;
 
