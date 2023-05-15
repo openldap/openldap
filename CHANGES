@@ -7,6 +7,7 @@ OpenLDAP 2.6.5 Engineering
 	Fixed slapd conversion of pcache configurations (ITS#10031)
 	Fixed slapd cn=config modification handling with abandon (ITS#10045)
 	Fixed slapd-mdb online indexer termination and cleanup (ITS#9993)
+	Fixed slapd-mdb online indexer when interrupted (ITS#10047)
 	Fixed slapd-monitor connection cleanup (ITS#10042)
 	Fixed slapo-constraint handling of push replication (ITS#9953)
 	Fixed slapo-dynlist filter evaluation efficiency (ITS#10041)
