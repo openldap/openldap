@@ -29,7 +29,7 @@ OBJS= assert.lo decode.lo encode.lo io.lo bprint.lo debug.lo \
 	memory.lo options.lo sockbuf.lo $(@PLAT@_OBJS)
 XSRCS= version.c
 
-PROGRAMS= dtest etest idtest
+PROGRAMS= dtest etest
 
 LDAP_INCDIR= ../../include
 LDAP_LIBDIR= ../../libraries
@@ -44,8 +44,6 @@ dtest:    $(XLIBS) dtest.o
 	$(LTLINK) -o $@ dtest.o $(LIBS)
 etest:  $(XLIBS) etest.o
 	$(LTLINK) -o $@ etest.o $(LIBS)
-idtest:  $(XLIBS) idtest.o
-	$(LTLINK) -o $@ idtest.o $(LIBS)
 
 install-local: FORCE
 	-$(MKDIR) $(DESTDIR)$(libdir)

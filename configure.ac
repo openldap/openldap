@@ -867,7 +867,6 @@ AC_CHECK_HEADERS(	\
 	locale.h		\
 	malloc.h		\
 	memory.h		\
-	psap.h			\
 	pwd.h			\
 	process.h		\
 	sgtty.h			\
