@@ -8,6 +8,7 @@ OpenLDAP 2.5.15 Engineering
 	Fixed slapd conversion of pcache configurations (ITS#10031)
 	Fixed slapd cn=config modification handling with abandon (ITS#10045)
 	Fixed slapo-constraint handling of push replication (ITS#9953)
+	Fixed slapo-dynlist filter evaluation efficiency (ITS#10041)
 	Fixed slapo-pcache handling of invalid schema (ITS#10032)
 	Fixed slapo-ppolicy handling of push replication (ITS#9953)
 	Fixed slapo-ppolicy handling of pwdMinDelay (ITS#10028)
