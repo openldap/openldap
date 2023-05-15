@@ -5,6 +5,7 @@ OpenLDAP 2.6.5 Engineering
 	Fixed libldap openssl TLSv1.3 cipher suite handling (ITS#10035)
 	Fixed slapd callback handling with overlays that do extended operations (ITS#9990)
 	Fixed slapd conversion of pcache configurations (ITS#10031)
+	Fixed slapd cn=config modification handling with abandon (ITS#10045)
 	Fixed slapd-mdb online indexer termination and cleanup (ITS#9993)
 	Fixed slapo-constraint handling of push replication (ITS#9953)
 	Fixed slapo-pcache handling of invalid schema (ITS#10032)
