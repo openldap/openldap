@@ -21,6 +21,7 @@ OpenLDAP 2.5.15 Engineering
 	Contrib
 		Fixed slapo-variant handling of push replication (ITS#9953)
 	Minor Cleanup
+		ITS#9855
 		ITS#9995
 		ITS#9996
 		ITS#9997
