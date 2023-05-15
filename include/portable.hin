@@ -343,6 +343,12 @@
 /* Define to 1 if you have the <malloc.h> header file. */
 #undef HAVE_MALLOC_H
 
+/* define if you have mbedtls */
+#undef HAVE_MBEDTLS
+
+/* Define to 1 if you have the <mbedtls/ssl.h> header file. */
+#undef HAVE_MBEDTLS_SSL_H
+
 /* Define to 1 if you have the `memcpy' function. */
 #undef HAVE_MEMCPY
 
@@ -405,9 +411,6 @@
 
 /* Define to 1 if you have the <process.h> header file. */
 #undef HAVE_PROCESS_H
-
-/* Define to 1 if you have the <psap.h> header file. */
-#undef HAVE_PSAP_H
 
 /* define to pthreads API spec revision */
 #undef HAVE_PTHREADS
