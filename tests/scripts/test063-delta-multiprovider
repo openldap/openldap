@@ -214,6 +214,12 @@ olcDatabase: {3}monitor
 EOF
 
 $SLAPADD -F $CFDIR -n 0  -d-1< $TMP > $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 PORT=`eval echo '$PORT'$n`
 echo "Starting server $n on TCP/IP port $PORT..."
 cd ${XDIR}${n}

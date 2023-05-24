@@ -88,6 +88,7 @@ $SLAPADD -f $CONF3 -l $LDIFORDERED
 RC=$?
 if test $RC != 0 ; then
 	echo "slapadd failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit $RC
 fi
 
