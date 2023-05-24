@@ -120,6 +120,11 @@ olcConstraintAttribute: uid
 EOF
 
 $SLAPADD -F $CONFDIR -n 0 -l $TESTDIR/config.ldif
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 echo "Starting slapd on TCP/IP port $PORT1..."
 $SLAPD -F $CONFDIR -h $URI1 -d $LVL > $LOG1 2>&1 &

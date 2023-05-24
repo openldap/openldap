@@ -79,6 +79,11 @@ objectClass: olcDatabaseConfig
 olcDatabase: {0}config
 olcRootPW:< file://$CONFIGPWF
 EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 n=`expr $n + 1`
 done
