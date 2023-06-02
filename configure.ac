@@ -3106,7 +3106,7 @@ if test "$ol_enable_argon2" = "yes" ; then
 
 	BUILD_PW_ARGON2=$ol_enable_argon2
 	if test "$ol_enable_argon2" = "yes" ; then
-		SLAPD_DYNAMIC_PWMODS="$SLAPD_DYNAMIC_PWDMODS argon2.la"
+		SLAPD_DYNAMIC_PWMODS="$SLAPD_DYNAMIC_PWMODS argon2.la"
 	fi
 	AC_DEFINE_UNQUOTED(SLAPD_PWMOD_PW_ARGON2,$SLAPD_MOD_DYNAMIC,[define for Argon2 Password hashing module])
 fi
