@@ -102,7 +102,7 @@ noopsrch_response( Operation *op, SlapReply *rs )
 		BerElementBuffer	berbuf;
 		BerElement			*ber = (BerElement *) &berbuf;
 		struct berval		ctrlval;
-		LDAPControl			*ctrl, *ctrlsp[2];
+		LDAPControl			*ctrl;
 		int					rc = rs->sr_err;
 
 		if ( nc->nc_save_slimit >= 0 && nc->nc_nentries >= nc->nc_save_slimit ) {
@@ -136,9 +136,7 @@ noopsrch_response( Operation *op, SlapReply *rs )
 
 		ber_free_buf( ber );
 
-		ctrlsp[0] = ctrl;
-		ctrlsp[1] = NULL;
-		slap_add_ctrls( op, rs, ctrlsp );
+		slap_add_ctrl( op, rs, ctrl );
 	}
 	return SLAP_CB_CONTINUE;
 }

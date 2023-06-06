@@ -201,7 +201,7 @@ static int pack_vlv_response_control(
 	Operation		*op,
 	SlapReply		*rs,
 	sort_op			*so,
-	LDAPControl	**ctrlsp )
+	LDAPControl	**ctrlp )
 {
 	LDAPControl			*ctrl;
 	BerElementBuffer	berbuf;
@@ -237,9 +237,9 @@ static int pack_vlv_response_control(
 		ctrl->ldctl_value.bv_val = (char *)(ctrl+1);
 		ctrl->ldctl_value.bv_len = bv.bv_len;
 		AC_MEMCPY( ctrl->ldctl_value.bv_val, bv.bv_val, bv.bv_len );
-		ctrlsp[0] = ctrl;
+		*ctrlp = ctrl;
 	} else {
-		ctrlsp[0] = NULL;
+		*ctrlp = NULL;
 		rs->sr_err = LDAP_OTHER;
 	}
 
@@ -451,7 +451,7 @@ static void send_list(
 	int i, j, dir, rc;
 	BackendDB *be;
 	Entry *e;
-	LDAPControl *ctrls[2];
+	LDAPControl *ctrl;
 
 	rs->sr_attrs = op->ors_attrs;
 
@@ -480,9 +480,8 @@ static void send_list(
 				if ( vc->vc_offset > so->so_nentries ) {
 range_err:
 					so->so_vlv_rc = LDAP_VLV_RANGE_ERROR;
-					pack_vlv_response_control( op, rs, so, ctrls );
-					ctrls[1] = NULL;
-					slap_add_ctrls( op, rs, ctrls );
+					pack_vlv_response_control( op, rs, so, &ctrl );
+					slap_add_ctrl( op, rs, ctrl );
 					rs->sr_err = LDAP_VLV_ERROR;
 					return;
 				}
@@ -513,9 +512,8 @@ range_err:
 				mr->smr_syntax, mr, &vc->vc_value, &bv, op->o_tmpmemctx );
 			if ( rc ) {
 				so->so_vlv_rc = LDAP_INAPPROPRIATE_MATCHING;
-				pack_vlv_response_control( op, rs, so, ctrls );
-				ctrls[1] = NULL;
-				slap_add_ctrls( op, rs, ctrls );
+				pack_vlv_response_control( op, rs, so, &ctrl );
+				slap_add_ctrl( op, rs, ctrl );
 				rs->sr_err = LDAP_VLV_ERROR;
 				return;
 			}
@@ -688,22 +686,22 @@ static void send_result(
 	LDAPControl *ctrls[3];
 	int rc, i = 0;
 
-	rc = pack_sss_response_control( op, rs, ctrls );
+	rc = pack_sss_response_control( op, rs, &ctrls[i] );
 	if ( rc == LDAP_SUCCESS ) {
 		i++;
 		rc = -1;
 		if ( so->so_paged > SLAP_CONTROL_IGNORED ) {
-			rc = pack_pagedresult_response_control( op, rs, so, ctrls+1 );
+			rc = pack_pagedresult_response_control( op, rs, so, &ctrls[i] );
 		} else if ( so->so_vlv > SLAP_CONTROL_IGNORED ) {
-			rc = pack_vlv_response_control( op, rs, so, ctrls+1 );
+			rc = pack_vlv_response_control( op, rs, so, &ctrls[i] );
 		}
 		if ( rc == LDAP_SUCCESS )
 			i++;
 	}
 	ctrls[i] = NULL;
 
-	if ( ctrls[0] != NULL )
-		slap_add_ctrls( op, rs, ctrls );
+	if ( i )
+		slap_add_ctrls( op, rs, ctrls, i );
 	send_ldap_result( op, rs );
 
 	if ( so->so_tree == NULL ) {
@@ -818,16 +816,15 @@ static int sssvlv_op_search(
 
 	if ( op->o_ctrlflag[sss_cid] <= SLAP_CONTROL_IGNORED ) {
 		if ( op->o_ctrlflag[vlv_cid] > SLAP_CONTROL_IGNORED ) {
-			LDAPControl *ctrls[2];
+			LDAPControl *ctrl;
 			so2.so_vcontext = 0;
 			so2.so_vlv_target = 0;
 			so2.so_nentries = 0;
 			so2.so_vlv_rc = LDAP_VLV_SSS_MISSING;
 			so2.so_vlv = op->o_ctrlflag[vlv_cid];
-			rc = pack_vlv_response_control( op, rs, &so2, ctrls );
+			rc = pack_vlv_response_control( op, rs, &so2, &ctrl );
 			if ( rc == LDAP_SUCCESS ) {
-				ctrls[1] = NULL;
-				slap_add_ctrls( op, rs, ctrls );
+				slap_add_ctrl( op, rs, ctrl );
 			}
 			rs->sr_err = LDAP_VLV_ERROR;
 			rs->sr_text = "Sort control is required with VLV";

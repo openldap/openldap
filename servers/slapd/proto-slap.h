@@ -645,7 +645,12 @@ LDAP_SLAPD_F (void) slap_free_ctrls LDAP_P((
 LDAP_SLAPD_F (int) slap_add_ctrls LDAP_P((
 	Operation *op,
 	SlapReply *rs,
-	LDAPControl **ctrls ));
+	LDAPControl **ctrls,
+	int numctrls ));
+LDAP_SLAPD_F (int) slap_add_ctrl LDAP_P((
+	Operation *op,
+	SlapReply *rs,
+	LDAPControl *ctrl ));
 LDAP_SLAPD_F (int) slap_parse_ctrl LDAP_P((
 	Operation *op,
 	SlapReply *rs,

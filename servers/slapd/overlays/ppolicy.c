@@ -1997,7 +1997,7 @@ add_account_control(
 {
 	BerElementBuffer berbuf;
 	BerElement *ber = (BerElement *) &berbuf;
-	LDAPControl c = { 0 }, *cp = NULL, *ctrls[2] = { NULL, NULL };
+	LDAPControl c = { 0 }, *ctrl;
 	int rc = -1;
 
 	BER_BVZERO( &c.ldctl_value );
@@ -2022,20 +2022,18 @@ add_account_control(
 		goto fail;
 	}
 
-	cp = op->o_tmpalloc( sizeof( LDAPControl ) + c.ldctl_value.bv_len, op->o_tmpmemctx );
-	if ( !cp ) {
+	ctrl = op->o_tmpalloc( sizeof( LDAPControl ) + c.ldctl_value.bv_len, op->o_tmpmemctx );
+	if ( !ctrl ) {
 		goto fail;
 	}
 
-	cp->ldctl_oid = (char *)ppolicy_account_ctrl_oid;
-	cp->ldctl_iscritical = 0;
-	cp->ldctl_value.bv_val = (char *)&cp[1];
-	cp->ldctl_value.bv_len = c.ldctl_value.bv_len;
-	AC_MEMCPY( cp->ldctl_value.bv_val, c.ldctl_value.bv_val, c.ldctl_value.bv_len );
+	ctrl->ldctl_oid = (char *)ppolicy_account_ctrl_oid;
+	ctrl->ldctl_iscritical = 0;
+	ctrl->ldctl_value.bv_val = (char *)&ctrl[1];
+	ctrl->ldctl_value.bv_len = c.ldctl_value.bv_len;
+	AC_MEMCPY( ctrl->ldctl_value.bv_val, c.ldctl_value.bv_val, c.ldctl_value.bv_len );
 
-	/* TODO: ITS#10013 Use something like slap_add_ctrl when it exists */
-	ctrls[ 0 ] = cp;
-	slap_add_ctrls( op, rs, ctrls );
+	slap_add_ctrl( op, rs, ctrl );
 
 	rc = LDAP_SUCCESS;
 fail:
@@ -2822,7 +2820,7 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 	char nowstr_usec[ LDAP_LUTIL_GENTIME_BUFSIZE+8 ];
 	struct berval timestamp, timestamp_usec;
 	BackendDB *be = op->o_bd;
-	LDAPControl *ctrls[2] = { NULL, NULL };
+	LDAPControl *ctrl = NULL;
 	Entry *e;
 
 	ldap_pvt_thread_mutex_lock( &pi->pwdFailureTime_mutex );
@@ -3195,16 +3193,16 @@ locked:
 		if ( ppb->pErr == PP_accountLocked && !pi->use_lockout ) {
 			ppb->pErr = PP_noError;
 		}
-		ctrls[0] = create_passcontrol( op, warn, ngut, ppb->pErr );
+		ctrl = create_passcontrol( op, warn, ngut, ppb->pErr );
 	} else if ( pi->send_netscape_controls ) {
 		if ( ppb->pErr != PP_noError || pwExpired ) {
-			ctrls[0] = create_passexpiry( op, 1, 0 );
+			ctrl = create_passexpiry( op, 1, 0 );
 		} else if ( warn > 0 ) {
-			ctrls[0] = create_passexpiry( op, 0, warn );
+			ctrl = create_passexpiry( op, 0, warn );
 		}
 	}
-	if ( ctrls[0] ) {
-		slap_add_ctrls( op, rs, ctrls );
+	if ( ctrl ) {
+		slap_add_ctrl( op, rs, ctrl );
 		op->o_callback->sc_cleanup = ppolicy_ctrls_cleanup;
 	}
 out:
@@ -3318,9 +3316,9 @@ ppolicy_restrict(
 		Debug( LDAP_DEBUG_TRACE,
 			"connection restricted to password changing only\n" );
 		if ( send_ctrl ) {
-			LDAPControl *ctrls[2] = { NULL, NULL };
-			ctrls[0] = create_passcontrol( op, -1, -1, PP_changeAfterReset );
-			slap_add_ctrls( op, rs, ctrls );
+			LDAPControl *ctrl;
+			ctrl = create_passcontrol( op, -1, -1, PP_changeAfterReset );
+			slap_add_ctrl( op, rs, ctrl );
 		}
 		op->o_bd->bd_info = (BackendInfo *)on->on_info;
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, 
@@ -3666,9 +3664,9 @@ ppolicy_add(
 				char *txt = errmsg.bv_val;
 				op->o_bd->bd_info = (BackendInfo *)on->on_info;
 				if ( send_ctrl ) {
-					LDAPControl *ctrls[2] = { NULL, NULL };
-					ctrls[0] = create_passcontrol( op, -1, -1, pErr );
-					slap_add_ctrls( op, rs, ctrls );
+					LDAPControl *ctrl;
+					ctrl = create_passcontrol( op, -1, -1, pErr );
+					slap_add_ctrl( op, rs, ctrl );
 				}
 				send_ldap_error( op, rs, rc, txt && txt[0] ? txt : "Password fails quality checking policy" );
 				if ( txt != errbuf ) {
@@ -3776,7 +3774,7 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 	struct berval		newpw = BER_BVNULL, oldpw = BER_BVNULL,
 				*bv, cr[2];
 	LDAPPasswordPolicyError pErr = PP_noError;
-	LDAPControl		*ctrls[2] = { NULL, NULL };
+	LDAPControl		*ctrl = NULL;
 	int			is_pwdexop = 0, is_pwdadmin = 0;
 	int got_del_grace = 0, got_del_lock = 0, got_pw = 0, got_del_fail = 0,
 		got_del_success = 0;
@@ -4512,8 +4510,8 @@ return_results:
 	op->o_bd->bd_info = (BackendInfo *)on->on_info;
 	be_entry_release_r( op, e );
 	if ( send_ctrl ) {
-		ctrls[0] = create_passcontrol( op, -1, -1, pErr );
-		slap_add_ctrls( op, rs, ctrls );
+		ctrl = create_passcontrol( op, -1, -1, pErr );
+		slap_add_ctrl( op, rs, ctrl );
 		if ( is_pwdexop ) {
 			/* Retain controls for the actual response */
 			rs->sr_flags &= ~REP_CTRLS_MUSTBEFREED;

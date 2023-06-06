@@ -292,7 +292,7 @@ deref_response( Operation *op, SlapReply *rs )
 		struct berval bv = BER_BVNULL;
 		int nDerefRes = 0, nDerefVals = 0, nAttrs = 0, nVals = 0;
 		struct berval ctrlval;
-		LDAPControl *ctrl, *ctrlsp[2];
+		LDAPControl *ctrl;
 		AccessControlState acl_state = ACL_STATE_INIT;
 		static char dummy = '\0';
 		Entry *ebase;
@@ -473,9 +473,7 @@ deref_response( Operation *op, SlapReply *rs )
 
 		ber_free_buf( ber );
 
-		ctrlsp[0] = ctrl;
-		ctrlsp[1] = NULL;
-		slap_add_ctrls( op, rs, ctrlsp );
+		slap_add_ctrl( op, rs, ctrl );
 
 		rc = SLAP_CB_CONTINUE;
 

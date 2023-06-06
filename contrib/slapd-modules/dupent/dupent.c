@@ -247,7 +247,7 @@ dupent_response_done( Operation *op, SlapReply *rs )
 	BerElementBuffer	berbuf;
 	BerElement			*ber = (BerElement *) &berbuf;
 	struct berval		ctrlval;
-	LDAPControl			*ctrl, *ctrlsp[2];
+	LDAPControl			*ctrl;
 
 	ber_init2( ber, NULL, LBER_USE_DER );
 
@@ -281,9 +281,7 @@ dupent_response_done( Operation *op, SlapReply *rs )
 
 	ber_free_buf( ber );
 
-	ctrlsp[0] = ctrl;
-	ctrlsp[1] = NULL;
-	slap_add_ctrls( op, rs, ctrlsp );
+	slap_add_ctrl( op, rs, ctrl );
 
 	return SLAP_CB_CONTINUE;
 }
@@ -300,7 +298,7 @@ dupent_response_entry_1level(
 	int i, rc = LDAP_SUCCESS;
 
 	for ( i = 0; i < valnum[level].ap->a_numvals; i++ ) {
-		LDAPControl	*ctrl = NULL, *ctrlsp[2];
+		LDAPControl	*ctrl;
 
 		valnum[level].a.a_vals[0] = valnum[level].ap->a_vals[i];
 		if ( valnum[level].ap->a_nvals != valnum[level].ap->a_vals ) {
@@ -325,9 +323,7 @@ dupent_response_entry_1level(
 		ctrl->ldctl_oid = LDAP_CONTROL_DUPENT_ENTRY;
 		ctrl->ldctl_iscritical = 0;
 
-		ctrlsp[0] = ctrl;
-		ctrlsp[1] = NULL;
-		slap_add_ctrls( op, rs, ctrlsp );
+		slap_add_ctrl( op, rs, ctrl );
 
 		/* do the real send */
 		rs->sr_entry = e;

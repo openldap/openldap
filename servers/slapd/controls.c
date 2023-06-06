@@ -643,7 +643,8 @@ void slap_free_ctrls(
 int slap_add_ctrls(
 	Operation *op,
 	SlapReply *rs,
-	LDAPControl **ctrls )
+	LDAPControl **ctrls,
+	int numctrls )
 {
 	int i = 0, j;
 	LDAPControl **ctrlsp;
@@ -652,7 +653,12 @@ int slap_add_ctrls(
 		for ( ; rs->sr_ctrls[ i ]; i++ ) ;
 	}
 
-	for ( j=0; ctrls[j]; j++ ) ;
+	if ( numctrls ) {
+		j = numctrls;
+	} else {
+		for ( j=0; ctrls[j]; j++ ) ;
+		numctrls = j;
+	}
 
 	ctrlsp = op->o_tmpalloc(( i+j+1 )*sizeof(LDAPControl *), op->o_tmpmemctx );
 	i = 0;
@@ -660,7 +666,7 @@ int slap_add_ctrls(
 		for ( ; rs->sr_ctrls[i]; i++ )
 			ctrlsp[i] = rs->sr_ctrls[i];
 	}
-	for ( j=0; ctrls[j]; j++)
+	for ( j=0; j < numctrls; j++)
 		ctrlsp[i++] = ctrls[j];
 	ctrlsp[i] = NULL;
 
@@ -669,6 +675,15 @@ int slap_add_ctrls(
 	rs->sr_ctrls = ctrlsp;
 	rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
 	return i;
+}
+
+int
+slap_add_ctrl(
+	Operation *op,
+	SlapReply *rs,
+	LDAPControl *ctrl )
+{
+	return slap_add_ctrls( op, rs, &ctrl, 1 );
 }
 
 int slap_parse_ctrl(
