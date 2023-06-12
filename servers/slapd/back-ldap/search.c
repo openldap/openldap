@@ -160,7 +160,7 @@ ldap_back_search(
 	char		**attrs = NULL;
 	int		freetext = 0, filter_undef = 0;
 	int		do_retry = 1, dont_retry = 0;
-	LDAPControl	**ctrls = NULL;
+	LDAPControl	**ctrls = NULL, **res_ctrls = NULL;
 	char		**references = NULL;
 	int		remove_unknown_schema =
 				 LDAP_BACK_OMIT_UNKNOWN_SCHEMA (li);
@@ -374,15 +374,18 @@ retry:
 			rc = ldap_build_entry( op, e, &ent, &bdn,
 						remove_unknown_schema);
 			if ( rc == LDAP_SUCCESS ) {
+
 				ldap_get_entry_controls( lc->lc_ld, res, &rs->sr_ctrls );
+				res_ctrls = rs->sr_ctrls;
+
 				rs->sr_entry = &ent;
 				rs->sr_attrs = op->ors_attrs;
 				rs->sr_operational_attrs = NULL;
 				rs->sr_flags = 0;
 				rs->sr_err = LDAP_SUCCESS;
 				rc = rs->sr_err = send_search_entry( op, rs );
-				if ( rs->sr_ctrls ) {
-					ldap_controls_free( rs->sr_ctrls );
+				if ( res_ctrls ) {
+					ldap_controls_free( res_ctrls );
 					rs->sr_ctrls = NULL;
 				}
 				rs->sr_entry = NULL;
@@ -426,6 +429,7 @@ retry:
 			if ( rc != LDAP_SUCCESS ) {
 				continue;
 			}
+			res_ctrls = rs->sr_ctrls;
 
 			/* FIXME: there MUST be at least one */
 			if ( references && references[ 0 ] && references[ 0 ][ 0 ] ) {
@@ -464,8 +468,8 @@ retry:
 				references = NULL;
 			}
 
-			if ( rs->sr_ctrls ) {
-				ldap_controls_free( rs->sr_ctrls );
+			if ( res_ctrls ) {
+				ldap_controls_free( res_ctrls );
 				rs->sr_ctrls = NULL;
 			}
 
@@ -481,6 +485,7 @@ retry:
 			if ( rc != LDAP_SUCCESS ) {
 				continue;
 			}
+			res_ctrls = rs->sr_ctrls;
 
 			slap_send_ldap_intermediate( op, rs );
 
@@ -494,8 +499,8 @@ retry:
 				rs->sr_rspdata = NULL;
 			}
 
-			if ( rs->sr_ctrls != NULL ) {
-				ldap_controls_free( rs->sr_ctrls );
+			if ( res_ctrls ) {
+				ldap_controls_free( res_ctrls );
 				rs->sr_ctrls = NULL;
 			}
 
@@ -514,6 +519,7 @@ retry:
 				rs->sr_err = rc;
 			}
 			rs->sr_err = slap_map_api2result( rs );
+			res_ctrls = rs->sr_ctrls;
 
 			/* RFC 4511: referrals can only appear
 			 * if result code is LDAP_REFERRAL */
@@ -634,9 +640,10 @@ finish:;
 
 	(void)ldap_back_controls_free( op, rs, &ctrls );
 
-	if ( rs->sr_ctrls ) {
-		ldap_controls_free( rs->sr_ctrls );
+	if ( res_ctrls ) {
+		ldap_controls_free( res_ctrls );
 		rs->sr_ctrls = NULL;
+		res_ctrls = NULL;
 	}
 
 	if ( rs->sr_text ) {
@@ -935,7 +942,7 @@ ldap_back_entry_get(
 	char		*filter = NULL;
 	SlapReply	rs;
 	int		do_retry = 1;
-	LDAPControl	**ctrls = NULL;
+	LDAPControl	**ctrls = NULL, **res_ctrls = NULL;
 	Operation op2 = *op;
 
 	int		remove_unknown_schema =

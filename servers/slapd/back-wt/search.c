@@ -273,7 +273,7 @@ send_paged_response(
 	ID      *lastid,
 	int     tentries )
 {
-	LDAPControl *ctrl;
+	LDAPControl ctrl;
 	BerElementBuffer berbuf;
 	BerElement  *ber = (BerElement *)&berbuf;
 	PagedResultsCookie respcookie;
@@ -303,15 +303,14 @@ send_paged_response(
 	/* return size of 0 -- no estimate */
 	ber_printf( ber, "{iO}", 0, &cookie );
 
-	ctrl = op->o_tmpalloc( sizeof(LDAPControl), op->o_tmpmemctx );
-	if ( ber_flatten2( ber, &ctrl->ldctl_value, 0 ) == -1 ) {
+	if ( ber_flatten2( ber, &ctrl.ldctl_value, 0 ) == -1 ) {
 		goto done;
 	}
 
-	ctrl->ldctl_oid = LDAP_CONTROL_PAGEDRESULTS;
-	ctrl->ldctl_iscritical = 0;
+	ctrl.ldctl_oid = LDAP_CONTROL_PAGEDRESULTS;
+	ctrl.ldctl_iscritical = 0;
 
-	slap_add_ctrl( op, rs, ctrl );
+	slap_add_ctrl( op, rs, &ctrl );
 	rs->sr_err = LDAP_SUCCESS;
 	send_ldap_result( op, rs );
 

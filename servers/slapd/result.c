@@ -816,7 +816,7 @@ clean2:;
 	if ( rs->sr_flags & REP_CTRLS_MUSTBEFREED ) {
 		rs->sr_flags ^= REP_CTRLS_MUSTBEFREED; /* paranoia */
 		if ( rs->sr_ctrls ) {
-			slap_free_ctrls( op, rs->sr_ctrls );
+			op->o_tmpfree( rs->sr_ctrls, op->o_tmpmemctx );
 			rs->sr_ctrls = NULL;
 		}
 	}
@@ -1543,7 +1543,7 @@ error_return:;
 	if ( rs->sr_flags & REP_CTRLS_MUSTBEFREED ) {
 		rs->sr_flags ^= REP_CTRLS_MUSTBEFREED; /* paranoia */
 		if ( rs->sr_ctrls ) {
-			slap_free_ctrls( op, rs->sr_ctrls );
+			op->o_tmpfree( rs->sr_ctrls, op->o_tmpmemctx );
 			rs->sr_ctrls = NULL;
 		}
 	}
@@ -1701,7 +1701,7 @@ rel:
 	if ( rs->sr_flags & REP_CTRLS_MUSTBEFREED ) {
 		rs->sr_flags ^= REP_CTRLS_MUSTBEFREED; /* paranoia */
 		if ( rs->sr_ctrls ) {
-			slap_free_ctrls( op, rs->sr_ctrls );
+			op->o_tmpfree( rs->sr_ctrls, op->o_tmpmemctx );
 			rs->sr_ctrls = NULL;
 		}
 	}

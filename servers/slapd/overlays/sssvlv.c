@@ -704,6 +704,10 @@ static void send_result(
 		slap_add_ctrls( op, rs, ctrls, i );
 	send_ldap_result( op, rs );
 
+	for ( ; i--; ) {
+		op->o_tmpfree( ctrls[i], op->o_tmpmemctx );
+	}
+
 	if ( so->so_tree == NULL ) {
 		/* Search finished, so clean up */
 		free_sort_op( op->o_conn, so );
@@ -813,10 +817,10 @@ static int sssvlv_op_search(
 	PagedResultsState *ps;
 	vlv_ctrl *vc;
 	int sess_id;
+	LDAPControl *ctrl = NULL;
 
 	if ( op->o_ctrlflag[sss_cid] <= SLAP_CONTROL_IGNORED ) {
 		if ( op->o_ctrlflag[vlv_cid] > SLAP_CONTROL_IGNORED ) {
-			LDAPControl *ctrl;
 			so2.so_vcontext = 0;
 			so2.so_vlv_target = 0;
 			so2.so_nentries = 0;

@@ -28,6 +28,8 @@
  */
 #define	LDAP_CONTROL_X_NOOPSRCH		"1.3.6.1.4.1.4203.666.5.18"
 
+static const char noopsrch_oid[] = LDAP_CONTROL_X_NOOPSRCH;
+
 #include "slap.h"
 #include "ac/string.h"
 
@@ -128,7 +130,7 @@ noopsrch_response( Operation *op, SlapReply *rs )
 			sizeof( LDAPControl ) + ctrlval.bv_len + 1,
 			op->o_tmpmemctx );
 		ctrl->ldctl_value.bv_val = (char *)&ctrl[ 1 ];
-		ctrl->ldctl_oid = LDAP_CONTROL_X_NOOPSRCH;
+		ctrl->ldctl_oid = noopsrch_oid;
 		ctrl->ldctl_iscritical = 0;
 		ctrl->ldctl_value.bv_len = ctrlval.bv_len;
 		AC_MEMCPY( ctrl->ldctl_value.bv_val, ctrlval.bv_val, ctrlval.bv_len );
@@ -153,6 +155,21 @@ noopsrch_cleanup( Operation *op, SlapReply *rs )
 
 		op->o_tmpfree( op->o_callback, op->o_tmpmemctx );
 		op->o_callback = NULL;
+	}
+
+	if ( rs->sr_ctrls ) {
+		int n;
+
+		for ( n = 0; rs->sr_ctrls[n]; n++ ) {
+			if ( rs->sr_ctrls[n]->ldctl_oid == noopsrch_oid ) {
+				op->o_tmpfree( rs->sr_ctrls[n], op->o_tmpmemctx );
+				break;
+			}
+		}
+
+		for ( ; rs->sr_ctrls[n]; n++ ) {
+			rs->sr_ctrls[n] = rs->sr_ctrls[n+1];
+		}
 	}
 
 	return SLAP_CB_CONTINUE;

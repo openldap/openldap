@@ -2016,6 +2016,7 @@ meta_send_entry(
 	Entry 			ent = { 0 };
 	BerElement 		ber = *ldap_get_message_ber( e );
 	Attribute 		*attr, **attrp;
+	LDAPControl **res_ctrls;
 	struct berval 		bdn,
 				dn = BER_BVNULL;
 	const char 		*text;
@@ -2396,12 +2397,13 @@ next_attr:;
 	}
 
 	ldap_get_entry_controls( mc->mc_conns[target].msc_ld,
-		e, &rs->sr_ctrls );
+		e, &res_ctrls );
 	rs->sr_entry = &ent;
 	rs->sr_attrs = op->ors_attrs;
 	rs->sr_operational_attrs = NULL;
 	rs->sr_flags = mi->mi_targets[ target ]->mt_rep_flags;
 	rs->sr_err = LDAP_SUCCESS;
+	rs->sr_ctrls = res_ctrls;
 	rc = send_search_entry( op, rs );
 	switch ( rc ) {
 	case LDAP_UNAVAILABLE:
@@ -2412,8 +2414,8 @@ next_attr:;
 done:;
 	rs->sr_entry = NULL;
 	rs->sr_attrs = NULL;
-	if ( rs->sr_ctrls != NULL ) {
-		ldap_controls_free( rs->sr_ctrls );
+	if ( res_ctrls != NULL ) {
+		ldap_controls_free( res_ctrls );
 		rs->sr_ctrls = NULL;
 	}
 	if ( !BER_BVISNULL( &ent.e_name ) ) {

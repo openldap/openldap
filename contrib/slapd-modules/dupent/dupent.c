@@ -52,6 +52,8 @@
 static int dupent_cid;
 static slap_overinst dupent;
 
+static const char dupent_response_oid[] = LDAP_CONTROL_DUPENT_RESPONSE;
+
 typedef struct dupent_t {
 	AttributeName	*ds_an;
 	ber_len_t		ds_nattrs;
@@ -273,7 +275,7 @@ dupent_response_done( Operation *op, SlapReply *rs )
 		sizeof( LDAPControl ) + ctrlval.bv_len + 1,
 		op->o_tmpmemctx );
 	ctrl->ldctl_value.bv_val = (char *)&ctrl[ 1 ];
-	ctrl->ldctl_oid = LDAP_CONTROL_DUPENT_RESPONSE;
+	ctrl->ldctl_oid = dupent_response_oid;
 	ctrl->ldctl_iscritical = 0;
 	ctrl->ldctl_value.bv_len = ctrlval.bv_len;
 	AC_MEMCPY( ctrl->ldctl_value.bv_val, ctrlval.bv_val, ctrlval.bv_len );
@@ -295,11 +297,13 @@ dupent_response_entry_1level(
 	int nattrs,
 	int level )
 {
+	LDAPControl ctrl = {
+		.ldctl_oid = LDAP_CONTROL_DUPENT_ENTRY,
+		.ldctl_iscritical = 0
+	};
 	int i, rc = LDAP_SUCCESS;
 
 	for ( i = 0; i < valnum[level].ap->a_numvals; i++ ) {
-		LDAPControl	*ctrl;
-
 		valnum[level].a.a_vals[0] = valnum[level].ap->a_vals[i];
 		if ( valnum[level].ap->a_nvals != valnum[level].ap->a_vals ) {
 			valnum[level].a.a_nvals[0] = valnum[level].ap->a_nvals[i];
@@ -315,15 +319,7 @@ dupent_response_entry_1level(
 			continue;
 		}
 
-		/* NOTE: add the control all times, under the assumption
-		 * send_search_entry() honors the REP_CTRLS_MUSTBEFREED
-		 * set by slap_add_ctrls(); this is not true (ITS#6629)
-		 */
-		ctrl = op->o_tmpcalloc( 1, sizeof( LDAPControl ), op->o_tmpmemctx );
-		ctrl->ldctl_oid = LDAP_CONTROL_DUPENT_ENTRY;
-		ctrl->ldctl_iscritical = 0;
-
-		slap_add_ctrl( op, rs, ctrl );
+		slap_add_ctrl( op, rs, &ctrl );
 
 		/* do the real send */
 		rs->sr_entry = e;
@@ -434,11 +430,6 @@ dupent_response_entry( Operation *op, SlapReply *rs )
 
 	*app = &valnum[0].a;
 
-	/* NOTE: since send_search_entry() does not honor the
-	 * REP_CTRLS_MUSTBEFREED flag set by slap_add_ctrls(),
-	 * the control could be added here once for all (ITS#6629)
-	 */
-
 	dc->dc_skip = 1;
 	rc = dupent_response_entry_1level( op, rs, e, valnum, nattrs, 0 );
 	dc->dc_skip = 0;
@@ -487,6 +478,22 @@ dupent_cleanup( Operation *op, SlapReply *rs )
 
 		op->o_tmpfree( op->o_ctrldupent, op->o_tmpmemctx );
 		op->o_ctrldupent = NULL;
+	}
+
+	if ( rs->sr_ctrls ) {
+		int n;
+
+		for ( n = 0; rs->sr_ctrls[n]; n++ ) {
+			/* We only add one control */
+			if ( rs->sr_ctrls[n]->ldctl_oid == dupent_response_oid ) {
+				op->o_tmpfree( rs->sr_ctrls[n], op->o_tmpmemctx );
+				break;
+			}
+		}
+
+		for ( ; rs->sr_ctrls[n]; n++ ) {
+			rs->sr_ctrls[n] = rs->sr_ctrls[n+1];
+		}
 	}
 
 	return SLAP_CB_CONTINUE;

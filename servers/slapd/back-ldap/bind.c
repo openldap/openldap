@@ -1978,7 +1978,6 @@ retry:;
 			rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
 
 		} else {
-			assert( rs->sr_ctrls != NULL );
 			rs->sr_ctrls = NULL;
 		}
 

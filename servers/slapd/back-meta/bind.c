@@ -1261,7 +1261,6 @@ retry:;
 		ber_memvfree( (void **)refs );
 	}
 	if ( ctrls ) {
-		assert( rs->sr_ctrls != NULL );
 		ldap_controls_free( ctrls );
 	}
 
