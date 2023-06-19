@@ -74,18 +74,8 @@ meta_back_modify( Operation *op, SlapReply *rs )
 	for ( i = 0, ml = op->orm_modlist; ml; i++ ,ml = ml->sml_next )
 		;
 
-	mods = ch_malloc( sizeof( LDAPMod )*i );
-	if ( mods == NULL ) {
-		rs->sr_err = LDAP_OTHER;
-		send_ldap_result( op, rs );
-		goto cleanup;
-	}
-	modv = ( LDAPMod ** )ch_malloc( ( i + 1 )*sizeof( LDAPMod * ) );
-	if ( modv == NULL ) {
-		rs->sr_err = LDAP_OTHER;
-		send_ldap_result( op, rs );
-		goto cleanup;
-	}
+	modv = ch_malloc( ( i + 1 )*sizeof( LDAPMod * ) + i*sizeof( LDAPMod ) );
+	mods = (LDAPMod *)&modv[ i + 1 ];
 
 	dc.ctx = "modifyAttrDN";
 	isupdate = be_shadow_update( op );
@@ -206,11 +196,10 @@ cleanup:;
 	}
 	if ( modv != NULL ) {
 		for ( i = 0; modv[ i ]; i++ ) {
-			free( modv[ i ]->mod_bvalues );
+			ch_free( modv[ i ]->mod_bvalues );
 		}
 	}
-	free( mods );
-	free( modv );
+	ch_free( modv );
 
 	if ( mc ) {
 		meta_back_release_conn( mi, mc );
