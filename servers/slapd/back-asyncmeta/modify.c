@@ -67,21 +67,15 @@ asyncmeta_back_modify_start(Operation *op,
 
 	for ( i = 0, ml = op->orm_modlist; ml; i++ ,ml = ml->sml_next )
 		;
-	if (i > 0) {
-		mods = op->o_tmpalloc( sizeof( LDAPMod )*i, op->o_tmpmemctx );
-	}
 
-	if ( mods == NULL ) {
-		rs->sr_err = LDAP_OTHER;
-		retcode = META_SEARCH_ERR;
-		goto doreturn;
-	}
-	modv = ( LDAPMod ** )op->o_tmpalloc( ( i + 1 )*sizeof( LDAPMod * ), op->o_tmpmemctx );
+	modv = op->o_tmpalloc( ( i + 1 )*sizeof( LDAPMod * ) + i*sizeof( LDAPMod ),
+			op->o_tmpmemctx );
 	if ( modv == NULL ) {
 		rs->sr_err = LDAP_OTHER;
 		retcode = META_SEARCH_ERR;
 		goto doreturn;
 	}
+	mods = (LDAPMod *)&modv[ i + 1 ];
 
 	isupdate = be_shadow_update( op );
 	for ( i = 0, ml = op->orm_modlist; ml; ml = ml->sml_next ) {
@@ -223,6 +217,8 @@ done:
 	if ( mdn.bv_val != op->o_req_dn.bv_val ) {
 		op->o_tmpfree( mdn.bv_val, op->o_tmpmemctx );
 	}
+
+	op->o_tmpfree( modv, op->o_tmpmemctx );
 
 doreturn:;
 	Debug( LDAP_DEBUG_TRACE, "%s <<< asyncmeta_back_modify_start[%p]=%d\n", op->o_log_prefix, msc, candidates[candidate].sr_msgid );
