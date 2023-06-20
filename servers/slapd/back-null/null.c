@@ -72,8 +72,8 @@ null_back_db_open( BackendDB *be, ConfigReply *cr )
 
 	if ( ni->ni_dosearch ) {
 		e = entry_alloc();
-		e->e_name = be->be_suffix[0];
-		e->e_nname = be->be_nsuffix[0];
+		ber_dupbv( &e->e_name, &be->be_suffix[0] );
+		ber_dupbv( &e->e_nname, &be->be_nsuffix[0] );
 
 		dnRdn( &e->e_nname, &bv[0] );
 		bv[1].bv_val = strchr(bv[0].bv_val, '=') + 1;
