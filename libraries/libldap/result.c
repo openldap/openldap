@@ -196,11 +196,13 @@ chkResponseList(
 				tmp = NULL;
 			}
 
-			if ( tmp == NULL ) {
+			if ( tmp == NULL && msgid != LDAP_RES_ANY ) {
 				lm = NULL;
 			}
 
-			break;
+			if ( tmp || msgid != LDAP_RES_ANY ) {
+				break;
+			}
 		}
 		lastlm = &lm->lm_next;
 	}
