@@ -344,12 +344,16 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 LDIF=$DATADIR/lloadd/monitor.ldif
 
 echo "Filtering ldapsearch results..."
-$LDIFFILTER -s e < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER -s e < $SEARCHOUT | \
+    sed \
+        -e '/^olmConnectionLocalAddress:/s/:[0-9]*$/:port/' \
+        -e '/^olmConnectionLocalAddress:/s/IP=127\.0\.0\.1:/IP=localhost:/' \
+        -e '/^olmConnectionLocalAddress:/s/IP=\[::1\]:/IP=localhost:/' \
+        -e '/^olmConnectionPeerAddress:/s/IP=127\.0\.0\.1:/IP=localhost:/' \
+        -e '/^olmConnectionPeerAddress:/s/IP=\[::1\]:/IP=localhost:/' \
+    > $SEARCHFLT
 echo "Filtering original ldif used to create database..."
-$LDIFFILTER -s e < $LDIF | sed \
-    -e "s|@URI2@|$URI2|g" \
-    -e "s|@URI3@|$URI3|g" \
-    > $LDIFFLT
+$LDIFFILTER -s e < $LDIF | . $CONFFILTER $BACKEND > $LDIFFLT
 echo "Comparing filter output..."
 $CMP $SEARCHFLT $LDIFFLT > $CMPOUT
 
