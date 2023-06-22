@@ -91,6 +91,11 @@ struct event_base *listener_base = NULL;
 LloadListener **lload_listeners = NULL;
 static ldap_pvt_thread_t listener_tid, *daemon_tid;
 
+#ifndef RESOLV_CONF_PATH
+#define RESOLV_CONF_PATH "/etc/resolv.conf"
+#endif
+char *lload_resolvconf_path = RESOLV_CONF_PATH;
+
 struct event_base *daemon_base = NULL;
 struct evdns_base *dnsbase;
 
@@ -1242,12 +1247,21 @@ lloadd_daemon( struct event_base *daemon_base )
 
     assert( daemon_base != NULL );
 
-    dnsbase = evdns_base_new( daemon_base, EVDNS_BASE_INITIALIZE_NAMESERVERS );
+    dnsbase = evdns_base_new( daemon_base, 0 );
     if ( !dnsbase ) {
         Debug( LDAP_DEBUG_ANY, "lloadd startup: "
                 "failed to set up for async name resolution\n" );
         return -1;
     }
+
+    /*
+     * ITS#10070: Allow both operation without working DNS (test environments)
+     * and e.g. containers that don't have a /etc/resolv.conf but do have a
+     * server listening on 127.0.0.1 which is the default.
+     */
+    (void)evdns_base_resolv_conf_parse( dnsbase,
+            DNS_OPTION_NAMESERVERS|DNS_OPTION_HOSTSFILE,
+            lload_resolvconf_path );
 
     if ( lload_daemon_threads > SLAPD_MAX_DAEMON_THREADS )
         lload_daemon_threads = SLAPD_MAX_DAEMON_THREADS;
