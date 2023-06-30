@@ -197,16 +197,26 @@ ignore:
 	}
 
 	/* DN longer than our suffix and doesn't match */
-	if ( diff > 0 && !DN_SEPARATOR(dn->bv_val[diff-1]))
+	if ( osuff->bv_len != 0 && diff > 0 && !DN_SEPARATOR(dn->bv_val[diff-1]) )
 		goto ignore;
 
 	/* suffix is same length as ours, but doesn't match */
 	if ( strcasecmp( osuff->bv_val, &dn->bv_val[diff] ))
 		goto ignore;
 
+	/* if remote suffix is empty, remove or add the dn separator*/
+	if ( nsuff->bv_len == 0 ) {
+		diff--;
+	} else if ( osuff->bv_len == 0 ) {
+		diff++;
+	}
+
+
 	res->bv_len = diff + nsuff->bv_len;
 	res->bv_val = dc->op->o_tmpalloc( res->bv_len + 1, dc->memctx );
 	strncpy( res->bv_val, dn->bv_val, diff );
+	if ( osuff->bv_len == 0 )
+		res->bv_val[diff-1] = ',';
 	strcpy( &res->bv_val[diff], nsuff->bv_val );
 
 	if (pretty.bv_val)
