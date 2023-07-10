@@ -1,6 +1,6 @@
 OpenLDAP 2.5 Change Log
 
-OpenLDAP 2.5.15 Engineering
+OpenLDAP 2.5.15 Release (2023/07/10)
 	Added libldap openssl3 support (ITS#9436, ITS#10030)
 	Fixed libldap handling of TCP KEEPALIVE options (ITS#10015)
 	Fixed libldap with async connections (ITS#10023)
