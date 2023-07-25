@@ -5966,7 +5966,7 @@ config_back_add( Operation *op, SlapReply *rs )
 		dopause = 0;
 	if ( op->o_abandon ) {
 		rs->sr_err = SLAPD_ABANDON;
-		goto out;
+		goto unpause;
 	}
 
 	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
@@ -6021,10 +6021,11 @@ config_back_add( Operation *op, SlapReply *rs )
 out2:;
 	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
 
-out:;
+unpause:;
 	if ( dopause )
 		slap_unpause_server();
 
+out:;
 	{	int repl = op->o_dont_replicate;
 		if ( rs->sr_err == LDAP_COMPARE_TRUE ) {
 			rs->sr_text = NULL; /* Set after config_add_internal */
@@ -6513,7 +6514,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 			do_pause = 0;
 		if ( op->o_abandon ) {
 			rs->sr_err = SLAPD_ABANDON;
-			goto out;
+			goto unpause;
 		}
 	}
 	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
@@ -6549,9 +6550,10 @@ config_back_modify( Operation *op, SlapReply *rs )
 	}
 
 	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
-out:
+unpause:;
 	if ( do_pause )
 		slap_unpause_server();
+out:
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
 	return rs->sr_err;
@@ -6694,7 +6696,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		dopause = 0;
 	if ( op->o_abandon ) {
 		rs->sr_err = SLAPD_ABANDON;
-		goto out;
+		goto unpause;
 	}
 
 	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
@@ -6765,9 +6767,10 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 
 	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
 
-out:
+unpause:
 	if ( dopause )
 		slap_unpause_server();
+out:
 	send_ldap_result( op, rs );
 	return rs->sr_err;
 }
