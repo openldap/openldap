@@ -155,7 +155,7 @@ olcOverlay: syncprov
 dn: cn=config,cn=consumer
 changetype: add
 objectClass: olcGlobal
-cn: consumerconfig
+cn: config
 
 dn: olcDatabase={0}config,cn=config,cn=consumer
 changetype: add
@@ -303,11 +303,11 @@ cn: module
 olcModulePath: ../servers/slapd/back-$BACKEND
 olcModuleLoad: back_$BACKEND.la
 
-dn: cn=module,cn=config,cn=consumer
+dn: cn=module{0},cn=config,cn=consumer
 objectClass: olcModuleList
-cn: module
+cn: module{0}
 olcModulePath: ../servers/slapd/back-$BACKEND
-olcModuleLoad: back_$BACKEND.la
+olcModuleLoad: {0}back_$BACKEND.la
 EOF
 	RC=$?
 	if test $RC != 0 ; then
@@ -364,7 +364,14 @@ dn: olcDatabase={2}$BACKEND,cn=config
 changetype: modify
 add: olcDbIndex
 olcDbIndex: objectClass,entryUUID,entryCSN eq
-olcDbIndex: cn,uid pres,eq,sub
+olcDbIndex: cn,uid,sn pres,eq,sub
+
+dn: olcDatabase={1}$BACKEND,cn=config,cn=consumer
+changetype: modify
+add: olcDbIndex
+olcDbIndex: default eq
+olcDbIndex: objectClass,entryUUID,entryCSN eq
+olcDbIndex: cn,uid,sn pres,eq,sub
 EOF
 	RC=$?
 	if test $RC != 0 ; then
