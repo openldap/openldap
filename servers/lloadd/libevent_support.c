@@ -131,6 +131,12 @@ lload_libevent_cond_timedwait(
     return ldap_pvt_thread_cond_wait( cond, mutex );
 }
 
+unsigned long
+lload_libevent_thread_self( void )
+{
+    return (unsigned long)ldap_pvt_thread_self();
+}
+
 int
 lload_libevent_init( void )
 {
@@ -152,7 +158,7 @@ lload_libevent_init( void )
 
     evthread_set_lock_callbacks( &cbs );
     evthread_set_condition_callbacks( &cond_cbs );
-    evthread_set_id_callback( ldap_pvt_thread_self );
+    evthread_set_id_callback( lload_libevent_thread_self );
     return 0;
 }
 
