@@ -151,7 +151,6 @@ lload_back_initialize( BackendInfo *bi )
 {
     bi->bi_flags = SLAP_BFLAG_STANDALONE;
     bi->bi_open = lload_back_open;
-    bi->bi_config = config_generic_wrapper;
     bi->bi_pause = lload_pause_cb;
     bi->bi_unpause = lload_unpause_cb;
     bi->bi_close = lload_back_close;
