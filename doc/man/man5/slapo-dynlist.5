@@ -134,6 +134,13 @@ character is also specified, then the member and memberOf values will be
 populated recursively, for nested groups. Note that currently nesting is
 only supported for Search operations, not Compares.
 
+.TP
+.B dynlist\-simple TRUE | FALSE
+This option downgrades to the behavior of the OpenLDAP 2.4 dynlist overlay.
+It disables memberOf processing, nested group support, and filter evaluation
+of dynamically generated values.
+The default is FALSE.
+
 .LP
 The dynlist overlay may be used with any backend, but it is mainly 
 intended for use with local storage backends.
