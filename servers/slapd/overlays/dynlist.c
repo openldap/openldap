@@ -65,6 +65,7 @@ typedef struct dynlist_info_t {
 typedef struct dynlist_gen_t {
 	dynlist_info_t	*dlg_dli;
 	int				 dlg_memberOf;
+	int				 dlg_simple;
 } dynlist_gen_t;
 
 #define DYNLIST_USAGE \
@@ -1895,6 +1896,8 @@ dynlist_search( Operation *op, SlapReply *rs )
 		userattrs = SLAP_USERATTRS( attrflags );
 	}
 
+	if (dlg->dlg_simple)
+		goto simple;
 	/* Find all groups in scope. For group expansion
 	 * we only need the groups within the search scope, but
 	 * for memberOf populating, we need all dyngroups.
@@ -2063,6 +2066,7 @@ dynlist_search( Operation *op, SlapReply *rs )
 				dynlist_nestlink( op, ds );
 		}
 	}
+simple:
 
 	if ( dlg->dlg_dli || ds->ds_names != NULL ) {
 		sc->sc_response = dynlist_search2resp;
@@ -2145,6 +2149,13 @@ static ConfigTable dlcfg[] = {
 		3, 3, 0, ARG_MAGIC|DL_ATTRPAIR_COMPAT, dl_cfgen,
 			NULL, NULL, NULL },
 #endif
+	{ "dynlist-simple", NULL, 0, 0, 0, ARG_OFFSET|ARG_ON_OFF,
+		(void *)offsetof(dynlist_gen_t, dlg_simple),
+		"( OLcfgOvAt:8.2 NAME 'olcDynListSimple' "
+			"DESC 'Simple mode - disable features added since 2.4.' "
+			"EQUALITY booleanMatch "
+			"SYNTAX OMsBoolean SINGLE-VALUE )",
+			NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
 };
 
@@ -2153,7 +2164,7 @@ static ConfigOCs dlocs[] = {
 		"NAME ( 'olcDynListConfig' 'olcDynamicList' ) "
 		"DESC 'Dynamic list configuration' "
 		"SUP olcOverlayConfig "
-		"MAY olcDynListAttrSet )",
+		"MAY ( olcDynListAttrSet $ olcDynListSimple ) )",
 		Cft_Overlay, dlcfg, NULL, NULL },
 	{ NULL, 0, NULL }
 };
@@ -2745,10 +2756,8 @@ dynlist_db_init(
 		return 1;
 	}
 
-	dlg = (dynlist_gen_t *)ch_malloc( sizeof( *dlg ));
+	dlg = (dynlist_gen_t *)ch_calloc( 1, sizeof( *dlg ));
 	on->on_bi.bi_private = dlg;
-	dlg->dlg_dli = NULL;
-	dlg->dlg_memberOf = 0;
 
 	return 0;
 }
