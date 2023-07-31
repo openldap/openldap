@@ -1,5 +1,7 @@
 OpenLDAP 2.6 Change Log
 
+OpenLDAP 2.6.7 Engineering
+
 OpenLDAP 2.6.6 Release (2023/07/31)
 	Fixed slapd cn=config incorrect handling of paused (ITS#10045)
 	Fixed slapd-meta to account for MOD ops being optional (ITS#10067)
