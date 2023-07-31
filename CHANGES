@@ -2,6 +2,8 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.16 Engineering
 	Fixed slapd cn=config incorrect handling of paused (ITS#10045)
+	Fixed slapd-meta to account for MOD ops being optional (ITS#10067)
+	Fixed slapd-asyncmeta to account for MOD ops being optional (ITS#10067)
 
 OpenLDAP 2.5.15 Release (2023/07/10)
 	Added libldap openssl3 support (ITS#9436, ITS#10030)
