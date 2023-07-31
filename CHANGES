@@ -1,6 +1,8 @@
 OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.6 Engineering
+	Fixed slapd cn=config incorrect handling of paused (ITS#10045)
+	
 
 OpenLDAP 2.6.5 Release (2023/07/10)
 	Fixed libldap handling of TCP KEEPALIVE options (ITS#10015)
