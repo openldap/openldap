@@ -214,6 +214,11 @@ ldap_back_db_open( BackendDB *be, ConfigReply *cr )
 		"ldap_back_db_open: URI=%s\n",
 		li->li_uri != NULL ? li->li_uri : "" );
 
+	if ( be->be_suffix == NULL ) {
+		Debug( LDAP_DEBUG_ANY, "ldap_back_db_open: need suffix.\n" );
+		return -1;
+	}
+
 	/* by default, use proxyAuthz control on each operation */
 	switch ( li->li_idassert_mode ) {
 	case LDAP_BACK_IDASSERT_LEGACY:
