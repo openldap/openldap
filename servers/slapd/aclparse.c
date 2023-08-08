@@ -119,7 +119,7 @@ slap_dynacl_config(
 }
 #endif /* SLAP_DYNACL */
 
-static void
+static int
 regtest(const char *fname, int lineno, char *pat) {
 	int e;
 	regex_t re;
@@ -160,7 +160,7 @@ regtest(const char *fname, int lineno, char *pat) {
 			"%s: line %d: regular expression \"%s\" too large\n",
 			fname, lineno, pat );
 		(void)acl_usage();
-		exit( EXIT_FAILURE );
+		return -1;
 	}
 
 	if ((e = regcomp(&re, buf, REG_EXTENDED|REG_ICASE))) {
@@ -172,9 +172,11 @@ regtest(const char *fname, int lineno, char *pat) {
 		      "%s: line %d: regular expression \"%s\" bad because of %s\n",
 		      fname, lineno, pat, error );
 		acl_usage();
-		exit( EXIT_FAILURE );
+		regfree(&re);
+		return -1;
 	}
 	regfree(&re);
+	return 0;
 }
 
 /*
@@ -903,7 +905,8 @@ parse_acl(
 						} else {
 							acl_regex_normalized_dn( right, &bv );
 							if ( !ber_bvccmp( &bv, '*' ) ) {
-								regtest( fname, lineno, bv.bv_val );
+								if ( regtest( fname, lineno, bv.bv_val ) != 0)
+									goto fail;
 							}
 						}
 
@@ -1123,7 +1126,8 @@ parse_acl(
 					if ( sty == ACL_STYLE_EXPAND ) {
 						acl_regex_normalized_dn( right, &bv );
 						if ( !ber_bvccmp( &bv, '*' ) ) {
-							regtest( fname, lineno, bv.bv_val );
+							if ( regtest( fname, lineno, bv.bv_val ) != 0)
+								goto fail;
 						}
 						b->a_group_pat = bv;
 
@@ -1275,7 +1279,8 @@ parse_acl(
 					if ( sty == ACL_STYLE_REGEX ) {
 						acl_regex_normalized_dn( right, &bv );
 						if ( !ber_bvccmp( &bv, '*' ) ) {
-							regtest( fname, lineno, bv.bv_val );
+							if ( regtest( fname, lineno, bv.bv_val ) != 0)
+								goto fail;
 						}
 						b->a_peername_pat = bv;
 
@@ -1415,7 +1420,8 @@ parse_acl(
 					if ( sty == ACL_STYLE_REGEX ) {
 						acl_regex_normalized_dn( right, &bv );
 						if ( !ber_bvccmp( &bv, '*' ) ) {
-							regtest( fname, lineno, bv.bv_val );
+							if ( regtest( fname, lineno, bv.bv_val ) != 0)
+								goto fail;
 						}
 						b->a_sockname_pat = bv;
 						
@@ -1474,7 +1480,8 @@ parse_acl(
 					if ( sty == ACL_STYLE_REGEX ) {
 						acl_regex_normalized_dn( right, &bv );
 						if ( !ber_bvccmp( &bv, '*' ) ) {
-							regtest( fname, lineno, bv.bv_val );
+							if ( regtest( fname, lineno, bv.bv_val ) != 0)
+								goto fail;
 						}
 						b->a_domain_pat = bv;
 
@@ -1520,7 +1527,8 @@ parse_acl(
 					if ( sty == ACL_STYLE_REGEX ) {
 						acl_regex_normalized_dn( right, &bv );
 						if ( !ber_bvccmp( &bv, '*' ) ) {
-							regtest( fname, lineno, bv.bv_val );
+							if ( regtest( fname, lineno, bv.bv_val ) != 0)
+								goto fail;
 						}
 						b->a_sockurl_pat = bv;
 						
@@ -2227,7 +2235,7 @@ acl_usage( void )
 
 /*
  * Set pattern to a "normalized" DN from src.
- * At present it simply eats the (optional) space after 
+ * At present, it simply eats the (optional) space after
  * a RDN separator (,)
  * Eventually will evolve in a more complete normalization
  */
