@@ -25,7 +25,9 @@
 #include <ac/ctype.h>
 
 #include <sys/stat.h>
+#ifndef _WIN32
 #include <sys/uio.h>
+#endif
 #include <fcntl.h>
 
 #include "slap.h"
@@ -70,8 +72,13 @@ static int logpathlen;
 void
 slap_debug_print( const char *data )
 {
+#ifdef _WIN32
+	char msgbuf[4096];
+	int prefixlen, poffset = 0, datalen;
+#else
 	char prefix[sizeof("ssssssssssssssss.ffffffff 0xtttttttttttttttt ")];
 	struct iovec iov[2];
+#endif
 	int rotate = 0;
 #ifdef HAVE_CLOCK_GETTIME
 	struct timespec tv;
@@ -84,18 +91,37 @@ slap_debug_print( const char *data )
 #define	Tfrac	tv.tv_usec
 #define	gettime(tv)	gettimeofday( tv, NULL )
 #endif
+	char *ptr;
+	int len;
 
 
 	gettime( &tv );
+#ifdef _WIN32
+	ptr = msgbuf;
+	prefixlen = sprintf( ptr, "%lx." TS " %p ",
+		(long)tv.tv_sec, (unsigned int)Tfrac, (void *)ldap_pvt_thread_self() );
+	if ( prefixlen < splen ) {
+		poffset = splen - prefixlen;
+		AC_MEMCPY( ptr+poffset, ptr, prefixlen );
+	}
+
+	ptr = lutil_strncopy( ptr+poffset+prefixlen, data, sizeof(msgbuf) - prefixlen);
+	len = ptr - msgbuf - poffset;
+	datalen = len - prefixlen;
+	if ( !logfile_only )
+		(void)!write( 2, msgbuf+poffset, len );
+	ptr = msgbuf;
+#else
 	iov[0].iov_base = prefix;
 	iov[0].iov_len = sprintf( prefix, "%lx." TS " %p ",
 		(long)tv.tv_sec, (unsigned int)Tfrac, (void *)ldap_pvt_thread_self() );
 	iov[1].iov_base = (void *)data;
 	iov[1].iov_len = strlen( data );
+	len = iov[0].iov_len + iov[1].iov_len;
 	if ( !logfile_only )
 		(void)!writev( 2, iov, 2 );
+#endif
 	if ( logfile_fd >= 0 ) {
-		int len = iov[0].iov_len + iov[1].iov_len;
 		if ( logfile_fslimit || logfile_age ) {
 			ldap_pvt_thread_mutex_lock( &logfile_mutex );
 			if ( logfile_fslimit && logfile_fsize + len > logfile_fslimit )
@@ -117,14 +143,29 @@ slap_debug_print( const char *data )
 				ldap_pvt_gmtime( &tv.tv_sec, &tm );
 			else
 				ldap_pvt_localtime( &tv.tv_sec, &tm );
-			strftime( syslog_prefix, sizeof( SYSLOG_STAMP ),
+#ifdef _WIN32
+			if ( splen < prefixlen )
+				ptr += prefixlen - splen;
+			memcpy( ptr, syslog_prefix, splen );
+#else
+			ptr = syslog_prefix;
+#endif
+			strftime( ptr, sizeof( SYSLOG_STAMP ),
 				"%b %d %T", &tm );
-			syslog_prefix[ sizeof( SYSLOG_STAMP )-1 ] = ' ';
+			ptr[ sizeof( SYSLOG_STAMP )-1 ] = ' ';
+#ifdef _WIN32
+			len = datalen + splen;
+#else
 			iov[0].iov_base = syslog_prefix;
 			iov[0].iov_len = splen;
+#endif
 		}
 
+#ifdef _WIN32
+		len = write( logfile_fd, ptr, len );
+#else
 		len = writev( logfile_fd, iov, 2 );
+#endif
 		if ( len > 0 )
 			logfile_fsize += len;
 		if ( logfile_fslimit || logfile_age )
