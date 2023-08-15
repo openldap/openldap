@@ -2740,6 +2740,11 @@ dynlist_db_init(
 	slap_overinst *on = (slap_overinst *)be->bd_info;
 	dynlist_gen_t *dlg;
 
+	if ( SLAP_ISGLOBALOVERLAY( be ) ) {
+		Debug( LDAP_DEBUG_ANY, "dynlist cannot be used as global overlay.\n" );
+		return 1;
+	}
+
 	dlg = (dynlist_gen_t *)ch_malloc( sizeof( *dlg ));
 	on->on_bi.bi_private = dlg;
 	dlg->dlg_dli = NULL;
