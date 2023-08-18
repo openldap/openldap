@@ -22,7 +22,7 @@ if test $WITH_SASL = "yes" ; then
         exit 0
     fi
     if test $USE_SASL = "yes" ; then
-        MECH="DIGEST-MD5"
+        MECH="SCRAM-SHA-256"
     else
         MECH="$USE_SASL"
     fi
