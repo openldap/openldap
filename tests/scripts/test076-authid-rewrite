@@ -21,8 +21,15 @@ if test $WITH_SASL = no; then
 	exit 0
 fi
 
+case "$USE_SASL" in
+	""|no|yes)
+		MECH="SCRAM-SHA-256";;
+	*)
+		MECH="$USE_SASL"
+esac
+echo "Using SASL authc[/authz] with mech=$MECH"
+
 CONFDIR=$TESTDIR/slapd.d
-MECH=DIGEST-MD5
 
 mkdir -p $TESTDIR $CONFDIR $DBDIR1
 
