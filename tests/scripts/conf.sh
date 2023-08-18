@@ -15,7 +15,7 @@
 if [ x"$WITH_SASL" = x"yes" -a x"$USE_SASL" != x"no" ] ; then
 	SASL="sasl"
 	if [ x"$USE_SASL" = x"yes" ] ; then
-		USE_SASL=DIGEST-MD5
+		USE_SASL=SCRAM-SHA-256
 	fi
 	SASL_MECH="\"saslmech=$USE_SASL\""
 else
