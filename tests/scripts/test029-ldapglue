@@ -186,8 +186,8 @@ if test $? != 0 ; then
 	exit 1
 fi
 
-# FIXME: this cannot work as is, because SASL bind cannot be proxied!
-if test $USE_SASL != "no" ; then
+# FIXME: disabled as this cannot work as is, because SASL bind cannot be proxied!
+if false && test $USE_SASL != "no" ; then
 	ID="bjorn"
 	BASE="dc=example,dc=com"
 	echo "Testing ldapsearch as $ID for \"$BASE\" with SASL bind and identity assertion..."
