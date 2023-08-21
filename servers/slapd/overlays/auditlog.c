@@ -44,7 +44,7 @@ static ConfigTable auditlogcfg[] = {
 	  "( OLcfgOvAt:15.1 NAME 'olcAuditlogFile' "
 	  "DESC 'Filename for auditlogging' "
 	  "EQUALITY caseExactMatch "
-	  "SYNTAX OMsDirectoryString )", NULL, NULL },
+	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
 };
 
