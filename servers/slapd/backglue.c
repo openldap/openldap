@@ -93,6 +93,12 @@ typedef struct glue_state {
 	int nctrls;
 } glue_state;
 
+typedef struct glue_entry {
+	BackendDB *ge_be;
+	BackendInfo *ge_bi;
+	void *ge_orig;
+} glue_entry;
+
 static int
 glue_op_cleanup( Operation *op, SlapReply *rs )
 {
@@ -907,10 +913,35 @@ glue_entry_get_rw (
 
 	if ( op->o_bd->be_fetch ) {
 		rc = op->o_bd->be_fetch( op, dn, oc, ad, rw, e );
+		if ( rc == LDAP_SUCCESS && *e ) {
+			glue_entry *ge = op->o_tmpcalloc( 1, sizeof(glue_entry),
+					op->o_tmpmemctx );
+
+			if ( !ge ) {
+				if ( op->o_bd->be_release ) {
+					op->o_bd->be_release( op, *e, rw );
+				} else {
+					entry_free( *e );
+				}
+				rc = LDAP_OTHER;
+				goto out;
+			}
+
+			/* b0 is on overlay_entry_get_ov's stack, we'll be passed a fresh
+			 * one at release time */
+			if ( op->o_bd != b0 ) {
+				ge->ge_be = op->o_bd;
+			}
+			ge->ge_bi = op->o_bd->bd_info;
+			ge->ge_orig = (*e)->e_private;
+			(*e)->e_private = ge;
+		}
 	} else {
 		rc = LDAP_UNWILLING_TO_PERFORM;
 	}
-	op->o_bd =b0;
+
+out:
+	op->o_bd = b0;
 	return rc;
 }
 
@@ -921,10 +952,20 @@ glue_entry_release_rw (
 	int rw
 )
 {
+	glue_entry *ge = e->e_private;
 	BackendDB *b0 = op->o_bd;
 	int rc = -1;
 
-	op->o_bd = glue_back_select (b0, &e->e_nname);
+	if ( ge ) {
+		assert( ge->ge_bi != NULL );
+		if ( ge->ge_be )
+			op->o_bd = ge->ge_be;
+		op->o_bd->bd_info = ge->ge_bi;
+		e->e_private = ge->ge_orig;
+		op->o_tmpfree( ge, op->o_tmpmemctx );
+	} else {
+		op->o_bd = glue_back_select( b0, &e->e_nname );
+	}
 
 	if ( op->o_bd->be_release ) {
 		rc = op->o_bd->be_release( op, e, rw );
