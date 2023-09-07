@@ -32,6 +32,10 @@
 #include <slap.h>
 #include <slapi.h>
 
+#ifdef _WIN32
+#include <io.h>
+#endif
+
 #include <ldap_pvt_thread.h>
 
 /* Single threads access to routine */
@@ -60,18 +64,30 @@ slapi_int_log_error(
 
 	/* for now, we log all severities */
 	if ( level <= slapi_log_level ) {
+#ifdef _WIN32
+		intptr_t fhandle;
+#endif
 		fp = fopen( slapi_log_file, "a" );
 		if ( fp == NULL) {
 			rc = -1;
 			goto done;
 		}
 
+#ifdef _WIN32
+		fhandle = _get_osfhandle( fileno( fp ));
+#endif
 		/*
 		 * FIXME: could block
 		 */
+#ifdef _WIN32
+		while ( LockFile( fhandle, 0, 0, UINT_MAX, UINT_MAX ) == 0 ) {
+			/* DO NOTHING */ ;
+		}
+#else
 		while ( lockf( fileno( fp ), F_LOCK, 0 ) != 0 ) {
 			/* DO NOTHING */ ;
 		}
+#endif
 
 		time( &currentTime );
 		ltm = localtime( &currentTime );
@@ -85,7 +101,11 @@ slapi_int_log_error(
 		}
 		fflush( fp );
 
+#ifdef _WIN32
+		UnlockFile( fhandle, 0, 0, UINT_MAX, UINT_MAX );
+#else
 		lockf( fileno( fp ), F_ULOCK, 0 );
+#endif
 
 		fclose( fp );
 
