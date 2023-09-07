@@ -31,7 +31,11 @@
 #include <slap.h>
 #include <slapi.h>
 
+#ifdef _WIN32
+#include <winsock.h>
+#else
 #include <netdb.h>
+#endif
 
 #ifdef LDAP_SLAPI
 
@@ -1971,6 +1975,8 @@ slapi_timer_current_time( void )
 	 */
 #else /* _WIN32 */
 	LARGE_INTEGER now;
+	static LARGE_INTEGER base_time, performance_freq;
+	static int performance_counter_present;
 
 	if ( first_time ) {
 		first_time = 0;

@@ -19,7 +19,7 @@ LIBRARY = libslapi.la
 #all-common: $(LIBRARY) $(PROGRAMS)
 #	@touch plugin.c slapi_pblock.c slapi_utils.c slapi_ops.c slapi_ext.c
 
-NT_SRCS = nt_err.c
+NT_SRCS = $(top_srcdir)/libraries/liblber/nt_err.c
 NT_OBJS = nt_err.lo
 
 LIB_DEFS = -DSLAPI_LIBRARY
