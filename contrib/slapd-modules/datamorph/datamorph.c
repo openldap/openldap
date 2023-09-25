@@ -1194,7 +1194,7 @@ static ConfigTable datamorph_cfg[] = {
 	{ "datamorph_attribute", "attr", 2, 2, 0,
 		ARG_STRING|ARG_QUOTE|ARG_MAGIC,
 		datamorph_set_attribute,
-		"( OLcfgCtAt:7.1 NAME 'olcDatamorphAttribute' "
+		"( OLcfgCtAt:8.1 NAME 'olcDatamorphAttribute' "
 			"DESC 'Attribute to transform' "
 			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString "
@@ -1204,7 +1204,7 @@ static ConfigTable datamorph_cfg[] = {
 	{ "datamorph_size", "<1|2|4|8>", 2, 2, 0,
 		ARG_INT|ARG_MAGIC|DATAMORPH_INT_SIZE,
 		datamorph_set_size,
-		"( OLcfgCtAt:7.2 NAME 'olcDatamorphIntegerBytes' "
+		"( OLcfgCtAt:8.2 NAME 'olcDatamorphIntegerBytes' "
 			"DESC 'Integer size in bytes' "
 			"EQUALITY integerMatch "
 			"SYNTAX OMsInteger "
@@ -1214,7 +1214,7 @@ static ConfigTable datamorph_cfg[] = {
 	{ "datamorph_signed", "TRUE|FALSE", 2, 2, 0,
 		ARG_ON_OFF|ARG_MAGIC|DATAMORPH_INT_SIGNED,
 		datamorph_set_signed,
-		"( OLcfgCtAt:7.3 NAME 'olcDatamorphIntegerSigned' "
+		"( OLcfgCtAt:8.3 NAME 'olcDatamorphIntegerSigned' "
 			"DESC 'Whether integers maintain sign' "
 			"EQUALITY booleanMatch "
 			"SYNTAX OMsBoolean "
@@ -1224,7 +1224,7 @@ static ConfigTable datamorph_cfg[] = {
 	{ "datamorph_lower_bound", "int", 2, 2, 0,
 		ARG_BERVAL|ARG_MAGIC|DATAMORPH_INT_LOWER,
 		datamorph_set_bounds,
-		"( OLcfgCtAt:7.4 NAME 'olcDatamorphIntegerLowerBound' "
+		"( OLcfgCtAt:8.4 NAME 'olcDatamorphIntegerLowerBound' "
 			"DESC 'Lowest valid value for the attribute' "
 			"EQUALITY integerMatch "
 			"SYNTAX OMsInteger "
@@ -1234,7 +1234,7 @@ static ConfigTable datamorph_cfg[] = {
 	{ "datamorph_upper_bound", "int", 2, 2, 0,
 		ARG_BERVAL|ARG_MAGIC|DATAMORPH_INT_UPPER,
 		datamorph_set_bounds,
-		"( OLcfgCtAt:7.5 NAME 'olcDatamorphIntegerUpperBound' "
+		"( OLcfgCtAt:8.5 NAME 'olcDatamorphIntegerUpperBound' "
 			"DESC 'Highest valid value for the attribute' "
 			"EQUALITY integerMatch "
 			"SYNTAX OMsInteger "
@@ -1246,7 +1246,7 @@ static ConfigTable datamorph_cfg[] = {
 	{ "", NULL, 2, 2, 0,
 		ARG_INT|ARG_MAGIC,
 		datamorph_set_index,
-		"( OLcfgCtAt:7.6 NAME 'olcDatamorphIndex' "
+		"( OLcfgCtAt:8.6 NAME 'olcDatamorphIndex' "
 			"DESC 'Internal DB value' "
 			"EQUALITY integerMatch "
 			"SYNTAX OMsInteger "
@@ -1256,7 +1256,7 @@ static ConfigTable datamorph_cfg[] = {
 	{ "", NULL, 2, 2, 0,
 		ARG_BERVAL|ARG_QUOTE|ARG_MAGIC,
 		datamorph_set_value,
-		"( OLcfgCtAt:7.7 NAME 'olcDatamorphValue' "
+		"( OLcfgCtAt:8.7 NAME 'olcDatamorphValue' "
 			"DESC 'Wire value' "
 			"EQUALITY caseExactMatch "
 			"SYNTAX OMsDirectoryString "
@@ -1282,25 +1282,25 @@ static ConfigTable datamorph_cfg[] = {
 };
 
 static ConfigOCs datamorph_ocs[] = {
-	{ "( OLcfgCtOc:7.1 "
+	{ "( OLcfgCtOc:8.1 "
 		"NAME 'olcDatamorphConfig' "
 		"DESC 'Datamorph overlay configuration' "
 		"SUP olcOverlayConfig )",
 		Cft_Overlay, datamorph_cfg, NULL, datamorph_cfadd },
-	{ "( OLcfgCtOc:7.2 "
+	{ "( OLcfgCtOc:8.2 "
 		"NAME 'olcTransformation' "
 		"DESC 'Transformation configuration' "
 		"MUST ( olcDatamorphAttribute ) "
 		"SUP top "
 		"ABSTRACT )",
 		Cft_Misc, datamorph_cfg, NULL },
-	{ "( OLcfgCtOc:7.3 "
+	{ "( OLcfgCtOc:8.3 "
 		"NAME 'olcDatamorphEnum' "
 		"DESC 'Configuration for an enumerated attribute' "
 		"SUP olcTransformation "
 		"STRUCTURAL )",
 		Cft_Misc, datamorph_cfg, datamorph_ldadd_enum },
-	{ "( OLcfgCtOc:7.4 "
+	{ "( OLcfgCtOc:8.4 "
 		"NAME 'olcDatamorphInteger' "
 		"DESC 'Configuration for a compact integer attribute' "
 		"MUST ( olcDatamorphIntegerBytes ) "
@@ -1311,7 +1311,7 @@ static ConfigOCs datamorph_ocs[] = {
 		"SUP olcTransformation "
 		"STRUCTURAL )",
 		Cft_Misc, datamorph_cfg, datamorph_ldadd_interval },
-	{ "( OLcfgCtOc:7.5 "
+	{ "( OLcfgCtOc:8.5 "
 		"NAME 'olcDatamorphEnumValue' "
 		"DESC 'Configuration for an enumerated attribute' "
 		"MUST ( olcDatamorphIndex $ "
