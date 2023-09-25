@@ -696,7 +696,7 @@ static ConfigTable variant_cfg[] = {
 	{ "passReplication", "on|off", 2, 2, 0,
 		ARG_ON_OFF|ARG_OFFSET,
 		(void *)offsetof( variant_info_t, passReplication ),
-		"( OLcfgOvAt:FIXME.1 NAME 'olcVariantPassReplication' "
+		"( OLcfgOvAt:9.1 NAME 'olcVariantPassReplication' "
 			"DESC 'Whether to let searches with replication control "
 				"pass unmodified' "
 			"SYNTAX OMsBoolean "
@@ -706,7 +706,7 @@ static ConfigTable variant_cfg[] = {
 	{ "variantDN", "dn", 2, 2, 0,
 		ARG_DN|ARG_QUOTE|ARG_MAGIC,
 		variant_set_dn,
-		"( OLcfgOvAt:FIXME.2 NAME 'olcVariantEntry' "
+		"( OLcfgOvAt:9.2 NAME 'olcVariantEntry' "
 			"DESC 'DN of the variant entry' "
 			"EQUALITY distinguishedNameMatch "
 			"SYNTAX OMsDN "
@@ -716,7 +716,7 @@ static ConfigTable variant_cfg[] = {
 	{ "variantRegex", "regex", 2, 2, 0,
 		ARG_BERVAL|ARG_QUOTE|ARG_MAGIC,
 		variant_set_regex,
-		"( OLcfgOvAt:FIXME.6 NAME 'olcVariantEntryRegex' "
+		"( OLcfgOvAt:9.6 NAME 'olcVariantEntryRegex' "
 			"DESC 'Pattern for the variant entry' "
 			"EQUALITY caseExactMatch "
 			"SYNTAX OMsDirectoryString "
@@ -727,7 +727,7 @@ static ConfigTable variant_cfg[] = {
 	{ "", NULL, 2, 2, 0,
 		ARG_STRING|ARG_MAGIC|VARIANT_ATTR,
 		variant_set_attribute,
-		"( OLcfgOvAt:FIXME.3 NAME 'olcVariantVariantAttribute' "
+		"( OLcfgOvAt:9.3 NAME 'olcVariantVariantAttribute' "
 			"DESC 'Attribute to fill in the entry' "
 			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString "
@@ -737,7 +737,7 @@ static ConfigTable variant_cfg[] = {
 	{ "", NULL, 2, 2, 0,
 		ARG_STRING|ARG_MAGIC|VARIANT_ATTR_ALT,
 		variant_set_attribute,
-		"( OLcfgOvAt:FIXME.4 NAME 'olcVariantAlternativeAttribute' "
+		"( OLcfgOvAt:9.4 NAME 'olcVariantAlternativeAttribute' "
 			"DESC 'Attribute to take from the alternative entry' "
 			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString "
@@ -747,7 +747,7 @@ static ConfigTable variant_cfg[] = {
 	{ "", NULL, 2, 2, 0,
 		ARG_DN|ARG_QUOTE|ARG_MAGIC,
 		variant_set_alt_dn,
-		"( OLcfgOvAt:FIXME.5 NAME 'olcVariantAlternativeEntry' "
+		"( OLcfgOvAt:9.5 NAME 'olcVariantAlternativeEntry' "
 			"DESC 'DN of the alternative entry' "
 			"EQUALITY distinguishedNameMatch "
 			"SYNTAX OMsDN "
@@ -757,7 +757,7 @@ static ConfigTable variant_cfg[] = {
 	{ "", NULL, 2, 2, 0,
 		ARG_BERVAL|ARG_QUOTE|ARG_MAGIC,
 		variant_set_alt_pattern,
-		"( OLcfgOvAt:FIXME.7 NAME 'olcVariantAlternativeEntryPattern' "
+		"( OLcfgOvAt:9.7 NAME 'olcVariantAlternativeEntryPattern' "
 			"DESC 'Replacement pattern to locate the alternative entry' "
 			"EQUALITY caseExactMatch "
 			"SYNTAX OMsDirectoryString "
@@ -780,13 +780,13 @@ static ConfigTable variant_cfg[] = {
 };
 
 static ConfigOCs variant_ocs[] = {
-	{ "( OLcfgOvOc:FIXME.1 "
+	{ "( OLcfgOvOc:9.1 "
 		"NAME 'olcVariantConfig' "
 		"DESC 'Variant overlay configuration' "
 		"SUP olcOverlayConfig "
 		"MAY ( olcVariantPassReplication ) )",
 		Cft_Overlay, variant_cfg, NULL, variant_cfadd },
-	{ "( OLcfgOvOc:FIXME.2 "
+	{ "( OLcfgOvOc:9.2 "
 		"NAME 'olcVariantVariant' "
 		"DESC 'Variant configuration' "
 		"MUST ( olcVariantEntry ) "
@@ -794,7 +794,7 @@ static ConfigOCs variant_ocs[] = {
 		"SUP top "
 		"STRUCTURAL )",
 		Cft_Misc, variant_cfg, variant_ldadd },
-	{ "( OLcfgOvOc:FIXME.3 "
+	{ "( OLcfgOvOc:9.3 "
 		"NAME 'olcVariantAttribute' "
 		"DESC 'Variant attribute description' "
 		"MUST ( olcVariantVariantAttribute $ "
@@ -805,7 +805,7 @@ static ConfigOCs variant_ocs[] = {
 		"SUP top "
 		"STRUCTURAL )",
 		Cft_Misc, variant_cfg, variant_attr_ldadd },
-	{ "( OLcfgOvOc:FIXME.4 "
+	{ "( OLcfgOvOc:9.4 "
 		"NAME 'olcVariantRegex' "
 		"DESC 'Variant configuration' "
 		"MUST ( olcVariantEntryRegex ) "
@@ -813,7 +813,7 @@ static ConfigOCs variant_ocs[] = {
 		"SUP top "
 		"STRUCTURAL )",
 		Cft_Misc, variant_cfg, variant_regex_ldadd },
-	{ "( OLcfgOvOc:FIXME.5 "
+	{ "( OLcfgOvOc:9.5 "
 		"NAME 'olcVariantAttributePattern' "
 		"DESC 'Variant attribute description' "
 		"MUST ( olcVariantVariantAttribute $ "
