@@ -151,7 +151,7 @@ slap_debug_print( const char *data )
 			ptr = syslog_prefix;
 #endif
 			strftime( ptr, sizeof( SYSLOG_STAMP ),
-				"%b %d %T", &tm );
+				"%b %d %H:%M:%S", &tm );
 			ptr[ sizeof( SYSLOG_STAMP )-1 ] = ' ';
 #ifdef _WIN32
 			len = datalen + splen;
