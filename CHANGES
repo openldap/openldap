@@ -3,6 +3,7 @@ OpenLDAP 2.6 Change Log
 OpenLDAP 2.6.7 Engineering
 	Fixed libldap exit handling with OpenSSL3 (ITS#9952)
 	Fixed lloadd to work when resolv.conf is missing (ITS#10070)
+	Fixed lloadd handling of closing connection (ITS#10083)
 	Fixed slapd-asyncmeta when remote suffix is empty (ITS#10076)
 	Documentation
 		Fixed slapo-homedir(5) attribute name for olcHomedirArchivePath (ITS#10057)
