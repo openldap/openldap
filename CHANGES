@@ -2,6 +2,7 @@ OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.17 Engineering
 	Fixed libldap exit handling with OpenSSL3 (ITS#9952)
+	Fixed lloadd to work when resolv.conf is missing (ITS#10070)
 	Documentation
 		Fixed slapo-homedir(5) attribute name for olcHomedirArchivePath (ITS#10057)
 	Minor Cleanup
