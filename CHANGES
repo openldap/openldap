@@ -6,6 +6,7 @@ OpenLDAP 2.5.17 Engineering
 	Fixed lloadd handling of closing connection (ITS#10083)
 	Fixed slapd handling of regex testing in ACLs (ITS#10089)
 	Fixed slapd-asyncmeta when remote suffix is empty (ITS#10076)
+	Fixed slapo-dynlist so it can't be global (ITS#10091)
 	Documentation
 		Fixed slapo-homedir(5) attribute name for olcHomedirArchivePath (ITS#10057)
 	Minor Cleanup
