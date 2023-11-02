@@ -289,7 +289,7 @@ again:
 				attr_merge( e, slap_schema.si_ad_modifyTimestamp, vals, NULL );
 			}
 
-			if ( SLAP_SINGLE_SHADOW(be) && got != GOT_ALL ) {
+			if ( SLAP_SINGLE_SHADOW(be) && got != GOT_ALL && e->e_name.bv_len ) {
 				Debug(LDAP_DEBUG_ANY,
 				      "%s: warning, missing attrs %s%s%s from entry dn=\"%s\"\n",
 				      progname,
