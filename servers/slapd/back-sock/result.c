@@ -105,6 +105,10 @@ sock_read_and_send_results(
 			if ( (rs->sr_entry = str2entry( buf )) == NULL ) {
 				Debug( LDAP_DEBUG_ANY, "str2entry(%s) failed\n",
 				    buf );
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "str2entry failed";
+				goto fail;
+
 			} else {
 				rs->sr_attrs = op->oq_search.rs_attrs;
 				rs->sr_flags = REP_ENTRY_MODIFIABLE;
@@ -118,6 +122,7 @@ sock_read_and_send_results(
 	}
 	(void) str2result( buf, &rs->sr_err, (char **)&rs->sr_matched, (char **)&rs->sr_text );
 
+fail:
 	/* otherwise, front end will send this result */
 	if ( rs->sr_err != 0 || op->o_tag != LDAP_REQ_BIND ) {
 		send_ldap_result( op, rs );
