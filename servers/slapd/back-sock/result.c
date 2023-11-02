@@ -81,7 +81,11 @@ sock_read_and_send_results(
 		if ( strncasecmp( line, "CONTINUE", 8 ) == 0 ) {
 			struct sockinfo	*si = (struct sockinfo *) op->o_bd->be_private;
 			/* Only valid when operating as an overlay! */
-			assert( si->si_ops != 0 );
+			if ( !si->si_ops ) {
+				rs->sr_err = LDAP_OTHER;
+				rs->sr_text = "CONTINUE is only valid when operating as an overlay";
+				goto fail;
+			}
 			rs->sr_err = SLAP_CB_CONTINUE;
 			goto skip;
 		}
