@@ -361,7 +361,7 @@ parse_acl(
 					{
 						snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"dn pattern already specified in to clause." );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.", c->log, c->cr_msg );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 						goto fail;
 					}
 
@@ -799,7 +799,7 @@ parse_acl(
 				} else {
 					snprintf( c->cr_msg, sizeof ( c->cr_msg ),
 						"unknown style \"%s\" in by clause", style );
-					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->line, c->cr_msg );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 					goto fail;
 				}
 
@@ -1018,7 +1018,7 @@ parse_acl(
 					if( bdn->a_at != NULL ) {
 						snprintf( c->cr_msg, sizeof( c->cr_msg ),
 							"dnattr already specified" );
-						Debug( LDAP_DEBUG_ANY, c->log, c->cr_msg );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 						goto fail;
 					}
 
@@ -1064,7 +1064,7 @@ parse_acl(
 						/* legacy, tolerated */
 						snprintf( c->cr_msg, sizeof( c->cr_msg ),
 							"deprecated group style \"regex\"; use \"expand\" instead" );
-						Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, c->log, c->cr_msg );
+						Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, "%s: %s.\n", c->log, c->cr_msg );
 						sty = ACL_STYLE_EXPAND;
 						break;
 
@@ -1346,7 +1346,7 @@ parse_acl(
 									/* illegal port */
 									snprintf( c->cr_msg, sizeof( c->cr_msg ),
 										"illegal peername port specification \"{%s}\"", port );
-									Debug( LDAP_DEBUG_ANY, "%s: %s.\n", port );
+									Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 									goto fail;
 								}
 							}
@@ -1576,7 +1576,7 @@ parse_acl(
 						if ( slap_dynacl_config( c, b, name, opts, sty, right ) ) {
 							snprintf( c->cr_msg, sizeof( c->cr_msg ),
 								"unable to configure dynacl \"%s\"", name );
-							Debug( LDAP_DEBUG_ANY, "%s: %s\n.", c->log, c->cr_msg );
+							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 							goto fail;
 						}
 
@@ -1589,7 +1589,7 @@ parse_acl(
 					if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
 						snprintf( c->cr_msg, sizeof( c->cr_msg ),
 							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s\n.", c->log, c->cr_msg );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 						goto fail;
 					}
 
@@ -1702,7 +1702,7 @@ parse_acl(
 					if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
 						snprintf( c->cr_msg, sizeof( c->cr_msg ),
 							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->line, c->cr_msg );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 						goto fail;
 					}
 
