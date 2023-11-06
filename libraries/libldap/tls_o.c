@@ -563,7 +563,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 	if ( is_server && lo->ldo_tls_dhfile ) {
 #if OPENSSL_VERSION_MAJOR >= 3
 		EVP_PKEY *dh;
-#define	bio_params( bio, dh )	dh = PEM_read_bio_Parameters( bio, &dh )
+#define	bio_params( bio, dh )	dh = PEM_read_bio_Parameters( bio, NULL )
 #else
 		DH *dh;
 #define	bio_params( bio, dh )	dh = PEM_read_bio_DHparams( bio, NULL, NULL, NULL )
