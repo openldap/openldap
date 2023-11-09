@@ -956,7 +956,9 @@ glue_entry_release_rw (
 	BackendDB *b0 = op->o_bd;
 	int rc = -1;
 
-	if ( ge ) {
+	if ( glueBack ) {
+		op->o_bd = glueBack;
+	} else if ( ge ) {
 		assert( ge->ge_bi != NULL );
 		if ( ge->ge_be )
 			op->o_bd = ge->ge_be;
