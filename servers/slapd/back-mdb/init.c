@@ -182,7 +182,7 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			LDAP_XSTRING(mdb_db_open) ": database \"%s\" cannot be opened: %s (%d). "
-			"Restore from backup!\n",
+			"Administrator intervention needed!\n",
 			be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
 		goto fail;
 	}
@@ -191,7 +191,7 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 	if ( rc ) {
 		Debug( LDAP_DEBUG_ANY,
 			LDAP_XSTRING(mdb_db_open) ": database \"%s\" cannot be opened: %s (%d). "
-			"Restore from backup!\n",
+			"Administrator intervention needed!\n",
 			be->be_suffix[0].bv_val, mdb_strerror(rc), rc );
 		goto fail;
 	}
