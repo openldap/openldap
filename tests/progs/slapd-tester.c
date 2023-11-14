@@ -406,6 +406,9 @@ main( int argc, char **argv )
 
 	if ( pw_ask ) {
 		passwd = getpassphrase( _("Enter LDAP Password: ") );
+		if ( passwd == NULL ) { /* Allow EOF to exit. */
+			exit( EXIT_FAILURE );
+		}
 
 	} else if ( pw_file ) {
 		struct berval	pw;
