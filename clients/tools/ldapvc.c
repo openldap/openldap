@@ -309,8 +309,14 @@ main( int argc, char *argv[] )
 #endif
            && !cred.bv_val)
 	{
-		cred.bv_val = strdup(getpassphrase(_("User's password: ")));
-	    cred.bv_len = strlen(cred.bv_val);
+		char *userpw = getpassphrase(_("User's password: "));
+		if ( userpw == NULL ) /* Allow EOF to exit. */
+		{
+			free( cred.bv_val );
+			tool_exit( ld, EXIT_FAILURE );
+		}
+		cred.bv_val = strdup(userpw);
+		cred.bv_len = strlen(cred.bv_val);
 	}
 
 #ifdef LDAP_API_FEATURE_VERIFY_CREDENTIALS_INTERACTIVE

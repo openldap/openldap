@@ -1495,10 +1495,11 @@ tool_bind( LDAP *ld )
 
 		} else {
 			char *pw = getpassphrase( _("Enter LDAP Password: ") );
-			if ( pw ) {
-				passwd.bv_val = ber_strdup( pw );
-				passwd.bv_len = strlen( passwd.bv_val );
+			if ( pw == NULL ) { /* Allow EOF to exit. */
+				tool_exit( ld, EXIT_FAILURE );
 			}
+			passwd.bv_val = ber_strdup( pw );
+			passwd.bv_len = strlen( passwd.bv_val );
 		}
 	}
 

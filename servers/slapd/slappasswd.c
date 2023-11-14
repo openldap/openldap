@@ -250,11 +250,16 @@ slappasswd( int argc, char *argv[] )
 		if( newpw == NULL ) {
 			/* prompt for new password */
 			char *cknewpw;
-			newpw = ch_strdup(getpassphrase("New password: "));
+			newpw = getpassphrase("New password: ");
+			if ( newpw == NULL ) { /* Allow EOF to exit. */
+				rc = EXIT_FAILURE;
+				goto destroy;
+			}
+			newpw = ch_strdup(newpw);
 			cknewpw = getpassphrase("Re-enter new password: ");
-	
-			if( strcmp( newpw, cknewpw )) {
-				fprintf( stderr, "Password values do not match\n" );
+			if( cknewpw == NULL || strcmp( newpw, cknewpw )) {
+				fprintf( stderr,
+				    "Password values do not match\n" );
 				rc = EXIT_FAILURE;
 				goto destroy;
 			}
