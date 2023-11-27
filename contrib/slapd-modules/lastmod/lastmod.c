@@ -372,7 +372,7 @@ best_guess( Operation *op,
 	
 		entryCSN.bv_val = csnbuf;
 		entryCSN.bv_len = sizeof( csnbuf );
-		slap_get_csn( NULL, &entryCSN, 0 );
+		slap_get_csn( op, &entryCSN, 0 );
 
 		ber_dupbv( bv_entryCSN, &entryCSN );
 		ber_dupbv( bv_nentryCSN, &entryCSN );
@@ -833,6 +833,11 @@ lastmod_db_open( BackendDB *be, ConfigReply *cr )
 	static char		tmbuf[ LDAP_LUTIL_GENTIME_BUFSIZE ];
 
 	char			csnbuf[ LDAP_PVT_CSNSTR_BUFSIZE ];
+	void			*thrctx = ldap_pvt_thread_pool_context();
+	Connection		conn = { 0 };
+	OperationBuffer		opbuf;
+	Operation		*op;
+
 	struct berval		entryCSN;
 	struct berval timestamp;
 
@@ -840,6 +845,9 @@ lastmod_db_open( BackendDB *be, ConfigReply *cr )
 		fprintf( stderr, "set \"lastmod on\" to make this overlay effective\n" );
 		return -1;
 	}
+
+	connection_fake_init2( &conn, &opbuf, thrctx, 0 );
+	op = &opbuf.ob_op;
 
 	/*
 	 * Start
@@ -850,7 +858,7 @@ lastmod_db_open( BackendDB *be, ConfigReply *cr )
 
 	entryCSN.bv_val = csnbuf;
 	entryCSN.bv_len = sizeof( csnbuf );
-	slap_get_csn( NULL, &entryCSN, 0 );
+	slap_get_csn( op, &entryCSN, 0 );
 
 	if ( BER_BVISNULL( &lmi->lmi_rdnvalue ) ) {
 		ber_str2bv( "Lastmod", 0, 1, &lmi->lmi_rdnvalue );
