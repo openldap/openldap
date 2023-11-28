@@ -57,6 +57,64 @@ static char *strtok_quote_ptr;
 
 int init_module(int argc, char *argv[]);
 
+static ConfigDriver dsaschema_config_attribute;
+
+static ConfigTable dsaschemacfg[] = {
+	/* Only attribute loading is currently restricted in slapd, rest can be
+	 * delegated to default */
+	{ "", "attribute", 2, 0, 0,
+		ARG_PAREN|ARG_MAGIC,
+		&dsaschema_config_attribute,
+		"( OLcfgGlAt:4 NAME 'olcAttributeTypes' "
+			"DESC 'OpenLDAP attributeTypes' "
+			"EQUALITY caseIgnoreMatch "
+			"SUBSTR caseIgnoreSubstringsMatch "
+			"SYNTAX OMsDirectoryString X-ORDERED 'VALUES' )",
+				NULL, NULL },
+	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
+};
+
+static ConfigLDAPadd dsaschema_ldadd;
+
+static ConfigOCs dsaschemaocs[] = {
+	{ "( OLcfgOvOc:11.1 "
+	  "NAME 'olcDSASchemaConfig' "
+	  "DESC 'DSA schema object' "
+	  "SUP olcSchemaConfig STRUCTURAL )",
+	  Cft_Schema, dsaschemacfg,
+	  dsaschema_ldadd,
+	},
+	{ NULL, 0, NULL }
+};
+
+static int
+dsaschema_config_attribute( ConfigArgs *c )
+{
+	if ( c->op == SLAP_CONFIG_EMIT ) {
+		return 1;
+	} else if ( c->op == LDAP_MOD_DELETE ) {
+		return 1;
+	}
+
+	if ( register_at( c->line, NULL, 0 ) ) {
+		snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"<%s> attribute definition invalid",
+				c->argv[0] );
+		Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+		return 1;
+	}
+}
+
+static int
+dsaschema_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
+{
+	if ( p->ce_type != Cft_Schema )
+		return LDAP_CONSTRAINT_VIOLATION;
+
+	return LDAP_SUCCESS;
+}
+
+
 static int dsaschema_parse_cr(const char *fname, int lineno, char *line, char **argv)
 {
 	struct config_args_s c = { .line = line };
@@ -203,11 +261,11 @@ int init_module(int argc, char *argv[])
 	for (i = 0; i < argc; i++) {
 		rc = dsaschema_read_config(argv[i], 0);
 		if (rc != 0) {
-			break;
+			return rc;
 		}
 	}
 
-	return rc;
+	return config_register_schema( dsaschemacfg, dsaschemaocs );
 }
 
 

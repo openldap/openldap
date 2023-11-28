@@ -1,0 +1,55 @@
+.TH SLAPD-DSASCHEMA 5 "RELEASEDATE" "OpenLDAP LDVERSION"
+.\" Copyright 2008-2022 The OpenLDAP Foundation. All rights reserved.
+.\" $OpenLDAP$
+.SH NAME
+slapd-dsaschema \- Define DSA-specific schema
+.SH SYNOPSIS
+ETCDIR/slapd.conf
+.SH DESCRIPTION
+OpenLDAP restricts admin-provided schemas to regular attributes, operational
+attributes cannot be added by normal means. This module allows one to bypass
+this restriction.
+
+.SH CONFIGURATION
+To use the plugin, add the following to your slapd configuration file (similar
+with
+.BR olcModuleLoad ):
+
+.RS
+.nf
+moduleload dsaschema.so [<path-to-schema-file> ...]
+.fi
+.RE
+
+
+With
+.B cn=config
+you can also use the
+.B olcDSASchemaConfig
+objectclass in entries under
+.BR cn=schema,cn=config
+to lift the restriction on defining operational attributes.
+
+.SH EXAMPLES
+.LP
+.RS
+.nf
+moduleload dsaschema.so
+	/etc/openldap/schema/foo1.schema
+	...etc...
+	/etc/openldap/schema/fooN.schema
+.fi
+.RE
+.SH FILES
+.TP
+ETCDIR/slapd.conf
+default slapd configuration file
+.TP
+ETCDIR/slapd.d
+default slapd configuration directory
+.SH SEE ALSO
+.BR slapd-config (5),
+.BR slapd.conf (5).
+.SH ACKNOWLEDGEMENTS
+This module was written in 2008 by Emmanuel Dreyfus.
+.so ../Project
