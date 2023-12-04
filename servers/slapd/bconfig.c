@@ -7067,6 +7067,42 @@ out:
 	return rs->sr_err;
 }
 
+static int
+config_back_compare( Operation *op, SlapReply *rs )
+{
+	CfBackInfo *cfb;
+	CfEntryInfo *ce, *last;
+	slap_mask_t mask;
+
+	cfb = (CfBackInfo *)op->o_bd->be_private;
+
+	ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
+	if ( !ce ) {
+		if ( last )
+			rs->sr_matched = last->ce_entry->e_name.bv_val;
+		rs->sr_err = LDAP_NO_SUCH_OBJECT;
+		goto out;
+	}
+	if ( !access_allowed_mask( op, ce->ce_entry, slap_schema.si_ad_entry, NULL,
+		ACL_COMPARE, NULL, &mask ))
+	{
+		if ( !ACL_GRANT( mask, ACL_DISCLOSE )) {
+			rs->sr_err = LDAP_NO_SUCH_OBJECT;
+		} else {
+			rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
+		}
+		goto out;
+	}
+
+	rs->sr_err = slap_compare_entry( op, ce->ce_entry, op->orc_ava );
+
+out:
+	ldap_pvt_thread_rdwr_runlock( &cfb->cb_rwlock );
+	send_ldap_result( op, rs );
+	return rs->sr_err;
+}
+
 int config_entry_release(
 	Operation *op,
 	Entry *e,
@@ -8221,7 +8257,7 @@ config_back_initialize( BackendInfo *bi )
 	bi->bi_op_bind = config_back_bind;
 	bi->bi_op_unbind = 0;
 	bi->bi_op_search = config_back_search;
-	bi->bi_op_compare = 0;
+	bi->bi_op_compare = config_back_compare;
 	bi->bi_op_modify = config_back_modify;
 	bi->bi_op_modrdn = config_back_modrdn;
 	bi->bi_op_add = config_back_add;

@@ -669,17 +669,15 @@ ordered_value_match(
 			}
 		}
 
-		if ( SLAP_MR_IS_VALUE_OF_ASSERTION_SYNTAX( flags )) {
-			if ( !BER_BVISNULL( &ns2 ) && !BER_BVISNULL( &ns1 ) ) {
-				/* compare index values first */
-				(void)octetStringOrderingMatch( match, 0, NULL, NULL, &ns1, &ns2 );
+		if ( !BER_BVISNULL( &ns2 ) && !BER_BVISNULL( &ns1 ) ) {
+			/* compare index values first */
+			(void)octetStringOrderingMatch( match, 0, NULL, NULL, &ns1, &ns2 );
 
-				/* If not equal, or we're only comparing the index,
-				 * return result now.
-				 */
-				if ( *match != 0 || BER_BVISEMPTY( &bv2 ) ) {
-					return LDAP_SUCCESS;
-				}
+			/* If not equal, or we're only comparing the index,
+			 * return result now.
+			 */
+			if ( *match != 0 || BER_BVISEMPTY( &bv2 ) ) {
+				return LDAP_SUCCESS;
 			}
 		}
 
