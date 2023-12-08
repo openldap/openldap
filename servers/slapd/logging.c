@@ -159,6 +159,8 @@ slap_debug_print( const char *data )
 			iov[0].iov_base = syslog_prefix;
 			iov[0].iov_len = splen;
 #endif
+		} else {
+			ptr += poffset;	/* only nonzero if logfile-format was explicitly set */
 		}
 
 #ifdef _WIN32
