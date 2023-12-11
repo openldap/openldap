@@ -201,6 +201,10 @@ logfile_open( const char *path )
 	struct stat st;
 	int fd, saved_errno;
 
+	/* the logfile is for slapd only, not tools */
+	if ( !( slapMode & SLAP_SERVER_MODE ))
+		return 0;
+
 	fd = open( path, O_CREAT|O_WRONLY, 0640 );
 	if ( fd < 0 ) {
 		saved_errno = errno;
