@@ -618,12 +618,13 @@ see
 option description.  The default is 71.
 .TP
 .B logfile <filename>
-Specify a file for recording slapd debug messages. By default these messages
-only go to stderr, are not recorded anywhere else, and are unrelated to
-messages exposed by the
+Specify a file for recording slapd debug messages. These messages are
+unrelated to messages exposed by the
 .B loglevel
-configuration parameter. Specifying a logfile copies messages to both stderr
-and the logfile.
+configuration parameter. This setting only affects the slapd daemon and has
+no effect on the command line tools. By default these messages
+only go to stderr and are not recorded anywhere else.
+Specifying a logfile copies messages to both stderr and the logfile.
 .TP
 .B logfile-format debug | syslog-utc | syslog-localtime
 Specify the prefix format for messages written to the logfile. The debug
