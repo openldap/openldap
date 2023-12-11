@@ -16,7 +16,7 @@
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh
 
-mkdir -p $TESTDIR $CONF1.d $DBDIR1 $DBDIR2
+mkdir -p $TESTDIR $CONF1.d $DBDIR1 $DBDIR2 $CFDIR
 
 $SLAPPASSWD -g -n >$CONFIGPWF
 echo "rootpw `$SLAPPASSWD -T $CONFIGPWF`" >$TESTDIR/configpw.conf
@@ -119,7 +119,8 @@ fi
 echo "Starting lloadd on TCP/IP port $PORT1..."
 . $CONFFILTER $BACKEND < $LLOADDUNREACHABLECONF > $CONF1.lloadd
 . $CONFFILTER $BACKEND < $SLAPDLLOADCONF > $CONF1.slapd
-$SLAPD -f $CONF1.slapd -h $URI6 -d $LVL > $LOG1 2>&1 &
+$SLAPD -Tt -f $CONF1.slapd -F $CONF1.d -d $LVL > $LOG1 2>&1
+$SLAPD -F $CONF1.d -h $URI6 -d $LVL >> $LOG1 2>&1 &
 PID=$!
 if test $WAIT != 0 ; then
     echo PID $PID
