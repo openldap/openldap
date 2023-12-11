@@ -3870,6 +3870,14 @@ lload_tier_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
     ca->bi = p->ce_bi;
     ca->ca_private = tier;
 
+    if ( !lloadd_inited ) {
+        if ( LDAP_STAILQ_EMPTY( &tiers ) ) {
+            LDAP_STAILQ_INSERT_HEAD( &tiers, tier, t_next );
+        } else {
+            LDAP_STAILQ_INSERT_TAIL( &tiers, tier, t_next );
+        }
+    }
+
     /* ca cleanups are only run in the case of online config but we use it to
      * save the new config when done with the entry */
     ca->lineno = 0;
