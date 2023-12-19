@@ -29,12 +29,6 @@ static char * oc_check_required(
 	ObjectClass *oc,
 	struct berval *ocname );
 
-static int entry_naming_check(
-	Entry *e,
-	int manage,
-	int add_naming,
-	const char** text,
-	char *textbuf, size_t textlen );
 /*
  * entry_schema_check - check that entry e conforms to the schema required
  * by its object class(es).
@@ -237,8 +231,8 @@ got_soc:
 	}
 
 	/* naming check */
-	if ( !is_entry_glue ( e ) ) {
-		rc = entry_naming_check( e, manage, add, text, textbuf, textlen );
+	if ( !is_entry_glue ( e ) && !add ) { /* add already did this */
+		rc = entry_naming_check( e, manage, 0, text, textbuf, textlen );
 		if( rc != LDAP_SUCCESS ) {
 			goto done;
 		}
@@ -772,7 +766,7 @@ int mods_structural_class(
 }
 
 
-static int
+int
 entry_naming_check(
 	Entry *e,
 	int manage,

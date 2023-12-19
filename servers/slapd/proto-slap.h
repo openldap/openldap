@@ -1799,6 +1799,13 @@ LDAP_SLAPD_F( int ) entry_schema_check(
 	const char** text,
 	char *textbuf, size_t textlen );
 
+LDAP_SLAPD_F( int ) entry_naming_check(
+	Entry *e,
+	int manage,
+	int add_naming,
+	const char** text,
+	char *textbuf, size_t textlen );
+
 LDAP_SLAPD_F( int ) mods_structural_class(
 	Modifications *mods,
 	struct berval *oc,
