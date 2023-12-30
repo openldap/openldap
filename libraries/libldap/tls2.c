@@ -850,7 +850,20 @@ ldap_pvt_tls_get_option( LDAP *ld, int option, void *arg )
 		}
 		break;
 	}
-
+	case LDAP_OPT_X_TLS_URIS:
+		if( lo->ldo_tls_uris == NULL ) {
+			* (char ***) arg = NULL;
+		} else {
+			* (char ***) arg = ldap_value_dup(lo->ldo_tls_uris);
+		}
+		break;
+	case LDAP_OPT_X_TLS_CACERTURIS:
+		if( lo->ldo_tls_cacerturis == NULL ) {
+			* (char ***) arg = NULL;
+		} else {
+			* (char ***) arg = ldap_value_dup(lo->ldo_tls_cacerturis);
+		}
+		break;
 	default:
 		return -1;
 	}
@@ -1108,7 +1121,29 @@ ldap_pvt_tls_set_option( LDAP *ld, int option, void *arg )
 		}
 
 		return rc;
-	}
+		}
+	case LDAP_OPT_X_TLS_URIS: {
+		char *const *uris = (char *const *) arg;
+
+		if( lo->ldo_tls_uris ) {
+			LDAP_VFREE(lo->ldo_tls_uris);
+		}
+		if ( uris ) {
+			lo->ldo_tls_uris = ldap_value_dup(uris);
+		}
+		return 0;
+		}
+	case LDAP_OPT_X_TLS_CACERTURIS: {
+		char *const *uris = (char *const *) arg;
+
+		if( lo->ldo_tls_cacerturis ) {
+			LDAP_VFREE(lo->ldo_tls_cacerturis);
+		}
+		if ( uris ) {
+			lo->ldo_tls_cacerturis = ldap_value_dup(uris);
+		}
+		return 0;
+		}
 	default:
 		return -1;
 	}
@@ -1412,7 +1447,7 @@ find_oid( struct berval *oid )
 
 static int
 der_to_ldap_BitString (struct berval *berValue,
-                                   struct berval *ldapValue)
+	struct berval *ldapValue)
 {
 	ber_len_t bitPadding=0;
 	ber_len_t bits, maxBits;

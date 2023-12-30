@@ -347,6 +347,22 @@ tlsmt_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char 
 		Debug1 (LDAP_DEBUG_ANY, "tlsmt_ctx_init DH params from file is not supported by MbedTLS backend, ignore setting %s\n", lo->ldo_tls_dhfile);
 	}
 
+	if ( lo->ldo_tls_uris )
+	{
+		Debug0( LDAP_DEBUG_ANY,
+			"TLS: uris are not supported.\n" );
+		strncpy( errmsg, "TLS uris are not supported", ERRBUFSIZE );
+		return -1;
+	}
+
+	if ( lo->ldo_tls_cacerturis )
+	{
+		Debug0( LDAP_DEBUG_ANY,
+			"TLS: cacerturis are not supported.\n" );
+		strncpy( errmsg, "TLS cacerturis are not supported", ERRBUFSIZE );
+		return -1;
+	}
+
 	return 0;
 }
 

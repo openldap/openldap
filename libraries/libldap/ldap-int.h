@@ -191,6 +191,8 @@ struct ldaptls {
 	struct berval	lt_cacert;
 	struct berval	lt_cert;
 	struct berval	lt_key;
+	char		**lt_cacerturis;
+	char		**lt_uris;
 };
 #endif
 
@@ -314,7 +316,9 @@ struct ldapoptions {
 #define ldo_tls_cacert	ldo_tls_info.lt_cacert
 #define ldo_tls_cert	ldo_tls_info.lt_cert
 #define ldo_tls_key	ldo_tls_info.lt_key
-   	int			ldo_tls_mode;
+#define ldo_tls_uris	ldo_tls_info.lt_uris
+#define ldo_tls_cacerturis	ldo_tls_info.lt_cacerturis
+	int			ldo_tls_mode;
    	int			ldo_tls_require_cert;
 	int			ldo_tls_impl;
    	int			ldo_tls_crlcheck;

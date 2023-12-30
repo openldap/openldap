@@ -671,6 +671,22 @@ must be
 and its contents need to be freed by the caller using
 .BR ldap_memfree (3).
 .TP
+.B LDAP_OPT_X_TLS_CACERTURIS
+Sets/gets an array containing the URIs of CA certificates. The
+URIs accepted are based on the underlying crypto library. In the
+case of OpenSSL, the URIs are handled by the provider interface, and a
+URI without a scheme is treated as a file path.
+.BR outvalue
+must be a
+.BR "char ***" ,
+and the caller is responsible of freeing the returned string by calling
+.BR ldap_memvfree (3),
+while
+.BR invalue
+must be a NULL-terminated
+.BR "char *const *" ;
+the library duplicates the corresponding string.
+.TP
 .B LDAP_OPT_X_TLS_CERTFILE
 Sets/gets the full-path of the certificate file.
 .BR invalue
@@ -875,6 +891,23 @@ must be
 When using the OpenSSL library this is an SSL*. When using other
 crypto libraries this is a pointer to an OpenLDAP private structure.
 Applications generally should not use this option.
+.TP
+.B LDAP_OPT_X_TLS_URIS
+Sets/gets an array containing the URIs of certificates, intermediate
+certificates and keys. The URIs accepted are based on the underlying
+crypto library. In the case of OpenSSL, the URIs are handled by the
+provider interface, and a URI without a scheme is treated as a file
+path.
+.BR outvalue
+must be a
+.BR "char ***" ,
+and the caller is responsible of freeing the returned string by calling
+.BR ldap_memvfree (3),
+while
+.BR invalue
+must be a NULL-terminated
+.BR "char *const *" ;
+the library duplicates the corresponding string.
 .TP
 .B LDAP_OPT_X_TLS_VERSION
 Gets the TLS version being used on an established TLS session.

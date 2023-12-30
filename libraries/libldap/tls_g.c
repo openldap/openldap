@@ -395,6 +395,34 @@ tlsg_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 
 	ctx->reqcert = lo->ldo_tls_require_cert;
 
+	if ( lo->ldo_tls_uris )
+	{
+		/*
+		 * TODO: figure out URL enumeration.
+		 *
+		 * Hopeful functions:
+		 * gnutls_privkey_import_url
+		 * gnutls_url_is_supported
+		 * gnutls_tpm_get_registered
+		 * gnutls_tpm_key_list_get_url
+		 * gnutls_pkcs11_obj_list_import_url4
+		 * gnutls_pkcs11_obj_get_type
+		 */
+
+		Debug0( LDAP_DEBUG_ANY,
+			"TLS: uris are not supported.\n" );
+		strncpy( errmsg, "TLS uris are not supported", ERRBUFSIZE );
+		return -1;
+	}
+
+	if ( lo->ldo_tls_cacerturis )
+	{
+		Debug0( LDAP_DEBUG_ANY,
+			"TLS: cacerturis are not supported.\n" );
+		strncpy( errmsg, "TLS cacerturis are not supported", ERRBUFSIZE );
+		return -1;
+	}
+
 	return 0;
 }
 
