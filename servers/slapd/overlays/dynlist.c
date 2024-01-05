@@ -557,9 +557,8 @@ dynlist_nested_member_dg( Operation *op, SlapReply *rs )
 }
 
 static void
-dynlist_nested_member( Operation *op, dynlist_member_t *dm, TAvlnode *subs )
+dynlist_nested_member( Operation *op, slap_overinst *on, dynlist_member_t *dm, TAvlnode *subs )
 {
-	slap_overinst	*on = (slap_overinst *)op->o_bd->bd_info;
 	TAvlnode *ptr;
 	dynlist_name_t *dyn;
 	Entry *ne;
@@ -597,12 +596,12 @@ dynlist_nested_member( Operation *op, dynlist_member_t *dm, TAvlnode *subs )
 			dynlist_urlmembers( op, dyn, &cb );
 		}
 		if ( dyn->dy_subs )
-			dynlist_nested_member( op, dm, dyn->dy_subs );
+			dynlist_nested_member( op, on, dm, dyn->dy_subs );
 	}
 }
 
 static int
-dynlist_prepare_entry( Operation *op, SlapReply *rs, dynlist_info_t *dli, dynlist_name_t *dyn )
+dynlist_prepare_entry( Operation *op, SlapReply *rs, slap_overinst *on, dynlist_info_t *dli, dynlist_name_t *dyn )
 {
 	Attribute	*a, *id = NULL;
 	slap_callback	cb = { 0 };
@@ -876,7 +875,7 @@ checkdyn:
 		/* ensure e is modifiable */
 		if ( e == rs->sr_entry && !( rs->sr_flags & REP_ENTRY_MODIFIABLE ) ) {
 			e = entry_dup( rs->sr_entry );
-			rs_replace_entry( op, rs, (slap_overinst *)op->o_bd->bd_info, e );
+			rs_replace_entry( op, rs, on, e );
 			rs->sr_flags |= REP_ENTRY_MODIFIABLE | REP_ENTRY_MUSTBEFREED;
 		}
 		if ( dyn->dy_subs ) {
@@ -889,7 +888,7 @@ checkdyn:
 					dm.dm_mod.sm_type = dlm->dlm_member_ad->ad_cname;
 					dm.dm_e = e;
 					dm.dm_ad = dlm->dlm_member_ad;
-					dynlist_nested_member( op, &dm, dyn->dy_subs );
+					dynlist_nested_member( op, on, &dm, dyn->dy_subs );
 					if ( dm.dm_groups )
 						ldap_tavl_free( dm.dm_groups, NULL );
 				}
@@ -905,7 +904,7 @@ checkdyn:
 	}
 
 	if ( e != rs->sr_entry ) {
-		rs_replace_entry( op, rs, (slap_overinst *)op->o_bd->bd_info, e );
+		rs_replace_entry( op, rs, on, e );
 		rs->sr_flags |= REP_ENTRY_MODIFIABLE | REP_ENTRY_MUSTBEFREED;
 	}
 
@@ -1099,7 +1098,7 @@ done:;
 		r.sr_attrs = an;
 
 		o.o_acl_priv = ACL_COMPARE;
-		dynlist_prepare_entry( &o, &r, dli, NULL );
+		dynlist_prepare_entry( &o, &r, on, dli, NULL );
 		a = attrs_find( r.sr_entry->e_attrs, op->orc_ava->aa_desc );
 
 		ret = LDAP_NO_SUCH_ATTRIBUTE;
@@ -1132,6 +1131,7 @@ release:;
 #define	WANT_MEMBER	2
 
 typedef struct dynlist_search_t {
+	slap_overinst *ds_on;
 	TAvlnode *ds_names;
 	TAvlnode *ds_fnodes;
 	dynlist_info_t *ds_dli;
@@ -1556,11 +1556,11 @@ dynlist_test_dynmember(Operation *op, dynlist_name_t *dyn, Entry *e)
 }
 
 static int
-dynlist_test_membership(Operation *op, dynlist_name_t *dyn, Entry *e)
+dynlist_test_membership(Operation *op, slap_overinst *on, dynlist_name_t *dyn, Entry *e)
 {
 	if ( dyn->dy_staticmember ) {
 		Entry *grp;
-		if ( overlay_entry_get_ov( op, &dyn->dy_nname, NULL, NULL, 0, &grp, (slap_overinst *)op->o_bd->bd_info ) == LDAP_SUCCESS && grp ) {
+		if ( overlay_entry_get_ov( op, &dyn->dy_nname, NULL, NULL, 0, &grp, on ) == LDAP_SUCCESS && grp ) {
 			Attribute *a = attr_find( grp->e_attrs, dyn->dy_staticmember );
 			int rc;
 			if ( a ) {
@@ -1570,7 +1570,7 @@ dynlist_test_membership(Operation *op, dynlist_name_t *dyn, Entry *e)
 			} else {
 				rc = LDAP_COMPARE_FALSE;
 			}
-			overlay_entry_release_ov( op, grp, 0, (slap_overinst *)op->o_bd->bd_info );
+			overlay_entry_release_ov( op, grp, 0, on );
 			return rc;
 		}
 	}
@@ -1592,7 +1592,7 @@ dynlist_add_memberOf(Operation *op, SlapReply *rs, dynlist_search_t *ds)
 		dyn = ptr->avl_data;
 		for ( dlm = dyn->dy_dli->dli_dlm; dlm; dlm = dlm->dlm_next ) {
 			if ( dlm->dlm_memberOf_ad ) {
-				if ( dynlist_test_membership( op, dyn, e ) == LDAP_COMPARE_TRUE ) {
+				if ( dynlist_test_membership( op, ds->ds_on, dyn, e ) == LDAP_COMPARE_TRUE ) {
 					/* ensure e is modifiable, but do not replace
 					 * sr_entry yet since we have pointers into it */
 					if ( !( rs->sr_flags & REP_ENTRY_MODIFIABLE ) && e == rs->sr_entry ) {
@@ -1656,7 +1656,7 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 			dyn = ldap_tavl_find( ds->ds_names, &rs->sr_entry->e_nname, dynlist_avl_cmp );
 			if ( dyn ) {
 				dyn->dy_seen = 1;
-				rc = dynlist_prepare_entry( op, rs, dyn->dy_dli, dyn );
+				rc = dynlist_prepare_entry( op, rs, ds->ds_on, dyn->dy_dli, dyn );
 			} else if ( ds->ds_want )
 				dynlist_add_memberOf( op, rs, ds );
 		}
@@ -1668,7 +1668,7 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 				for ( dli = ds->ds_dli; dli; dli = dli->dli_next ) {
 					if ( is_entry_objectclass_or_sub( rs->sr_entry, dli->dli_oc ) &&
 						dynlist_check_scope( op, rs->sr_entry, dli ))
-						rc = dynlist_prepare_entry( op, rs, dli, NULL );
+						rc = dynlist_prepare_entry( op, rs, ds->ds_on, dli, NULL );
 				}
 			}
 		}
@@ -1678,7 +1678,7 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 		}
 		return rc;
 	} else if ( rs->sr_type == REP_RESULT && rs->sr_err == LDAP_SUCCESS ) {
-		slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
+		slap_overinst *on = ds->ds_on;
 		TAvlnode *ptr, *skip = NULL;
 		SlapReply r = *rs;
 		dynlist_map_t *dlm = NULL;
@@ -1730,7 +1730,7 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 				r.sr_entry == NULL )
 				goto next;
 			r.sr_flags = REP_ENTRY_MUSTRELEASE;
-			dynlist_prepare_entry( op, &r, dyn->dy_dli, dyn );
+			dynlist_prepare_entry( op, &r, on, dyn->dy_dli, dyn );
 			if ( test_filter( op, r.sr_entry, f ) == LDAP_COMPARE_TRUE ) {
 				r.sr_attrs = op->ors_attrs;
 				rs->sr_err = send_search_entry( op, &r );
@@ -2073,6 +2073,7 @@ simple:
 		sc->sc_cleanup = dynlist_search_cleanup;
 		sc->sc_next = op->o_callback;
 		op->o_callback = sc;
+		ds->ds_on = on;
 
 		/* dynamic lists need this */
 		ds->ds_dli = dlg->dlg_dli;
