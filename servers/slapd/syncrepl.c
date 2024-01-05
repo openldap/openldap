@@ -1448,6 +1448,8 @@ do_syncrep2(
 					"got search entry without "
 					"Sync State control (%s)\n", si->si_ridtxt, bdn.bv_val );
 				rc = -1;
+				if ( rctrls )
+					ldap_controls_free( rctrls );
 				goto done;
 			}
 			ber_init2( ber, &rctrlp->ldctl_value, LBER_USE_DER );
@@ -1505,8 +1507,10 @@ do_syncrep2(
 						si->si_too_old = 0;
 
 						/* check pending CSNs too */
-						if (( rc = get_pmutex( si )))
+						if (( rc = get_pmutex( si ))) {
+							ldap_controls_free( rctrls );
 							goto done;
+						}
 
 						i = check_csn_age( si, &bdn, syncCookie.ctxcsn, sid, (cookie_vals *)&si->si_cookieState->cs_pvals, &slot );
 						if ( i == CV_CSN_OK ) {
@@ -1570,8 +1574,12 @@ logerr:
 				&modlist, &entry, syncstate, syncUUID ) ) == LDAP_SUCCESS )
 			{
 				if ( punlock < 0 ) {
-					if (( rc = get_pmutex( si )))
+					if (( rc = get_pmutex( si ))) {
+						ldap_controls_free( rctrls );
+						slap_mods_free( modlist, 1 );
+						entry_free( entry );
 						goto done;
+					}
 				}
 				if ( ( rc = syncrepl_entry( si, op, entry, &modlist,
 					syncstate, syncUUID, syncCookie.ctxcsn ) ) == LDAP_SUCCESS &&
