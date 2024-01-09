@@ -312,7 +312,6 @@ main( int argc, char *argv[] )
 		char *userpw = getpassphrase(_("User's password: "));
 		if ( userpw == NULL ) /* Allow EOF to exit. */
 		{
-			free( cred.bv_val );
 			tool_exit( ld, EXIT_FAILURE );
 		}
 		cred.bv_val = strdup(userpw);
