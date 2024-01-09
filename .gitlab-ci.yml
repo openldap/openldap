@@ -74,7 +74,7 @@ build-gnutls-mit-standalone-lloadd:
       - obj/servers/
       - obj/libraries/
 
-build-mbedtls-mit-standalone-lloadd:
+build-mbedtls-mit-lloadd:
   image: "debian:testing"
   stage: build
   script:
