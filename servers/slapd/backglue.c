@@ -369,6 +369,8 @@ glue_sub_search( Operation *op, SlapReply *rs, BackendDB *b0,
 		BackendInfo *bi = op->o_bd->bd_info;
 		int rc = SLAP_CB_CONTINUE;
 		for ( on=on->on_next; on; on=on->on_next ) {
+			if ( on->on_bi.bi_flags & SLAPO_BFLAG_DISABLED )
+				continue;
 			op->o_bd->bd_info = (BackendInfo *)on;
 			if ( on->on_bi.bi_op_search ) {
 				rc = on->on_bi.bi_op_search( op, rs );
@@ -550,6 +552,11 @@ glue_op_search ( Operation *op, SlapReply *rs )
 				rs->sr_err = glue_sub_search( op, rs, b0, on );
 			}
 
+			if ( rs->sr_err == SLAPD_NO_REPLY ) {
+				gs.err = rs->sr_err;
+				break;
+			}
+
 			switch ( gs.err ) {
 
 			/*
@@ -716,7 +723,8 @@ end_of_loop:;
 	}
 	rs->sr_ctrls = gs.ctrls;
 
-	send_ldap_result( op, rs );
+	if ( rs->sr_err != SLAPD_NO_REPLY )
+		send_ldap_result( op, rs );
 
 	op->o_bd = b0;
 	op->o_bd->bd_info = bi0;
