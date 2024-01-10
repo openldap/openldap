@@ -1815,6 +1815,16 @@ rwm_response( Operation *op, SlapReply *rs )
 		break;
 	}
 
+	if ( op->o_tag == LDAP_REQ_ADD && op->ora_e ) {
+		/*
+		 * Rewrite back the dn and attributes of the added entry op->ora_e
+		 */
+		SlapReply rs2 = *rs;
+		rs2.sr_entry = op->ora_e;
+		rs2.sr_flags |= REP_ENTRY_MODIFIABLE;
+		return rwm_send_entry( op, &rs2 );
+	}
+
 	return SLAP_CB_CONTINUE;
 }
 
