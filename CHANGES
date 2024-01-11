@@ -11,6 +11,7 @@ OpenLDAP 2.5.17 Engineering
 	Fixed slapo-dynlist so it can't be global (ITS#10091)
 	Build
 		Fixed lloadd type mismatches (ITS#10074)
+		Fixed builds for Windows (ITS#10117)
 	Documentation
 		Fixed slapo-homedir(5) attribute name for olcHomedirArchivePath (ITS#10057)
 	Minor Cleanup
