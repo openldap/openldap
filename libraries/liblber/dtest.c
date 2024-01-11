@@ -38,10 +38,6 @@
 #include <ac/unistd.h>
 #include <ac/errno.h>
 
-#ifdef HAVE_CONSOLE_H
-#include <console.h>
-#endif
-
 #include <lber.h>
 
 static void usage( const char *name )
@@ -69,11 +65,6 @@ main( int argc, char **argv )
 		usage( argv[0] );
 		return( EXIT_FAILURE );
 	}
-
-#ifdef HAVE_CONSOLE_H
-	ccommand( &argv );
-	cshow( stdout );
-#endif
 
 	sb = ber_sockbuf_alloc();
 	fd = fileno( stdin );

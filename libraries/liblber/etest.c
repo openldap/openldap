@@ -38,10 +38,6 @@
 #include <ac/string.h>
 #include <ac/unistd.h>
 
-#ifdef HAVE_CONSOLE_H
-#include <console.h>
-#endif /* HAVE_CONSOLE_H */
-
 #include "lber.h"
 
 static void usage( const char *name )
@@ -79,19 +75,7 @@ main( int argc, char **argv )
 		return( EXIT_FAILURE );
 	}
 
-#ifdef HAVE_CONSOLE_H
-	ccommand( &argv );
-	cshow( stdout );
-
-	if (( fd = open( "lber-test", O_WRONLY|O_CREAT|O_TRUNC|O_BINARY ))
-		< 0 ) {
-	    perror( "open" );
-	    return( EXIT_FAILURE );
-	}
-
-#else
 	fd = fileno(stdout);
-#endif
 
 	sb = ber_sockbuf_alloc();
 	ber_sockbuf_add_io( sb, &ber_sockbuf_io_fd, LBER_SBIOD_LEVEL_PROVIDER,
