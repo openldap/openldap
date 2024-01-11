@@ -272,12 +272,6 @@ o: Example, Inc
 dn: ou=users,$RMTSUFFIX
 objectClass: organizationalUnit
 ou: users
-
-dn: cn=remote_user,ou=users,$RMTSUFFIX
-objectClass: person
-cn: remote_user
-sn: remote_user
-userPassword: $PASSWD
 EOF
 RC=$?
 if test $RC != 0 ; then
@@ -300,12 +294,6 @@ ou: users
 dn: ou=local,ou=users,$BASEDN
 objectClass: organizationalUnit
 ou: local
-
-dn: cn=local_user,ou=local,ou=users,$BASEDN
-objectClass: person
-cn: local_user
-sn: local_user
-userPassword: $PASSWD
 EOF
 
 echo "Populating provider1 database entries..."
@@ -346,18 +334,64 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-echo "Using ldapmodify to modify local entry on provider1..."
-$LDAPMODIFY -D $MANAGERDN -H $URI2 -w $PASSWD <<EOF >> $TESTOUT 2>&1
+echo "Using ldapadd to add local entry on provider1..."
+$LDAPADD -D $MANAGERDN -H $URI2 -w $PASSWD <<EOF >> $TESTOUT 2>&1
 dn: cn=local_user,ou=local,ou=users,$BASEDN
-changeType: modify
-replace: description
-description: Syncrepl local_user
+objectClass: person
+cn: local_user
+sn: local_user
+userPassword: $PASSWD
+description: add local_user
 EOF
 RC=32
 for i in 0 1 2 3 4 5; do
 	echo "Waiting for syncrepl to receive changes..."
 	sleep $SLEEP0
-	if grep -q '^description: Syncrepl local_user' $SYNC1OUT; then
+	if grep -q '^dn: cn=local_user' $SYNC1OUT; then
+		RC=0
+		break
+	fi
+done
+if test $RC != 0 ; then
+	echo "syncrepl failed ($RC)!"
+	kill $PID
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapmodify to modify local entry on provider1..."
+$LDAPMODIFY -D $MANAGERDN -H $URI2 -w $PASSWD <<EOF >> $TESTOUT 2>&1
+dn: cn=local_user,ou=local,ou=users,$BASEDN
+changeType: modify
+replace: description
+description: modify local_user
+EOF
+RC=32
+for i in 0 1 2 3 4 5; do
+	echo "Waiting for syncrepl to receive changes..."
+	sleep $SLEEP0
+	if grep -q '^description: modify local_user' $SYNC1OUT; then
+		RC=0
+		break
+	fi
+done
+if test $RC != 0 ; then
+	echo "syncrepl failed ($RC)!"
+	kill $PID
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapmodrdn to rename local entry on provider1..."
+$LDAPMODRDN -D $MANAGERDN -H $URI2 -w $PASSWD -r <<EOF >> $TESTOUT 2>&1
+cn=local_user,ou=local,ou=users,$BASEDN
+cn=local_user1
+EOF
+RC=32
+for i in 0 1 2 3 4 5; do
+	echo "Waiting for syncrepl to receive changes..."
+	sleep $SLEEP0
+	if grep -q '^dn: cn=local_user1' $SYNC1OUT; then
 		RC=0
 		break
 	fi
@@ -396,18 +430,20 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-echo "Using ldapmodify to modify local entry on privider2..."
-$LDAPMODIFY -D $MANAGERDN -H $URI3 -w $PASSWD <<EOF >> $TESTOUT 2>&1
+echo "Using ldapadd to add local entry on provider2..."
+$LDAPADD -D $MANAGERDN -H $URI3 -w $PASSWD <<EOF >> $TESTOUT 2>&1
 dn: cn=local_user,ou=local,ou=users,$BASEDN
-changeType: modify
-replace: description
-description: Syncrepl local_user
+objectClass: person
+cn: local_user
+sn: local_user
+userPassword: $PASSWD
+description: add local_user
 EOF
 RC=32
 for i in 0 1 2 3 4 5; do
 	echo "Waiting for syncrepl to receive changes..."
 	sleep $SLEEP0
-	if grep -q '^description: Syncrepl local_user' $SYNC2OUT; then
+	if grep -q '^dn: cn=local_user' $SYNC2OUT; then
 		RC=0
 		break
 	fi
@@ -419,18 +455,108 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-echo "Using ldapmodify to modify remote entry on privider2..."
+echo "Using ldapmodify to modify local entry on provider2..."
 $LDAPMODIFY -D $MANAGERDN -H $URI3 -w $PASSWD <<EOF >> $TESTOUT 2>&1
-dn: cn=remote_user,ou=remote,ou=users,$BASEDN
+dn: cn=local_user,ou=local,ou=users,$BASEDN
 changeType: modify
 replace: description
-description: Syncrepl remote_user
+description: modify local_user
 EOF
 RC=32
 for i in 0 1 2 3 4 5; do
 	echo "Waiting for syncrepl to receive changes..."
 	sleep $SLEEP0
-	if grep -q '^description: Syncrepl remote_user' $SYNC2OUT; then
+	if grep -q '^description: modify local_user' $SYNC2OUT; then
+		RC=0
+		break
+	fi
+done
+if test $RC != 0 ; then
+	echo "syncrepl failed ($RC)!"
+	kill $PID
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapmodrdn to rename local entry on provider2..."
+$LDAPMODRDN -D $MANAGERDN -H $URI3 -w $PASSWD -r <<EOF >> $TESTOUT 2>&1
+cn=local_user,ou=local,ou=users,$BASEDN
+cn=local_user1
+EOF
+RC=32
+for i in 0 1 2 3 4 5; do
+	echo "Waiting for syncrepl to receive changes..."
+	sleep $SLEEP0
+	if grep -q '^dn: cn=local_user1' $SYNC2OUT; then
+		RC=0
+		break
+	fi
+done
+if test $RC != 0 ; then
+	echo "syncrepl failed ($RC)!"
+	kill $PID
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapadd to add remote entry on provider2..."
+$LDAPADD -D $MANAGERDN -H $URI3 -w $PASSWD <<EOF >> $TESTOUT 2>&1
+dn: cn=remote_user,ou=remote,ou=users,$BASEDN
+objectClass: person
+cn: remote_user
+sn: remote_user
+userPassword: $PASSWD
+description: add remote_user
+EOF
+RC=32
+for i in 0 1 2 3 4 5; do
+	echo "Waiting for syncrepl to receive changes..."
+	sleep $SLEEP0
+	if grep -q '^dn: cn=remote_user' $SYNC2OUT; then
+		RC=0
+		break
+	fi
+done
+if test $RC != 0 ; then
+	echo "syncrepl failed ($RC)!"
+	kill $PID
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapmodify to modify remote entry on provider2..."
+$LDAPMODIFY -D $MANAGERDN -H $URI3 -w $PASSWD <<EOF >> $TESTOUT 2>&1
+dn: cn=remote_user,ou=remote,ou=users,$BASEDN
+changeType: modify
+replace: description
+description: modify remote_user
+EOF
+RC=32
+for i in 0 1 2 3 4 5; do
+	echo "Waiting for syncrepl to receive changes..."
+	sleep $SLEEP0
+	if grep -q '^description: modify remote_user' $SYNC2OUT; then
+		RC=0
+		break
+	fi
+done
+if test $RC != 0 ; then
+	echo "syncrepl failed ($RC)!"
+	kill $PID
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapmodrdn to rename remote entry on provider2..."
+$LDAPMODRDN -D $MANAGERDN -H $URI3 -w $PASSWD -r <<EOF >> $TESTOUT 2>&1
+cn=remote_user,ou=remote,ou=users,$BASEDN
+cn=remote_user1
+EOF
+RC=32
+for i in 0 1 2 3 4 5; do
+	echo "Waiting for syncrepl to receive changes..."
+	sleep $SLEEP0
+	if grep -q '^dn: cn=remote_user1' $SYNC2OUT; then
 		RC=0
 		break
 	fi
