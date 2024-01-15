@@ -1177,11 +1177,11 @@ slap_tool_entry_check(
 	op->o_bd = be;
 
 	if ( (slapMode & SLAP_TOOL_NO_SCHEMA_CHECK) == 0) {
-		int rc = entry_schema_check( op, e, manage, 1, NULL,
-			text, textbuf, textlen );
+		int rc = entry_naming_check( e, manage, 1, text, textbuf, textlen );
 
 		if( rc == LDAP_SUCCESS )
-			rc = entry_naming_check( e, manage, 1, text, textbuf, textlen );
+			rc = entry_schema_check( op, e, manage, 1, NULL,
+			text, textbuf, textlen );
 
 		if( rc != LDAP_SUCCESS ) {
 			fprintf( stderr, "%s: dn=\"%s\" (line=%d): (%d) %s\n",
