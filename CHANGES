@@ -21,6 +21,7 @@ OpenLDAP 2.6.7 Engineering
 		Fixed slapo-homedir(5) attribute name for olcHomedirArchivePath (ITS#10057)
 	Minor Cleanup
 		ITS#10068
+		ITS#10129
 
 OpenLDAP 2.6.6 Release (2023/07/31)
 	Fixed slapd cn=config incorrect handling of paused (ITS#10045)
