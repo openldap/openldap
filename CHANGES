@@ -5,6 +5,7 @@ OpenLDAP 2.6.7 Engineering
 	Fixed libldap exit handling with OpenSSL3 (ITS#9952)
 	Fixed libldap with TLS and multiple ldap URIs (ITS#10101)
 	Fixed libldap OpenSSL cipher suite handling (ITS#10094)
+	Fixed libldap OpenSSL 3.0 and Diffie-Hellman param files (ITS#10124)
 	Fixed libldap timestamps on Windows (ITS#10100)
 	Fixed lloadd to work when resolv.conf is missing (ITS#10070)
 	Fixed lloadd handling of closing connection (ITS#10083)
