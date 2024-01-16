@@ -20,6 +20,7 @@ OpenLDAP 2.5.17 Engineering
 		Fixed slapo-homedir(5) attribute name for olcHomedirArchivePath (ITS#10057)
 	Minor Cleanup
 		ITS#10068
+		ITS#10109
 		ITS#10129
 		ITS#10144
 		ITS#10145
