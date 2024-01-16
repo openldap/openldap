@@ -11,6 +11,7 @@ OpenLDAP 2.6.7 Engineering
 	Fixed lloadd handling of closing connection (ITS#10083)
 	Fixed slapd handling of regex testing in ACLs (ITS#10089)
 	Fixed slapd sync replication with glued database (ITS#10080)
+	Fixed slapd local logging on Windows (ITS#10092)
 	Fixed slapd-asyncmeta when remote suffix is empty (ITS#10076)
 	Fixed slapo-dynlist so it can't be global (ITS#10091)
 	Build
