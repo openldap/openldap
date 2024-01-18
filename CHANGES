@@ -27,6 +27,7 @@ OpenLDAP 2.5.17 Engineering
 		ITS#10135
 		ITS#10144
 		ITS#10145
+		ITS#10153
 
 OpenLDAP 2.5.16 Release (2023/07/31)
 	Fixed slapd cn=config incorrect handling of paused (ITS#10045)
