@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.17 Engineering
+	Added slapo-dynlist option to disable filter support (ITS#10025)
 	Fixed liblber missing newline on long msg (ITS#10105)
 	Fixed libldap exit handling with OpenSSL3 (ITS#9952)
 	Fixed libldap with TLS and multiple ldap URIs (ITS#10101)
