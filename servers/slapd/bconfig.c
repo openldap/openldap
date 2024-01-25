@@ -4360,7 +4360,8 @@ config_tls_config(ConfigArgs *c) {
 #endif
 
 static CfEntryInfo *
-config_find_base( CfEntryInfo *root, struct berval *dn, CfEntryInfo **last )
+config_find_base( CfEntryInfo *root, struct berval *dn, CfEntryInfo **last,
+	Operation *op )
 {
 	struct berval cdn;
 	char *c;
@@ -4377,7 +4378,14 @@ config_find_base( CfEntryInfo *root, struct berval *dn, CfEntryInfo **last )
 	for (;*c != ',';c--);
 
 	while(root) {
-		*last = root;
+		if ( !op || access_allowed( op, root->ce_entry,
+					slap_schema.si_ad_entry, NULL, ACL_DISCLOSE, NULL ) ) {
+			/*
+			 * ITS#10139: Only record the lowermost entry that the user has
+			 * disclose access to
+			 */
+			*last = root;
+		}
 		for (--c;c>dn->bv_val && *c != ',';c--);
 		cdn.bv_val = c;
 		if ( *c == ',' )
@@ -5495,7 +5503,7 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 	 * Databases and Overlays to be inserted. Don't do any
 	 * auto-renumbering if manageDSAit control is present.
 	 */
-	ce = config_find_base( cfb->cb_root, &e->e_nname, &last );
+	ce = config_find_base( cfb->cb_root, &e->e_nname, &last, op );
 	if ( ce ) {
 		if ( ( op && op->o_managedsait ) ||
 			( ce->ce_type != Cft_Database && ce->ce_type != Cft_Overlay &&
@@ -5516,14 +5524,14 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 	/* If last is NULL, the new entry is the root/suffix entry, 
 	 * otherwise last should be the parent.
 	 */
-	if ( last && !dn_match( &last->ce_entry->e_nname, &pdn ) ) {
-		if ( rs ) {
+	if ( cfb->cb_root && ( !last || !dn_match( &last->ce_entry->e_nname, &pdn ) ) ) {
+		if ( last && rs ) {
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
 		}
 		Debug( LDAP_DEBUG_TRACE, "%s: config_add_internal: "
 			"DN=\"%s\" not child of DN=\"%s\"\n",
 			log_prefix, e->e_name.bv_val,
-			last->ce_entry->e_name.bv_val );
+			last ? last->ce_entry->e_name.bv_val : "" );
 		return LDAP_NO_SUCH_OBJECT;
 	}
 
@@ -6461,7 +6469,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
-	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
 	if ( !ce ) {
 		if ( last )
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
@@ -6569,7 +6577,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
-	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
 	if ( !ce ) {
 		if ( last )
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
@@ -6785,7 +6793,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
-	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
 	if ( !ce ) {
 		if ( last )
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
@@ -6938,7 +6946,7 @@ config_back_search( Operation *op, SlapReply *rs )
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
 	ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
-	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last );
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
 	if ( !ce ) {
 		if ( last )
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
@@ -7026,7 +7034,7 @@ int config_back_entry_get(
 	if ( !paused ) {
 		ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
 	}
-	ce = config_find_base( cfb->cb_root, ndn, &last );
+	ce = config_find_base( cfb->cb_root, ndn, &last, op );
 	if ( ce ) {
 		e = ce->ce_entry;
 		if ( e ) {
@@ -7332,7 +7340,7 @@ config_check_schema(Operation *op, CfBackInfo *cfb)
 		return 0;
 
 	/* Make sure the main schema entry exists */
-	ce = config_find_base( cfb->cb_root, &schema_dn, &last );
+	ce = config_find_base( cfb->cb_root, &schema_dn, &last, op );
 	if ( ce ) {
 		Attribute *a;
 		struct berval *bv;
@@ -8034,7 +8042,7 @@ config_tool_entry_modify( BackendDB *be, Entry *e, struct berval *text )
 	BackendInfo *bi = cfb->cb_db.bd_info;
 	CfEntryInfo *ce, *last;
 
-	ce = config_find_base( cfb->cb_root, &e->e_nname, &last );
+	ce = config_find_base( cfb->cb_root, &e->e_nname, &last, NULL );
 
 	if ( ce && bi && bi->bi_tool_entry_modify )
 		return bi->bi_tool_entry_modify( &cfb->cb_db, e, text );
@@ -8049,7 +8057,7 @@ config_tool_entry_delete( BackendDB *be, struct berval *ndn, struct berval *text
 	BackendInfo *bi = cfb->cb_db.bd_info;
 	CfEntryInfo *ce, *last;
 
-	ce = config_find_base( cfb->cb_root, ndn, &last );
+	ce = config_find_base( cfb->cb_root, ndn, &last, NULL );
 
 	if ( ce && bi && bi->bi_tool_entry_delete )
 		return bi->bi_tool_entry_delete( &cfb->cb_db, ndn, text );
