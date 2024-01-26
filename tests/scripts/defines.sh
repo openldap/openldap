@@ -53,6 +53,7 @@ DEREF=${AC_deref-derefno}
 DYNLIST=${AC_dynlist-dynlistno}
 HOMEDIR=${AC_homedir-homedirno}
 MEMBEROF=${AC_memberof-memberofno}
+NESTGROUP=${AC_nestgroup-nestgroupno}
 OTP=${AC_otp-otpno}
 PROXYCACHE=${AC_pcache-pcacheno}
 PPOLICY=${AC_ppolicy-ppolicyno}
@@ -462,6 +463,8 @@ DDSOUT=$DATADIR/dds.out
 DEREFOUT=$DATADIR/deref.out
 MEMBEROFOUT=$DATADIR/memberof.out
 MEMBEROFREFINTOUT=$DATADIR/memberof-refint.out
+NESTGROUPOUT1=$DATADIR/nestgroup.out.1
+NESTGROUPOUT2=$DATADIR/nestgroup.out.2
 SHTOOL="$TOPSRCDIR/build/shtool"
 
 . $ABS_SRCDIR/scripts/functions.sh

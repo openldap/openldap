@@ -285,6 +285,7 @@ static OidRec OidMacros[] = {
  * OLcfgOv{Oc|At}:21			-> sssvlv
  * OLcfgOv{Oc|At}:22			-> autoca
  * OLcfgOv{Oc|At}:24			-> remoteauth
+ * OLcfgOv{Oc|At}:25			-> nestgroup
  */
 
 /* alphabetical ordering */
