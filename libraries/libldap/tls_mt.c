@@ -373,12 +373,7 @@ tlsmt_session_accept( tls_session *sess )
 {
 	tlsmt_session *s = (tlsmt_session *)sess;
 
-	int ret;
-	do {
-		ret = mbedtls_ssl_handshake( &(s->ssl_ctx) );
-	} while (ret!=0 && (ret== MBEDTLS_ERR_SSL_WANT_READ || ret==MBEDTLS_ERR_SSL_WANT_WRITE));
-
-	return ret;
+	return mbedtls_ssl_handshake( &(s->ssl_ctx) );
 }
 
 static int
