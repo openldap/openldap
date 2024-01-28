@@ -188,6 +188,7 @@ do_add( Operation *op, SlapReply *rs )
 	if ( !is_entry_glue ( op->ora_e )) {
 		rs->sr_err = entry_naming_check( op->ora_e, get_relax( op ), 1, &rs->sr_text, textbuf, textlen );
 		if ( rs->sr_err != LDAP_SUCCESS ) {
+			freevals = 0;
 			send_ldap_result( op, rs );
 			goto done;
 		}
