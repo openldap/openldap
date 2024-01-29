@@ -1,5 +1,7 @@
 OpenLDAP 2.5 Change Log
 
+OpenLDAP 2.5.18 Engineering
+
 OpenLDAP 2.5.17 Release (2024/01/29)
 	Added slapo-dynlist option to disable filter support (ITS#10025)
 	Fixed liblber missing newline on long msg (ITS#10105)
