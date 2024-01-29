@@ -10,6 +10,7 @@ OpenLDAP 2.5.17 Engineering
 	Fixed libldap timestamps on Windows (ITS#10100)
 	Fixed lloadd to work when resolv.conf is missing (ITS#10070)
 	Fixed lloadd handling of closing connection (ITS#10083)
+	Fixed slapd to honour disclose in matchedDN handling (ITS#10139)
 	Fixed slapd handling of regex testing in ACLs (ITS#10089)
 	Fixed slapd-asyncmeta when remote suffix is empty (ITS#10076)
 	Fixed slapo-dynlist so it can't be global (ITS#10091)
