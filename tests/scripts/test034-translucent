@@ -25,7 +25,7 @@ if test $TRANSLUCENT = translucentno ; then
 	exit 0
 fi 
 
-if test $AC_ldap = ldapno ; then
+if test $BACKLDAP = ldapno ; then
 	echo "Translucent Proxy overlay requires back-ldap backend, test skipped"
 	exit 0
 fi

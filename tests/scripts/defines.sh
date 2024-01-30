@@ -30,6 +30,8 @@ if [ -n "$TESTINST" ]; then
 	BASEPORT=`expr $BASEPORT + $TESTINST \* 10`
 fi
 
+. ./AC_defs.sh
+
 # backends
 BACKLDAP=${AC_ldap-ldapno}
 BACKMETA=${AC_meta-metano}

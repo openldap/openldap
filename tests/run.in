@@ -25,45 +25,18 @@ EGREP_CMD="@EGREP@"
 
 export SRCDIR TOPSRCDIR OBJDIR LN_S EGREP_CMD
 
+SCRIPTDIR="${SCRIPTDIR:-${SRCDIR}/scripts}"
+DEFSDIR="${DEFSDIR:-$SCRIPTDIR}"
+# need defines.sh for the definitions of the directories
+. "$DEFSDIR/defines.sh"
+
 # Load balancer
 AC_lloadd=lloadd@BUILD_BALANCER@
 
 # backends known to ./run -b <backend> (used to deduce $BACKENDTYPE)
 AC_ldif=yes
-AC_mdb=@BUILD_MDB@
-AC_null=@BUILD_NULL@
-
-# other backends
-AC_ldap=ldap@BUILD_LDAP@
-AC_meta=meta@BUILD_META@
-AC_asyncmeta=asyncmeta@BUILD_ASYNCMETA@
-AC_perl=perl@BUILD_PERL@
-AC_relay=relay@BUILD_RELAY@
-AC_sql=sql@BUILD_SQL@
-AC_wt=@BUILD_WT@
-
-# overlays
-AC_accesslog=accesslog@BUILD_ACCESSLOG@
-AC_argon2=argon2@BUILD_PW_ARGON2@
-AC_auditlog=auditlog@BUILD_AUDITLOG@
-AC_autoca=autoca@BUILD_AUTOCA@
-AC_constraint=constraint@BUILD_CONSTRAINT@
-AC_dds=dds@BUILD_DDS@
-AC_deref=deref@BUILD_DEREF@
-AC_dynlist=dynlist@BUILD_DYNLIST@
-AC_homedir=homedir@BUILD_HOMEDIR@
-AC_memberof=memberof@BUILD_MEMBEROF@
-AC_otp=otp@BUILD_OTP@
-AC_pcache=pcache@BUILD_PROXYCACHE@
-AC_ppolicy=ppolicy@BUILD_PPOLICY@
-AC_refint=refint@BUILD_REFINT@
-AC_remoteauth=remoteauth@BUILD_REMOTEAUTH@
-AC_retcode=retcode@BUILD_RETCODE@
-AC_translucent=translucent@BUILD_TRANSLUCENT@
-AC_unique=unique@BUILD_UNIQUE@
-AC_rwm=rwm@BUILD_RWM@
-AC_syncprov=syncprov@BUILD_SYNCPROV@
-AC_valsort=valsort@BUILD_VALSORT@
+#AC_mdb=
+#AC_null=
 
 # misc
 AC_WITH_SASL=@WITH_SASL@
@@ -73,22 +46,7 @@ AC_WITH_MODULES_ENABLED=@WITH_MODULES_ENABLED@
 AC_ACI_ENABLED=aci@WITH_ACI_ENABLED@
 AC_LIBS_DYNAMIC=lib@BUILD_LIBS_DYNAMIC@
 
-# sanitize
-if test "${AC_ldap}" = "ldapmod" && test "${AC_LIBS_DYNAMIC}" = "static" ; then
-	AC_ldap="ldapno"
-fi
-if test "${AC_meta}" = "metamod" && test "${AC_LIBS_DYNAMIC}" = "static" ; then
-	AC_meta="metano"
-fi
-if test "${AC_asyncmeta}" = "asyncmetamod" && test "${AC_LIBS_DYNAMIC}" = "static" ; then
-	AC_meta="asyncmetano"
-fi
-export AC_ldap AC_mdb AC_meta AC_asyncmeta AC_monitor AC_null AC_perl AC_relay AC_sql \
-	AC_accesslog AC_argon2 AC_auditlog AC_autoca AC_constraint AC_dds AC_deref AC_dynlist \
-	AC_homedir AC_memberof AC_otp AC_pcache AC_ppolicy AC_refint AC_remoteauth \
-	AC_retcode AC_rwm AC_unique AC_syncprov AC_translucent \
-	AC_valsort \
-	AC_lloadd \
+export AC_lloadd \
 	AC_WITH_SASL AC_WITH_TLS AC_WITH_MODULES_ENABLED AC_ACI_ENABLED \
 	AC_LIBS_DYNAMIC AC_WITH_TLS AC_TLS_TYPE
 
@@ -181,7 +139,7 @@ if test -z "$BACKEND" ; then
 	fi
 fi
 
-BACKENDTYPE=`eval 'echo $AC_'$BACKEND`
+BACKENDTYPE=`eval 'echo $AC_'$BACKEND | sed -e s/$BACKEND//`
 if test "x$BACKENDTYPE" = "x" ; then
 	BACKENDTYPE="unknown"
 fi
@@ -201,10 +159,6 @@ if test $# = 0 ; then
 	echo "$USAGE"; exit 1
 fi
 
-SCRIPTDIR="${SCRIPTDIR:-${SRCDIR}/scripts}"
-DEFSDIR="${DEFSDIR:-$SCRIPTDIR}"
-# need defines.sh for the definitions of the directories
-. "$DEFSDIR/defines.sh"
 
 ITSDIR="${SRCDIR}/data/regressions"
 SCRIPTNAME="$1"

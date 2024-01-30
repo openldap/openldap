@@ -206,7 +206,7 @@ EOF
 done
 
 syncprov_module=''
-[ "$AC_syncprov" = syncprovmod ] && syncprov_module="
+[ "$SYNCPROV" = syncprovmod ] && syncprov_module="
 dn: cn=module,cn=config
 objectClass: olcModuleList
 cn: module

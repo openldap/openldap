@@ -583,43 +583,13 @@ BUILD_LDAP=no
 BUILD_MDB=no
 BUILD_META=no
 BUILD_ASYNCMETA=no
-BUILD_NDB=no
 BUILD_NULL=no
 BUILD_PASSWD=no
 BUILD_PERL=no
 BUILD_RELAY=no
-BUILD_SHELL=no
 BUILD_SOCK=no
 BUILD_SQL=no
 BUILD_WT=no
-
-BUILD_ACCESSLOG=no
-BUILD_AUDITLOG=no
-BUILD_AUTOCA=no
-BUILD_CONSTRAINT=no
-BUILD_DDS=no
-BUILD_DENYOP=no
-BUILD_DEREF=no
-BUILD_DYNGROUP=no
-BUILD_DYNLIST=no
-BUILD_LASTMOD=no
-BUILD_HOMEDIR=no
-BUILD_MEMBEROF=no
-BUILD_OTP=no
-BUILD_PPOLICY=no
-BUILD_PROXYCACHE=no
-BUILD_REFINT=no
-BUILD_REMOTEAUTH=no
-BUILD_RETCODE=no
-BUILD_RWM=no
-BUILD_SEQMOD=no
-BUILD_SSSVLV=no
-BUILD_SYNCPROV=no
-BUILD_TRANSLUCENT=no
-BUILD_UNIQUE=no
-BUILD_VALSORT=no
-
-BUILD_PW_ARGON2=no
 
 BUILD_HARNESS=no
 
@@ -2759,7 +2729,6 @@ if test "$ol_link_wt" != no ; then
 fi
 
 if test "$ol_enable_accesslog" != no ; then
-	BUILD_ACCESSLOG=$ol_enable_accesslog
 	if test "$ol_enable_accesslog" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS accesslog.la"
@@ -2771,7 +2740,6 @@ if test "$ol_enable_accesslog" != no ; then
 fi
 
 if test "$ol_enable_auditlog" != no ; then
-	BUILD_AUDITLOG=$ol_enable_auditlog
 	if test "$ol_enable_auditlog" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS auditlog.la"
@@ -2787,7 +2755,6 @@ if test "$ol_enable_autoca" != no ; then
 		AC_MSG_ERROR([--enable-autoca=$ol_enable_autoca requires --with-tls=openssl])
 	fi
 
-	BUILD_AUTOCA=$ol_enable_autoca
 	if test "$ol_enable_autoca" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS autoca.la"
@@ -2799,19 +2766,17 @@ if test "$ol_enable_autoca" != no ; then
 fi
 
 if test "$ol_enable_collect" != no ; then
-        BUILD_COLLECT=$ol_enable_collect
-        if test "$ol_enable_collect" = mod ; then
-                MFLAG=SLAPD_MOD_DYNAMIC
-                SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS collect.la"
-        else
-                MFLAG=SLAPD_MOD_STATIC
-                SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS collect.o"
-        fi
-        AC_DEFINE_UNQUOTED(SLAPD_OVER_COLLECT,$MFLAG,[define for Collect overlay])
+	if test "$ol_enable_collect" = mod ; then
+		MFLAG=SLAPD_MOD_DYNAMIC
+		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS collect.la"
+	else
+		MFLAG=SLAPD_MOD_STATIC
+		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS collect.o"
+	fi
+	AC_DEFINE_UNQUOTED(SLAPD_OVER_COLLECT,$MFLAG,[define for Collect overlay])
 fi
 
 if test "$ol_enable_constraint" != no ; then
-	BUILD_CONSTRAINT=$ol_enable_constraint
 	if test "$ol_enable_constraint" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS constraint.la"
@@ -2823,7 +2788,6 @@ if test "$ol_enable_constraint" != no ; then
 fi
 
 if test "$ol_enable_dds" != no ; then
-	BUILD_DDS=$ol_enable_dds
 	if test "$ol_enable_dds" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS dds.la"
@@ -2835,7 +2799,6 @@ if test "$ol_enable_dds" != no ; then
 fi
 
 if test "$ol_enable_deref" != no ; then
-	BUILD_DEREF=$ol_enable_deref
 	if test "$ol_enable_deref" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS deref.la"
@@ -2847,7 +2810,6 @@ if test "$ol_enable_deref" != no ; then
 fi
 
 if test "$ol_enable_dyngroup" != no ; then
-	BUILD_DYNGROUP=$ol_enable_dyngroup
 	if test "$ol_enable_dyngroup" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS dyngroup.la"
@@ -2859,7 +2821,6 @@ if test "$ol_enable_dyngroup" != no ; then
 fi
 
 if test "$ol_enable_dynlist" != no ; then
-	BUILD_DYNLIST=$ol_enable_dynlist
 	if test "$ol_enable_dynlist" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS dynlist.la"
@@ -2871,7 +2832,6 @@ if test "$ol_enable_dynlist" != no ; then
 fi
 
 if test "$ol_enable_homedir" != no ; then
-	BUILD_HOMEDIR=$ol_enable_homedir
 	if test "$ol_enable_homedir" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS homedir.la"
@@ -2883,7 +2843,6 @@ if test "$ol_enable_homedir" != no ; then
 fi
 
 if test "$ol_enable_memberof" != no ; then
-	BUILD_MEMBEROF=$ol_enable_memberof
 	if test "$ol_enable_memberof" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS memberof.la"
@@ -2899,7 +2858,6 @@ if test "$ol_enable_otp" != no ; then
 		AC_MSG_ERROR([--enable-otp=$ol_enable_otp requires --with-tls])
 	fi
 
-	BUILD_OTP=$ol_enable_otp
 	if test "$ol_enable_otp" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS otp.la"
@@ -2911,7 +2869,6 @@ if test "$ol_enable_otp" != no ; then
 fi
 
 if test "$ol_enable_ppolicy" != no ; then
-	BUILD_PPOLICY=$ol_enable_ppolicy
 	if test "$ol_enable_ppolicy" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS ppolicy.la"
@@ -2923,7 +2880,6 @@ if test "$ol_enable_ppolicy" != no ; then
 fi
 
 if test "$ol_enable_proxycache" != no ; then
-	BUILD_PROXYCACHE=$ol_enable_proxycache
 	if test "$ol_enable_proxycache" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS pcache.la"
@@ -2933,9 +2889,11 @@ if test "$ol_enable_proxycache" != no ; then
 	fi
 	AC_DEFINE_UNQUOTED(SLAPD_OVER_PROXYCACHE,$MFLAG,[define for Proxy Cache overlay])
 fi
+dnl Testsuite expects this to be named 'pcache'
+ol_enable_pcache=$ol_enable_proxycache
+Overlays="`echo $Overlays | sed -e s,proxycache,pcache,`"
 
 if test "$ol_enable_refint" != no ; then
-	BUILD_REFINT=$ol_enable_refint
 	if test "$ol_enable_refint" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS refint.la"
@@ -2947,7 +2905,6 @@ if test "$ol_enable_refint" != no ; then
 fi
 
 if test "$ol_enable_remoteauth" != no ; then
-	BUILD_REMOTEAUTH=$ol_enable_remoteauth
 	if test "$ol_enable_remoteauth" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS remoteauth.la"
@@ -2959,7 +2916,6 @@ if test "$ol_enable_remoteauth" != no ; then
 fi
 
 if test "$ol_enable_retcode" != no ; then
-	BUILD_RETCODE=$ol_enable_retcode
 	if test "$ol_enable_retcode" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS retcode.la"
@@ -2971,7 +2927,6 @@ if test "$ol_enable_retcode" != no ; then
 fi
 
 if test "$ol_enable_rwm" != no ; then
-	BUILD_RWM=$ol_enable_rwm
 	if test "$ol_enable_rwm" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS rwm.la"
@@ -2983,7 +2938,6 @@ if test "$ol_enable_rwm" != no ; then
 fi
 
 if test "$ol_enable_seqmod" != no ; then
-	BUILD_SEQMOD=$ol_enable_seqmod
 	if test "$ol_enable_seqmod" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS seqmod.la"
@@ -2995,7 +2949,6 @@ if test "$ol_enable_seqmod" != no ; then
 fi
 
 if test "$ol_enable_sssvlv" != no ; then
-	BUILD_SSSVLV=$ol_enable_sssvlv
 	if test "$ol_enable_sssvlv" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS sssvlv.la"
@@ -3007,7 +2960,6 @@ if test "$ol_enable_sssvlv" != no ; then
 fi
 
 if test "$ol_enable_syncprov" != no ; then
-	BUILD_SYNCPROV=$ol_enable_syncprov
 	if test "$ol_enable_syncprov" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS syncprov.la"
@@ -3019,7 +2971,6 @@ if test "$ol_enable_syncprov" != no ; then
 fi
 
 if test "$ol_enable_translucent" != no ; then
-	BUILD_TRANSLUCENT=$ol_enable_translucent
 	if test "$ol_enable_translucent" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS translucent.la"
@@ -3031,7 +2982,6 @@ if test "$ol_enable_translucent" != no ; then
 fi
 
 if test "$ol_enable_unique" != no ; then
-	BUILD_UNIQUE=$ol_enable_unique
 	if test "$ol_enable_unique" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS unique.la"
@@ -3043,7 +2993,6 @@ if test "$ol_enable_unique" != no ; then
 fi
 
 if test "$ol_enable_valsort" != no ; then
-	BUILD_VALSORT=$ol_enable_valsort
 	if test "$ol_enable_valsort" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS valsort.la"
@@ -3091,7 +3040,6 @@ if test "$ol_enable_argon2" = "yes" ; then
 		AC_MSG_ERROR([--enable_argon2=$ol_enable_argon2 requires --with-argon2])
 	fi
 
-	BUILD_PW_ARGON2=$ol_enable_argon2
 	if test "$ol_enable_argon2" = "yes" ; then
 		SLAPD_DYNAMIC_PWMODS="$SLAPD_DYNAMIC_PWMODS argon2.la"
 	fi
@@ -3159,6 +3107,24 @@ else
 	PLAT=UNIX
 fi
 
+dnl ----------------------------------------------------------------
+dnl collect all backend / overlay / pwmod enable flags
+BACKEND_ENABLES=
+for i in $Backends; do
+	eval "ol_tmp=\$ol_enable_$i"
+	BACKEND_ENABLES="$BACKEND_ENABLES AC""_${i}=${i}${ol_tmp}"
+done
+OVERLAY_ENABLES=
+for i in $Overlays; do
+	eval "ol_tmp=\$ol_enable_$i"
+	OVERLAY_ENABLES="$OVERLAY_ENABLES AC""_${i}=${i}${ol_tmp}"
+done
+PWMOD_ENABLES=
+for i in $Pwmods; do
+	eval "ol_tmp=\$ol_enable_$i"
+	PWMOD_ENABLES="$PWMOD_ENABLES AC""_${i}=${i}${ol_tmp}"
+done
+
 AC_SUBST(LIBSRCS)
 AC_SUBST(PLAT)
 AC_SUBST(WITH_SASL)
@@ -3181,45 +3147,15 @@ dnl backends
   AC_SUBST(BUILD_MDB)
   AC_SUBST(BUILD_META)
   AC_SUBST(BUILD_ASYNCMETA)
-  AC_SUBST(BUILD_NDB)
   AC_SUBST(BUILD_NULL)
   AC_SUBST(BUILD_PASSWD)
-  AC_SUBST(BUILD_RELAY)
   AC_SUBST(BUILD_PERL)
-  AC_SUBST(BUILD_SHELL)
+  AC_SUBST(BUILD_RELAY)
   AC_SUBST(BUILD_SOCK)
   AC_SUBST(BUILD_SQL)
   AC_SUBST(BUILD_WT)
-dnl overlays
-  AC_SUBST(BUILD_ACCESSLOG)
-  AC_SUBST(BUILD_AUDITLOG)
-  AC_SUBST(BUILD_AUTOCA)
-  AC_SUBST(BUILD_COLLECT)
-  AC_SUBST(BUILD_CONSTRAINT)
-  AC_SUBST(BUILD_DDS)
-  AC_SUBST(BUILD_DENYOP)
-  AC_SUBST(BUILD_DEREF)
-  AC_SUBST(BUILD_DYNGROUP)
-  AC_SUBST(BUILD_DYNLIST)
-  AC_SUBST(BUILD_LASTMOD)
-  AC_SUBST(BUILD_HOMEDIR)
-  AC_SUBST(BUILD_MEMBEROF)
-  AC_SUBST(BUILD_OTP)
-  AC_SUBST(BUILD_PPOLICY)
-  AC_SUBST(BUILD_PROXYCACHE)
-  AC_SUBST(BUILD_REFINT)
-  AC_SUBST(BUILD_REMOTEAUTH)
-  AC_SUBST(BUILD_RETCODE)
-  AC_SUBST(BUILD_RWM)
-  AC_SUBST(BUILD_SEQMOD)
-  AC_SUBST(BUILD_SSSVLV)
-  AC_SUBST(BUILD_SYNCPROV)
-  AC_SUBST(BUILD_TRANSLUCENT)
-  AC_SUBST(BUILD_UNIQUE)
-  AC_SUBST(BUILD_VALSORT)
+dnl hybrid overlay
   AC_SUBST(BUILD_BALANCER)
-dnl pwmods
-  AC_SUBST(BUILD_PW_ARGON2)
 dnl test suite
   AC_SUBST(BUILD_HARNESS)
 
@@ -3243,6 +3179,10 @@ AC_SUBST(SLAPD_DYNAMIC_BACKENDS)
 AC_SUBST(SLAPD_STATIC_OVERLAYS)
 AC_SUBST(SLAPD_DYNAMIC_OVERLAYS)
 AC_SUBST(SLAPD_DYNAMIC_PWMODS)
+
+AC_SUBST(BACKEND_ENABLES)
+AC_SUBST(OVERLAY_ENABLES)
+AC_SUBST(PWMOD_ENABLES)
 
 AC_SUBST(PERL_CPPFLAGS)
 AC_SUBST(SLAPD_PERL_LDFLAGS)
@@ -3429,6 +3369,25 @@ fi
 /* end of generated file */
 ENDX
 
+TESTSMODULES="tests/AC""_defs.sh"
+echo "Making $TESTSMODULES"
+rm -f $TESTSMODULES
+echo "# This file is automatically generated by configure; please do not edit." > $TESTSMODULES
+echo "# Backends" >> $TESTSMODULES
+for i in $BACKEND_ENABLES; do
+	echo $i >> $TESTSMODULES
+done
+echo "" >> $TESTSMODULES
+echo "# Overlays" >> $TESTSMODULES
+for i in $OVERLAY_ENABLES; do
+	echo $i >> $TESTSMODULES
+done
+echo "" >> $TESTSMODULES
+echo "# Pwmods" >> $TESTSMODULES
+for i in $PWMOD_ENABLES; do
+	echo $i >> $TESTSMODULES
+done
+
 if test "${ol_cv_mkdep}" = no; then
 	echo '(Do not "make depend"; we do not know how to build dependencies)'
 else
@@ -3437,5 +3396,8 @@ fi
 ]],[[
 STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS"
 STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS"
+BACKEND_ENABLES="$BACKEND_ENABLES"
+OVERLAY_ENABLES="$OVERLAY_ENABLES"
+PWMOD_ENABLES="$PWMOD_ENABLES"
 ]])
 AC_OUTPUT
