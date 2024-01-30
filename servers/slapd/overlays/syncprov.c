@@ -3864,13 +3864,13 @@ sp_cf_gen(ConfigArgs *c)
 		break;
 	case SP_NOPRES:
 		si->si_nopres = c->value_int;
-		break;
-	case SP_USEHINT:
-		si->si_usehint = c->value_int;
-		if ( si->si_usehint ) {
+		if ( si->si_nopres ) {
 			/* Consider we might be a delta provider, but it's ok if not */
 			(void)syncprov_setup_accesslog();
 		}
+		break;
+	case SP_USEHINT:
+		si->si_usehint = c->value_int;
 		break;
 	case SP_LOGDB:
 		if ( si->si_logs ) {
