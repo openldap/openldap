@@ -694,7 +694,7 @@ slapi_int_read_config(
 		int rc;
 		Slapi_PBlock *pPlugin;
 
-		pPlugin = plugin_pblock_new( iType, numPluginArgc, c->argv );
+		pPlugin = plugin_pblock_new( iType, numPluginArgc, c );
 		if (pPlugin == NULL) {
 			return 1;
 		}
