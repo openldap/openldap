@@ -177,7 +177,6 @@ meta_search_dobind_init(
 
 	/* NOTE: this obsoletes pseudorootdn */
 	if ( op->o_conn != NULL &&
-		!op->o_do_not_cache &&
 		( BER_BVISNULL( &msc->msc_bound_ndn ) ||
 			BER_BVISEMPTY( &msc->msc_bound_ndn ) ||
 			( mt->mt_idassert_flags & LDAP_BACK_AUTH_OVERRIDE ) ) )
