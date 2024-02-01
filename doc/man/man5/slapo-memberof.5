@@ -107,6 +107,23 @@ If set to
 when an entry containing values of the "is member of" attribute is modified,
 the corresponding groups are modified as well.
 
+.TP
+.BI "memberof\-addcheck {" true "|" FALSE "}"
+This option determines whether the overlay will check newly added
+entries for membership in any existing groups. This check is useful
+if populated groups are created in the directory before the entries
+they reference. The situation often occurs during replication, which
+may replicate entries in random order.
+If set to
+.IR TRUE ,
+every Add operation will search for groups referencing the added
+entry and populate its memberof attribute with the group DNs. Note
+that
+.BR memberof\-dangling
+must be left on its default setting of
+.I ignore
+for this option to work.
+
 .LP
 The memberof overlay may be used with any backend that provides full 
 read-write functionality, but it is mainly intended for use 
@@ -114,10 +131,7 @@ with local storage backends. The maintenance operations it performs
 are internal to the server on which the overlay is configured and
 are never replicated. Consumer servers should be configured with their
 own instances of the memberOf overlay if it is desired to maintain
-these memberOf attributes on the consumers.  Note that slapo-memberOf
-is not compatible with syncrepl based replication, and should not be
-used in a replicated environment. An alternative is to use slapo-dynlist
-to emulate slapo-memberOf behavior.
+these memberOf attributes on the consumers.
 
 .SH FILES
 .TP
