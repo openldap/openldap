@@ -159,6 +159,7 @@ typedef struct memberof_t {
 #define	MEMBEROF_FDANGLING_MASK	(MEMBEROF_FDANGLING_DROP|MEMBEROF_FDANGLING_ERROR)
 #define	MEMBEROF_FREFINT	0x04U
 #define	MEMBEROF_FREVERSE	0x08U
+#define	MEMBEROF_FADDCHECK	0x10U
 
 	ber_int_t		mo_dangling_err;
 
@@ -174,6 +175,8 @@ typedef struct memberof_t {
 	MEMBEROF_CHK((mo),MEMBEROF_FREFINT)
 #define MEMBEROF_REVERSE(mo) \
 	MEMBEROF_CHK((mo),MEMBEROF_FREVERSE)
+#define MEMBEROF_ADDCHECK(mo) \
+	MEMBEROF_CHK((mo),MEMBEROF_FADDCHECK)
 } memberof_t;
 
 typedef enum memberof_is_t {
@@ -521,6 +524,87 @@ static int memberof_res_delete( Operation *op, SlapReply *rs );
 static int memberof_res_modify( Operation *op, SlapReply *rs );
 static int memberof_res_modrdn( Operation *op, SlapReply *rs );
 
+typedef struct mo_addcheck_t {
+	memberof_t	*ma_mo;
+	Entry *ma_e;
+	Attribute *ma_a;
+} mo_addcheck_t;
+
+static int memberof_res_addcheck( Operation *op, SlapReply *rs )
+{
+	mo_addcheck_t *ma = op->o_callback->sc_private;
+	if ( rs->sr_type == REP_SEARCH ) {
+		if ( !ma->ma_a ) {
+			attr_merge_one( ma->ma_e, ma->ma_mo->mo_ad_memberof,
+				&rs->sr_entry->e_name, &rs->sr_entry->e_nname );
+			ma->ma_a = attr_find( ma->ma_e->e_attrs, ma->ma_mo->mo_ad_memberof );
+		} else {
+			if ( attr_valfind( ma->ma_a, SLAP_MR_EQUALITY | SLAP_MR_ASSERTED_VALUE_NORMALIZED_MATCH |
+				SLAP_MR_ATTRIBUTE_VALUE_NORMALIZED_MATCH, &rs->sr_entry->e_nname, NULL, NULL )) {
+				attr_valadd( ma->ma_a, &rs->sr_entry->e_name, &rs->sr_entry->e_nname, 1 );
+			}
+		}
+	}
+	return 0;
+}
+
+/* Check if an entry being added is already a member of existing groups;
+ * add those groups to the entry's memberof if any.
+ */
+static void
+memberof_addcheck( Operation *op )
+{
+	slap_overinst	*on = (slap_overinst *)op->o_bd->bd_info;
+	memberof_t	*mo = (memberof_t *)on->on_bi.bi_private;
+	Operation o = *op;
+	Filter mf;
+	AttributeAssertion mava;
+	slap_callback sc = {0};
+	mo_addcheck_t ma;
+	SlapReply rs = {REP_SEARCH};
+
+	o.o_dn = op->o_bd->be_rootdn;
+	o.o_ndn = op->o_bd->be_rootndn;
+	o.o_bd->bd_info = (BackendInfo *)on->on_info;
+	o.o_tag = LDAP_REQ_SEARCH;
+	o.o_req_dn = op->o_bd->be_suffix[0];
+	o.o_req_ndn = op->o_bd->be_nsuffix[0];
+	o.o_do_not_cache = 1;
+	o.ors_scope = LDAP_SCOPE_SUBTREE;
+	o.ors_slimit = SLAP_NO_LIMIT;
+	o.ors_tlimit = SLAP_NO_LIMIT;
+	o.ors_limit = NULL;
+	o.ors_attrsonly = 1;
+	o.ors_attrs = slap_anlist_no_attrs;
+	mf.f_choice = LDAP_FILTER_EQUALITY;
+	mf.f_ava = &mava;
+	mf.f_next = NULL;
+	mf.f_av_desc = mo->mo_ad_member;
+	mf.f_av_value = op->o_req_ndn;
+	o.ors_filter = &mf;
+	o.ors_filterstr.bv_val = op->o_tmpalloc( mo->mo_ad_member->ad_cname.bv_len + 2
+		+ op->o_req_ndn.bv_len + 2, op->o_tmpmemctx );
+	{
+		char *ptr = o.ors_filterstr.bv_val;
+		*ptr++ = '(';
+		ptr = lutil_strcopy( ptr, mo->mo_ad_member->ad_cname.bv_val );
+		*ptr++ = '=';
+		ptr = lutil_strcopy( ptr, op->o_req_ndn.bv_val );
+		*ptr++ = ')';
+		*ptr = '\0';
+	}
+	sc.sc_private = &ma;
+	sc.sc_response = memberof_res_addcheck;
+	ma.ma_mo = mo;
+	ma.ma_e = op->ora_e;
+	ma.ma_a = attr_find( op->ora_e->e_attrs, mo->mo_ad_memberof );
+	o.o_callback = &sc;
+
+	o.o_bd->be_search( &o, &rs );
+	o.o_bd->bd_info = (BackendInfo *)on;
+	op->o_tmpfree( o.ors_filterstr.bv_val, op->o_tmpmemctx );
+}
+
 static int
 memberof_op_add( Operation *op, SlapReply *rs )
 {
@@ -547,6 +631,10 @@ memberof_op_add( Operation *op, SlapReply *rs )
 			"is instantiated as global.\n",
 			op->o_log_prefix, op->o_req_dn.bv_val );
 		return SLAP_CB_CONTINUE;
+	}
+
+	if ( MEMBEROF_ADDCHECK( mo )) {
+		memberof_addcheck( op );
 	}
 
 	if ( MEMBEROF_REVERSE( mo ) ) {
@@ -1649,6 +1737,7 @@ enum {
 #endif
 
 	MO_DANGLING_ERROR,
+	MO_ADDCHECK,
 
 	MO_LAST
 };
@@ -1730,6 +1819,14 @@ static ConfigTable mo_cfg[] = {
 			"SYNTAX OMsDirectoryString SINGLE-VALUE )",
 		NULL, NULL },
 
+	{ "memberof-addcheck", "true|FALSE",
+		2, 2, 0, ARG_MAGIC|ARG_ON_OFF|MO_ADDCHECK, mo_cf_gen,
+		"( OLcfgOvAt:18.8 NAME 'olcMemberOfAddCheck' "
+			"DESC 'Check for memberships on added entries' "
+			"EQUALITY booleanMatch "
+			"SYNTAX OMsBoolean SINGLE-VALUE )",
+		NULL, NULL },
+
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
 };
 
@@ -1749,6 +1846,7 @@ static ConfigOCs mo_ocs[] = {
 #if 0
 			"$ olcMemberOfReverse "
 #endif
+			"$ olcMemberOfAddCheck "
 			") "
 		")",
 		Cft_Overlay, mo_cfg, NULL, NULL },
@@ -1887,6 +1985,10 @@ mo_cf_gen( ConfigArgs *c )
 			c->value_ad = mo->mo_ad_memberof;
 			break;
 
+		case MO_ADDCHECK:
+			c->value_int = MEMBEROF_ADDCHECK( mo );
+			break;
+
 		default:
 			assert( 0 );
 			return 1;
@@ -1935,6 +2037,10 @@ mo_cf_gen( ConfigArgs *c )
 		case MO_MEMBER_OF_AD:
 			mo->mo_ad_memberof = ad_memberOf;
 			memberof_make_member_filter( mo );
+			break;
+
+		case MO_ADDCHECK:
+			mo->mo_flags &= ~MEMBEROF_FADDCHECK;
 			break;
 
 		default:
@@ -2045,6 +2151,15 @@ mo_cf_gen( ConfigArgs *c )
 			mo->mo_ad_memberof = ad;
 			memberof_make_member_filter( mo );
 			} break;
+
+		case MO_ADDCHECK:
+			if ( c->value_int ) {
+				mo->mo_flags |= MEMBEROF_FADDCHECK;
+
+			} else {
+				mo->mo_flags &= ~MEMBEROF_FADDCHECK;
+			}
+			break;
 
 		default:
 			assert( 0 );
