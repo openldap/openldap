@@ -131,7 +131,9 @@ with local storage backends. The maintenance operations it performs
 are internal to the server on which the overlay is configured and
 are never replicated. Consumer servers should be configured with their
 own instances of the memberOf overlay if it is desired to maintain
-these memberOf attributes on the consumers.
+these memberOf attributes on the consumers. Consumers must also be
+configured to exclude the \fImemberof\fP attribute from replication.
+(See the \fBexattr\fP option in the consumer configuration.)
 
 .SH FILES
 .TP
