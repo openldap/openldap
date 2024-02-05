@@ -128,7 +128,7 @@ done
 
 if test -z "$BACKEND" ; then
 	for b in mdb ; do
-		if eval "test \"\$AC_$b\" != no" ; then
+		if eval "test \"\$AC_$b\" != ${b}no" ; then
 			BACKEND=$b
 			break
 		fi
@@ -142,6 +142,10 @@ fi
 BACKENDTYPE=`eval 'echo $AC_'$BACKEND | sed -e s/$BACKEND//`
 if test "x$BACKENDTYPE" = "x" ; then
 	BACKENDTYPE="unknown"
+fi
+if test "$BACKENDTYPE" != "yes" -a "$BACKENDTYPE" != "mod" ; then
+	echo "Backend $BACKEND disabled or unknown (type is \"$BACKENDTYPE\")"
+	exit 1
 fi
 
 # Backend features.  indexdb: indexing and unchecked limit.
