@@ -1097,7 +1097,7 @@ autogroup_response( Operation *op, SlapReply *rs )
 		if ( rs->sr_type == REP_RESULT && rs->sr_err == LDAP_SUCCESS && !oex ) {
 
 			Debug( LDAP_DEBUG_TRACE, "==> autogroup_response MODRDN from <%s>\n", op->o_req_dn.bv_val );
-			Debug( LDAP_DEBUG_TRACE, "autogroup_response MODRDN to <%s>\n", op->orr_newDN );
+			Debug( LDAP_DEBUG_TRACE, "autogroup_response MODRDN to <%s>\n", op->orr_newDN.bv_val );
 
 			ldap_pvt_thread_mutex_lock( &agi->agi_mutex );			
 
