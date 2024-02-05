@@ -1936,7 +1936,7 @@ ag_cfgen( ConfigArgs *c )
 		if( !is_at_subtype( member_url_ad->ad_type, slap_schema.si_ad_labeledURI->ad_type ) ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
 				"\"autogroup-attrset <oc> <URL-ad> <member-ad>\": "
-				"AttributeDescription \"%s\" ",
+				"AttributeDescription \"%s\" "
 				"must be of a subtype \"labeledURI\"",
 				c->argv[ 2 ] );
 			Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
