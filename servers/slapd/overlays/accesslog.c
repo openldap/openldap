@@ -1567,7 +1567,7 @@ accesslog_response(Operation *op, SlapReply *rs)
 	lo = logops+logop+EN_OFFSET;
 
 	/* can't do anything if logDB isn't open */
-	if ( !SLAP_DBOPEN( li->li_db ) ) {
+	if ( !li->li_db || !SLAP_DBOPEN( li->li_db ) ) {
 		goto skip;
 	}
 
