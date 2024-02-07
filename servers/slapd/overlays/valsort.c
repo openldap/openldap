@@ -201,7 +201,7 @@ valsort_cf_func(ConfigArgs *c) {
 		return(1);
 	}
 
-	for ( vip = &on->on_bi.bi_private; *vip; vip = &(*vip)->vi_next )
+	for ( vip = (valsort_info **)&on->on_bi.bi_private; *vip; vip = &(*vip)->vi_next )
 		/* Get to the end */ ;
 
 	vi = ch_malloc( sizeof(valsort_info) );

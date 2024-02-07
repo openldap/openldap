@@ -557,7 +557,7 @@ done:;
 				a2->restrict_filter = ap.restrict_filter;
 				a2->restrict_val = ap.restrict_val;
 
-				for ( app = &on->on_bi.bi_private; *app; app = &(*app)->ap_next )
+				for ( app = (constraint **)&on->on_bi.bi_private; *app; app = &(*app)->ap_next )
 					/* Get to the end */ ;
 
 				a2->ap_next = *app;
