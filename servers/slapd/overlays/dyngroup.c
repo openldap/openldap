@@ -111,7 +111,7 @@ static int dgroup_cf( ConfigArgs *c )
 		 */
 		a2 = ch_malloc( sizeof(adpair) );
 
-		for ( app = &on->on_bi.bi_private; *app; app = &(*app)->ap_next )
+		for ( app = (adpair **)&on->on_bi.bi_private; *app; app = &(*app)->ap_next )
 			/* Get to the end */ ;
 
 		a2->ap_mem = ap.ap_mem;

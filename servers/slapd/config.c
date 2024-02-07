@@ -150,7 +150,7 @@ int config_check_vals(ConfigTable *Conf, ConfigArgs *c, int check_only ) {
 	int rc, arg_user, arg_type, arg_syn, iarg;
 	unsigned uiarg;
 	long larg;
-	size_t ularg;
+	unsigned long ularg;
 	ber_len_t barg;
 	
 	if(Conf->arg_type == ARG_IGNORED) {
