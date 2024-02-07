@@ -2044,7 +2044,7 @@ accesslog_op_mod( Operation *op, SlapReply *rs )
 		return SLAP_CB_CONTINUE;
 
 	/* can't do anything if logDB isn't open */
-	if ( !SLAP_DBOPEN( li->li_db ))
+	if ( !li->li_db || !SLAP_DBOPEN( li->li_db ))
 		return SLAP_CB_CONTINUE;
 	
 	logop = accesslog_op2logop( op );
