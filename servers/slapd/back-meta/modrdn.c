@@ -45,9 +45,12 @@ meta_back_modrdn( Operation *op, SlapReply *rs )
 	ldap_back_send_t	retrying = LDAP_BACK_RETRYING;
 	LDAPControl	**ctrls = NULL;
 	struct berval	newrdn = BER_BVNULL;
+	SlapReply *candidates = NULL;
 
-	mc = meta_back_getconn( op, rs, &candidate, LDAP_BACK_SENDERR );
-	if ( !mc || !meta_back_dobind( op, rs, mc, LDAP_BACK_SENDERR ) ) {
+	candidates = meta_back_candidates_get( op );
+	mc = meta_back_getconn( op, rs, &candidate, LDAP_BACK_SENDERR, candidates );
+	if ( !mc || !meta_back_dobind( op, rs, mc, LDAP_BACK_SENDERR, candidates ) ) {
+		op->o_tmpfree( candidates, op->o_tmpmemctx );
 		return rs->sr_err;
 	}
 
@@ -142,7 +145,7 @@ retry:;
 		mt->mt_timeout[ SLAP_OP_MODRDN ], ( LDAP_BACK_SENDRESULT | retrying ) );
 	if ( rs->sr_err == LDAP_UNAVAILABLE && retrying ) {
 		retrying &= ~LDAP_BACK_RETRYING;
-		if ( meta_back_retry( op, rs, &mc, candidate, LDAP_BACK_SENDERR ) ) {
+		if ( meta_back_retry( op, rs, &mc, candidate, LDAP_BACK_SENDERR, candidates ) ) {
 			/* if the identity changed, there might be need to re-authz */
 			(void)mi->mi_ldap_extra->controls_free( op, rs, &ctrls );
 			goto retry;
@@ -172,6 +175,7 @@ cleanup:;
 		meta_back_release_conn( mi, mc );
 	}
 
+	op->o_tmpfree( candidates, op->o_tmpmemctx );
 	return rs->sr_err;
 }
 

@@ -722,7 +722,7 @@ retry:;
 		break;
 	
 	case LDAP_SERVER_DOWN:
-		if ( nretries && meta_back_retry( op, rs, mcp, candidate, LDAP_BACK_DONTSEND ) ) {
+		if ( nretries && meta_back_retry( op, rs, mcp, candidate, LDAP_BACK_DONTSEND, candidates ) ) {
 			nretries = 0;
 			/* if the identity changed, there might be need to re-authz */
 			(void)mi->mi_ldap_extra->controls_free( op, rs, &ctrls );
@@ -798,8 +798,9 @@ meta_back_search( Operation *op, SlapReply *rs )
 	 * FIXME: in case of values return filter, we might want
 	 * to map attrs and maybe rewrite value
 	 */
+	candidates = meta_back_candidates_get( op );
 getconn:;
-	mc = meta_back_getconn( op, rs, NULL, sendok );
+	mc = meta_back_getconn( op, rs, NULL, sendok, candidates );
 	if ( !mc ) {
 		return rs->sr_err;
 	}
@@ -807,7 +808,6 @@ getconn:;
 	dc.conn = op->o_conn;
 	dc.rs = rs;
 
-	if ( candidates == NULL ) candidates = meta_back_candidates_get( op );
 	/*
 	 * Inits searches
 	 */
@@ -1146,7 +1146,7 @@ really_bad:;
 				if ( candidates[ i ].sr_type == REP_INTERMEDIATE ) {
 					candidates[ i ].sr_type = REP_RESULT;
 
-					if ( meta_back_retry( op, rs, &mc, i, LDAP_BACK_DONTSEND ) ) {
+					if ( meta_back_retry( op, rs, &mc, i, LDAP_BACK_DONTSEND, candidates ) ) {
 						candidates[ i ].sr_msgid = META_MSGID_IGNORE;
 						switch ( meta_back_search_start( op, rs, &dc, &mc, i, candidates, NULL, 0 ) )
 						{
@@ -1997,6 +1997,7 @@ finish:;
 		ldap_pvt_thread_mutex_unlock( &mi->mi_conninfo.lai_mutex );
 	}
 
+	op->o_tmpfree( candidates, op->o_tmpmemctx );
 	return rs->sr_err;
 }
 
