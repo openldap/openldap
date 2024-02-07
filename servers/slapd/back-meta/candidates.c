@@ -222,11 +222,11 @@ meta_back_select_unique_candidate(
 int
 meta_clear_unused_candidates(
 	Operation	*op,
-	int		candidate )
+	int		candidate,
+	SlapReply	*candidates )
 {
 	metainfo_t	*mi = ( metainfo_t * )op->o_bd->be_private;
 	int		i;
-	SlapReply	*candidates = meta_back_candidates_get( op );
 	
 	for ( i = 0; i < mi->mi_ntargets; ++i ) {
 		if ( i == candidate ) {
