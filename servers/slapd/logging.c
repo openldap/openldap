@@ -44,6 +44,7 @@ static long logfile_fslimit;
 static int logfile_age, logfile_only, logfile_max;
 static char *syslog_prefix;
 static int splen;
+static int logfile_rotfail, logfile_openfail;
 
 typedef enum { LFMT_DEFAULT, LFMT_DEBUG, LFMT_SYSLOG_UTC, LFMT_SYSLOG_LOCAL } LogFormat;
 static LogFormat logfile_format;
@@ -129,11 +130,42 @@ slap_debug_print( const char *data )
 			if ( logfile_age && tv.tv_sec - logfile_fcreated >= logfile_age )
 				rotate |= 2;
 			if ( rotate ) {
-				close( logfile_fd );
-				logfile_fd = -1;
+				int rc, savefd;
 				strcpy( logpaths[0]+logpathlen, ".tmp" );
-				rename( logfile_path, logpaths[0] );
-				logfile_open( logfile_path );
+				if ( rename( logfile_path, logpaths[0] )) {
+					rc = errno;
+					if ( !logfile_rotfail ) {
+						char buf[BUFSIZ];
+						char ebuf[128];
+						int len = snprintf(buf, sizeof( buf ), "ERROR! logfile rotate failure, err=%d \"%s\"\n",
+							rc, AC_STRERROR_R( rc, ebuf, sizeof(ebuf) ));
+						if ( !logfile_only )
+							!write( 2, buf, len );
+						!write( logfile_fd, buf, len );
+						logfile_rotfail = 1;
+					}
+					rotate = 0;	/* don't bother since it will fail */
+				} else {
+					logfile_rotfail = 0;
+				}
+				savefd = logfile_fd;
+				logfile_fd = -1;
+				if (( rc = logfile_open( logfile_path ))) {
+					logfile_fd = savefd;
+					if ( !logfile_openfail ) {
+						char buf[BUFSIZ];
+						char ebuf[128];
+						int len = snprintf(buf, sizeof( buf ), "ERROR! logfile couldn't be reopened, err=%d \"%s\"\n",
+							rc, AC_STRERROR_R( rc, ebuf, sizeof(ebuf) ));
+						if ( !logfile_only )
+							!write( 2, buf, len );
+						!write( logfile_fd, buf, len );
+						logfile_openfail = 1;
+					}
+				} else {
+					close( savefd );
+					logfile_openfail = 0;
+				}
 			}
 		}
 
@@ -205,7 +237,7 @@ logfile_open( const char *path )
 	if ( !( slapMode & SLAP_SERVER_MODE ))
 		return 0;
 
-	fd = open( path, O_CREAT|O_WRONLY, 0640 );
+	fd = open( path, O_CREAT|O_WRONLY|O_APPEND, 0640 );
 	if ( fd < 0 ) {
 		saved_errno = errno;
 fail:
@@ -233,7 +265,6 @@ fail:
 	logfile_fsize = st.st_size;
 	logfile_fcreated = st.st_ctime;	/* not strictly true but close enough */
 	logfile_fd = fd;
-	lseek( fd, 0, SEEK_END );
 
 	return 0;
 }
@@ -760,6 +791,14 @@ reset:
 
 		case CFG_LOGFILE:
 			rc = logfile_open( c->value_string );
+			if ( rc ) {
+				char ebuf[128];
+				snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> unable to open logfile, err=%d \"%s\"",
+					c->argv[0], rc, AC_STRERROR_R( rc, ebuf, sizeof(ebuf) ) );
+				Debug( LDAP_DEBUG_ANY, "%s: %s \"%s\"\n",
+					c->log, c->cr_msg, c->argv[1]);
+				return( 1 );
+			}
 			ch_free( c->value_string );
 			break;
 
