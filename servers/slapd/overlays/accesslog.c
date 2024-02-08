@@ -2407,7 +2407,13 @@ accesslog_db_root(
 				attr_merge_one( e, slap_schema.si_ad_entryCSN,
 					&a->a_vals[0], &a->a_nvals[0] );
 				attr_merge( e, a->a_desc, a->a_vals, a->a_nvals );
+
+				/* Populate minCSN */
 				attr_merge( e, ad_minCSN, a->a_vals, a->a_nvals );
+				ber_bvarray_dup_x( &li->li_mincsn, a->a_vals, NULL );
+				li->li_numcsns = a->a_numvals;
+				li->li_sids = slap_parse_csn_sids( li->li_mincsn, li->li_numcsns, NULL );
+				slap_sort_csn_sids( li->li_mincsn, li->li_sids, li->li_numcsns, NULL );
 			}
 			be_entry_release_rw( op, e_ctx, 0 );
 		}
