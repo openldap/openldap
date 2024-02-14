@@ -738,8 +738,22 @@ if test $ol_enable_perl != no ; then
 		fi
 
 	else
-		PERL_CPPFLAGS="`$PERLBIN -MExtUtils::Embed -e ccopts`"
-		PERL_LDFLAGS="`$PERLBIN -MExtUtils::Embed -e ldopts|sed -e 's/ -lc / /' -e 's/ -lc$//'`"
+		PERL_CPPFLAGS=""
+		for opt in `$PERLBIN -MExtUtils::Embed -e ccopts`; do
+			case "$opt" in
+			"-flto=auto" | "-Wall" )
+				continue;;
+			esac
+			PERL_CPPFLAGS="$PERL_CPPFLAGS $opt"
+		done
+		PERL_LDFLAGS=""
+		for opt in `$PERLBIN" -MExtUtils::Embed -e ldopts`; do
+			case "$opt" in
+			"-lc" )
+				continue;;
+			esac
+			PERL_LDFLAGS="$PERL_LDFLAGS $opt"
+		done
 
 		if test x"$ol_enable_perl" = "xyes" ; then
 			SLAPD_PERL_LDFLAGS="$PERL_LDFLAGS"
