@@ -1,10 +1,10 @@
 OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.8 Engineering
-	Added slapo-memberof 'addcheck' option (ITS#10167)
-	Fixed slapo-accesslog startup initialization (ITS#10170)
 	Fixed slapd-meta with dynlist (ITS#10164)
 	Fixed slapd-meta binds when proxying internal op (ITS#10165)
+	Added slapo-memberof 'addcheck' option (ITS#10167)
+	Fixed slapo-accesslog startup initialization (ITS#10170)
 	Build
 		Fixed build with gcc14.x (ITS#10166)
 	Minor Cleanup
