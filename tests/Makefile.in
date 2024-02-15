@@ -16,11 +16,8 @@
 RUN=./run
 SUBDIRS= modules progs
 
-BUILD_MDB=@BUILD_MDB@
-BUILD_SQL=@BUILD_SQL@
 BUILD_SLAPD=@BUILD_SLAPD@
 BUILD_BALANCER=@BUILD_BALANCER@
-BUILD_WT=@BUILD_WT@
 
 # test primary backends (default)
 test tests:

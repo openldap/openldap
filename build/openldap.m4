@@ -40,6 +40,21 @@ dnl AC_MSG_RESULT([OpenLDAP -enable-$1 $ol_enable_$1])
 	popdef([ol_DefVal])
 # end --enable-$1
 ])dnl
+AC_DEFUN([OL_ARG_ENABLE_BK], [
+	Backends="$Backends $1"
+	Bk_help_$1="$2"
+	OL_ARG_ENABLE($1, [AS_HELP_STRING([--enable-$1], [enable $2])], $3, $4, $5)
+])dnl
+AC_DEFUN([OL_ARG_ENABLE_OV], [
+	Overlays="$Overlays $1"
+	Ov_help_$1="$2"
+	OL_ARG_ENABLE($1, [AS_HELP_STRING([--enable-$1], [$2])], $3, $4, $5)
+])dnl
+AC_DEFUN([OL_ARG_ENABLE_PW], [
+	Pwmods="$Pwmods $1"
+	Pw_help_$1="$2"
+	OL_ARG_ENABLE($1, [AS_HELP_STRING([--enable-$1], [$2])], $3, $4, $5)
+])dnl
 dnl
 dnl --------------------------------------------------------------------
 dnl Restricted form of AC_ARG_WITH that limits user options

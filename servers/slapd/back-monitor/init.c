@@ -30,8 +30,6 @@
 #include "lber_pvt.h"
 #include "back-monitor.h"
 
-#include "slap-config.h"
-
 #undef INTEGRATE_CORE_SCHEMA
 
 /*

@@ -924,137 +924,20 @@
 /* define to support per-object ACIs */
 #undef SLAPD_ACI_ENABLED
 
-/* define to support LDAP Async Metadirectory backend */
-#undef SLAPD_ASYNCMETA
-
 /* define to support cleartext passwords */
 #undef SLAPD_CLEARTEXT
 
 /* define to support crypt(3) passwords */
 #undef SLAPD_CRYPT
 
-/* define to support DNS SRV backend */
-#undef SLAPD_DNSSRV
-
-/* define to support LDAP backend */
-#undef SLAPD_LDAP
-
-/* define to support MDB backend */
-#undef SLAPD_MDB
-
-/* define to support LDAP Metadirectory backend */
-#undef SLAPD_META
-
 /* define to support modules */
 #undef SLAPD_MODULES
-
-/* dynamically linked module */
-#undef SLAPD_MOD_DYNAMIC
-
-/* statically linked module */
-#undef SLAPD_MOD_STATIC
-
-/* define to support NULL backend */
-#undef SLAPD_NULL
-
-/* define for In-Directory Access Logging overlay */
-#undef SLAPD_OVER_ACCESSLOG
-
-/* define for Audit Logging overlay */
-#undef SLAPD_OVER_AUDITLOG
-
-/* define for Automatic Certificate Authority overlay */
-#undef SLAPD_OVER_AUTOCA
-
-/* define for Collect overlay */
-#undef SLAPD_OVER_COLLECT
-
-/* define for Attribute Constraint overlay */
-#undef SLAPD_OVER_CONSTRAINT
-
-/* define for Dynamic Directory Services overlay */
-#undef SLAPD_OVER_DDS
-
-/* define for Dynamic Directory Services overlay */
-#undef SLAPD_OVER_DEREF
-
-/* define for Dynamic Group overlay */
-#undef SLAPD_OVER_DYNGROUP
-
-/* define for Dynamic List overlay */
-#undef SLAPD_OVER_DYNLIST
-
-/* define for Home Directory Management overlay */
-#undef SLAPD_OVER_HOMEDIR
-
-/* define for Reverse Group Membership overlay */
-#undef SLAPD_OVER_MEMBEROF
-
-/* define for OTP 2-factor Authentication overlay */
-#undef SLAPD_OVER_OTP
-
-/* define for Password Policy overlay */
-#undef SLAPD_OVER_PPOLICY
-
-/* define for Proxy Cache overlay */
-#undef SLAPD_OVER_PROXYCACHE
-
-/* define for Referential Integrity overlay */
-#undef SLAPD_OVER_REFINT
-
-/* define for Deferred Authentication overlay */
-#undef SLAPD_OVER_REMOTEAUTH
-
-/* define for Return Code overlay */
-#undef SLAPD_OVER_RETCODE
-
-/* define for Rewrite/Remap overlay */
-#undef SLAPD_OVER_RWM
-
-/* define for Sequential Modify overlay */
-#undef SLAPD_OVER_SEQMOD
-
-/* define for ServerSideSort/VLV overlay */
-#undef SLAPD_OVER_SSSVLV
-
-/* define for Syncrepl Provider overlay */
-#undef SLAPD_OVER_SYNCPROV
-
-/* define for Translucent Proxy overlay */
-#undef SLAPD_OVER_TRANSLUCENT
-
-/* define for Attribute Uniqueness overlay */
-#undef SLAPD_OVER_UNIQUE
-
-/* define for Value Sorting overlay */
-#undef SLAPD_OVER_VALSORT
-
-/* define to support PASSWD backend */
-#undef SLAPD_PASSWD
-
-/* define to support PERL backend */
-#undef SLAPD_PERL
-
-/* define for Argon2 Password hashing module */
-#undef SLAPD_PWMOD_PW_ARGON2
-
-/* define to support relay backend */
-#undef SLAPD_RELAY
 
 /* define to support reverse lookups */
 #undef SLAPD_RLOOKUPS
 
-/* define to support SOCK backend */
-#undef SLAPD_SOCK
-
 /* define to support SASL passwords */
 #undef SLAPD_SPASSWD
-
-/* define to support SQL backend */
-#undef SLAPD_SQL
-
-/* define to support WiredTiger backend */
-#undef SLAPD_WT
 
 /* define to support run-time loadable ACL */
 #undef SLAP_DYNACL

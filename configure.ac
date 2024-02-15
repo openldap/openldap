@@ -190,7 +190,7 @@ AH_BOTTOM([
 /* end of portable.h.post */
 ])
 
-AC_CONFIG_HEADERS([include/portable.h:include/portable.hin])
+AC_CONFIG_HEADERS([include/portable.h:include/portable.hin:include/slapd-modules.hin])
 AC_CONFIG_HEADERS([include/ldap_features.h:include/ldap_features.hin])
 AC_CONFIG_HEADERS([include/lber_types.h:include/lber_types.hin])
 
@@ -293,140 +293,103 @@ OL_ARG_ENABLE(wrappers, [AS_HELP_STRING([--enable-wrappers], [enable tcp wrapper
 
 dnl ----------------------------------------------------------------
 dnl SLAPD Backend Options
-Backends="dnssrv \
-	ldap \
-	mdb \
-	meta \
-	asyncmeta \
-	null \
-	passwd \
-	perl \
-	relay \
-	sock \
-	sql \
-	wt"
+Backends=""
 
 AC_ARG_ENABLE(xxslapbackends,[
 SLAPD Backend Options:])
 
 OL_ARG_ENABLE(backends, [AS_HELP_STRING([--enable-backends], [enable all available backends])],
 	--, [no yes mod])dnl
-OL_ARG_ENABLE(dnssrv, [AS_HELP_STRING([--enable-dnssrv], [enable dnssrv backend])],
+OL_ARG_ENABLE_BK(dnssrv, [dnssrv backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(ldap, [AS_HELP_STRING([--enable-ldap], [enable ldap backend])],
+OL_ARG_ENABLE_BK(ldap, [ldap backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(mdb, [AS_HELP_STRING([--enable-mdb], [enable mdb database backend])],
+OL_ARG_ENABLE_BK(mdb, [mdb database backend],
 	yes, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(meta, [AS_HELP_STRING([--enable-meta], [enable metadirectory backend])],
+OL_ARG_ENABLE_BK(meta, [metadirectory backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(asyncmeta, [AS_HELP_STRING([--enable-asyncmeta], [enable asynchronous metadirectory backend])],
+OL_ARG_ENABLE_BK(asyncmeta, [asynchronous metadirectory backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(null, [AS_HELP_STRING([--enable-null], [enable null backend])],
+OL_ARG_ENABLE_BK(null, [null backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(passwd, [AS_HELP_STRING([--enable-passwd], [enable passwd backend])],
+OL_ARG_ENABLE_BK(passwd, [passwd backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(perl, [AS_HELP_STRING([--enable-perl], [enable perl backend])],
+OL_ARG_ENABLE_BK(perl, [perl backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(relay, [AS_HELP_STRING([--enable-relay], [enable relay backend])],
+OL_ARG_ENABLE_BK(relay, [relay backend],
 	yes, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(sock, [AS_HELP_STRING([--enable-sock], [enable sock backend])],
+OL_ARG_ENABLE_BK(sock, [sock backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(sql, [AS_HELP_STRING([--enable-sql], [enable sql backend])],
+OL_ARG_ENABLE_BK(sql, [sql backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE(wt, [AS_HELP_STRING([--enable-wt], [enable WiredTiger backend])],
+OL_ARG_ENABLE_BK(wt, [WiredTiger backend],
 	no, [no yes mod], ol_enable_backends)dnl
 
 dnl ----------------------------------------------------------------
 dnl SLAPD Overlay Options
-Overlays="accesslog \
-	auditlog \
-	autoca \
-	collect \
-	constraint \
-	dds \
-	deref \
-	dyngroup \
-	dynlist \
-	homedir \
-	memberof \
-	nestgroup \
-	otp \
-	ppolicy \
-	proxycache \
-	refint \
-	remoteauth \
-	retcode \
-	rwm \
-	seqmod \
-	sssvlv \
-	syncprov \
-	translucent \
-	unique \
-	valsort"
-
-Pwmods="argon2"
+Overlays=""
 
 AC_ARG_ENABLE(xxslapoverlays,[
 SLAPD Overlay Options:])
 
 OL_ARG_ENABLE(overlays, [AS_HELP_STRING([--enable-overlays], [enable all available overlays])],
 	--, [no yes mod])dnl
-OL_ARG_ENABLE(accesslog, [AS_HELP_STRING([--enable-accesslog], [In-Directory Access Logging overlay])],
+OL_ARG_ENABLE_OV(accesslog, [In-Directory Access Logging overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(auditlog, [AS_HELP_STRING([--enable-auditlog], [Audit Logging overlay])],
+OL_ARG_ENABLE_OV(auditlog, [Audit Logging overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(autoca, [AS_HELP_STRING([--enable-autoca], [Automatic Certificate Authority overlay])],
+OL_ARG_ENABLE_OV(autoca, [Automatic Certificate Authority overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(collect, [AS_HELP_STRING([--enable-collect], [Collect overlay])],
+OL_ARG_ENABLE_OV(collect, [Collectve attributes overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(constraint, [AS_HELP_STRING([--enable-constraint], [Attribute Constraint overlay])],
+OL_ARG_ENABLE_OV(constraint, [Attribute Constraint overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(dds, [AS_HELP_STRING([--enable-dds], [Dynamic Directory Services overlay])],
+OL_ARG_ENABLE_OV(dds, [Dynamic Directory Services overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(deref, [AS_HELP_STRING([--enable-deref], [Dereference overlay])],
+OL_ARG_ENABLE_OV(deref, [Dereference overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(dyngroup, [AS_HELP_STRING([--enable-dyngroup], [Dynamic Group overlay])],
+OL_ARG_ENABLE_OV(dyngroup, [Dynamic Group overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(dynlist, [AS_HELP_STRING([--enable-dynlist], [Dynamic List overlay])],
+OL_ARG_ENABLE_OV(dynlist, [Dynamic List overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(homedir, [AS_HELP_STRING([--enable-homedir], [Home Directory Management overlay])],
+OL_ARG_ENABLE_OV(homedir, [Home Directory Management overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(memberof, [AS_HELP_STRING([--enable-memberof], [Reverse Group Membership overlay])],
+OL_ARG_ENABLE_OV(memberof, [Reverse Group Membership overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(nestgroup, [AS_HELP_STRING([--enable-nestgroup], [Nested Group overlay])],
+OL_ARG_ENABLE_OV(nestgroup, [Nested Group overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(otp, [AS_HELP_STRING([--enable-otp], [OTP 2-factor authentication overlay])],
+OL_ARG_ENABLE_OV(ppolicy, [Password Policy overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(ppolicy, [AS_HELP_STRING([--enable-ppolicy], [Password Policy overlay])],
+OL_ARG_ENABLE_OV(proxycache, [Proxy Cache overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(proxycache, [AS_HELP_STRING([--enable-proxycache], [Proxy Cache overlay])],
+OL_ARG_ENABLE_OV(refint, [Referential Integrity overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(refint, [AS_HELP_STRING([--enable-refint], [Referential Integrity overlay])],
+OL_ARG_ENABLE_OV(remoteauth, [Deferred Authentication overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(remoteauth, [AS_HELP_STRING([--enable-remoteauth], [Deferred Authentication overlay])],
+OL_ARG_ENABLE_OV(retcode, [Return Code testing overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(retcode, [AS_HELP_STRING([--enable-retcode], [Return Code testing overlay])],
+OL_ARG_ENABLE_OV(rwm, [Rewrite/Remap overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(rwm, [AS_HELP_STRING([--enable-rwm], [Rewrite/Remap overlay])],
+OL_ARG_ENABLE_OV(seqmod, [Sequential Modify overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(seqmod, [AS_HELP_STRING([--enable-seqmod], [Sequential Modify overlay])],
+OL_ARG_ENABLE_OV(sssvlv, [ServerSideSort/VLV overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(sssvlv, [AS_HELP_STRING([--enable-sssvlv], [ServerSideSort/VLV overlay])],
-	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(syncprov, [AS_HELP_STRING([--enable-syncprov], [Syncrepl Provider overlay])],
+OL_ARG_ENABLE_OV(syncprov, [Syncrepl Provider overlay],
 	yes, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(translucent, [AS_HELP_STRING([--enable-translucent], [Translucent Proxy overlay])],
+OL_ARG_ENABLE_OV(translucent, [Translucent Proxy overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(unique, [AS_HELP_STRING([--enable-unique], [Attribute Uniqueness overlay])],
+OL_ARG_ENABLE_OV(unique, [Attribute Uniqueness overlay],
 	no, [no yes mod], ol_enable_overlays)
-OL_ARG_ENABLE(valsort, [AS_HELP_STRING([--enable-valsort], [Value Sorting overlay])],
+OL_ARG_ENABLE_OV(valsort, [Value Sorting overlay],
 	no, [no yes mod], ol_enable_overlays)
 
 dnl ----------------------------------------------------------------
 dnl PASSWORD MODULE OPTIONS
+Pwmods=""
+
 AC_ARG_ENABLE(pwmodoptions,[
 SLAPD Password Module Options:])
-OL_ARG_ENABLE(argon2, [AS_HELP_STRING([--enable-argon2], [Argon2 password hashing module])],
+OL_ARG_ENABLE_PW(argon2, [Argon2 password hashing module],
 	no, [no yes], ol_enable_pwmodules)
 OL_ARG_WITH(argon2,
 	[AS_HELP_STRING([--with-argon2], [with argon2 support library auto|libsodium|libargon2])],
@@ -580,19 +543,6 @@ BUILD_THREAD=no
 
 BUILD_SLAPI=no
 SLAPD_SLAPI_DEPEND=
-
-BUILD_DNSSRV=no
-BUILD_LDAP=no
-BUILD_MDB=no
-BUILD_META=no
-BUILD_ASYNCMETA=no
-BUILD_NULL=no
-BUILD_PASSWD=no
-BUILD_PERL=no
-BUILD_RELAY=no
-BUILD_SOCK=no
-BUILD_SQL=no
-BUILD_WT=no
 
 BUILD_HARNESS=no
 
@@ -2586,288 +2536,27 @@ if test "$ol_link_modules" != no ; then
 	SLAPD_MODULES_LDFLAGS="-dlopen self"
 fi
 
-AC_DEFINE(SLAPD_MOD_STATIC,1,[statically linked module])
-AC_DEFINE(SLAPD_MOD_DYNAMIC,2,[dynamically linked module])
-
-if test "$ol_enable_dnssrv" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_DNSSRV=$ol_enable_dnssrv
-	if test "$ol_enable_dnssrv" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-dnssrv"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-dnssrv"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_DNSSRV,$MFLAG,[define to support DNS SRV backend])
+if test "$ol_link_perl" = no ; then
+	ol_enable_perl=no
+fi
+if test "$ol_link_sql" = no ; then
+	ol_enable_sql=no
+fi
+if test "$ol_link_wt" = no ; then
+	ol_enable_wt=no
 fi
 
-if test "$ol_enable_ldap" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_LDAP=$ol_enable_ldap
-	if test "$ol_enable_ldap" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-ldap"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-ldap"
-		MFLAG=SLAPD_MOD_STATIC
+for i in $Backends; do
+	eval "ol_tmp=\$ol_enable_$i"
+	if test "$ol_tmp" != no ; then
+		BUILD_SLAPD=yes
 	fi
-	AC_DEFINE_UNQUOTED(SLAPD_LDAP,$MFLAG,[define to support LDAP backend])
-fi
-
-if test "$ol_enable_mdb" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_MDB=$ol_enable_mdb
-	if test "$ol_enable_mdb" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-mdb"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-mdb"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_MDB,$MFLAG,[define to support MDB backend])
-fi
-
-if test "$ol_enable_meta" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_META=$ol_enable_meta
-	if test "$ol_enable_meta" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-meta"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-meta"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_META,$MFLAG,[define to support LDAP Metadirectory backend])
-fi
-
-if test "$ol_enable_asyncmeta" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_ASYNCMETA=$ol_enable_asyncmeta
-	if test "$ol_enable_asyncmeta" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-asyncmeta"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-asyncmeta"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_ASYNCMETA,$MFLAG,[define to support LDAP Async Metadirectory backend])
-fi
-
-if test "$ol_enable_null" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_NULL=$ol_enable_null
-	if test "$ol_enable_null" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-null"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-null"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_NULL,$MFLAG,[define to support NULL backend])
-fi
-
-if test "$ol_enable_passwd" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_PASSWD=$ol_enable_passwd
-	if test "$ol_enable_passwd" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-passwd"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-passwd"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_PASSWD,$MFLAG,[define to support PASSWD backend])
-fi
-
-if test "$ol_link_perl" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_PERL=$ol_enable_perl
-	if test "$ol_enable_perl" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-perl"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-perl"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_PERL,$MFLAG,[define to support PERL backend])
-fi
-
-if test "$ol_enable_relay" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_RELAY=$ol_enable_relay
-	if test "$ol_enable_relay" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-relay"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-relay"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_RELAY,$MFLAG,[define to support relay backend])
-fi
-
-if test "$ol_enable_sock" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_SOCK=$ol_enable_sock
-	if test "$ol_enable_sock" = mod ; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-sock"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-sock"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_SOCK,$MFLAG,[define to support SOCK backend])
-fi
-
-if test "$ol_link_sql" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_SQL=$ol_enable_sql
-	if test "$ol_enable_sql" = mod; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-sql"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-sql"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_SQL,$MFLAG,[define to support SQL backend])
-fi
-
-if test "$ol_link_wt" != no ; then
-	BUILD_SLAPD=yes
-	BUILD_WT=$ol_enable_wt
-	if test "$ol_enable_wt" = mod; then
-		SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-wt"
-		MFLAG=SLAPD_MOD_DYNAMIC
-	else
-		SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-wt"
-		MFLAG=SLAPD_MOD_STATIC
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_WT,$MFLAG,[define to support WiredTiger backend])
-fi
-
-if test "$ol_enable_accesslog" != no ; then
-	if test "$ol_enable_accesslog" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS accesslog.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS accesslog.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_ACCESSLOG,$MFLAG,[define for In-Directory Access Logging overlay])
-fi
-
-if test "$ol_enable_auditlog" != no ; then
-	if test "$ol_enable_auditlog" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS auditlog.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS auditlog.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_AUDITLOG,$MFLAG,[define for Audit Logging overlay])
-fi
+done
 
 if test "$ol_enable_autoca" != no ; then
 	if test $ol_with_tls != openssl ; then
 		AC_MSG_ERROR([--enable-autoca=$ol_enable_autoca requires --with-tls=openssl])
 	fi
-
-	if test "$ol_enable_autoca" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS autoca.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS autoca.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_AUTOCA,$MFLAG,[define for Automatic Certificate Authority overlay])
-fi
-
-if test "$ol_enable_collect" != no ; then
-	if test "$ol_enable_collect" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS collect.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS collect.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_COLLECT,$MFLAG,[define for Collect overlay])
-fi
-
-if test "$ol_enable_constraint" != no ; then
-	if test "$ol_enable_constraint" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS constraint.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS constraint.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_CONSTRAINT,$MFLAG,[define for Attribute Constraint overlay])
-fi
-
-if test "$ol_enable_dds" != no ; then
-	if test "$ol_enable_dds" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS dds.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS dds.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_DDS,$MFLAG,[define for Dynamic Directory Services overlay])
-fi
-
-if test "$ol_enable_deref" != no ; then
-	if test "$ol_enable_deref" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS deref.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS deref.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_DEREF,$MFLAG,[define for Dynamic Directory Services overlay])
-fi
-
-if test "$ol_enable_dyngroup" != no ; then
-	if test "$ol_enable_dyngroup" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS dyngroup.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS dyngroup.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_DYNGROUP,$MFLAG,[define for Dynamic Group overlay])
-fi
-
-if test "$ol_enable_dynlist" != no ; then
-	if test "$ol_enable_dynlist" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS dynlist.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS dynlist.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_DYNLIST,$MFLAG,[define for Dynamic List overlay])
-fi
-
-if test "$ol_enable_homedir" != no ; then
-	if test "$ol_enable_homedir" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS homedir.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS homedir.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_HOMEDIR,$MFLAG,[define for Home Directory Management overlay])
-fi
-
-if test "$ol_enable_memberof" != no ; then
-	if test "$ol_enable_memberof" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS memberof.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS memberof.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_MEMBEROF,$MFLAG,[define for Reverse Group Membership overlay])
 fi
 
 if test "$ol_enable_nestgroup" != no ; then
@@ -2885,151 +2574,12 @@ if test "$ol_enable_otp" != no ; then
 	if test $ol_with_tls = no ; then
 		AC_MSG_ERROR([--enable-otp=$ol_enable_otp requires --with-tls])
 	fi
-
-	if test "$ol_enable_otp" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS otp.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS otp.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_OTP,$MFLAG,[define for OTP 2-factor Authentication overlay])
 fi
 
-if test "$ol_enable_ppolicy" != no ; then
-	if test "$ol_enable_ppolicy" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS ppolicy.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS ppolicy.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_PPOLICY,$MFLAG,[define for Password Policy overlay])
-fi
-
-if test "$ol_enable_proxycache" != no ; then
-	if test "$ol_enable_proxycache" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS pcache.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS pcache.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_PROXYCACHE,$MFLAG,[define for Proxy Cache overlay])
-fi
 dnl Testsuite expects this to be named 'pcache'
 ol_enable_pcache=$ol_enable_proxycache
+Ov_help_pcache=$Ov_help_proxycache
 Overlays="`echo $Overlays | sed -e s,proxycache,pcache,`"
-
-if test "$ol_enable_refint" != no ; then
-	if test "$ol_enable_refint" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS refint.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS refint.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_REFINT,$MFLAG,[define for Referential Integrity overlay])
-fi
-
-if test "$ol_enable_remoteauth" != no ; then
-	if test "$ol_enable_remoteauth" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS remoteauth.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS remoteauth.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_REMOTEAUTH,$MFLAG,[define for Deferred Authentication overlay])
-fi
-
-if test "$ol_enable_retcode" != no ; then
-	if test "$ol_enable_retcode" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS retcode.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS retcode.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_RETCODE,$MFLAG,[define for Return Code overlay])
-fi
-
-if test "$ol_enable_rwm" != no ; then
-	if test "$ol_enable_rwm" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS rwm.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS rwm_x.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_RWM,$MFLAG,[define for Rewrite/Remap overlay])
-fi
-
-if test "$ol_enable_seqmod" != no ; then
-	if test "$ol_enable_seqmod" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS seqmod.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS seqmod.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_SEQMOD,$MFLAG,[define for Sequential Modify overlay])
-fi
-
-if test "$ol_enable_sssvlv" != no ; then
-	if test "$ol_enable_sssvlv" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS sssvlv.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS sssvlv.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_SSSVLV,$MFLAG,[define for ServerSideSort/VLV overlay])
-fi
-
-if test "$ol_enable_syncprov" != no ; then
-	if test "$ol_enable_syncprov" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS syncprov.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS syncprov.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_SYNCPROV,$MFLAG,[define for Syncrepl Provider overlay])
-fi
-
-if test "$ol_enable_translucent" != no ; then
-	if test "$ol_enable_translucent" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS translucent.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS translucent.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_TRANSLUCENT,$MFLAG,[define for Translucent Proxy overlay])
-fi
-
-if test "$ol_enable_unique" != no ; then
-	if test "$ol_enable_unique" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS unique.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS unique.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_UNIQUE,$MFLAG,[define for Attribute Uniqueness overlay])
-fi
-
-if test "$ol_enable_valsort" != no ; then
-	if test "$ol_enable_valsort" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS valsort.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS valsort.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_VALSORT,$MFLAG,[define for Value Sorting overlay])
-fi
 
 ol_link_argon2=no
 if test "$ol_enable_argon2" = "yes" ; then
@@ -3067,11 +2617,6 @@ if test "$ol_enable_argon2" = "yes" ; then
 	if test "$ol_link_argon2" = no ; then
 		AC_MSG_ERROR([--enable_argon2=$ol_enable_argon2 requires --with-argon2])
 	fi
-
-	if test "$ol_enable_argon2" = "yes" ; then
-		SLAPD_DYNAMIC_PWMODS="$SLAPD_DYNAMIC_PWMODS argon2.la"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_PWMOD_PW_ARGON2,$SLAPD_MOD_DYNAMIC,[define for Argon2 Password hashing module])
 fi
 
 if test "$ol_enable_balancer" != no \
@@ -3137,20 +2682,84 @@ fi
 
 dnl ----------------------------------------------------------------
 dnl collect all backend / overlay / pwmod enable flags
+echo "Making module configs..."
+SL_MOD_H=include/slapd-modules.hin
+SL_MOD_MK=servers/slapd/modules.mk
+mkdir include
+mkdir -p servers/slapd
+echo "# Backends" > $SL_MOD_MK
+echo "/* slapd module configuration */" > $SL_MOD_H
+echo "" >> $SL_MOD_H
+echo "#define SLAPD_MOD_STATIC	1	/* statically linked module */" >> $SL_MOD_H
+echo "#define SLAPD_MOD_DYNAMIC	2	/* dynamically linked module */" >> $SL_MOD_H
+echo "" >> $SL_MOD_H
+echo "/* Backends */" >> $SL_MOD_H
 BACKEND_ENABLES=
 for i in $Backends; do
 	eval "ol_tmp=\$ol_enable_$i"
 	BACKEND_ENABLES="$BACKEND_ENABLES AC""_${i}=${i}${ol_tmp}"
+	eval "ol_BK=`echo $i | tr a-z A-Z`"
+	eval "ol_help=\$Bk_help_$i"
+	echo "BUILD_$ol_BK = $ol_tmp" >> $SL_MOD_MK
+	echo "" >> $SL_MOD_H
+	echo "/* define to support $ol_help */" >> $SL_MOD_H
+	if test $ol_tmp != no ; then
+		if test $ol_tmp = mod ; then
+			SLAPD_DYNAMIC_BACKENDS="$SLAPD_DYNAMIC_BACKENDS back-$i"
+			MFLAG=SLAPD_MOD_DYNAMIC
+		else
+			SLAPD_STATIC_BACKENDS="$SLAPD_STATIC_BACKENDS back-$i"
+			MFLAG=SLAPD_MOD_STATIC
+		fi
+		echo "#define SLAPD_$ol_BK $MFLAG" >> $SL_MOD_H
+	else
+		echo "/* #undef SLAPD_$ol_BK */" >> $SL_MOD_H
+	fi
 done
+echo "# Overlays" >> $SL_MOD_MK
+echo "" >> $SL_MOD_H
+echo "/* Overlays */" >> $SL_MOD_H
 OVERLAY_ENABLES=
 for i in $Overlays; do
 	eval "ol_tmp=\$ol_enable_$i"
 	OVERLAY_ENABLES="$OVERLAY_ENABLES AC""_${i}=${i}${ol_tmp}"
+	eval "ol_OV=`echo $i | tr a-z A-Z`"
+	eval "ol_help=\$Ov_help_$i"
+	echo "BUILD_$ol_OV = $ol_tmp" >> $SL_MOD_MK
+	echo "" >> $SL_MOD_H
+	echo "/* define to support $ol_help */" >> $SL_MOD_H
+	if test $ol_tmp != no ; then
+		if test $ol_tmp = mod ; then
+			SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS ${i}.la"
+			MFLAG=SLAPD_MOD_DYNAMIC
+		else
+			SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS ${i}.o"
+			MFLAG=SLAPD_MOD_STATIC
+		fi
+		echo "#define SLAPD_OVER_$ol_OV $MFLAG" >> $SL_MOD_H
+	else
+		echo "/* #undef SLAPD_OVER_$ol_OV */" >> $SL_MOD_H
+	fi
 done
+echo "# Password modules" >> $SL_MOD_MK
+echo "" >> $SL_MOD_H
+echo "/* Password modules */" >> $SL_MOD_H
 PWMOD_ENABLES=
 for i in $Pwmods; do
 	eval "ol_tmp=\$ol_enable_$i"
 	PWMOD_ENABLES="$PWMOD_ENABLES AC""_${i}=${i}${ol_tmp}"
+	eval "ol_PW=`echo $i | tr a-z A-Z`"
+	eval "ol_help=\$Pw_help_$i"
+	echo "BUILD_$ol_PW = $ol_tmp" >> $SL_MOD_MK
+	echo "" >> $SL_MOD_H
+	echo "/* define to support $ol_help */" >> $SL_MOD_H
+	if test $ol_tmp != no ; then
+		SLAPD_DYNAMIC_PWMODS="$SLAPD_DYNAMIC_PWMODS ${i}.la"
+		MFLAG=SLAPD_MOD_DYNAMIC
+		echo "#define SLAPD_PWMOD_PW_$ol_PW $MFLAG" >> $SL_MOD_H
+	else
+		echo "/* #undef SLAPD_PWMOD_PW_$ol_PW */" >> $SL_MOD_H
+	fi
 done
 
 AC_SUBST(LIBSRCS)
@@ -3169,19 +2778,6 @@ AC_SUBST(BUILD_SLAPD)
 dnl slapi
   AC_SUBST(BUILD_SLAPI)
   AC_SUBST(SLAPD_SLAPI_DEPEND)
-dnl backends
-  AC_SUBST(BUILD_DNSSRV)
-  AC_SUBST(BUILD_LDAP)
-  AC_SUBST(BUILD_MDB)
-  AC_SUBST(BUILD_META)
-  AC_SUBST(BUILD_ASYNCMETA)
-  AC_SUBST(BUILD_NULL)
-  AC_SUBST(BUILD_PASSWD)
-  AC_SUBST(BUILD_PERL)
-  AC_SUBST(BUILD_RELAY)
-  AC_SUBST(BUILD_SOCK)
-  AC_SUBST(BUILD_SQL)
-  AC_SUBST(BUILD_WT)
 dnl hybrid overlay
   AC_SUBST(BUILD_BALANCER)
 dnl test suite
@@ -3261,25 +2857,25 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [libraries/librewrite/Makefile:build/top.mk:libraries/librewrite/Makefile.in:build/lib.mk:build/lib-static.mk]
 [servers/Makefile:build/top.mk:servers/Makefile.in:build/dir.mk]
 [servers/slapd/Makefile:build/top.mk:servers/slapd/Makefile.in:build/srv.mk]
-[servers/slapd/back-dnssrv/Makefile:build/top.mk:servers/slapd/back-dnssrv/Makefile.in:build/mod.mk]
-[servers/slapd/back-ldap/Makefile:build/top.mk:servers/slapd/back-ldap/Makefile.in:build/mod.mk]
-[servers/slapd/back-ldif/Makefile:build/top.mk:servers/slapd/back-ldif/Makefile.in:build/mod.mk]
-[servers/slapd/back-mdb/Makefile:build/top.mk:servers/slapd/back-mdb/Makefile.in:build/mod.mk]
-[servers/slapd/back-meta/Makefile:build/top.mk:servers/slapd/back-meta/Makefile.in:build/mod.mk]
-[servers/slapd/back-asyncmeta/Makefile:build/top.mk:servers/slapd/back-asyncmeta/Makefile.in:build/mod.mk]
-[servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk]
-[servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/back-null/Makefile.in:build/mod.mk]
-[servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk]
-[servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk]
-[servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk]
-[servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk]
-[servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk]
-[servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk]
+[servers/slapd/back-dnssrv/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-dnssrv/Makefile.in:build/mod.mk]
+[servers/slapd/back-ldap/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-ldap/Makefile.in:build/mod.mk]
+[servers/slapd/back-ldif/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-ldif/Makefile.in:build/mod.mk]
+[servers/slapd/back-mdb/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-mdb/Makefile.in:build/mod.mk]
+[servers/slapd/back-meta/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-meta/Makefile.in:build/mod.mk]
+[servers/slapd/back-asyncmeta/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-asyncmeta/Makefile.in:build/mod.mk]
+[servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk]
+[servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-null/Makefile.in:build/mod.mk]
+[servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk]
+[servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk]
+[servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk]
+[servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk]
+[servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk]
+[servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk]
 [servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk]
 [servers/slapd/pwmods/Makefile:build/top.mk:servers/slapd/pwmods/Makefile.in:build/lib.mk]
 [servers/lloadd/Makefile:build/top.mk:servers/lloadd/Makefile.in:$BALANCER_MAKE]
-[tests/Makefile:build/top.mk:tests/Makefile.in:build/dir.mk]
+[tests/Makefile:build/top.mk:servers/slapd/modules.mk:tests/Makefile.in:build/dir.mk]
 [tests/run]
 [tests/modules/Makefile:build/top.mk:tests/modules/Makefile.in:build/dir.mk]
 [tests/modules/mod-harness/Makefile:build/top.mk:tests/modules/mod-harness/Makefile.in:build/mod.mk]

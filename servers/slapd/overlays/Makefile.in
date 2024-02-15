@@ -32,7 +32,7 @@ SRCS = overlays.c \
 	refint.c \
 	remoteauth.c \
 	retcode.c \
-	rwm.c rwmconf.c rwmdn.c rwmmap.c \
+	rwmmain.c rwmconf.c rwmdn.c rwmmap.c \
 	seqmod.c \
 	sssvlv.c \
 	syncprov.c \
@@ -45,7 +45,7 @@ OBJS = statover.o \
 
 # Add here the objs that are needed by overlays, but do not make it
 # into SLAPD_STATIC_OVERLAYS...
-OBJDEP=rwm.o rwmconf.o rwmdn.o rwmmap.o
+OBJDEP=rwmmain.o rwmconf.o rwmdn.o rwmmap.o
 
 LTONLY_MOD = $(LTONLY_mod)
 LDAP_INCDIR= ../../../include       
@@ -121,11 +121,11 @@ remoteauth.la : remoteauth.lo
 retcode.la : retcode.lo
 	$(LTLINK_MOD) -module -o $@ retcode.lo version.lo $(LINK_LIBS)
 
-rwm_x.o: rwm.o rwmconf.o rwmdn.o rwmmap.o
-	$(LD) -r -o $@ rwm.o rwmconf.o rwmdn.o rwmmap.o
+rwm.o: rwmmain.o rwmconf.o rwmdn.o rwmmap.o
+	$(LD) -r -o $@ rwmmain.o rwmconf.o rwmdn.o rwmmap.o
 
-rwm.la : rwm.lo rwmconf.lo rwmdn.lo rwmmap.lo
-	$(LTLINK_MOD) -module -o $@ rwm.lo rwmconf.lo rwmdn.lo rwmmap.lo version.lo $(LINK_LIBS)
+rwm.la : rwmmain.lo rwmconf.lo rwmdn.lo rwmmap.lo
+	$(LTLINK_MOD) -module -o $@ rwmmain.lo rwmconf.lo rwmdn.lo rwmmap.lo version.lo $(LINK_LIBS)
 
 seqmod.la : seqmod.lo
 	$(LTLINK_MOD) -module -o $@ seqmod.lo version.lo $(LINK_LIBS)

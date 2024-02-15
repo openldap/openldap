@@ -21,7 +21,7 @@
 
 #include "portable.h"
 
-#ifdef SLAPD_OVER_PROXYCACHE
+#ifdef SLAPD_OVER_PCACHE
 
 #include <stdio.h>
 
@@ -5691,9 +5691,9 @@ static char *obsolete_names[] = {
 	NULL
 };
 
-#if SLAPD_OVER_PROXYCACHE == SLAPD_MOD_DYNAMIC
+#if SLAPD_OVER_PCACHE == SLAPD_MOD_DYNAMIC
 static
-#endif /* SLAPD_OVER_PROXYCACHE == SLAPD_MOD_DYNAMIC */
+#endif /* SLAPD_OVER_PCACHE == SLAPD_MOD_DYNAMIC */
 int
 pcache_initialize()
 {
@@ -5806,10 +5806,10 @@ pcache_initialize()
 	return overlay_register( &pcache );
 }
 
-#if SLAPD_OVER_PROXYCACHE == SLAPD_MOD_DYNAMIC
+#if SLAPD_OVER_PCACHE == SLAPD_MOD_DYNAMIC
 int init_module(int argc, char *argv[]) {
 	return pcache_initialize();
 }
 #endif
 
-#endif	/* defined(SLAPD_OVER_PROXYCACHE) */
+#endif	/* defined(SLAPD_OVER_PCACHE) */
