@@ -5,6 +5,7 @@ OpenLDAP 2.5.18 Engineering
 	Build
 		Fixed build with gcc14.x (ITS#10166)
 	Minor Cleanup
+		ITS#10173
 		ITS#10171
 
 OpenLDAP 2.5.17 Release (2024/01/29)
