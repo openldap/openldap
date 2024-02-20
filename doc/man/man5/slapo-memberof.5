@@ -16,10 +16,8 @@ Any time a group entry is modified, its members are modified as appropriate
 in order to keep a DN-valued "is member of" attribute updated with the DN
 of the group.
 .LP
-Note that this overlay is deprecated and support will be dropped in future
-OpenLDAP releases. Installations should use the \fBdynlist\fP
-overlay instead. Using this overlay in a replicated environment is especially
-discouraged.
+Note that the \fBdynlist\fP overlay can also provide this functionality
+and may be suitable for less demanding environments.
 
 .SH CONFIGURATION
 The config directives that are specific to the
