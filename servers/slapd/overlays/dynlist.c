@@ -1648,6 +1648,9 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 	dynlist_name_t *dyn;
 	int rc;
 
+	if ( op->o_abandon )
+		return SLAP_CB_CONTINUE;
+
 	if ( rs->sr_type == REP_SEARCH && rs->sr_entry != NULL ) {
 		rc = SLAP_CB_CONTINUE;
 		/* See if this is one of our dynamic groups */
