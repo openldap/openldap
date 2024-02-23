@@ -238,7 +238,9 @@ alias_response( Operation *op, SlapReply *rs )
 
 		if ( operational ) {
 			source = attr_find( rs->sr_operational_attrs, mapping->source );
-		} else {
+		}
+		if ( !source ) {
+			operational = 0;
 			source = attr_find( e_orig->e_attrs, mapping->source );
 		}
 		if ( !source )
