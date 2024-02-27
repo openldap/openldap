@@ -97,6 +97,7 @@ static int process_response(
 static int txn = 0;
 static int txnabort = 0;
 struct berval *txn_id = NULL;
+static unsigned long jumpline;
 
 void
 usage( void )
@@ -113,6 +114,7 @@ usage( void )
 	fprintf( stderr, _("  -E [!]ext=extparam	modify extensions"
 		" (! indicate s criticality)\n"));
 	fprintf( stderr, _("  -f file    read operations from `file'\n"));
+	fprintf( stderr, _("  -j lineno  jump to lineno before processing\n"));
 	fprintf( stderr, _("  -M         enable Manage DSA IT control (-MM to make critical)\n"));
 	fprintf( stderr, _("  -P version protocol version (default: 3)\n"));
  	fprintf( stderr,
@@ -125,7 +127,7 @@ usage( void )
 
 
 const char options[] = "aE:rS:"
-	"cd:D:e:f:H:IMnNO:o:P:QR:U:vVw:WxX:y:Y:Z";
+	"cd:D:e:f:H:Ij:MnNO:o:P:QR:U:vVw:WxX:y:Y:Z";
 
 int
 handle_private_option( int i )
@@ -185,6 +187,17 @@ handle_private_option( int i )
 
 	case 'a':	/* add */
 		ldapadd = 1;
+		break;
+
+	case 'j':	/* jump */
+		{
+			char *next;
+			jumpline = strtoul( optarg, &next, 10 );
+			if ( !next || *next ) {
+				fprintf( stderr, "%s: unable to parse jump line number \"%s\"\n", prog, optarg);
+				exit(EXIT_FAILURE);
+			}
+		}
 		break;
 
 	case 'r':	/* replace (obsolete) */
@@ -286,6 +299,9 @@ main( int argc, char **argv )
 	while (( rc == 0 || contoper ) && ( ldifrc = ldif_read_record( ldiffp, &nextline,
 		&rbuf, &lmax )) > 0 )
 	{
+		if ( lineno < jumpline )
+			goto next;
+
 		if ( rejfp ) {
 			len = strlen( rbuf );
 			if (( rejbuf = (char *)ber_memalloc( len+1 )) == NULL ) {
@@ -297,11 +313,10 @@ main( int argc, char **argv )
 		}
 
 		rc = process_ldif_rec( rbuf, lineno );
-		lineno = nextline+1;
 
 		if ( rc ) retval = rc;
 		if ( rc && rejfp ) {
-			fprintf(rejfp, _("# Error: %s (%d)"), ldap_err2string(rc), rc);
+			fprintf(rejfp, _("# Error: %s (%d) (line=%lu)"), ldap_err2string(rc), rc, lineno);
 
 			matched_msg = NULL;
 			ldap_get_option(ld, LDAP_OPT_MATCHED_DN, &matched_msg);
@@ -324,6 +339,9 @@ main( int argc, char **argv )
 		}
 
 		if (rejfp) ber_memfree( rejbuf );
+
+next:
+		lineno = nextline+1;
 	}
 	ber_memfree( rbuf );
 
