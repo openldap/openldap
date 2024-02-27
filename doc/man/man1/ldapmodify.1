@@ -23,6 +23,8 @@ ldapmodify, ldapadd \- LDAP modify entry and LDAP add entry tools
 [\c
 .BI \-i \ time\fR]
 [\c
+.BI \-j \ lineno\fR]
+[\c
 .BI \-S \ file\fR]
 [\c
 .BR \-M [ M ]]
@@ -80,6 +82,8 @@ ldapmodify, ldapadd \- LDAP modify entry and LDAP add entry tools
 .BI \-f \ file\fR]
 [\c
 .BI \-i \ time\fR]
+[\c
+.BI \-j \ lineno\fR]
 [\c
 .BI \-S \ file\fR]
 [\c
@@ -177,6 +181,11 @@ standard input.
 .TP
 .BI \-i \ time
 Wait \fItime\fP microseconds before issuing an operation.
+.TP
+.BI \-j \ lineno
+Jump to the specified line number in the LDIF file before processing any entries.
+This allows a load that was aborted due to errors in the input LDIF to be resumed
+after the errors are corrected.
 .TP
 .BI \-S \ file
 Add or change records which were skipped due to an error are written to \fIfile\fP 
