@@ -805,10 +805,7 @@ autogroup_add_entry_cb( Operation *op, SlapReply *rs )
 		goto done;
 
 	op->o_bd->bd_info = (BackendInfo *)on;
-	ldap_pvt_thread_mutex_lock( &agi->agi_mutex );
-	if ( aa->agd ) {
-		autogroup_add_group( op, agi, aa->agd, aa->e, NULL, 1 , 0);
-	} else {
+	if ( !aa->agd ) {
 		autogroup_entry_t	*age;
 		autogroup_filter_t	*agf;
 		struct berval odn, ondn;
@@ -820,6 +817,7 @@ autogroup_add_entry_cb( Operation *op, SlapReply *rs )
 		op->o_dn = op->o_bd->be_rootdn;
 		op->o_ndn = op->o_bd->be_rootndn;
 
+		ldap_pvt_thread_mutex_lock( &agi->agi_mutex );
 		for ( age = agi->agi_entry; age ; age = age->age_next ) {
 			ldap_pvt_thread_mutex_lock( &age->age_mutex );
 
@@ -843,10 +841,10 @@ autogroup_add_entry_cb( Operation *op, SlapReply *rs )
 			}
 			ldap_pvt_thread_mutex_unlock( &age->age_mutex );
 		}
+		ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
 		op->o_dn = odn;
 		op->o_ndn = ondn;
 	}
-	ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
 
 	op->o_bd->bd_info = bi;
 
@@ -883,6 +881,7 @@ autogroup_add_entry( Operation *op, SlapReply *rs)
 	op->o_callback = sc;
 
 	/* Check if it's a group. */
+	ldap_pvt_thread_mutex_lock( &agi->agi_mutex );
 	for ( ; agd ; agd = agd->agd_next ) {
 		if ( is_entry_objectclass_or_sub( op->ora_e, agd->agd_oc ) ) {
 			Modification		mod;
@@ -899,10 +898,13 @@ autogroup_add_entry( Operation *op, SlapReply *rs)
 			modify_delete_values( op->ora_e, &mod, /* permissive */ 1, &text, textbuf, sizeof( textbuf ) );
 
 			aa->agd = agd;
+			/* But we should populate the dynamic values immediately. */
+			autogroup_add_group( op, agi, agd, op->ora_e, NULL, 1 , 0);
 
 			break;
 		}
 	}
+	ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
 
 	return SLAP_CB_CONTINUE;
 }
