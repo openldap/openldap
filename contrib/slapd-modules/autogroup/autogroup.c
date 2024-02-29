@@ -968,6 +968,83 @@ autogroup_delete_group( autogroup_info_t *agi, autogroup_entry_t *e )
 }
 
 static int
+autogroup_del_entry_cb( Operation *op, SlapReply *rs )
+{
+	slap_callback *sc = op->o_callback;
+	ag_addinfo *aa = sc->sc_private;
+	slap_overinst *on = aa->on;
+	autogroup_info_t	*agi = (autogroup_info_t *)on->on_bi.bi_private;
+	BackendInfo *bi = op->o_bd->bd_info;
+	struct berval odn, ondn;
+	autogroup_entry_t	*age, *age_prev, *age_next;
+	autogroup_filter_t	*agf;
+
+	if ( rs->sr_err != LDAP_SUCCESS )
+		goto done;
+
+	ldap_pvt_thread_mutex_lock( &agi->agi_mutex );
+
+	/* Check if the entry to be deleted is one of our groups. */
+	for ( age = agi->agi_entry ; age ; age=age->age_next ) {
+		ldap_pvt_thread_mutex_lock( &age->age_mutex );
+		if ( dn_match( &op->o_req_ndn, &age->age_ndn )) {
+			autogroup_delete_group( agi, age );
+			break;
+		}
+		ldap_pvt_thread_mutex_unlock( &age->age_mutex );
+	}
+
+	if ( !aa->e )
+		goto done;
+
+	/* Check if the entry matches any of the groups.
+	   If yes, we can delete the entry from that group. */
+
+	odn = op->o_dn;
+	ondn = op->o_ndn;
+	op->o_dn = op->o_bd->be_rootdn;
+	op->o_ndn = op->o_bd->be_rootndn;
+	op->o_bd->bd_info = (BackendInfo *)on;
+
+	for ( age = agi->agi_entry ; age ; age = age->age_next ) {
+		ldap_pvt_thread_mutex_lock( &age->age_mutex );
+
+		for ( agf = age->age_filter; agf ; agf = agf->agf_next ) {
+			if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
+				int rc = test_filter( op, aa->e, agf->agf_filter );
+				if ( rc == LDAP_COMPARE_TRUE ) {
+					/* If the attribute is retrieved from the entry, we don't know what to delete
+					** So the group must be entirely refreshed
+					** But the refresh can't be done now because the entry is not deleted
+					** So the group is marked as mustrefresh
+					*/
+					if ( agf->agf_anlist ) {
+						age->age_mustrefresh = 1;
+					} else {
+						autogroup_delete_member_from_group( op, &aa->e->e_name, &aa->e->e_nname, age );
+					}
+					break;
+				}
+			}
+		}
+		ldap_pvt_thread_mutex_unlock( &age->age_mutex );
+	}
+
+	ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
+	op->o_dn = odn;
+	op->o_ndn = ondn;
+	op->o_bd->bd_info = bi;
+
+done:
+	if ( aa->e )
+		entry_free( aa->e );
+	op->o_callback = sc->sc_next;
+	op->o_tmpfree( sc, op->o_tmpmemctx );
+
+	return SLAP_CB_CONTINUE;
+}
+
+static int
 autogroup_delete_entry( Operation *op, SlapReply *rs)
 {
 	slap_overinst		*on = (slap_overinst *)op->o_bd->bd_info;
@@ -975,7 +1052,7 @@ autogroup_delete_entry( Operation *op, SlapReply *rs)
 	autogroup_entry_t	*age, *age_prev, *age_next;
 	autogroup_filter_t	*agf;
 	Entry			*e;
-	int			matched_group = 0, rc = 0;
+	int			matched_group = 0, rc = 0, matched_entry = 0;
 	struct berval odn, ondn;
 	OpExtra *oex;
 
@@ -988,38 +1065,21 @@ autogroup_delete_entry( Operation *op, SlapReply *rs)
 
 	ldap_pvt_thread_mutex_lock( &agi->agi_mutex );
 
+	/* Check if the entry to be deleted is one of our groups. */
+	for ( age = agi->agi_entry ; age ; age=age->age_next ) {
+		if ( dn_match( &op->o_req_ndn, &age->age_ndn )) {
+			matched_group = 1;
+			break;
+		}
+	}
+
+	/* if matched_group, we wouldn't need to go further, but continuing
+	 * this check allows for groups that are members of other groups
+	 */
 	if ( overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) !=
 		LDAP_SUCCESS || e == NULL ) {
 		Debug( LDAP_DEBUG_TRACE, "autogroup_delete_entry: cannot get entry for <%s>\n", op->o_req_dn.bv_val );
-		ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );			
-		return SLAP_CB_CONTINUE;
-	}
-
-	/* Check if the entry to be deleted is one of our groups. */
-	for ( age_next = agi->agi_entry ; age_next ; age_prev = age ) {
-		age = age_next;
-		ldap_pvt_thread_mutex_lock( &age->age_mutex );
-		age_next = age->age_next;
-
-		if ( is_entry_objectclass_or_sub( e, age->age_def->agd_oc ) ) {
-			int match = 1;
-
-			matched_group = 1;
-
-			dnMatch( &match, 0, NULL, NULL, &e->e_nname, &age->age_ndn );
-
-			if ( match == 0 ) {
-				autogroup_delete_group( agi, age );
-				break;
-			}
-		}
-
-		ldap_pvt_thread_mutex_unlock( &age->age_mutex );			
-	}
-
-	if ( matched_group == 1 ) {
-		overlay_entry_release_ov( op, e, 0, on );
-		ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );		
+		ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
 		return SLAP_CB_CONTINUE;
 	}
 
@@ -1038,24 +1098,32 @@ autogroup_delete_entry( Operation *op, SlapReply *rs)
 			if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
 				rc = test_filter( op, e, agf->agf_filter );
 				if ( rc == LDAP_COMPARE_TRUE ) {
-					/* If the attribute is retrieved from the entry, we don't know what to delete
-					** So the group must be entirely refreshed
-					** But the refresh can't be done now because the entry is not deleted
-					** So the group is marked as mustrefresh
-					*/
-					if ( agf->agf_anlist ) {
-						age->age_mustrefresh = 1;
-					} else {
-						autogroup_delete_member_from_group( op, &e->e_name, &e->e_nname, age );
-					}
+					matched_entry = 1;
 					break;
 				}
 			}
 		}
 		ldap_pvt_thread_mutex_unlock( &age->age_mutex );
+		if ( matched_entry )
+			break;
 	}
+
 	op->o_dn = odn;
 	op->o_ndn = ondn;
+
+	if ( matched_group || matched_entry ) {
+		slap_callback *sc = op->o_tmpcalloc( sizeof(slap_callback) + sizeof(ag_addinfo), 1, op->o_tmpmemctx );
+		ag_addinfo *aa;
+
+		sc->sc_private = (sc+1);
+		sc->sc_response = autogroup_del_entry_cb;
+		aa = sc->sc_private;
+		aa->on = on;
+		if ( matched_entry )
+			aa->e = entry_dup( e );
+		sc->sc_next = op->o_callback;
+		op->o_callback = sc;
+	}
 
 	overlay_entry_release_ov( op, e, 0, on );
 	ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );		
