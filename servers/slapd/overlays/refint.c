@@ -604,6 +604,7 @@ refint_repair(
 	op->o_ndn = op->o_bd->be_rootndn;
 	cache = op->o_do_not_cache;
 	op->o_do_not_cache = 1;
+	op->o_abandon = 0;
 
 	/* search */
 	rc = op->o_bd->be_search( op, &rs );
