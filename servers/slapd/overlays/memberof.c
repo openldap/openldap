@@ -385,6 +385,10 @@ memberof_value_modify(
 	op2.orm_no_opattrs = 1;
 	op2.o_dont_replicate = 1;
 
+	/* main op has already completed if we got here, so even
+	 * if its abandon flag was set we must complete as well. */
+	op2.o_abandon = 0;
+
 	if ( !BER_BVISNULL( &mo->mo_ndn ) ) {
 		ml = &mod[ mcnt ];
 		ml->sml_numvals = 1;
