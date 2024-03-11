@@ -825,7 +825,7 @@ autogroup_add_entry_cb( Operation *op, SlapReply *rs )
 			   If yes, we can test that filter against the entry. */
 
 			for ( agf = age->age_filter; agf ; agf = agf->agf_next ) {
-				if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
+				if ( dnIsSuffixScope( &op->o_req_ndn, &agf->agf_ndn, agf->agf_scope ) ) {
 					rc = test_filter( op, aa->e, agf->agf_filter );
 					if ( rc == LDAP_COMPARE_TRUE ) {
 						if ( agf->agf_anlist ) {
@@ -1010,7 +1010,7 @@ autogroup_del_entry_cb( Operation *op, SlapReply *rs )
 		ldap_pvt_thread_mutex_lock( &age->age_mutex );
 
 		for ( agf = age->age_filter; agf ; agf = agf->agf_next ) {
-			if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
+			if ( dnIsSuffixScope( &op->o_req_ndn, &agf->agf_ndn, agf->agf_scope ) ) {
 				int rc = test_filter( op, aa->e, agf->agf_filter );
 				if ( rc == LDAP_COMPARE_TRUE ) {
 					/* If the attribute is retrieved from the entry, we don't know what to delete
@@ -1095,7 +1095,7 @@ autogroup_delete_entry( Operation *op, SlapReply *rs)
 		ldap_pvt_thread_mutex_lock( &age->age_mutex );		
 
 		for ( agf = age->age_filter; agf ; agf = agf->agf_next ) {
-			if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
+			if ( dnIsSuffixScope( &op->o_req_ndn, &agf->agf_ndn, agf->agf_scope ) ) {
 				rc = test_filter( op, e, agf->agf_filter );
 				if ( rc == LDAP_COMPARE_TRUE ) {
 					matched_entry = 1;
@@ -1289,7 +1289,7 @@ autogroup_response( Operation *op, SlapReply *rs )
 				}
 
 				for ( agf = age->age_filter ; agf ; agf = agf->agf_next ) {
-					if ( dnIsSuffix( &op->orr_nnewDN, &agf->agf_ndn ) ) {
+					if ( dnIsSuffixScope( &op->orr_nnewDN, &agf->agf_ndn, agf->agf_scope ) ) {
 						/* TODO: should retest filter as it could imply conditions on the dn */
 						is_newdn = 1;
 						break;
@@ -1500,7 +1500,7 @@ autogroup_response( Operation *op, SlapReply *rs )
 				overlay_entry_release_ov( op, group, 0, on );
 
 				for ( agf = age->age_filter ; agf ; agf = agf->agf_next ) {
-					if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
+					if ( dnIsSuffixScope( &op->o_req_ndn, &agf->agf_ndn, agf->agf_scope ) ) {
 						if ( test_filter( op, &etmp, agf->agf_filter ) == LDAP_COMPARE_TRUE ) {
 							is_newdn = 1;
 							break;
@@ -1607,10 +1607,11 @@ autogroup_modify_entry( Operation *op, SlapReply *rs)
 				Modifications	*m;
 				for ( m = op->orm_modlist ; m ; m = m->sml_next ) {
 					if ( m->sml_desc == agf->agf_anlist[0].an_desc ) {
-						if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
+						if ( dnIsSuffixScope( &op->o_req_ndn, &agf->agf_ndn, agf->agf_scope ) ) {
 							int rc = test_filter( op, e, agf->agf_filter );
 							if ( rc == LDAP_COMPARE_TRUE ) {
 								age->age_mustrefresh = 1;
+								goto breakout;
 							}
 						}
 					}
@@ -1619,6 +1620,8 @@ autogroup_modify_entry( Operation *op, SlapReply *rs)
 
 			if ( autogroup_memberOf_filter( agf->agf_filter, &op->o_req_ndn, agi->agi_memberof_ad ) ) {
 				age->age_mustrefresh = 1;
+breakout:
+				break;
 			}
 		}
 	}
@@ -1712,10 +1715,11 @@ autogroup_modrdn_entry( Operation *op, SlapReply *rs)
 		autogroup_filter_t	*agf;
 		for ( agf = age->age_filter ; agf ; agf = agf->agf_next ) {
 			if ( agf->agf_anlist ) {
-				if ( dnIsSuffix( &op->o_req_ndn, &agf->agf_ndn ) ) {
+				if ( dnIsSuffixScope( &op->o_req_ndn, &agf->agf_ndn, agf->agf_scope ) ) {
 					int rc = test_filter( op, e, agf->agf_filter );
 					if ( rc == LDAP_COMPARE_TRUE ) {
 						age->age_modrdn_olddnmodified = 1;
+						break;
 					}
 				}
 			}
