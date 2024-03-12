@@ -934,7 +934,7 @@ autogroup_delete_group( autogroup_info_t *agi, autogroup_entry_t *e )
 			if ( age_prev != NULL ) {
 				age_prev->age_next = age_next;
 			} else {
-				agi->agi_entry = NULL;
+				agi->agi_entry = age_next;
 			}
 
 			ch_free( age->age_dn.bv_val );
