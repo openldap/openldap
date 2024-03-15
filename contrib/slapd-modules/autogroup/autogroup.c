@@ -684,6 +684,10 @@ autogroup_add_group( Operation *op, autogroup_info_t *agi, autogroup_def_t *agd,
 			if ( lud->lud_filter != NULL ) {
 				ber_str2bv( lud->lud_filter, 0, 1, &agf->agf_filterstr);
 				agf->agf_filter = str2filter( lud->lud_filter );
+				if ( !agf->agf_filter ) {
+					Debug( LDAP_DEBUG_TRACE, "autogroup_add_group: URL filter is invalid <%s>\n", bv->bv_val );
+					goto cleanup;
+				}
 			} else {
 				Debug( LDAP_DEBUG_TRACE, "autogroup_add_group: URL filter is missing <%s>\n", bv->bv_val );
 				/* FIXME: error? */
