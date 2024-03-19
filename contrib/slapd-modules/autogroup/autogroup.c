@@ -608,7 +608,7 @@ autogroup_add_group( Operation *op, autogroup_info_t *agi, autogroup_def_t *agd,
 	LDAPURLDesc		*lud = NULL;
 	Attribute		*a;
 	BerValue		*bv, dn;
-	int			rc = 0, match = 1, null_entry = 0;
+	int			rc = 0, null_entry = 0;
 
 	if ( e == NULL ) {
 		if ( overlay_entry_get_ov( op, ndn, NULL, NULL, 0, &e, on ) !=
@@ -625,8 +625,7 @@ autogroup_add_group( Operation *op, autogroup_info_t *agi, autogroup_def_t *agd,
 
 	if ( agi->agi_entry != NULL ) {
 		for ( ; *agep ; agep = &(*agep)->age_next ) {
-			dnMatch( &match, 0, NULL, NULL, &e->e_nname, &(*agep)->age_ndn );
-			if ( match == 0 ) {
+			if ( dn_match( &e->e_nname, &(*agep)->age_ndn )) {
 				Debug( LDAP_DEBUG_TRACE, "autogroup_add_group: group already exists: <%s>\n", e->e_name.bv_val );
 				return 1;
 			}
@@ -682,12 +681,12 @@ autogroup_add_group( Operation *op, autogroup_info_t *agi, autogroup_def_t *agd,
 			}
 
 			if ( lud->lud_filter != NULL ) {
-				ber_str2bv( lud->lud_filter, 0, 1, &agf->agf_filterstr);
 				agf->agf_filter = str2filter( lud->lud_filter );
 				if ( !agf->agf_filter ) {
 					Debug( LDAP_DEBUG_TRACE, "autogroup_add_group: URL filter is invalid <%s>\n", bv->bv_val );
 					goto cleanup;
 				}
+				ber_str2bv( lud->lud_filter, 0, 1, &agf->agf_filterstr);
 			} else {
 				Debug( LDAP_DEBUG_TRACE, "autogroup_add_group: URL filter is missing <%s>\n", bv->bv_val );
 				/* FIXME: error? */
@@ -695,13 +694,7 @@ autogroup_add_group( Operation *op, autogroup_info_t *agi, autogroup_def_t *agd,
 			}
 
 			if ( lud->lud_attrs != NULL ) {
-				int i;
-
-				for ( i=0 ; lud->lud_attrs[i]!=NULL ; i++) {
-					/* Just counting */;
-				}
-
-				if ( i > 1 ) {
+				if ( lud->lud_attrs[1] != NULL ) {
 					Debug( LDAP_DEBUG_ANY, "autogroup_add_group: too many attributes specified in url <%s>\n",
 						bv->bv_val );
 					/* FIXME: error? */
@@ -1150,15 +1143,16 @@ autogroup_response( Operation *op, SlapReply *rs )
 	int			is_olddn, is_newdn, is_value_refresh, dn_equal;
 	OpExtra *oex;
 
+	if ( rs->sr_type != REP_RESULT || rs->sr_err != LDAP_SUCCESS )
+		return SLAP_CB_CONTINUE;
+
 	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
 		if ( oex->oe_key == (void *)&autogroup )
-			break;
+			return SLAP_CB_CONTINUE;
 	}
 
 	/* Handle all cases where a refresh of the group is needed */
 	if ( op->o_tag == LDAP_REQ_DELETE || op->o_tag == LDAP_REQ_MODIFY ) {
-		if ( rs->sr_type == REP_RESULT && rs->sr_err == LDAP_SUCCESS && !oex ) {
-
 			ldap_pvt_thread_mutex_lock( &agi->agi_mutex );
 
 			for ( age = agi->agi_entry ; age ; age = age->age_next ) {
@@ -1178,16 +1172,14 @@ autogroup_response( Operation *op, SlapReply *rs )
 			}
 
 			ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
-		}
 	} else if ( op->o_tag == LDAP_REQ_MODRDN ) {
-		if ( rs->sr_type == REP_RESULT && rs->sr_err == LDAP_SUCCESS && !oex ) {
 
 			Debug( LDAP_DEBUG_TRACE, "==> autogroup_response MODRDN from <%s>\n", op->o_req_dn.bv_val );
 			Debug( LDAP_DEBUG_TRACE, "autogroup_response MODRDN to <%s>\n", op->orr_newDN.bv_val );
 
 			ldap_pvt_thread_mutex_lock( &agi->agi_mutex );			
 
-			dnMatch( &dn_equal, 0, NULL, NULL, &op->o_req_ndn, &op->orr_nnewDN );
+			dn_equal = dn_match( &op->o_req_ndn, &op->orr_nnewDN );
 
 			if ( overlay_entry_get_ov( op, &op->orr_nnewDN, NULL, NULL, 0, &e, on ) !=
 				LDAP_SUCCESS || e == NULL ) {
@@ -1217,10 +1209,7 @@ autogroup_response( Operation *op, SlapReply *rs )
 						op->o_tmpmemctx ) == 0 )
 				{		
 					for ( age = agi->agi_entry ; age ; age = age->age_next ) {
-						int match = 1;
-
-						dnMatch( &match, 0, NULL, NULL, &age->age_ndn, &op->o_req_ndn );
-						if ( match == 0 ) {
+						if ( dn_match( &age->age_ndn, &op->o_req_ndn )) {
 							Debug( LDAP_DEBUG_TRACE, "autogroup_response MODRDN updating group's DN to <%s>\n", op->orr_newDN.bv_val );
 							ber_dupbv( &age->age_dn, &op->orr_newDN );
 							ber_dupbv( &age->age_ndn, &op->orr_nnewDN );
@@ -1365,11 +1354,9 @@ autogroup_response( Operation *op, SlapReply *rs )
 			attrs_free( attrs );
 
 			ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );			
-		}
 	}
 
 	if ( op->o_tag == LDAP_REQ_MODIFY ) {
-		if ( rs->sr_type == REP_RESULT && rs->sr_err == LDAP_SUCCESS  && !oex ) {
 			Entry etmp;
 			struct berval odn, ondn;
 			Debug( LDAP_DEBUG_TRACE, "==> autogroup_response MODIFY <%s>\n", op->o_req_dn.bv_val );
@@ -1403,17 +1390,12 @@ autogroup_response( Operation *op, SlapReply *rs )
 						a->a_nvals, &agd->agd_oc->soc_cname,
 						op->o_tmpmemctx ) == 0 )
 				{
-					Modifications	*m;
-					int		match = 1;
-
-					m = op->orm_modlist;
+					Modifications	*m = op->orm_modlist;
 
 					for ( age = agi->agi_entry ; age ; age = age->age_next ) {
 						ldap_pvt_thread_mutex_lock( &age->age_mutex );
 
-						dnMatch( &match, 0, NULL, NULL, &op->o_req_ndn, &age->age_ndn );
-
-						if ( match == 0 ) {
+						if ( dn_match( &op->o_req_ndn, &age->age_ndn )) {
 							for ( ; m ; m = m->sml_next ) {
 								if ( m->sml_desc == age->age_def->agd_member_url_ad ) {
 									autogroup_def_t	*group_agd = age->age_def;
@@ -1535,7 +1517,6 @@ autogroup_response( Operation *op, SlapReply *rs )
 			attrs_free( attrs );
 
 			ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
-		}
 	}
 
 	return SLAP_CB_CONTINUE;
@@ -1651,15 +1632,10 @@ breakout:
 				a->a_nvals, &agd->agd_oc->soc_cname,
 				op->o_tmpmemctx ) == 0 )
 		{
-			Modifications	*m;
-			int		match = 1;
-
-			m = op->orm_modlist;
+			Modifications	*m = op->orm_modlist;
 
 			for ( age = agi->agi_entry ; age ; age = age->age_next ) {
-				dnMatch( &match, 0, NULL, NULL, &op->o_req_ndn, &age->age_ndn );
-
-				if ( match == 0 ) {
+				if ( dn_match( &op->o_req_ndn, &age->age_ndn )) {
 					for ( ; m ; m = m->sml_next ) {
 						if ( m->sml_desc == age->age_def->agd_member_ad ) {
 							overlay_entry_release_ov( op, e, 0, on );
@@ -1903,7 +1879,7 @@ ag_cfgen( ConfigArgs *c )
 					ch_free( agf );
 				}
 
-				ldap_pvt_thread_mutex_init( &age->age_mutex );
+				ldap_pvt_thread_mutex_destroy( &age->age_mutex );
 				ch_free( age );
 			}
 
