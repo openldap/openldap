@@ -998,8 +998,10 @@ autogroup_del_entry_cb( Operation *op, SlapReply *rs )
 		ldap_pvt_thread_mutex_unlock( &age->age_mutex );
 	}
 
-	if ( !aa->e )
+	if ( !aa->e ) {
+		ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );
 		goto done;
+	}
 
 	/* Check if the entry matches any of the groups.
 	   If yes, we can delete the entry from that group. */
