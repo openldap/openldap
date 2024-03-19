@@ -802,7 +802,7 @@ autogroup_add_entry_cb( Operation *op, SlapReply *rs )
 		goto done;
 
 	op->o_bd->bd_info = (BackendInfo *)on;
-	if ( !aa->agd ) {
+	{
 		autogroup_entry_t	*age;
 		autogroup_filter_t	*agf;
 		struct berval odn, ondn;
@@ -1211,17 +1211,15 @@ autogroup_response( Operation *op, SlapReply *rs )
 					for ( age = agi->agi_entry ; age ; age = age->age_next ) {
 						if ( dn_match( &age->age_ndn, &op->o_req_ndn )) {
 							Debug( LDAP_DEBUG_TRACE, "autogroup_response MODRDN updating group's DN to <%s>\n", op->orr_newDN.bv_val );
-							ber_dupbv( &age->age_dn, &op->orr_newDN );
-							ber_dupbv( &age->age_ndn, &op->orr_nnewDN );
-
-							overlay_entry_release_ov( op, e, 0, on );
-							ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );		
-							return SLAP_CB_CONTINUE;
+							ber_bvreplace( &age->age_dn, &op->orr_newDN );
+							ber_bvreplace( &age->age_ndn, &op->orr_nnewDN );
+							goto break1;
 						}
 					}
 
 				}
 			}
+break1:
 
 			/* For each group: 
 			   1. check if the original entry's DN is in the group.
