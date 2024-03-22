@@ -254,6 +254,28 @@ void connections_drop()
 	connection_done( c );
 }
 
+/* Drop all ops for given database */
+void connections_drop_db( BackendDB *be )
+{
+	Operation *o;
+	Connection* c;
+	ber_socket_t connindex;
+	BackendDB *rbe = be->bd_self;
+
+	for( c = connection_first( &connindex );
+		c != NULL;
+		c = connection_next( c, &connindex ) )
+	{
+		for ( o = LDAP_STAILQ_FIRST( &c->c_ops ); o; o = LDAP_STAILQ_NEXT( o, o_next )) {
+			if ( o->o_bd && o->o_bd->bd_self == rbe ) {
+				o->o_abandon = 1;
+				o->o_cancel = 1;
+			}
+		}
+	}
+	connection_done( c );
+}
+
 static Connection* connection_get( ber_socket_t s )
 {
 	Connection *c;

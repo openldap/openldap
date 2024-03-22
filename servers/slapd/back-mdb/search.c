@@ -416,6 +416,8 @@ mdb_waitfixup( Operation *op, ww_ctx *ww, MDB_cursor *mci, MDB_cursor *mcd, IdSc
 	return rc;
 }
 
+#define PAUSEPOLL	100
+
 int
 mdb_search( Operation *op, SlapReply *rs )
 {
@@ -433,6 +435,7 @@ mdb_search( Operation *op, SlapReply *rs )
 	int		manageDSAit;
 	int		tentries = 0;
 	int		admincheck = 0;
+	int		pausepoll;
 	IdScopes	isc;
 	MDB_cursor	*mci, *mcd;
 	ww_ctx wwctx;
@@ -806,12 +809,19 @@ adminlimit:
 		id = mdb_idl_first( candidates, &cursor );
 	}
 
+	pausepoll = 0;
 	while (id != NOID)
 	{
 		int scopeok;
 		MDB_val edata;
 
 loop_begin:
+
+		if ( ++pausepoll == PAUSEPOLL ) {
+			pausepoll = 0;
+			if ( ldap_pvt_thread_pool_pausing( &connection_pool ) > 0 )
+				ldap_pvt_thread_pool_pausewait( &connection_pool );
+		}
 
 		/* check for abandon */
 		if ( op->o_abandon ) {

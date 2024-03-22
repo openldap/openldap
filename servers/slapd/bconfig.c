@@ -6931,6 +6931,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 			if ( ce->ce_be->bd_info->bi_db_close ) {
 				ce->ce_be->bd_info->bi_db_close( ce->ce_be, NULL );
 			}
+			connections_drop_db( ce->ce_be );
 			backend_destroy_one( ce->ce_be, 1);
 		}
 
