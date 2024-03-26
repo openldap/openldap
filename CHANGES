@@ -9,6 +9,7 @@ OpenLDAP 2.6.8 Engineering
 	Build
 		Fixed build with gcc14.x (ITS#10166)
 	Documentation
+		Fixed slapo-memberof exattr requirements (ITS#7400)
 		Fixed slapo-memberof is no longer deprecated (ITS#7400)
 	Minor Cleanup
 		ITS#10171
