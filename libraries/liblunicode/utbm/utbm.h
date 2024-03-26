@@ -108,7 +108,4 @@ LDAP_LUNICODE_F (ucs4_t) _utbm_totitle LDAP_P((ucs4_t c));
 
 LDAP_END_DECL
 
-#endif
-
-
 #endif /* _h_utbm */
