@@ -53,7 +53,7 @@ CAVEATS
       the last overlay configured so it will run before the other overlays.
 
 ---
-Copyright 2014-2022 The OpenLDAP Foundation.
+Copyright 2014-2024 The OpenLDAP Foundation.
 Portions Copyright (C) DAASI International GmbH, Tamim Ziai.
 All rights reserved.
 

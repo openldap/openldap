@@ -5,7 +5,7 @@
 #
 # Report bugs to <http://www.openldap.org/its/ >.
 #
-# Copyright 2000-2022 The OpenLDAP Foundation. All rights reserved.
+# Copyright 2000-2024 The OpenLDAP Foundation. All rights reserved.
 # Restrictions apply, see COPYRIGHT and LICENSE files.
 #
 #
@@ -1537,7 +1537,7 @@ Copyright (C) 2012 Free Software Foundation, Inc.
 This configure script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it.
 
-Copyright 2000-2022 The OpenLDAP Foundation. All rights reserved.
+Copyright 2000-2024 The OpenLDAP Foundation. All rights reserved.
 Restrictions apply, see COPYRIGHT and LICENSE files.
 _ACEOF
   exit
