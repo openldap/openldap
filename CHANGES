@@ -5,6 +5,7 @@ OpenLDAP 2.5.18 Engineering
 	Fixed slapd-meta with dynlist (ITS#10164)
 	Fixed slapd-meta binds when proxying internal op (ITS#10165)
 	Fixed slapo-accesslog startup initialization (ITS#10170)
+	Fixed slapo-dynlist with abandoned operations (ITS#10044)
 	Build
 		Fixed build with gcc14.x (ITS#10166)
 		Fixed back-perl with clang15 (ITS#10177)
