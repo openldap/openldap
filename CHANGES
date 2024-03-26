@@ -10,6 +10,8 @@ OpenLDAP 2.6.8 Engineering
 	Build
 		Fixed build with gcc14.x (ITS#10166)
 		Fixed back-perl with clang15 (ITS#10177)
+	Contrib
+		Fixed slapo-autogroup to work with slapo-dynlist (ITS#10185)
 	Documentation
 		Fixed slapo-memberof exattr requirements (ITS#7400)
 		Fixed slapo-memberof is no longer deprecated (ITS#7400)
@@ -19,6 +21,7 @@ OpenLDAP 2.6.8 Engineering
 		ITS#10173
 		ITS#10179
 		ITS#10186
+		ITS#10188
 
 OpenLDAP 2.6.7 Release (2024/01/29)
 	Added slapo-dynlist option to disable filter support (ITS#10025)
