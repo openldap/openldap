@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.18 Engineering
+	Fixed libldap exit handling with OpenSSL3 again (ITS#9952)
 	Fixed slapd-meta with dynlist (ITS#10164)
 	Fixed slapd-meta binds when proxying internal op (ITS#10165)
 	Fixed slapo-accesslog startup initialization (ITS#10170)
