@@ -2,7 +2,7 @@
 /* remoteauth.c - Overlay to delegate bind processing to a remote server */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2004-2022 The OpenLDAP Foundation.
+ * Copyright 2004-2024 The OpenLDAP Foundation.
  * Portions Copyright 2017-2021 Ondřej Kuzník, Symas Corporation.
  * Portions Copyright 2004-2017 Howard Chu, Symas Corporation.
  * Portions Copyright 2004 Hewlett-Packard Company.

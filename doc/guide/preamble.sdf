@@ -1,5 +1,5 @@
 # $OpenLDAP$
-# Copyright 1999-2022 The OpenLDAP Foundation, All Rights Reserved.
+# Copyright 1999-2024 The OpenLDAP Foundation, All Rights Reserved.
 # COPYING RESTRICTIONS APPLY, see COPYRIGHT.
  
 #
@@ -55,7 +55,7 @@
 <P>
 <FONT COLOR="#808080" FACE="Arial,Verdana,Helvetica" SIZE="1"><B>
 ________________<BR>
-<SMALL>&copy; Copyright 2011-2022, <A HREF="https://www.OpenLDAP.org/foundation/">OpenLDAP Foundation</A>, <A HREF="mailto:info@OpenLDAP.org">info@OpenLDAP.org</A></SMALL></B></FONT>
+<SMALL>&copy; Copyright 2011-2024, <A HREF="https://www.OpenLDAP.org/foundation/">OpenLDAP Foundation</A>, <A HREF="mailto:info@OpenLDAP.org">info@OpenLDAP.org</A></SMALL></B></FONT>
 
 	!endblock
 !endmacro
@@ -91,7 +91,7 @@ ________________<BR>
 <P>
 <FONT COLOR="#808080" FACE="Arial,Verdana,Helvetica" SIZE="1"><B>
 ________________<BR>
-<SMALL>&copy; Copyright 2011-2022, <A HREF="https://www.OpenLDAP.org/foundation/">OpenLDAP Foundation</A>, <A HREF="mailto:info@OpenLDAP.org">info@OpenLDAP.org</A></SMALL></B></FONT>
+<SMALL>&copy; Copyright 2011-2024, <A HREF="https://www.OpenLDAP.org/foundation/">OpenLDAP Foundation</A>, <A HREF="mailto:info@OpenLDAP.org">info@OpenLDAP.org</A></SMALL></B></FONT>
 
 	!endblock
 !endmacro

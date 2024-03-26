@@ -2,7 +2,7 @@
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
  *
- * Copyright 2024 The OpenLDAP Foundation.
+ * Copyright 2024-2024 The OpenLDAP Foundation.
  * Copyright 2024 by Howard Chu.
  * All rights reserved.
  *
