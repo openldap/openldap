@@ -11,11 +11,13 @@ OpenLDAP 2.6.8 Engineering
 		Fixed build with gcc14.x (ITS#10166)
 		Fixed back-perl with clang15 (ITS#10177)
 	Contrib
+		Added slapo-alias contrib module (ITS#10104, ITS#10182)
 		Fixed slapo-autogroup to work with slapo-dynlist (ITS#10185)
 	Documentation
 		Fixed slapo-memberof exattr requirements (ITS#7400)
 		Fixed slapo-memberof is no longer deprecated (ITS#7400)
 	Minor Cleanup
+		ITS#10103
 		ITS#10171
 		ITS#10172
 		ITS#10173
