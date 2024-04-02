@@ -497,7 +497,8 @@ asyncmeta_cfadd( Operation *op, SlapReply *rs, Entry *p, ConfigArgs *c )
 static int
 asyncmeta_back_new_target(
 	a_metatarget_t	**mtp,
-	a_metainfo_t     *mi )
+	a_metainfo_t     *mi,
+	BackendDB        *db )
 {
 	a_metatarget_t		*mt;
 
@@ -516,7 +517,9 @@ asyncmeta_back_new_target(
 	mt->mt_idassert_flags = LDAP_BACK_AUTH_PRESCRIPTIVE;
 
 	*mtp = mt;
-
+	if ( !SLAP_DBOPEN(db) || !(slapMode & SLAP_SERVER_MODE)) {
+		return 0;
+	}
 	for ( i = 0; i < mi->mi_num_conns; i++ ) {
 		a_metaconn_t *mc = &mi->mi_conns[i];
 		mc->mc_conns = ch_realloc( mc->mc_conns, sizeof( a_metasingleconn_t ) * mi->mi_ntargets);
@@ -1907,7 +1910,7 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			return 1;
 		}
 
-		if ( asyncmeta_back_new_target( &mi->mi_targets[ i ], mi ) != 0 ) {
+		if ( asyncmeta_back_new_target( &mi->mi_targets[ i ], mi, c->be ) != 0 ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
 				"unable to init server"
 				" in \"%s <protocol>://<server>[:port]/<naming context>\"",
