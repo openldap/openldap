@@ -275,7 +275,7 @@ asyncmeta_back_db_open(
 	
 	ber_dupbv ( &mi->mi_suffix, &be->be_suffix[0] );
 
-	if ( mi->mi_ntargets > 0 ) {
+	if ( ( slapMode & SLAP_SERVER_MODE ) && mi->mi_ntargets > 0 ) {
 		ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
 		mi->mi_task = ldap_pvt_runqueue_insert( &slapd_rq, 1,
 							asyncmeta_timeout_loop, mi, "asyncmeta_timeout_loop", mi->mi_suffix.bv_val );
