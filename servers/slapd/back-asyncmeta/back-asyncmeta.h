@@ -777,6 +777,9 @@ asyncmeta_db_has_pending_ops(a_metainfo_t *mi);
 int
 asyncmeta_db_has_mscs(a_metainfo_t *mi);
 
+void
+asyncmeta_target_free(a_metatarget_t *mt);
+
 /* The the maximum time in seconds after a result has been received on a connection,
  * after which it can be reset if a sender error occurs. Should this be configurable? */
 #define META_BACK_RESULT_INTERVAL (2)

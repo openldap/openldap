@@ -565,16 +565,10 @@ meta_rwi_init( struct rewrite_info **rwm_rw )
 
 static int
 meta_back_new_target(
-	metatarget_t	**mtp )
+	metatarget_t	*mt )
 {
-	metatarget_t		*mt;
-
-	*mtp = NULL;
-
-	mt = ch_calloc( sizeof( metatarget_t ), 1 );
 
 	if ( meta_rwi_init( &mt->mt_rwmap.rwm_rw )) {
-		ch_free( mt );
 		return -1;
 	}
 
@@ -586,8 +580,6 @@ meta_back_new_target(
 
 	/* by default, use proxyAuthz control on each operation */
 	mt->mt_idassert_flags = LDAP_BACK_AUTH_PRESCRIPTIVE;
-
-	*mtp = mt;
 
 	return 0;
 }
@@ -1960,7 +1952,6 @@ meta_back_cf_gen( ConfigArgs *c )
 		LDAPURLDesc 	*ludp;
 		struct berval	dn;
 		int		j;
-
 		char		**uris = NULL;
 
 		if ( c->be->be_nsuffix == NULL ) {
@@ -1970,38 +1961,16 @@ meta_back_cf_gen( ConfigArgs *c )
 			return 1;
 		}
 
-		i = mi->mi_ntargets++;
-
-		mi->mi_targets = ( metatarget_t ** )ch_realloc( mi->mi_targets,
-			sizeof( metatarget_t * ) * mi->mi_ntargets );
-		if ( mi->mi_targets == NULL ) {
-			snprintf( c->cr_msg, sizeof( c->cr_msg ),
-				"out of memory while storing server name"
-				" in \"%s <protocol>://<server>[:port]/<naming context>\"",
-				c->argv[0] );
-			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-			return 1;
-		}
-
-		if ( meta_back_new_target( &mi->mi_targets[ i ] ) != 0 ) {
+		mt = ch_calloc( sizeof( metatarget_t ), 1 );
+		if ( meta_back_new_target( mt ) != 0 ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
 				"unable to init server"
 				" in \"%s <protocol>://<server>[:port]/<naming context>\"",
 				c->argv[0] );
 			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			meta_back_target_free( mt );
 			return 1;
 		}
-
-		mt = mi->mi_targets[ i ];
-
-		mt->mt_rebind_f = mi->mi_rebind_f;
-		mt->mt_urllist_f = mi->mi_urllist_f;
-		mt->mt_urllist_p = mt;
-
-		if ( META_BACK_QUARANTINE( mi ) ) {
-			ldap_pvt_thread_mutex_init( &mt->mt_quarantine_mutex );
-		}
-		mt->mt_mc = mi->mi_mc;
 
 		for ( j = 1; j < c->argc; j++ ) {
 			char	**tmpuris = ldap_str2charray( c->argv[ j ], "\t" );
@@ -2012,6 +1981,7 @@ meta_back_cf_gen( ConfigArgs *c )
 					" in \"%s <protocol>://<server>[:port]/<naming context>\"",
 					j-1, c->argv[0] );
 				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				meta_back_target_free( mt );
 				return 1;
 			}
 
@@ -2040,6 +2010,7 @@ meta_back_cf_gen( ConfigArgs *c )
 					j-1, c->argv[0] );
 				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 				ldap_charray_free( uris );
+				meta_back_target_free( mt );
 				return 1;
 			}
 
@@ -2056,6 +2027,7 @@ meta_back_cf_gen( ConfigArgs *c )
 					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 					ldap_free_urllist( ludp );
 					ldap_charray_free( uris );
+					meta_back_target_free( mt );
 					return 1;
 				}
 
@@ -2072,6 +2044,7 @@ meta_back_cf_gen( ConfigArgs *c )
 					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 					ldap_free_urllist( ludp );
 					ldap_charray_free( uris );
+					meta_back_target_free( mt );
 					return( 1 );
 				}
 
@@ -2094,6 +2067,7 @@ meta_back_cf_gen( ConfigArgs *c )
 					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 					ldap_free_urllist( ludp );
 					ldap_charray_free( uris );
+					meta_back_target_free( mt );
 					return( 1 );
 				}
 
@@ -2105,6 +2079,7 @@ meta_back_cf_gen( ConfigArgs *c )
 					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 					ldap_free_urllist( ludp );
 					ldap_charray_free( uris );
+					meta_back_target_free( mt );
 					return( 1 );
 
 				}
@@ -2116,6 +2091,7 @@ meta_back_cf_gen( ConfigArgs *c )
 				snprintf( c->cr_msg, sizeof( c->cr_msg ), "no memory?" );
 				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
 				ldap_charray_free( uris );
+				meta_back_target_free( mt );
 				return( 1 );
 			}
 			ldap_memfree( uris[ j ] );
@@ -2127,6 +2103,7 @@ meta_back_cf_gen( ConfigArgs *c )
 		if ( mt->mt_uri == NULL) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ), "no memory?" );
 			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			meta_back_target_free( mt );
 			return( 1 );
 		}
 
@@ -2143,8 +2120,34 @@ meta_back_cf_gen( ConfigArgs *c )
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
 				"<naming context> of URI must be within the naming context of this database." );
 			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			meta_back_target_free( mt );
 			return 1;
 		}
+
+		i = mi->mi_ntargets++;
+
+		mi->mi_targets = ( metatarget_t ** )ch_realloc( mi->mi_targets,
+			sizeof( metatarget_t * ) * mi->mi_ntargets );
+		if ( mi->mi_targets == NULL ) {
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"out of memory while storing server name"
+				" in \"%s <protocol>://<server>[:port]/<naming context>\"",
+				c->argv[0] );
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			meta_back_target_free( mt );
+			return 1;
+		}
+
+		mi->mi_targets[i] = mt;
+		mt->mt_rebind_f = mi->mi_rebind_f;
+		mt->mt_urllist_f = mi->mi_urllist_f;
+		mt->mt_urllist_p = mt;
+
+		if ( META_BACK_QUARANTINE( mi ) ) {
+			ldap_pvt_thread_mutex_init( &mt->mt_quarantine_mutex );
+		}
+
+		mt->mt_mc = mi->mi_mc;
 		c->ca_private = mt;
 		config_push_cleanup( c, meta_cf_cleanup );
 	} break;

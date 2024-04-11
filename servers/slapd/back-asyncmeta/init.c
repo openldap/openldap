@@ -325,7 +325,7 @@ asyncmeta_back_clear_miconns( a_metainfo_t *mi )
 	free(mi->mi_conns);
 }
 
-static void
+void
 asyncmeta_target_free(
 	a_metatarget_t	*mt )
 {

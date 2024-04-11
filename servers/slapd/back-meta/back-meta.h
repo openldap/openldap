@@ -685,6 +685,9 @@ meta_target_finish( metainfo_t *mi, metatarget_t *mt,
 	const char *log, char *msg, size_t msize
 );
 
+extern void
+meta_back_target_free( metatarget_t	*mt );
+
 extern LDAP_REBIND_PROC		meta_back_default_rebind;
 extern LDAP_URLLIST_PROC	meta_back_default_urllist;
 
