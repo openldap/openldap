@@ -326,8 +326,8 @@ meta_back_map_free( struct ldapmap *lm )
 	lm->map = NULL;
 }
 
-static void
-target_free(
+void
+meta_back_target_free(
 	metatarget_t	*mt )
 {
 	if ( mt->mt_uri ) {
@@ -433,7 +433,7 @@ meta_back_db_destroy(
 					ldap_pvt_thread_mutex_destroy( &mt->mt_quarantine_mutex );
 				}
 
-				target_free( mt );
+				meta_back_target_free( mt );
 			}
 
 			free( mi->mi_targets );
