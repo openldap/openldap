@@ -936,9 +936,6 @@
 /* define to support modules */
 #undef SLAPD_MODULES
 
-/* define for Nested Group overlay */
-#undef SLAPD_OVER_NESTGROUP
-
 /* define to support reverse lookups */
 #undef SLAPD_RLOOKUPS
 
