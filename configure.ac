@@ -2559,17 +2559,6 @@ if test "$ol_enable_autoca" != no ; then
 	fi
 fi
 
-if test "$ol_enable_nestgroup" != no ; then
-	if test "$ol_enable_nestgroup" = mod ; then
-		MFLAG=SLAPD_MOD_DYNAMIC
-		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS nestgroup.la"
-	else
-		MFLAG=SLAPD_MOD_STATIC
-		SLAPD_STATIC_OVERLAYS="$SLAPD_STATIC_OVERLAYS nestgroup.o"
-	fi
-	AC_DEFINE_UNQUOTED(SLAPD_OVER_NESTGROUP,$MFLAG,[define for Nested Group overlay])
-fi
-
 if test "$ol_enable_otp" != no ; then
 	if test $ol_with_tls = no ; then
 		AC_MSG_ERROR([--enable-otp=$ol_enable_otp requires --with-tls])
