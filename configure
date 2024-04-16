@@ -687,6 +687,7 @@ BUILD_REFINT
 BUILD_PROXYCACHE
 BUILD_PPOLICY
 BUILD_OTP
+BUILD_NESTGROUP
 BUILD_MEMBEROF
 BUILD_HOMEDIR
 BUILD_LASTMOD
@@ -4723,6 +4724,7 @@ BUILD_DYNLIST=no
 BUILD_LASTMOD=no
 BUILD_HOMEDIR=no
 BUILD_MEMBEROF=no
+BUILD_NESTGROUP=no
 BUILD_OTP=no
 BUILD_PPOLICY=no
 BUILD_PROXYCACHE=no
@@ -25161,6 +25163,7 @@ _ACEOF
 fi
 
 if test "$ol_enable_nestgroup" != no ; then
+	BUILD_NESTGROUP=$ol_enable_nestgroup
 	if test "$ol_enable_nestgroup" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS nestgroup.la"
@@ -25586,6 +25589,7 @@ if test "$ac_cv_mingw32" = yes -o $ol_cv_msvc = yes ; then
 else
 	PLAT=UNIX
 fi
+
 
 
 
