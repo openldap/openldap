@@ -987,6 +987,9 @@
 /* define for Reverse Group Membership overlay */
 #undef SLAPD_OVER_MEMBEROF
 
+/* define for Nested Group overlay */
+#undef SLAPD_OVER_NESTGROUP
+
 /* define for OTP 2-factor Authentication overlay */
 #undef SLAPD_OVER_OTP
 
