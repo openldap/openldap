@@ -596,6 +596,7 @@ BUILD_DYNLIST=no
 BUILD_LASTMOD=no
 BUILD_HOMEDIR=no
 BUILD_MEMBEROF=no
+BUILD_NESTGROUP=no
 BUILD_OTP=no
 BUILD_PPOLICY=no
 BUILD_PROXYCACHE=no
@@ -2870,6 +2871,7 @@ if test "$ol_enable_memberof" != no ; then
 fi
 
 if test "$ol_enable_nestgroup" != no ; then
+	BUILD_NESTGROUP=$ol_enable_nestgroup
 	if test "$ol_enable_nestgroup" = mod ; then
 		MFLAG=SLAPD_MOD_DYNAMIC
 		SLAPD_DYNAMIC_OVERLAYS="$SLAPD_DYNAMIC_OVERLAYS nestgroup.la"
@@ -3182,6 +3184,7 @@ dnl overlays
   AC_SUBST(BUILD_LASTMOD)
   AC_SUBST(BUILD_HOMEDIR)
   AC_SUBST(BUILD_MEMBEROF)
+  AC_SUBST(BUILD_NESTGROUP)
   AC_SUBST(BUILD_OTP)
   AC_SUBST(BUILD_PPOLICY)
   AC_SUBST(BUILD_PROXYCACHE)
