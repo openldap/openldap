@@ -45,6 +45,7 @@
 #include <krb5.h>
 #include <kadm5/admin.h>
 #include <hdb.h>
+#include <kadm5/private.h>
 
 #ifndef HDB_INTERFACE_VERSION
 #define	HDB_MASTER_KEY_SET	master_key_set
