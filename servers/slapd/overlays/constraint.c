@@ -369,6 +369,7 @@ constraint_cf_gen( ConfigArgs *c )
 						ap.attrs[i] = NULL;
 						if ( slap_str2ad( ap.lud->lud_attrs[i], &ap.attrs[i], &text ) ) {
 							ch_free( ap.attrs );
+							ap.attrs = NULL;
 							snprintf( c->cr_msg, sizeof( c->cr_msg ),
 								"%s <%s>: %s\n", c->argv[0], ap.lud->lud_attrs[i], text );
 							rc = ARG_BAD_CONF;
