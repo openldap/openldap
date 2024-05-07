@@ -639,7 +639,6 @@ MODULES_LIBS=
 SLAPI_LIBS=
 LIBSLAPI=
 AUTH_LIBS=
-SYSTEMD_LIBS=
 
 SLAPD_SLP_LIBS=
 SLAPD_GMP_LIBS=
@@ -2062,42 +2061,29 @@ dnl ----------------------------------------------------------------
 dnl
 dnl Check for systemd (only if we have a server)
 dnl
-WITH_SYSTEMD=no
 systemdsystemunitdir=
-ol_link_systemd=no
 if test $ol_enable_slapd = no && test $ol_enable_balancer != yes ; then
 	if test $ol_with_systemd != no ; then
 		AC_MSG_WARN([servers disabled, ignoring --with-systemd=$ol_with_systemd argument])
 		ol_with_systemd=no
 	fi
 fi
-if test $ol_with_systemd != no ; then
+
+if test $ol_with_systemd = auto; then
 	AC_CHECK_HEADERS(systemd/sd-daemon.h)
-
 	if test $ac_cv_header_systemd_sd_daemon_h = yes; then
-		AC_CHECK_LIB(systemd, sd_notify,
-			[ol_link_systemd="-lsystemd"])
+		ol_with_systemd=yes
 	fi
+fi
 
-	if test $ol_link_systemd = no ; then
-		if test $ol_with_systemd != auto ; then
-			AC_MSG_ERROR([Could not locate systemd])
+if test $ol_with_systemd = yes ; then
+	AC_DEFINE(HAVE_SYSTEMD,1,[define if you have systemd])
+	PKG_CHECK_VAR(systemdsystemunitdir, systemd, systemdsystemunitdir)
+	if test -z "$systemdsystemunitdir"; then
+		if test -d /usr/lib/systemd/system; then
+			systemdsystemunitdir=/usr/lib/systemd/system
 		else
-			AC_MSG_WARN([Could not locate systemd])
-			AC_MSG_WARN([systemd service notification not supported!])
-		fi
-	else
-		AC_DEFINE(HAVE_SYSTEMD,1,[define if you have systemd])
-		SYSTEMD_LIBS="$ol_link_systemd"
-		WITH_SYSTEMD=yes
-
-		PKG_CHECK_VAR(systemdsystemunitdir, systemd, systemdsystemunitdir)
-		if test -z "$systemdsystemunitdir"; then
-			if test -d /usr/lib/systemd/system; then
-				systemdsystemunitdir=/usr/lib/systemd/system
-			else
-				systemdsystemunitdir=/lib/systemd/system
-			fi
+			systemdsystemunitdir=/lib/systemd/system
 		fi
 	fi
 fi
@@ -3145,7 +3131,6 @@ AC_SUBST(WITH_SASL)
 AC_SUBST(WITH_TLS)
 AC_SUBST(WITH_MODULES_ENABLED)
 AC_SUBST(WITH_ACI_ENABLED)
-AC_SUBST(WITH_SYSTEMD)
 AC_SUBST(BUILD_THREAD)
 AC_SUBST(BUILD_LIBS_DYNAMIC)
 AC_SUBST(OL_VERSIONED_SYMBOLS)
@@ -3235,7 +3220,6 @@ AC_SUBST(SLAPI_LIBS)
 AC_SUBST(LIBSLAPI)
 AC_SUBST(AUTH_LIBS)
 AC_SUBST(ARGON2_LIBS)
-AC_SUBST(SYSTEMD_LIBS)
 
 AC_SUBST(SLAPD_SLP_LIBS)
 AC_SUBST(SLAPD_GMP_LIBS)
