@@ -9,6 +9,8 @@ OpenLDAP 2.5.18 Engineering
 	Build
 		Fixed build with gcc14.x (ITS#10166)
 		Fixed back-perl with clang15 (ITS#10177)
+	Contrib
+		Fixed smbk5pwd implicit function declaration (ITS#10206)
 	Minor Cleanup
 		ITS#10171
 		ITS#10173
