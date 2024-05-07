@@ -8,6 +8,7 @@ OpenLDAP 2.6.8 Engineering
 	Added slapo-nestgroup overlay (ITS#10161)
 	Added slapo-memberof 'addcheck' option (ITS#10167)
 	Fixed slapo-accesslog startup initialization (ITS#10170)
+	Fixed slapo-constraint double free on invalid attr (ITS#10204)
 	Fixed slapo-dynlist with abandoned operations (ITS#10044)
 	Build
 		Fixed build with gcc14.x (ITS#10166)
