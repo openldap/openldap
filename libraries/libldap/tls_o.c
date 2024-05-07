@@ -223,7 +223,12 @@ tlso_init( void )
 	SSL_library_init();
 	OpenSSL_add_all_digests();
 #else
-	OPENSSL_init_ssl(OPENSSL_INIT_NO_ATEXIT, NULL);
+#ifdef OPENSSL_INIT_NO_ATEXIT
+#define	OPENSSL_FLAGS	OPENSSL_INIT_NO_ATEXIT
+#else
+#define	OPENSSL_FLAGS	0
+#endif
+	OPENSSL_init_ssl(OPENSSL_FLAGS, NULL);
 #endif
 
 	/* FIXME: mod_ssl does this */
