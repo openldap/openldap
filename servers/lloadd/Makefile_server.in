@@ -32,8 +32,6 @@ BUILD_SRV = @BUILD_BALANCER@
 
 all-local-srv: 	$(PROGRAMS) all-cffiles
 
-XXLIBS += $(SYSTEMD_LIBS)
-
 lloadd:	$(LLOADD_DEPENDS) version.o
 	$(LTLINK) -o $@ $(OBJS) version.o $(LIBS)
 

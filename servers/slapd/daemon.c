@@ -41,8 +41,8 @@
 
 #include "ldap_rq.h"
 
-#ifdef HAVE_SYSTEMD_SD_DAEMON_H
-#include <systemd/sd-daemon.h>
+#ifdef HAVE_SYSTEMD
+#include "sd-notify.h"
 #endif
 
 #ifdef HAVE_POLL
