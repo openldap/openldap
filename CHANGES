@@ -16,6 +16,7 @@ OpenLDAP 2.6.8 Engineering
 	Contrib
 		Added slapo-alias contrib module (ITS#10104, ITS#10182)
 		Fixed slapo-autogroup to work with slapo-dynlist (ITS#10185)
+		Fixed smbk5pwd implicit function declaration (ITS#10206)
 	Documentation
 		Fixed slapo-memberof exattr requirements (ITS#7400)
 		Fixed slapo-memberof is no longer deprecated (ITS#7400)
