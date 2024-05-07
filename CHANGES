@@ -184,6 +184,7 @@ OpenLDAP 2.6.3 Release (2022/07/14)
 	Fixed slapo-unique to not release NULL entry (ITS#8245)
 	Build Environment
 		Added slapd-watcher -c contextDN option (ITS#9865)
+		Fixed tests to use SCRAM-SHA-256 instead of DIGEST-MD5 (ITS#10208)
 		Fixed librewrite declaration of calloc (ITS#9841)
 		Fixed parallel builds (ITS#9840)
 		Fixed test020 to skip back-wt (ITS#9859)
