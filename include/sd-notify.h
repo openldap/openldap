@@ -12,14 +12,6 @@
 #include <sys/un.h>
 #include <unistd.h>
 
-#define _cleanup_(f) __attribute__((cleanup(f)))
-static void closep(int *fd) {
-    if (!fd || *fd < 0)
-	return;
-    close(*fd);
-    *fd = -1;
-}
-
 static int sd_notify(int ignore, const char *message) {
     union sockaddr_union {
 	struct sockaddr sa;
@@ -28,8 +20,9 @@ static int sd_notify(int ignore, const char *message) {
 	.sun.sun_family = AF_UNIX,
     };
     size_t path_length, message_length;
-    _cleanup_(closep) int fd = -1;
     const char *socket_path;
+    int fd = -1;
+    int rc = 1;
 
     socket_path = getenv("NOTIFY_SOCKET");
     if (!socket_path)
@@ -61,12 +54,11 @@ static int sd_notify(int ignore, const char *message) {
     if (fd < 0)
 	return -errno;
 
-    if (connect(fd, &socket_addr.sa, offsetof(struct sockaddr_un, sun_path) + path_length) != 0)
-	return -errno;
-
-    ssize_t written = write(fd, message, message_length);
+    ssize_t written = sendto(fd, message, message_length, 0,
+			     &socket_addr.sa, offsetof(struct sockaddr_un, sun_path) + path_length);
     if (written != (ssize_t) message_length)
-	return written < 0 ? -errno : -EPROTO;
+	rc = written < 0 ? -errno : -EPROTO;
 
-    return 1; /* Notified! */
+    close(fd);
+    return rc;
 }
