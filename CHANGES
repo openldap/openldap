@@ -14,6 +14,7 @@ OpenLDAP 2.5.18 Engineering
 	Contrib
 		Fixed smbk5pwd implicit function declaration (ITS#10206)
 	Minor Cleanup
+		ITS#9921
 		ITS#10171
 		ITS#10173
 		ITS#10179
