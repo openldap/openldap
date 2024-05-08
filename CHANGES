@@ -22,6 +22,7 @@ OpenLDAP 2.6.8 Engineering
 		Fixed slapo-memberof exattr requirements (ITS#7400)
 		Fixed slapo-memberof is no longer deprecated (ITS#7400)
 	Minor Cleanup
+		ITS#9921
 		ITS#10103
 		ITS#10171
 		ITS#10172
