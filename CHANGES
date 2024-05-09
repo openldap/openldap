@@ -11,6 +11,7 @@ OpenLDAP 2.5.18 Engineering
 		Fixed build with gcc14.x (ITS#10166)
 		Fixed back-perl with clang15 (ITS#10177)
 		Fixed tests to use SCRAM-SHA-256 instead of DIGEST-MD5 (ITS#10208)
+		Fixed to reduce systemd dependencies (ITS#10214)
 	Contrib
 		Fixed smbk5pwd implicit function declaration (ITS#10206)
 	Minor Cleanup
