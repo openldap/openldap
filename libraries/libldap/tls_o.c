@@ -54,7 +54,9 @@
 
 #if OPENSSL_VERSION_MAJOR >= 3
 #define ERR_get_error_line( a, b )	ERR_get_error_all( a, b, NULL, NULL, NULL )
+#ifndef SSL_get_peer_certificate
 #define SSL_get_peer_certificate( s )	SSL_get1_peer_certificate( s )
+#endif
 #endif
 typedef SSL_CTX tlso_ctx;
 typedef SSL tlso_session;
@@ -1044,7 +1046,12 @@ tlso_session_endpoint( tls_session *sess, struct berval *buf, int is_server )
 		return 0;
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000
-	md = EVP_get_digestbynid( X509_get_signature_nid( cert ));
+	{
+		int mdnid;
+		if ( !OBJ_find_sigid_algs( X509_get_signature_nid( cert ), &mdnid, NULL ))
+			return 0;
+		md = EVP_get_digestbynid( mdnid );
+	}
 #else
 	md = EVP_get_digestbynid(OBJ_obj2nid( cert->sig_alg->algorithm ));
 #endif
