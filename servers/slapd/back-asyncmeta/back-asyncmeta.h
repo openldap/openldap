@@ -427,6 +427,7 @@ typedef struct a_metainfo_t {
 	a_metaconn_t          *mi_conns;
 
 	struct berval		mi_suffix;
+	volatile int          mi_disabled;
 } a_metainfo_t;
 
 typedef enum meta_op_type {
@@ -779,6 +780,9 @@ asyncmeta_db_has_mscs(a_metainfo_t *mi);
 
 void
 asyncmeta_target_free(a_metatarget_t *mt);
+
+void
+asyncmeta_back_clear_miconns(a_metainfo_t *mi);
 
 /* The the maximum time in seconds after a result has been received on a connection,
  * after which it can be reset if a sender error occurs. Should this be configurable? */

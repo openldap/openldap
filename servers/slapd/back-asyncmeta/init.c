@@ -240,13 +240,13 @@ asyncmeta_back_db_open(
 	char msg[SLAP_TEXT_BUFLEN];
 	int		i;
 
+	mi->mi_disabled = 0;
 	if ( mi->mi_ntargets == 0 ) {
 
 		Debug( LDAP_DEBUG_ANY,
 			"asyncmeta_back_db_open: no targets defined\n" );
 	}
 
-	mi->mi_num_conns = 0;
 	for ( i = 0; i < mi->mi_ntargets; i++ ) {
 		a_metatarget_t	*mt = mi->mi_targets[ i ];
 		if ( asyncmeta_target_finish( mi, mt,
@@ -255,31 +255,34 @@ asyncmeta_back_db_open(
 		}
 	}
 
-	mi->mi_num_conns = (mi->mi_max_target_conns == 0) ? META_BACK_CFG_MAX_TARGET_CONNS : mi->mi_max_target_conns;
-	assert(mi->mi_num_conns > 0);
-	mi->mi_conns = ch_calloc( mi->mi_num_conns, sizeof( a_metaconn_t ));
-	for (i = 0; i < mi->mi_num_conns; i++) {
-		a_metaconn_t *mc = &mi->mi_conns[i];
-		ldap_pvt_thread_mutex_init( &mc->mc_om_mutex);
-		mc->mc_authz_target = META_BOUND_NONE;
+	if ( mi->mi_conns == NULL ) {
+		mi->mi_num_conns = (mi->mi_max_target_conns == 0) ? META_BACK_CFG_MAX_TARGET_CONNS : mi->mi_max_target_conns;
+		assert(mi->mi_num_conns > 0);
+		mi->mi_conns = ch_calloc( mi->mi_num_conns, sizeof( a_metaconn_t ));
+		for (i = 0; i < mi->mi_num_conns; i++) {
+			a_metaconn_t *mc = &mi->mi_conns[i];
+			ldap_pvt_thread_mutex_init( &mc->mc_om_mutex);
+			mc->mc_authz_target = META_BOUND_NONE;
 
-		if ( mi->mi_ntargets > 0 ) {
-			mc->mc_conns = ch_calloc( mi->mi_ntargets, sizeof( a_metasingleconn_t ));
-		} else {
-			mc->mc_conns = NULL;
+			if ( mi->mi_ntargets > 0 ) {
+				mc->mc_conns = ch_calloc( mi->mi_ntargets, sizeof( a_metasingleconn_t ));
+			} else {
+				mc->mc_conns = NULL;
+			}
+
+			mc->mc_info = mi;
+			LDAP_STAILQ_INIT( &mc->mc_om_list );
 		}
-
-		mc->mc_info = mi;
-		LDAP_STAILQ_INIT( &mc->mc_om_list );
-	}
 	
-	ber_dupbv ( &mi->mi_suffix, &be->be_suffix[0] );
 
-	if ( ( slapMode & SLAP_SERVER_MODE ) && mi->mi_ntargets > 0 ) {
-		ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-		mi->mi_task = ldap_pvt_runqueue_insert( &slapd_rq, 1,
-							asyncmeta_timeout_loop, mi, "asyncmeta_timeout_loop", mi->mi_suffix.bv_val );
-		ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+		ber_dupbv ( &mi->mi_suffix, &be->be_suffix[0] );
+
+		if ( ( slapMode & SLAP_SERVER_MODE ) && mi->mi_ntargets > 0 ) {
+			ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
+			mi->mi_task = ldap_pvt_runqueue_insert( &slapd_rq, 1,
+													asyncmeta_timeout_loop, mi, "asyncmeta_timeout_loop", mi->mi_suffix.bv_val );
+			ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+		}
 	}
 	return 0;
 }
@@ -301,28 +304,26 @@ asyncmeta_back_conn_free(
 	free( mc );
 }
 
-static void
-asyncmeta_back_stop_miconns( a_metainfo_t *mi )
-{
-
-	/*Todo do any other mc cleanup here if necessary*/
-}
-
-static void
+void
 asyncmeta_back_clear_miconns( a_metainfo_t *mi )
 {
 	int i, j;
 	a_metaconn_t *mc;
-	for (i = 0; i < mi->mi_num_conns; i++) {
-		mc = &mi->mi_conns[i];
-		/* todo clear the message queue */
-		for (j = 0; j < mi->mi_ntargets; j ++) {
-			asyncmeta_clear_one_msc(NULL, mc, j, 1, __FUNCTION__);
+	if ( mi->mi_conns != NULL ) {
+		for (i = 0; i < mi->mi_num_conns; i++) {
+			mc = &mi->mi_conns[i];
+			for (j = 0; j < mi->mi_ntargets; j ++) {
+				asyncmeta_clear_one_msc(NULL, mc, j, 1, __FUNCTION__);
+			}
+
+			if ( mc->mc_conns )
+				free( mc->mc_conns );
+			ldap_pvt_thread_mutex_destroy( &mc->mc_om_mutex );
 		}
-		free(mc->mc_conns);
-		ldap_pvt_thread_mutex_destroy( &mc->mc_om_mutex );
+		free(mi->mi_conns);
 	}
-	free(mi->mi_conns);
+	mi->mi_conns = NULL;
+	mi->mi_num_conns = 0;
 }
 
 void
@@ -392,17 +393,22 @@ asyncmeta_back_db_close(
 
 	if ( be->be_private ) {
 		mi = ( a_metainfo_t * )be->be_private;
-		if ( mi->mi_task != NULL ) {
-			ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
-			if ( ldap_pvt_runqueue_isrunning( &slapd_rq, mi->mi_task )) {
-				ldap_pvt_runqueue_stoptask( &slapd_rq,  mi->mi_task);
-			}
-			ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
-			mi->mi_task = NULL;
+		mi->mi_disabled = 1;
+		/* there are no pending ops so we can free up the connections and stop the timeout loop
+		 * else timeout_loop will clear up the ops and connections and not reschedule */
+		if ( asyncmeta_db_has_pending_ops( mi ) == 0 ) {
+				ldap_pvt_thread_mutex_lock( &mi->mi_mc_mutex );
+				asyncmeta_back_clear_miconns(mi);
+				ldap_pvt_thread_mutex_unlock( &mi->mi_mc_mutex );
+				if ( mi->mi_task != NULL ) {
+					ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
+					if ( ldap_pvt_runqueue_isrunning( &slapd_rq, mi->mi_task )) {
+						ldap_pvt_runqueue_stoptask( &slapd_rq,  mi->mi_task);
+					}
+					ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
+					mi->mi_task = NULL;
+				}
 		}
-		ldap_pvt_thread_mutex_lock( &mi->mi_mc_mutex );
-		asyncmeta_back_stop_miconns( mi );
-		ldap_pvt_thread_mutex_unlock( &mi->mi_mc_mutex );
 	}
 	return 0;
 }
