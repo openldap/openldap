@@ -1612,14 +1612,16 @@ config_generic(ConfigArgs *c) {
 
 		case CFG_DISABLED:
 			if ( c->bi ) {
-				c->bi->bi_flags &= ~SLAP_DBFLAG_DISABLED;
-				if ( c->bi->bi_db_open ) {
-					BackendInfo *bi_orig = c->be->bd_info;
-					c->be->bd_info = c->bi;
-					rc = c->bi->bi_db_open( c->be, &c->reply );
-					c->be->bd_info = bi_orig;
+				if ( c->bi->bi_flags & SLAP_DBFLAG_DISABLED ) {
+					c->bi->bi_flags &= ~SLAP_DBFLAG_DISABLED;
+					if ( c->bi->bi_db_open ) {
+						BackendInfo *bi_orig = c->be->bd_info;
+						c->be->bd_info = c->bi;
+						rc = c->bi->bi_db_open( c->be, &c->reply );
+						c->be->bd_info = bi_orig;
+					}
 				}
-			} else {
+			} else if ( c->be->be_flags & SLAP_DBFLAG_DISABLED ){
 				c->be->be_flags &= ~SLAP_DBFLAG_DISABLED;
 				rc = backend_startup_one( c->be, &c->reply );
 			}
