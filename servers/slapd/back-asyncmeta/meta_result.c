@@ -1487,6 +1487,11 @@ asyncmeta_op_handle_result(void *ctx, void *arg)
 	bm_context_t *bc;
 	void *oldctx;
 
+/* exit if the database is disabled, this will let timeout_loop
+ * do it's job faster */
+	if ( mc->mc_info->mi_disabled > 0 )
+		return NULL;
+
 	ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
 	rc = ++mc->mc_active;
 	ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
@@ -1661,6 +1666,14 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 	LDAP_STAILQ_INIT( &timeout_list );
 
 	Debug( asyncmeta_debug, "asyncmeta_timeout_loop[%p] start at [%ld] \n", rtask, current_time );
+	if ( mi->mi_disabled > 0 && asyncmeta_db_has_pending_ops( mi ) == 0 ) {
+		Debug( asyncmeta_debug, "asyncmeta_timeout_loop[%p] database disabled, clearing connections [%ld] \n", rtask, current_time );
+		ldap_pvt_thread_mutex_lock( &mi->mi_mc_mutex );
+		asyncmeta_back_clear_miconns( mi );
+		mi->mi_task = NULL;
+		ldap_pvt_thread_mutex_unlock( &mi->mi_mc_mutex );
+		return NULL;
+	}
 	void *oldctx = slap_sl_mem_create(SLAP_SLAB_SIZE, SLAP_SLAB_STACK, ctx, 0);
 	for (i=0; i<mi->mi_num_conns; i++) {
 		a_metaconn_t * mc= &mi->mi_conns[i];
@@ -1669,6 +1682,10 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 			onext = LDAP_STAILQ_NEXT(bc, bc_next);
 			if (bc->bc_active > 0) {
 				continue;
+			}
+
+			if (mi->mi_disabled > 0) {
+				bc->bc_invalid = 1;
 			}
 
 			if (bc->op->o_abandon ) {
