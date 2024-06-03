@@ -746,7 +746,7 @@ if test $ol_enable_perl != no ; then
 			PERL_CPPFLAGS="$PERL_CPPFLAGS $opt"
 		done
 		PERL_LDFLAGS=""
-		for opt in `$PERLBIN" -MExtUtils::Embed -e ldopts`; do
+		for opt in `$PERLBIN -MExtUtils::Embed -e ldopts`; do
 			case "$opt" in
 			"-lc" )
 				continue;;
