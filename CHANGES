@@ -1,5 +1,7 @@
 OpenLDAP 2.5 Change Log
 
+OpenLDAP 2.5.19 Engineering
+
 OpenLDAP 2.5.18 Release (2024/05/21)
 	Fixed libldap exit handling with OpenSSL3 again (ITS#9952)
 	Fixed libldap OpenSSL channel binding digest (ITS#10216)
