@@ -1170,15 +1170,19 @@ tlso_session_pinning( LDAP *ld, tls_session *sess, char *hashalg, struct berval 
 			goto done;
 		}
 
-		EVP_DigestInit_ex( mdctx, md, NULL );
-		EVP_DigestUpdate( mdctx, key.bv_val, key.bv_len );
-		EVP_DigestFinal_ex( mdctx, (unsigned char *)keyhash.bv_val, &len );
-		keyhash.bv_len = len;
+		if ( EVP_DigestInit_ex( mdctx, md, NULL ) &&
+			EVP_DigestUpdate( mdctx, key.bv_val, key.bv_len ) &&
+			EVP_DigestFinal_ex( mdctx, (unsigned char *)keyhash.bv_val, &len ))
+			keyhash.bv_len = len;
+		else
+			rc = -1;
 #if OPENSSL_VERSION_NUMBER >= 0x10100000
 		EVP_MD_CTX_free( mdctx );
 #else
 		EVP_MD_CTX_destroy( mdctx );
 #endif
+		if ( rc )
+			goto done;
 	} else {
 		keyhash = key;
 	}
