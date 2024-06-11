@@ -32,8 +32,8 @@
  * Use OWASP recommended values (retrieved on 2023-08-07)
  * @see https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
  */
-#define SLAPD_ARGON2_ITERATIONS 2
-#define SLAPD_ARGON2_MEMORY 19456
+#define SLAPD_ARGON2_ITERATIONS 5
+#define SLAPD_ARGON2_MEMORY 7168
 #define SLAPD_ARGON2_PARALLELISM 1
 #define SLAPD_ARGON2_SALT_LENGTH 16
 #define SLAPD_ARGON2_HASH_LENGTH 32
