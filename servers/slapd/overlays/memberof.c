@@ -574,6 +574,7 @@ memberof_addcheck( Operation *op )
 	o.o_req_dn = op->o_bd->be_suffix[0];
 	o.o_req_ndn = op->o_bd->be_nsuffix[0];
 	o.o_do_not_cache = 1;
+	o.o_managedsait = SLAP_CONTROL_CRITICAL;
 	o.ors_scope = LDAP_SCOPE_SUBTREE;
 	o.ors_slimit = SLAP_NO_LIMIT;
 	o.ors_tlimit = SLAP_NO_LIMIT;
