@@ -172,7 +172,8 @@ again:
 				"database #%d (%s) not configured to hold \"%s\"",
 				progname, erec->lineno,
 				dbnum,
-				be->be_suffix[0].bv_val,
+				( be->be_suffix && be->be_suffix[0].bv_val ) ?
+					be->be_suffix[0].bv_val : "(null)",
 				e->e_dn );
 			if ( bd ) {
 				BackendDB *bdtmp;
