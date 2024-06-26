@@ -727,7 +727,9 @@ mdb_idl_intersection(
 	if ( idmin > idmax ) {
 		a[0] = 0;
 		return 0;
-	} else if ( idmin == idmax ) {
+	} else if ( idmin == idmax &&
+			(( MDB_IDL_FIRST(a) == MDB_IDL_LAST(b)) ||
+			( MDB_IDL_FIRST(b) == MDB_IDL_LAST(a)))) {
 		a[0] = 1;
 		a[1] = idmin;
 		return 0;

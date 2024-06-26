@@ -53,13 +53,10 @@ void wt_idl_dump( ID *ids )
 
 	} else {
 		ID i;
-		Debug( LDAP_DEBUG_ANY, "IDL: size %ld", (long) ids[0] );
+		Debug( LDAP_DEBUG_ANY, "IDL: size %ld\n", (long) ids[0] );
 
 		for( i=1; i<=ids[0]; i++ ) {
-			if( i % 16 == 1 ) {
-				Debug( LDAP_DEBUG_ANY, "\n" );
-			}
-			Debug( LDAP_DEBUG_ANY, "  %02lx", (long) ids[i] );
+			Debug( LDAP_DEBUG_ANY, "  %ld\n", (long) ids[i] );
 		}
 
 		Debug( LDAP_DEBUG_ANY, "\n" );
@@ -282,7 +279,9 @@ wt_idl_intersection(
 	if ( idmin > idmax ) {
 		a[0] = 0;
 		return 0;
-	} else if ( idmin == idmax ) {
+	} else if ( idmin == idmax &&
+			(( WT_IDL_FIRST(a) == WT_IDL_LAST(b)) ||
+			( WT_IDL_FIRST(b) == WT_IDL_LAST(a)))) {
 		a[0] = 1;
 		a[1] = idmin;
 		return 0;
