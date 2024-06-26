@@ -876,7 +876,7 @@ int nestgroup_initialize() {
 	"USAGE dSAOperation "			/* added; questioned */
 	"NO-USER-MODIFICATION " 		/* added */
 	"X-ORIGIN 'iPlanet Delegated Administrator' )",
-	&ad_memberOf, 0 );
+	&ad_memberOf, 1 );
 	if ( code && code != SLAP_SCHERR_ATTR_DUP ) {
 		Debug( LDAP_DEBUG_ANY,
 			"nestgroup_initialize: register_at (memberOf) failed\n" );
