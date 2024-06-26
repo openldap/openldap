@@ -603,7 +603,7 @@ loop_begin:
 			if ( id == base->e_id ) scopeok = 1;
 			break;
 		case LDAP_SCOPE_ONELEVEL:
-			scopeok = 1;
+			scopeok = dnIsSuffixScope(&e->e_nname, &base->e_nname, LDAP_SCOPE_ONELEVEL);
 			break;
 		case LDAP_SCOPE_CHILDREN:
 			if ( id == base->e_id ) break;
