@@ -232,7 +232,7 @@ int wt_entry_return(
 		return 0;
 	}
 
-    /* Our entries are allocated in two blocks; the data comes from
+	/* Our entries are allocated in two blocks; the data comes from
 	 * the db itself and the Entry structure and associated pointers
 	 * are allocated in entry_decode. The db data pointer is saved
 	 * in e_bv.
@@ -256,6 +256,7 @@ int wt_entry_return(
 	}
 
 	entry_free( e );
+	return 0;
 }
 
 int wt_entry_release(
