@@ -1,6 +1,7 @@
 LMDB 0.9 Change Log
 
 LMDB 0.9.34 Engineering
+	ITS#10222 - Update mdb_dump(1) and mdb_load(1) man pages for append (-a) option
 
 LMDB 0.9.33 Release (2024/05/21)
 	ITS#9037 mdb_page_search: fix error code when DBI record is missing
