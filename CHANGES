@@ -1,6 +1,7 @@
 OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.9 Engineering
+	Fixed libldap OpenSSL set_ciphersuite error handling (ITS#10223)
 
 OpenLDAP 2.6.8 Release (2024/05/21)
 	Fixed libldap exit handling with OpenSSL3 again (ITS#9952)
