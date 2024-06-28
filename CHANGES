@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.19 Engineering
+	Fixed libldap OpenSSL set_ciphersuite error handling (ITS#10223)
 
 	Minor Cleanup
 		ITS#10221
