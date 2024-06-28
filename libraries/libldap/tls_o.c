@@ -439,7 +439,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server )
 			Debug1( LDAP_DEBUG_ANY,
 				   "TLS: could not set TLSv1.3 cipher list %s.\n",
 				   lo->ldo_tls_ciphersuite );
-			tlso_report_error( errmsg );
+			tlso_report_error();
 			return -1;
 		}
 #endif
