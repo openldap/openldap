@@ -6,6 +6,7 @@ OpenLDAP 2.6.9 Engineering
 	Fixed slappw-argon2 defaults to be more secure (ITS#9827)
 	Minor Cleanup
 		ITS#10218
+		ITS#10219
 
 OpenLDAP 2.6.8 Release (2024/05/21)
 	Fixed libldap exit handling with OpenSSL3 again (ITS#9952)
