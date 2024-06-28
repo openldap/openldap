@@ -8,6 +8,7 @@ OpenLDAP 2.5.19 Engineering
 		ITS#10219
 		ITS#10221
 		ITS#10227
+		ITS#10231
 
 OpenLDAP 2.5.18 Release (2024/05/21)
 	Fixed libldap exit handling with OpenSSL3 again (ITS#9952)
