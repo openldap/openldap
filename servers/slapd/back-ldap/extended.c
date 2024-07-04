@@ -268,7 +268,7 @@ retry:
 	}
 
 	ldap_pvt_thread_mutex_lock( &li->li_counter_mutex );
-	ldap_pvt_mp_add( li->li_ops_completed[ SLAP_OP_EXTENDED ], 1 );
+	ldap_pvt_mp_add_ulong_ulong( li->li_ops_completed[ SLAP_OP_EXTENDED ], 1 );
 	ldap_pvt_thread_mutex_unlock( &li->li_counter_mutex );
 
 	if ( freedn ) {
@@ -363,7 +363,7 @@ retry:
 	}
 
 	ldap_pvt_thread_mutex_lock( &li->li_counter_mutex );
-	ldap_pvt_mp_add( li->li_ops_completed[ SLAP_OP_EXTENDED ], 1 );
+	ldap_pvt_mp_add_ulong_ulong( li->li_ops_completed[ SLAP_OP_EXTENDED ], 1 );
 	ldap_pvt_thread_mutex_unlock( &li->li_counter_mutex );
 
 	if ( text ) {

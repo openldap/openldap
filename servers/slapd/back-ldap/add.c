@@ -114,7 +114,7 @@ retry:
 	}
 
 	ldap_pvt_thread_mutex_lock( &li->li_counter_mutex );
-	ldap_pvt_mp_add( li->li_ops_completed[ SLAP_OP_ADD ], 1 );
+	ldap_pvt_mp_add_ulong( li->li_ops_completed[ SLAP_OP_ADD ], 1 );
 	ldap_pvt_thread_mutex_unlock( &li->li_counter_mutex );
 
 cleanup:
