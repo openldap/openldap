@@ -2116,6 +2116,7 @@ do_syncrepl(
 	op = &opbuf.ob_op;
 	/* o_connids must be unique for slap_graduate_commit_csn */
 	op->o_connid = SLAPD_SYNC_RID2SYNCCONN(si->si_rid);
+	strcpy( op->o_log_prefix, si->si_ridtxt );
 
 	op->o_managedsait = SLAP_CONTROL_NONCRITICAL;
 	be = si->si_be;
