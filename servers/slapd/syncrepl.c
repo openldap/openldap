@@ -532,6 +532,15 @@ refresh_finished(syncinfo_t *si, int reschedule)
 	syncinfo_t *sie;
 	int removed = 0;
 
+	if ( si->si_ctype > 0 && si->si_refreshDone && si->si_retrynum ) {
+		/* ITS#10234: We've made meaningful progress, reinit retry state */
+		int i;
+		for ( i = 0; si->si_retrynum_init[i] != RETRYNUM_TAIL; i++ ) {
+			si->si_retrynum[i] = si->si_retrynum_init[i];
+		}
+		si->si_retrynum[i] = RETRYNUM_TAIL;
+	}
+
 	ldap_pvt_thread_mutex_lock( &si->si_cookieState->cs_refresh_mutex );
 	if ( si->si_cookieState->cs_refreshing == si ) {
 		si->si_cookieState->cs_refreshing = NULL;
@@ -6022,6 +6031,7 @@ syncinfo_free( syncinfo_t *sie, int free_all )
 
 	do {
 		si_next = sie->si_next;
+		sie->si_ctype = 0;
 
 		if ( !BER_BVISEMPTY( &sie->si_monitor_ndn )) {
 			syncrepl_monitor_del( sie );
