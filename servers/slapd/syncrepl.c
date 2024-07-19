@@ -527,7 +527,7 @@ start_refresh(syncinfo_t *si)
 }
 
 static int
-refresh_finished(syncinfo_t *si)
+refresh_finished(syncinfo_t *si, int reschedule)
 {
 	syncinfo_t *sie;
 	int removed = 0;
@@ -538,7 +538,7 @@ refresh_finished(syncinfo_t *si)
 		removed = 1;
 	}
 
-	if ( removed ) {
+	if ( removed && reschedule ) {
 		for ( sie = si->si_be->be_syncinfo; sie; sie = sie->si_next ) {
 			if ( sie->si_paused ) {
 				struct re_s* rtask = sie->si_re;
@@ -1186,7 +1186,7 @@ do_syncrep1(
 	if ( rc == SYNC_BUSY ) {
 		return rc;
 	} else if ( rc != LDAP_SUCCESS ) {
-		refresh_finished( si );
+		refresh_finished( si, 1 );
 		Debug( LDAP_DEBUG_ANY, "do_syncrep1: %s "
 			"ldap_search_ext: %s (%d)\n",
 			si->si_ridtxt, ldap_err2string( rc ), rc );
@@ -1873,7 +1873,7 @@ logerr:
 					}
 					ber_scanf( ber, /*"{"*/ "}" );
 					if ( refreshing && si->si_refreshDone ) {
-						refresh_finished( si );
+						refresh_finished( si, 1 );
 						refreshing = 0;
 					}
 					break;
@@ -2022,7 +2022,7 @@ done:
 			si->si_ridtxt, err, ldap_err2string( err ) );
 	}
 	if ( refreshing && ( rc || si->si_refreshDone ) ) {
-		refresh_finished( si );
+		refresh_finished( si, 1 );
 	}
 
 	slap_sync_cookie_free( &syncCookie, 0 );
@@ -6333,7 +6333,7 @@ syncinfo_free( syncinfo_t *sie, int free_all )
 		}
 		if ( sie->si_cookieState ) {
 			/* Could be called from do_syncrepl (server unpaused) */
-			if ( !free_all ) refresh_finished( sie );
+			refresh_finished( sie, !free_all );
 
 			sie->si_cookieState->cs_ref--;
 			if ( !sie->si_cookieState->cs_ref ) {
