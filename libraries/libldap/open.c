@@ -308,6 +308,13 @@ ldap_initialize( LDAP **ldp, LDAP_CONST char *url )
 			ldap_ld_free(ld, 1, NULL, NULL);
 			return rc;
 		}
+		if ( ldap_url_check_ext( ld->ld_options.ldo_defludp )) {
+			rc = LDAP_NOT_SUPPORTED;
+			ld->ld_errno = rc;
+			ldap_ld_free(ld, 1, NULL, NULL);
+			return rc;
+		}
+
 #ifdef LDAP_CONNECTIONLESS
 		if (ldap_is_ldapc_url(url))
 			LDAP_IS_UDP(ld) = 1;
@@ -341,6 +348,12 @@ ldap_init_fd(
 	if (url != NULL) {
 		rc = ldap_set_option(ld, LDAP_OPT_URI, url);
 		if ( rc != LDAP_SUCCESS ) {
+			ldap_ld_free(ld, 1, NULL, NULL);
+			return rc;
+		}
+		if ( ldap_url_check_ext( ld->ld_options.ldo_defludp )) {
+			rc = LDAP_NOT_SUPPORTED;
+			ld->ld_errno = rc;
 			ldap_ld_free(ld, 1, NULL, NULL);
 			return rc;
 		}

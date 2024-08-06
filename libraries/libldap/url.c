@@ -1211,6 +1211,62 @@ ldap_url_parse( LDAP_CONST char *url_in, LDAPURLDesc **ludpp )
 	return ldap_url_parse_ext( url_in, ludpp, LDAP_PVT_URL_PARSE_HISTORIC );
 }
 
+typedef struct lurl_critext {
+	struct berval oid;
+	struct berval names[2];
+} lurl_critext;
+
+lurl_critext lurl_extensions[] = {
+#ifdef HAVE_TLS
+	{BER_BVC(LDAP_EXOP_START_TLS), {BER_BVC("StartTLS"), BER_BVC("X-StartTLS")}},
+#endif
+	{0, NULL}
+};
+
+/* return error if there are any unrecognized critical URL extensions */
+int
+ldap_url_check_ext( LDAPURLDesc *ludp )
+{
+	int i, j;
+
+	for (; ludp; ludp=ludp->lud_next ) {
+		if ( !ludp->lud_crit_exts )
+			continue;
+
+		for ( i=0; ludp->lud_exts[i]; i++ )
+		{
+			char *eq, *ext;
+			int ok = 0, n;
+
+			ext = ludp->lud_exts[i];
+			if ( ext[0] != '!' )	/* don't care about non-critical */
+				continue;
+			ext++;
+
+			eq = strchr( ext, '=' );
+			if ( eq )
+				n = eq - ext;
+			else
+				n = strlen( ext );
+
+			for ( j=0; lurl_extensions[j].oid.bv_len; j++ ) {
+				if (( n == lurl_extensions[j].oid.bv_len &&
+						!strncmp( ext, lurl_extensions[j].oid.bv_val, n )) ||
+					( n == lurl_extensions[j].names[0].bv_len &&
+						!strncasecmp( ext, lurl_extensions[j].names[0].bv_val, n )) ||
+					( n == lurl_extensions[j].names[1].bv_len &&
+						!strncasecmp( ext, lurl_extensions[j].names[1].bv_val, n ))) {
+					ok = 1;
+					break;
+				}
+			}
+			if ( !ok )
+				return LDAP_URL_ERR_BADEXTS;
+		}
+	}
+	return LDAP_URL_SUCCESS;
+}
+
 LDAPURLDesc *
 ldap_url_dup ( LDAPURLDesc *ludp )
 {

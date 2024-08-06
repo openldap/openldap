@@ -1167,19 +1167,12 @@ ldap_chase_v3referrals( LDAP *ld, LDAPRequest *lr, char **refs, int sref, char *
 			goto done;
 		}
 
-		if( srv->lud_crit_exts ) {
-			int ok = 0;
-#ifdef HAVE_TLS
-			/* If StartTLS is the only critical ext, OK. */
-			if ( find_tls_ext( srv ) == 2 && srv->lud_crit_exts == 1 )
-				ok = 1;
-#endif
-			if ( !ok ) {
-				/* we do not support any other extensions */
-				ld->ld_errno = LDAP_NOT_SUPPORTED;
-				rc = -1;
-				goto done;
-			}
+		/* check for unrecognized critical extensions */
+		if( srv->lud_crit_exts &&
+			( rc = ldap_url_check_ext( srv ))) {
+			ld->ld_errno = LDAP_NOT_SUPPORTED;
+			rc = -1;
+			goto done;
 		}
 
 		/* check connection for re-bind in progress */
