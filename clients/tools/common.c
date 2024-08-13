@@ -231,7 +231,7 @@ st_value( LDAP *ld, struct berval *value )
 		if ( ldap_get_option( ld, LDAP_OPT_DESC, &sd ) == LDAP_SUCCESS ) {
 			struct sockaddr_storage sa;
 			socklen_t sl = sizeof(sa);
-			if ( getsockname( sd, &sa, &sl ) == 0 ) {
+			if ( getsockname( sd, (struct sockaddr *)&sa, &sl ) == 0 ) {
 				if ( sa.ss_family == AF_INET ) {
 					struct sockaddr_in *sai = (struct sockaddr_in *)&sa;
 					ip = inet_ntoa( sai->sin_addr );
