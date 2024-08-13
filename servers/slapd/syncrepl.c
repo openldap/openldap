@@ -5805,6 +5805,7 @@ void syncrepl_diff_entry( Operation *op, Attribute *old, Attribute *new,
 	Modifications **mods, Modifications **ml, int is_ctx)
 {
 	Modifications **modtail = mods;
+	Attribute *old_orig = old;
 
 	/* We assume that attributes are saved in the same order
 	 * in the remote and local databases. So if we walk through
@@ -5815,7 +5816,9 @@ void syncrepl_diff_entry( Operation *op, Attribute *old, Attribute *new,
 	{
 		/* If we've seen this before, use its mod now */
 		if ( new->a_flags & SLAP_ATTR_IXADD ) {
-			attr_cmp( op, NULL, new, &modtail, &ml );
+			Attribute *tmp = attr_find( old_orig, new->a_desc );
+			assert( tmp != NULL );
+			attr_cmp( op, tmp, new, &modtail, &ml );
 			new = new->a_next;
 			continue;
 		}
@@ -5886,7 +5889,12 @@ void syncrepl_diff_entry( Operation *op, Attribute *old, Attribute *new,
 
 	/* Newly added attributes */
 	while ( new ) {
-		attr_cmp( op, NULL, new, &modtail, &ml );
+		Attribute *tmp = NULL;
+		if ( new->a_flags & SLAP_ATTR_IXADD ) {
+			tmp = attr_find( old_orig, new->a_desc );
+			assert( tmp != NULL );
+		}
+		attr_cmp( op, tmp, new, &modtail, &ml );
 
 		new = new->a_next;
 	}
