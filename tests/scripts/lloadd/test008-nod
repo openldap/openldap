@@ -1,0 +1,428 @@
+#! /bin/sh
+# $OpenLDAP$
+## This work is part of OpenLDAP Software <http://www.openldap.org/>.
+##
+## Copyright 1998-2024 The OpenLDAP Foundation.
+## All rights reserved.
+##
+## Redistribution and use in source and binary forms, with or without
+## modification, are permitted only as authorized by the OpenLDAP
+## Public License.
+##
+## A copy of this license is available in the file LICENSE in the
+## top-level directory of the distribution or, alternatively, at
+## <http://www.OpenLDAP.org/license.html>.
+
+echo "running defines.sh"
+. $SRCDIR/scripts/defines.sh
+
+mkdir -p $TESTDIR $DBDIR1 $DBDIR2
+
+$SLAPPASSWD -g -n >$CONFIGPWF
+echo "rootpw `$SLAPPASSWD -T $CONFIGPWF`" >$TESTDIR/configpw.conf
+
+if test $AC_lloadd = lloaddyes ; then
+    echo "Load balancer module not available, skipping..."
+    exit 0
+fi
+
+# lloadd implements a broad interpretation of the Notice of Disconnection when
+# it relates to closing the connection:
+# - as a server, once it decides to send one, if there are operations still
+#   pending, the connection is kept open so those can be sent to the client,
+#   should it wish to stick around
+# - as a client, if a NoD is received, it can choose to (and lloadd does) stick
+#   around for the remaining operations to be resolved
+#
+# All of the above is completely voluntary, either side is still free to close
+# the connection at any point, instigate any timeout logic it sees fit etc. The
+# client *should not* however expect any new requests be accepted on this
+# connection - the connection is being closed after all.
+#
+# The test works as follows:
+# - we configure two load balancer, one pointing to another with 2 upstream
+#   connection to a slapd that enables syncprov
+# - a syncrepl refreshAndPersist connection is started against the front one
+# - a syncrepl refreshAndPersist connection is started against the rear one
+# - we confirm the client and upstream connections involved as far as each
+#   lloadd/syncrepl session is concerned (because we use tier roundrobin, they
+#   will be allocated to separate upstreams)
+# - we tell the rear lloadd to "close" the client connection, the connection
+#   still has a live operation (the syncrepl session), so a NoD is sent but
+#   connection is kept open, ldapsearch will receive the NoD and close the
+#   connection immediately
+# - we tell the rear lloadd to "close" the front lloadd's connection, same
+#   thing happens but unlike ldapsearch, lloadd will keep it alive in "closing"
+#   state (there is an operation pending) and the ldapsearch will be none the
+#   wiser
+# - we tell the rear lloadd to "close" the upstream connection to the slapd,
+#   this terminates the syncrepl session, meaning the related "closing"
+#   connections can terminate (and ldapsearch will close its)
+# - we make sure all of the affected connections no longer exist in cn=monitor
+#
+# This is much more complicated that it needs to be but as much as we can do
+# without direct control over the client LDAP.
+
+echo "Running slapadd to build slapd database..."
+. $CONFFILTER $BACKEND < $SRPROVIDERCONF > $CONF3
+$SLAPADD -f $CONF3 -l $LDIFORDERED
+RC=$?
+if test $RC != 0 ; then
+    echo "slapadd failed ($RC)!"
+    exit $RC
+fi
+
+echo "Running slapindex to index slapd database..."
+$SLAPINDEX -f $CONF3
+RC=$?
+if test $RC != 0 ; then
+    echo "warning: slapindex failed ($RC)"
+    echo "  assuming no indexing support"
+fi
+
+echo "Starting slapd on TCP/IP port $PORT3..."
+$SLAPD -f $CONF3 -h $URI3 -d $LVL > $LOG3 2>&1 &
+PID=$!
+if test $WAIT != 0 ; then
+    echo PID3 $PID
+    read foo
+fi
+PID3="$PID"
+KILLPIDS="$PID"
+
+echo "Testing slapd searching..."
+for i in 0 1 2 3 4 5; do
+    $LDAPSEARCH -s base -b "$MONITOR" -H $URI3 \
+        '(objectclass=*)' > /dev/null 2>&1
+    RC=$?
+    if test $RC = 0 ; then
+        break
+    fi
+    echo "Waiting $SLEEP1 seconds for slapd to start..."
+    sleep $SLEEP1
+done
+if test $RC != 0 ; then
+    echo "ldapsearch failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Starting rear lloadd on TCP/IP port $PORT2..."
+. $CONFFILTER $BACKEND < $LLOADDEMPTYCONF > $CONF2.lloadd
+sed -e 's/URI1/URI2/g' -e 's/slapd\.1\./slapd.2./g' $SLAPDLLOADCONF | . $CONFFILTER $BACKEND > $CONF2.slapd
+$SLAPD -f $CONF2.slapd -h $URI5 -d $LVL > $LOG2 2>&1 &
+PID=$!
+if test $WAIT != 0 ; then
+    echo REARPID $PID
+    read foo
+fi
+REARPID="$PID"
+KILLPIDS="$KILLPIDS $PID"
+
+echo "Testing slapd searching..."
+for i in 0 1 2 3 4 5; do
+    $LDAPSEARCH -s base -b "$MONITOR" -H $URI5 \
+        '(objectclass=*)' > /dev/null 2>&1
+    RC=$?
+    if test $RC = 0 ; then
+        break
+    fi
+    echo "Waiting $SLEEP1 seconds for lloadd to start..."
+    sleep $SLEEP1
+done
+
+if test $RC != 0 ; then
+    echo "ldapsearch failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Configuring load balancing..."
+$LDAPMODIFY -D cn=config -H $URI5 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
+dn: olcDatabase={1}monitor,cn=config
+changetype: modify
+add: olcRootDN
+olcRootDN: cn=config
+
+dn: cn=main,olcBackend={0}lload,cn=config
+changetype: add
+objectClass: olcBkLloadTierConfig
+olcBkLloadTierType: roundrobin
+
+dn: cn=slapd,cn={0}main,olcBackend={0}lload,cn=config
+changetype: add
+objectClass: olcBkLloadBackendConfig
+olcBkLloadBackendUri: $URI3
+olcBkLloadMaxPendingConns: 3
+olcBkLloadMaxPendingOps: 5
+olcBkLloadRetry: 1000
+olcBkLloadNumconns: 2
+olcBkLloadBindconns: 2
+EOF
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapadd failed for backend ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Testing slapd searching..."
+for i in 0 1 2 3 4 5; do
+    $LDAPSEARCH -s base -b "$MONITOR" -H $URI2 \
+        '(objectclass=*)' > /dev/null 2>&1
+    RC=$?
+    if test $RC = 0 ; then
+        break
+    fi
+    echo "Waiting $SLEEP1 seconds for lloadd to start..."
+    sleep $SLEEP1
+done
+
+if test $RC != 0 ; then
+    echo "ldapsearch failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Starting front lloadd on TCP/IP port $PORT1..."
+. $CONFFILTER $BACKEND < $LLOADDEMPTYCONF > $CONF1.lloadd
+. $CONFFILTER $BACKEND < $SLAPDLLOADCONF > $CONF1.slapd
+$SLAPD -f $CONF1.slapd -h $URI4 -d $LVL > $LOG1 2>&1 &
+PID=$!
+if test $WAIT != 0 ; then
+    echo FRONTPID $PID
+    read foo
+fi
+FRONTPID="$PID"
+KILLPIDS="$KILLPIDS $PID"
+
+echo "Testing slapd searching..."
+for i in 0 1 2 3 4 5; do
+    $LDAPSEARCH -s base -b "$MONITOR" -H $URI4 \
+        '(objectclass=*)' > /dev/null 2>&1
+    RC=$?
+    if test $RC = 0 ; then
+        break
+    fi
+    echo "Waiting $SLEEP1 seconds for lloadd to start..."
+    sleep $SLEEP1
+done
+
+if test $RC != 0 ; then
+    echo "ldapsearch failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Configuring load balancing..."
+$LDAPMODIFY -D cn=config -H $URI4 -y $CONFIGPWF <<EOF >> $TESTOUT 2>&1
+dn: olcDatabase={1}monitor,cn=config
+changetype: modify
+add: olcRootDN
+olcRootDN: cn=config
+
+dn: cn=main,olcBackend={0}lload,cn=config
+changetype: add
+objectClass: olcBkLloadTierConfig
+olcBkLloadTierType: roundrobin
+
+dn: cn=lloadd,cn={0}main,olcBackend={0}lload,cn=config
+changetype: add
+objectClass: olcBkLloadBackendConfig
+olcBkLloadBackendUri: $URI2
+olcBkLloadMaxPendingConns: 3
+olcBkLloadMaxPendingOps: 5
+olcBkLloadRetry: 1000
+olcBkLloadNumconns: 2
+olcBkLloadBindconns: 2
+EOF
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapadd failed for backend ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Testing slapd searching..."
+for i in 0 1 2 3 4 5; do
+    $LDAPSEARCH -s base -b "$MONITOR" -H $URI1 \
+        '(objectclass=*)' > /dev/null 2>&1
+    RC=$?
+    if test $RC = 0 ; then
+        break
+    fi
+    echo "Waiting $SLEEP1 seconds for lloadd to start..."
+    sleep $SLEEP1
+done
+
+if test $RC != 0 ; then
+    echo "ldapsearch failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Starting syncrepl searches and getting connection coordinates..."
+# Make sure file exists so "tail" winning the race doesn't cause an error
+: >$SEARCHOUT
+# Front lloadd
+$LDAPSEARCH -H $URI1 -b "$BASEDN" -s base 1.1 -E '!sync=rp' >$SEARCHOUT 2>&1 &
+SYNCPID1=$!
+KILLPIDS="$KILLPIDS $SYNCPID1"
+
+# Wait for the session to progress to persist phase
+tail -f "$SEARCHOUT" | grep -q '^dn:'
+
+SYNCCONN_FRONT=`$LDAPSEARCH -o ldif-wrap=no -H $URI4 \
+    -b "cn=Incoming Connections,cn=Load Balancer,cn=Backends,cn=monitor" \
+    "olmPendingOps=1" 1.1 | grep -v '^$' | sed -e 's/^dn: //'`
+
+if test -z "$SYNCCONN_FRONT" ; then
+    echo "Connection not found in cn=monitor"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+fi
+
+CONN_INTER=`$LDAPSEARCH -o ldif-wrap=no -H $URI5 \
+    -b "cn=Incoming Connections,cn=Load Balancer,cn=Backends,cn=monitor" \
+    "olmPendingOps=1" 1.1 | grep -v '^$' | sed -e 's/^dn: //'`
+
+if test -z "$CONN_INTER" ; then
+    echo "Connection not found in cn=monitor"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+fi
+
+# Make sure file exists so "tail" winning the race doesn't cause an error
+: >$SEARCHOUT2
+# Rear lloadd
+$LDAPSEARCH -H $URI2 -b "$BASEDN" -s base 1.1 -E '!sync=rp' >$SEARCHOUT2 2>&1 &
+SYNCPID2=$!
+KILLPIDS="$KILLPIDS $SYNCPID2"
+
+# Wait for the session to progress to persist phase
+tail -f "$SEARCHOUT2" | grep -q '^dn:'
+
+# Need to distinguish between the two connections, so we use the binddn for it
+SYNCCONN_REAR=`$LDAPSEARCH -o ldif-wrap=no -H $URI5 \
+    -b "cn=Incoming Connections,cn=Load Balancer,cn=Backends,cn=monitor" \
+    "(&(olmPendingOps=1)(!(olmConnectionAuthzDN=*)))" 1.1 | \
+    grep -v '^$' | sed -e 's/^dn: //'`
+
+if test -z "$SYNCCONN_REAR" ; then
+    echo "Connection not found in cn=monitor"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+fi
+
+echo "Letting one change replicate to both clients to prove it was live at this point..."
+
+$LDAPMODIFY -D "$MANAGERDN" -H $URI3 -w $PASSWD <<EOMOD >> $TESTOUT 2>&1
+dn: $BASEDN
+changetype: modify
+delete: o
+o: EX
+EOMOD
+
+echo "Marking the first connection closed..."
+
+$LDAPMODIFY -D cn=config -y $CONFIGPWF -H $URI5 <<EOMOD >> $TESTOUT 2>&1
+dn: $SYNCCONN_REAR
+changetype: modify
+replace: olmConnectionState
+olmConnectionState: closing
+EOMOD
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapmodify failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+wait $SYNCPID2
+KILLPIDS=`echo " $KILLPIDS " | sed -e "s/ $SYNCPID2 / /"`
+
+$LDAPMODIFY -D cn=config -y $CONFIGPWF -H $URI5 <<EOMOD >> $TESTOUT 2>&1
+dn: $CONN_INTER
+changetype: modify
+replace: olmConnectionState
+olmConnectionState: closing
+EOMOD
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapmodify failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+kill -0 "$SYNCPID1"
+RC=$?
+if test $RC != 0 ; then
+    wait "$SYNCPID1"
+    RC=$?
+    echo "ldapsearch ended prematurely ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+fi
+
+echo "Letting a second change replicate to the remaining client to prove it was live at this point..."
+
+$LDAPMODIFY -D "$MANAGERDN" -H $URI3 -w $PASSWD <<EOMOD >> $TESTOUT 2>&1
+dn: $BASEDN
+changetype: modify
+add: o
+o: EX
+EOMOD
+
+# let the change propagate
+sleep $SLEEP0
+
+kill -HUP $PID3
+KILLPIDS=`echo " $KILLPIDS " | sed -e "s/ $PID3 / /"`
+
+wait "$PID3"
+
+echo "Waiting for the syncrepl session to finish"
+wait "$SYNCPID1"
+KILLPIDS=`echo " $KILLPIDS " | sed -e "s/ $SYNCPID1 / /"`
+
+$LDAPCOMPARE -H $URI5 "$CONN_INTER" olmConnectionState:dying >>$TESTOUT 2>&1
+RC=$?
+case $RC in
+32)
+    # Connection is gone as expected
+    ;;
+5)
+    # Connection is still dying, are we really that lucky?
+    ;;
+6)
+    # Connection is still closing? But there are no ops on it!
+    echo "Connection between lloadds is still alive when it shouldn't!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+    ;;
+*)
+    echo "ldapcompare failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+    ;;
+esac
+
+test $KILLSERVERS != no && kill -HUP $KILLPIDS
+
+MSGCOUNT=`grep -c '^dn: ' $SEARCHOUT`
+if test $MSGCOUNT != 3 ; then
+    echo "Unexpected number of syncrepl messages received from front lloadd! ($MSGCOUNT != 3)"
+    exit 1
+fi
+
+MSGCOUNT=`grep -c '^dn: ' $SEARCHOUT2`
+if test $MSGCOUNT != 2 ; then
+    echo "Unexpected number of syncrepl messages received from rear lloadd! ($MSGCOUNT != 2)"
+    exit 1
+fi
+
+echo ">>>>> Test succeeded"
+
+test $KILLSERVERS != no && wait
+
+exit 0
