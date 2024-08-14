@@ -138,6 +138,8 @@ forward_final_response(
 static int
 handle_unsolicited( LloadConnection *c, BerElement *ber )
 {
+    TAvlnode *node;
+
     CONNECTION_ASSERT_LOCKED(c);
 
     assert( c->c_state != LLOAD_C_INVALID );
@@ -151,10 +153,30 @@ handle_unsolicited( LloadConnection *c, BerElement *ber )
             "teardown for upstream connection connid=%lu\n",
             c->c_connid );
 
-    CONNECTION_DESTROY(c);
+    while ( c->c_ops ) {
+        TAvlnode *node = ldap_tavl_end( c->c_ops, TAVL_DIR_LEFT );
+        LloadOperation *op = node->avl_data;
+
+        /* Close operations that the upstream is not tracking, we don't get a
+         * response for those. */
+        if ( op->o_client_msgid || op->o_upstream_msgid ) {
+            assert( op->o_upstream_msgid != 0 );
+            break;
+        }
+
+        CONNECTION_UNLOCK(c);
+        OPERATION_UNLINK(op);
+        CONNECTION_LOCK(c);
+    };
 
 out:
     ber_free( ber, 1 );
+    if ( c->c_state == LLOAD_C_CLOSING && c->c_ops ) {
+        CONNECTION_UNLOCK(c);
+        return 0;
+    }
+
+    CONNECTION_DESTROY(c);
     return -1;
 }
 
