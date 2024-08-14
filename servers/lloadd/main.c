@@ -827,12 +827,6 @@ unhandled_option:;
         slapd_args_file_unlink = 1;
     }
 
-    /*
-     * FIXME: moved here from lloadd_daemon_task()
-     * because back-monitor db_open() needs it
-     */
-    time( &starttime );
-
     Debug( LDAP_DEBUG_ANY, "lloadd starting\n" );
 
 #ifndef HAVE_WINSOCK

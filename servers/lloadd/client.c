@@ -538,7 +538,7 @@ fail:
 LloadConnection *
 client_init(
         ber_socket_t s,
-        struct berval *localname,
+        LloadListenerSocket *ls,
         struct berval *peername,
         struct event_base *base,
         int flags )
@@ -549,7 +549,7 @@ client_init(
                       write_cb = connection_write_cb;
 
     if ( (c = lload_connection_init(
-                    s, localname, peername, flags )) == NULL ) {
+                    s, &ls->ls_name, peername, flags )) == NULL ) {
         return NULL;
     }
 
@@ -559,6 +559,7 @@ client_init(
     }
 
     c->c_state = LLOAD_C_READY;
+    c->c_listener = ls;
 
     if ( flags & CONN_IS_TLS ) {
 #ifdef HAVE_TLS

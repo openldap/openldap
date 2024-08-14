@@ -276,7 +276,7 @@ static ConfigTable config_back_cf_table[] = {
         "( OLcfgBkAt:13.5 "
             "NAME 'olcBkLloadListen' "
             "DESC 'A listener adress' "
-            /* We don't handle adding/removing a value, so no EQUALITY yet */
+            "EQUALITY caseExactMatch "
             "SYNTAX OMsDirectoryString )",
         NULL, NULL
     },
@@ -800,7 +800,6 @@ static ConfigOCs lloadocs[] = {
         "SUP olcBackendConfig "
         "MUST ( olcBkLloadBindconf "
             "$ olcBkLloadIOThreads "
-            "$ olcBkLloadListen "
             "$ olcBkLloadSockbufMaxClient "
             "$ olcBkLloadSockbufMaxUpstream "
             "$ olcBkLloadMaxPDUPerCycle "
@@ -824,6 +823,7 @@ static ConfigOCs lloadocs[] = {
             "$ olcBkLloadWriteCoherence "
             "$ olcBkLloadRestrictExop "
             "$ olcBkLloadRestrictControl "
+            "$ olcBkLloadListen "
         ") )",
         Cft_Backend, config_back_cf_table,
         NULL,
@@ -884,12 +884,6 @@ config_generic( ConfigArgs *c )
                 struct berval bv = BER_BVNULL;
 
                 for ( ; ll && *ll; ll++ ) {
-                    /* The same url could have spawned several consecutive
-                     * listeners */
-                    if ( !BER_BVISNULL( &bv ) &&
-                            !ber_bvcmp( &bv, &(*ll)->sl_url ) ) {
-                        continue;
-                    }
                     ber_dupbv( &bv, &(*ll)->sl_url );
                     ber_bvarray_add( &c->rvalue_vals, &bv );
                 }
@@ -918,8 +912,47 @@ config_generic( ConfigArgs *c )
 
     } else if ( c->op == LDAP_MOD_DELETE ) {
         /* We only need to worry about deletions to multi-value or MAY
-         * attributes that belong to the lloadd module - we don't have any at
-         * the moment */
+         * attributes that belong to the lloadd module */
+        switch ( c->type ) {
+            case CFG_LISTEN_URI: {
+                LloadListener **ll = lloadd_get_listeners();
+                int i;
+
+                lload_change.type = LLOAD_CHANGE_MODIFY;
+                lload_change.object = LLOAD_DAEMON;
+                lload_change.flags.daemon |= LLOAD_DAEMON_MOD_LISTENER;
+
+                /*
+                 * Be as non-destructive as possible, the modify could be
+                 * aborted later and if we can't open the socket again, the
+                 * only alternative would be to stop the server.
+                 *
+                 * This prohibits changes where exchanging urls that aren't the
+                 * same but overlap. People can always split them into multiple
+                 * operations - make simple things easy and complex possible I
+                 * guess?
+                 */
+                if ( c->valx == -1 ) {
+                    for ( i = 0; ll[i]; i++ ) {
+                        ll[i]->sl_removed = 1;
+                    }
+                } else {
+                    /* We don't keep listeners in the same order, need to check
+                     * which one it is */
+                    struct berval bv;
+                    ber_str2bv( c->line, 0, 0, &bv );
+
+                    for ( i = 0; ll[i]; i++ ) {
+                        if ( ber_bvcmp( &ll[i]->sl_url, &bv ) == 0 ) break;
+                    }
+
+                    assert( ll[i] && !ll[i]->sl_removed );
+                    ll[i]->sl_removed = 1;
+                }
+            } break;
+            default:
+                break;
+        }
         return rc;
     }
 
@@ -948,7 +981,10 @@ config_generic( ConfigArgs *c )
             break;
         case CFG_LISTEN_URI: {
             LDAPURLDesc *lud;
-            LloadListener *l;
+            LloadListener *l, **ll;
+            struct berval bv;
+
+            ber_str2bv( c->line, 0, 0, &bv );
 
             if ( ldap_url_parse_ext(
                          c->line, &lud, LDAP_PVT_URL_PARSE_DEF_PORT ) ) {
@@ -964,21 +1000,29 @@ config_generic( ConfigArgs *c )
                         "Load Balancer already configured to listen on %s "
                         "(while adding %s)",
                         l->sl_url.bv_val, c->line );
+                ldap_free_urldesc( lud );
                 goto fail;
             }
 
-            if ( !lloadd_inited ) {
-                if ( lload_open_new_listener( c->line, lud ) ) {
-                    snprintf( c->cr_msg, sizeof(c->cr_msg),
-                            "could not open a listener for %s", c->line );
-                    goto fail;
-                }
-            } else {
+            ll = lloadd_get_listeners();
+            for ( ; ll && *ll; ll++ ) {
+                if ( !(*ll)->sl_removed ||
+                        ber_bvcmp( &(*ll)->sl_url, &bv ) ) continue;
+                /* Restoring a removed listener URL */
+                (*ll)->sl_removed = 0;
+                break;
+            }
+
+            l = lload_configure_listener( c->line, lud );
+            if ( !l ) {
                 snprintf( c->cr_msg, sizeof(c->cr_msg),
-                        "listener changes will not take effect until restart: "
-                        "%s",
-                        c->line );
-                Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+                        "could not configure a listener for %s", c->line );
+                goto fail;
+            }
+            if ( lload_open_new_listener( l ) ) {
+                snprintf( c->cr_msg, sizeof(c->cr_msg),
+                        "could not open a listener for %s", c->line );
+                goto fail;
             }
         } break;
         case CFG_THREADS:

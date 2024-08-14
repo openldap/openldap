@@ -1299,22 +1299,17 @@ slap_free_listener_addresses( struct sockaddr **sal )
 static int
 get_url_perms(
 	char 	**exts,
-	mode_t	*perms,
-	int	*crit )
+	mode_t	*perms )
 {
 	int	i;
 
 	assert( exts != NULL );
 	assert( perms != NULL );
-	assert( crit != NULL );
 
-	*crit = 0;
 	for ( i = 0; exts[ i ]; i++ ) {
 		char	*type = exts[ i ];
-		int	c = 0;
 
 		if ( type[ 0 ] == '!' ) {
-			c = 1;
 			type++;
 		}
 
@@ -1365,7 +1360,6 @@ get_url_perms(
 				return LDAP_OTHER;
 			} 
 
-			*crit = c;
 			*perms = p;
 
 			return LDAP_SUCCESS;
@@ -1523,13 +1517,6 @@ slap_open_listener(
 	ber_socket_t s;
 	char ebuf[128];
 
-#if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
-	/*
-	 * use safe defaults
-	 */
-	int	crit = 1;
-#endif /* LDAP_PF_LOCAL || SLAP_X_LISTENER_MOD */
-
 	rc = ldap_url_parse_ext( url, &lud, LDAP_PVT_URL_PARSE_DEF_PORT );
 
 	if( rc != LDAP_URL_SUCCESS ) {
@@ -1596,7 +1583,7 @@ slap_open_listener(
 
 #if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
 	if ( lud->lud_exts ) {
-		err = get_url_perms( lud->lud_exts, &l.sl_perms, &crit );
+		err = get_url_perms( lud->lud_exts, &l.sl_perms );
 	} else {
 		l.sl_perms = S_IRWXU | S_IRWXO;
 	}

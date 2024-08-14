@@ -106,8 +106,6 @@ lload_back_open( BackendInfo *bi )
         return -1;
     }
 
-    assert( lloadd_get_listeners() );
-
     checked_lock( &lload_wait_mutex );
     rc = ldap_pvt_thread_create( &lloadd_main_thread,
             0, lload_start_daemon, NULL );

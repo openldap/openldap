@@ -104,6 +104,8 @@ typedef struct LloadPendingConnection LloadPendingConnection;
 typedef struct LloadConnection LloadConnection;
 typedef struct LloadOperation LloadOperation;
 typedef struct LloadChange LloadChange;
+typedef struct LloadListenerSocket LloadListenerSocket;
+typedef struct LloadListener LloadListener;
 /* end of forward declarations */
 
 typedef LDAP_STAILQ_HEAD(TierSt, LloadTier) lload_t_head;
@@ -149,9 +151,8 @@ enum lcf_daemon {
     LLOAD_DAEMON_MOD_THREADS = 1 << 0,
     LLOAD_DAEMON_MOD_FEATURES = 1 << 1,
     LLOAD_DAEMON_MOD_TLS = 1 << 2,
-    LLOAD_DAEMON_MOD_LISTENER_ADD = 1 << 3,
-    LLOAD_DAEMON_MOD_LISTENER_REPLACE = 1 << 4,
-    LLOAD_DAEMON_MOD_BINDCONF = 1 << 5,
+    LLOAD_DAEMON_MOD_LISTENER = 1 << 3,
+    LLOAD_DAEMON_MOD_BINDCONF = 1 << 4,
 };
 
 enum lcf_tier {
@@ -495,6 +496,7 @@ struct LloadConnection {
     time_t c_restricted_at;
     LloadBackend *c_backend;
     LloadConnection *c_linked_upstream;
+    LloadListenerSocket *c_listener;
 
     TAvlnode *c_linked;
 
@@ -568,28 +570,39 @@ struct restriction_entry {
 };
 
 /*
- * listener; need to access it from monitor backend
+ * listener, unlike slapd, we have exactly one per url, then bunch the sockets
+ * under it
  */
 struct LloadListener {
     struct berval sl_url;
-    struct berval sl_name;
     mode_t sl_perms;
+    int sl_removed;
 #ifdef HAVE_TLS
     int sl_is_tls;
 #endif
     int sl_is_proxied;
-    struct event_base *base;
-    struct evconnlistener *listener;
-    int sl_mute; /* Listener is temporarily disabled due to emfile */
-    int sl_busy; /* Listener is busy (accept thread activated) */
-    ber_socket_t sl_sd;
-    Sockaddr sl_sa;
-#define sl_addr sl_sa.sa_in_addr
+    LloadListenerSocket *sl_sockets;
 #define LDAP_TCP_BUFFER
 #ifdef LDAP_TCP_BUFFER
     int sl_tcp_rmem; /* custom TCP read buffer size */
     int sl_tcp_wmem; /* custom TCP write buffer size */
 #endif
+};
+
+struct LloadListenerSocket {
+    LloadListener *ls_lr;
+    struct berval ls_name;
+
+    struct evconnlistener *listener;
+    struct event_base *base;
+
+    int ls_mute; /* listener is temporarily disabled due to emfile */
+    ber_socket_t ls_sd;
+
+    LloadListenerSocket *ls_next;
+
+    Sockaddr ls_sa;
+#define ls_addr ls_sa.sa_in_addr
 };
 
 typedef int (*CONNCB)( LloadConnection *c, void *arg );

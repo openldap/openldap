@@ -87,6 +87,16 @@ ldap_pvt_thread_cond_t lload_pause_cond;
 int lload_daemon_threads = 1;
 int lload_daemon_mask;
 
+/*
+ * We might be a module, so concerns about listeners are different from slapd,
+ * instead they are set up in three phases:
+ * 1. parse urls to set up (LloadListener *) in configuration/main()
+ * 2. resolve socket names and bind() just before going online
+ *    Unlike slapd or standalone, module lloadd cannot see configuration
+ *    (acquire sockets) prior to privileges being dropped. Admins should use
+ *    CAP_NET_BIND_SERVICE on Linux, or similar elsewhere
+ * 3. as we go online, allocate them to the listener base
+ */
 struct event_base *listener_base = NULL;
 LloadListener **lload_listeners = NULL;
 static ldap_pvt_thread_t listener_tid, *daemon_tid;
@@ -152,33 +162,19 @@ lloadd_close( ber_socket_t s )
     tcp_close( s );
 }
 
-static void
-lload_free_listener_addresses( struct sockaddr **sal )
-{
-    struct sockaddr **sap;
-    if ( sal == NULL ) return;
-    for ( sap = sal; *sap != NULL; sap++ )
-        ch_free(*sap);
-    ch_free( sal );
-}
-
 #if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
 static int
-get_url_perms( char **exts, mode_t *perms, int *crit )
+get_url_perms( char **exts, mode_t *perms )
 {
     int i;
 
     assert( exts != NULL );
     assert( perms != NULL );
-    assert( crit != NULL );
 
-    *crit = 0;
     for ( i = 0; exts[i]; i++ ) {
         char *type = exts[i];
-        int c = 0;
 
         if ( type[0] == '!' ) {
-            c = 1;
             type++;
         }
 
@@ -226,7 +222,6 @@ get_url_perms( char **exts, mode_t *perms, int *crit )
                     return LDAP_OTHER;
             }
 
-            *crit = c;
             *perms = p;
 
             return LDAP_SUCCESS;
@@ -237,45 +232,99 @@ get_url_perms( char **exts, mode_t *perms, int *crit )
 }
 #endif /* LDAP_PF_LOCAL || SLAP_X_LISTENER_MOD */
 
-/* port = 0 indicates AF_LOCAL */
-static int
-lload_get_listener_addresses(
-        const char *host,
-        unsigned short port,
-        struct sockaddr ***sal )
+void
+lload_listener_free( LloadListener *l )
 {
-    struct sockaddr **sap;
+    LloadListenerSocket *next, *ls = l->sl_sockets;
+
+    for ( ; ls; ls = next ) {
+        next = ls->ls_next;
+
+        if ( ls->listener ) {
+            evconnlistener_free( ls->listener );
+        }
 
 #ifdef LDAP_PF_LOCAL
-    if ( port == 0 ) {
-        sap = *sal = ch_malloc( 2 * sizeof(void *) );
+        if ( ls->ls_sa.sa_addr.sa_family == AF_LOCAL ) {
+            unlink( ls->ls_sa.sa_un_addr.sun_path );
+        }
+#endif /* LDAP_PF_LOCAL */
+        lloadd_close( ls->ls_sd );
 
-        *sap = ch_calloc( 1, sizeof(struct sockaddr_un) );
-        sap[1] = NULL;
+        if ( ls->ls_name.bv_val ) {
+            ber_memfree( ls->ls_name.bv_val );
+        }
+        ch_free( ls );
+    }
 
-        if ( strlen( host ) >
-                ( sizeof( ((struct sockaddr_un *)*sap)->sun_path ) - 1 ) ) {
+    if ( l->sl_url.bv_val ) {
+        ber_memfree( l->sl_url.bv_val );
+    }
+    ch_free( l );
+}
+
+static int
+lload_get_listener_addresses(
+        LloadListener *l,
+        LDAPURLDesc *lud,
+        LloadListenerSocket **lsp )
+{
+    LloadListenerSocket **lsp_orig = lsp, *ls = NULL;
+    Sockaddr *sa;
+    char ebuf[LDAP_IPADDRLEN];
+    struct berval namebv = BER_BVC(ebuf);
+    char *host = lud->lud_host;
+    int proto = ldap_pvt_url_scheme2proto( lud->lud_scheme );
+
+    if ( proto == LDAP_PROTO_IPC ) {
+        struct sockaddr_un sun;
+#ifdef LDAP_PF_LOCAL
+        if ( !host || !*host ) {
+            host = LDAPI_SOCK;
+        }
+
+        if ( strlen( host ) > ( sizeof(sun.sun_path) - 1 ) ) {
             Debug( LDAP_DEBUG_ANY, "lload_get_listener_addresses: "
                     "domain socket path (%s) too long in URL\n",
                     host );
-            goto errexit;
+            return -1;
         }
 
-        (*sap)->sa_family = AF_LOCAL;
-        strcpy( ((struct sockaddr_un *)*sap)->sun_path, host );
-    } else
-#endif /* LDAP_PF_LOCAL */
+        *lsp = ls = ch_calloc( 1, sizeof(LloadListenerSocket) );
+        ls->ls_lr = l;
+        ls->ls_sd = AC_SOCKET_INVALID;
+
+        sa = &ls->ls_sa;
+        ((struct sockaddr *)sa)->sa_family = AF_LOCAL;
+        strcpy( ((struct sockaddr_un *)sa)->sun_path, host );
+        ldap_pvt_sockaddrstr( sa, &namebv );
+        ber_dupbv( &ls->ls_name, &namebv );
+
+        return 0;
+#else /* ! LDAP_PF_LOCAL */
+
+        Debug( LDAP_DEBUG_ANY, "lload_get_listener_addresses: "
+                "URL scheme not supported: %s\n",
+                l->sl_url.bv_val );
+        return -1;
+#endif /* ! LDAP_PF_LOCAL */
+    }
+
+    if ( !host || !*host || strcmp( host, "*" ) == 0 ) {
+        host = NULL;
+    }
+
     {
 #ifdef HAVE_GETADDRINFO
         struct addrinfo hints, *res, *sai;
-        int n, err;
+        int err;
         char serv[7];
 
         memset( &hints, '\0', sizeof(hints) );
         hints.ai_flags = AI_PASSIVE;
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_family = slap_inet4or6;
-        snprintf( serv, sizeof(serv), "%d", port );
+        snprintf( serv, sizeof(serv), "%d", lud->lud_port );
 
         if ( (err = getaddrinfo( host, serv, &hints, &res )) ) {
             Debug( LDAP_DEBUG_ANY, "lload_get_listener_addresses: "
@@ -284,53 +333,49 @@ lload_get_listener_addresses(
             return -1;
         }
 
-        sai = res;
-        for ( n = 2; ( sai = sai->ai_next ) != NULL; n++ ) {
-            /* EMPTY */;
-        }
-        sap = *sal = ch_calloc( n, sizeof(void *) );
-
-        *sap = NULL;
-
         for ( sai = res; sai; sai = sai->ai_next ) {
             if ( sai->ai_addr == NULL ) {
                 Debug( LDAP_DEBUG_ANY, "lload_get_listener_addresses: "
                         "getaddrinfo ai_addr is NULL?\n" );
                 freeaddrinfo( res );
-                goto errexit;
+                return -1;
             }
+
+            ls = ch_calloc( 1, sizeof(LloadListenerSocket) );
+            ls->ls_lr = l;
+            ls->ls_sd = AC_SOCKET_INVALID;
+            sa = &ls->ls_sa;
 
             switch ( sai->ai_family ) {
 #ifdef LDAP_PF_INET6
                 case AF_INET6:
-                    *sap = ch_malloc( sizeof(struct sockaddr_in6) );
-                    *(struct sockaddr_in6 *)*sap =
-                            *((struct sockaddr_in6 *)sai->ai_addr);
+                    *(struct sockaddr_in6 *)sa =
+                        *((struct sockaddr_in6 *)sai->ai_addr);
                     break;
 #endif /* LDAP_PF_INET6 */
                 case AF_INET:
-                    *sap = ch_malloc( sizeof(struct sockaddr_in) );
-                    *(struct sockaddr_in *)*sap =
-                            *((struct sockaddr_in *)sai->ai_addr);
+                    *(struct sockaddr_in *)sa =
+                        *((struct sockaddr_in *)sai->ai_addr);
                     break;
                 default:
-                    *sap = NULL;
-                    break;
+                    /* We don't know how to use this one, skip */
+                    goto skip;
             }
+            ((struct sockaddr *)sa)->sa_family = sai->ai_family;
+            ldap_pvt_sockaddrstr( sa, &namebv );
+            ber_dupbv( &ls->ls_name, &namebv );
 
-            if ( *sap != NULL ) {
-                (*sap)->sa_family = sai->ai_family;
-                sap++;
-                *sap = NULL;
-            }
+            *lsp = ls;
+            lsp = &ls->ls_next;
         }
 
         freeaddrinfo( res );
 
 #else /* ! HAVE_GETADDRINFO */
-        int i, n = 1;
+        int i = 0;
         struct in_addr in;
         struct hostent *he = NULL;
+        struct sockaddr_in *sin;
 
         if ( host == NULL ) {
             in.s_addr = htonl( INADDR_ANY );
@@ -343,139 +388,98 @@ lload_get_listener_addresses(
                         host );
                 return -1;
             }
-            for ( n = 0; he->h_addr_list[n]; n++ ) /* empty */;
         }
 
-        sap = *sal = ch_malloc( ( n + 1 ) * sizeof(void *) );
+        do {
+            *lsp = ls = ch_calloc( 1, sizeof(LloadListenerSocket) );
+            ls->ls_lr = l;
 
-        for ( i = 0; i < n; i++ ) {
-            sap[i] = ch_calloc( 1, sizeof(struct sockaddr_in) );
-            sap[i]->sa_family = AF_INET;
-            ((struct sockaddr_in *)sap[i])->sin_port = htons( port );
-            AC_MEMCPY( &((struct sockaddr_in *)sap[i])->sin_addr,
+            sin = (struct sockaddr_in *)&ls->ls_sa;
+            sin->sa_family = AF_INET;
+            sin->sin_port = htons( lud->lud_port );
+
+            AC_MEMCPY( &sin->sin_addr,
                     he ? (struct in_addr *)he->h_addr_list[i] : &in,
                     sizeof(struct in_addr) );
-        }
-        sap[i] = NULL;
+
+            ldap_pvt_sockaddrstr( (Sockaddr *)sin, &namebv );
+            ber_dupbv( &ls->ls_name, &namebv );
+            i++;
+        } while ( he && he->h_addr_list[i] );
 #endif /* ! HAVE_GETADDRINFO */
     }
 
-    return 0;
+    return !ls;
 
-errexit:
-    lload_free_listener_addresses(*sal);
+skip:
+    ls = *lsp_orig;
+    while ( ls ) {
+        LloadListenerSocket *next = ls->ls_next;
+        ch_free( ls );
+        ls = next;
+    }
     return -1;
 }
 
-static int
-lload_open_listener(
+LloadListener *
+lload_configure_listener(
         const char *url,
-        LDAPURLDesc *lud,
-        int *listeners,
-        int *cur )
+        LDAPURLDesc *lud )
 {
-    int num, tmp, rc;
-    LloadListener l;
-    LloadListener *li;
-    unsigned short port;
-    int err, addrlen = 0;
-    struct sockaddr **sal = NULL, **psal;
-    int socktype = SOCK_STREAM; /* default to COTS */
-    ber_socket_t s;
+    LloadListener *l;
+    LloadListenerSocket *ls, *next, **prev;
     char ebuf[LDAP_IPADDRLEN];
     struct berval namebv = BER_BVC(ebuf);
-
-#if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
-    /*
-     * use safe defaults
-     */
-    int crit = 1;
-#endif /* LDAP_PF_LOCAL || SLAP_X_LISTENER_MOD */
+    int socktype = SOCK_STREAM; /* default to COTS */
+    int addrlen = 0;
+    int tmp, rc;
 
     assert( url );
     assert( lud );
 
-    l.sl_url.bv_val = NULL;
-    l.sl_mute = 0;
-    l.sl_busy = 0;
-
-#ifndef HAVE_TLS
-    if ( ldap_pvt_url_scheme2tls( lud->lud_scheme ) ) {
-        Debug( LDAP_DEBUG_ANY, "lload_open_listener: "
-                "TLS not supported (%s)\n",
-                url );
-        ldap_free_urldesc( lud );
-        return -1;
-    }
+    l = ch_calloc( 1, sizeof(LloadListener) );
 
     if ( !lud->lud_port ) lud->lud_port = LDAP_PORT;
 
-#else /* HAVE_TLS */
-    l.sl_is_tls = ldap_pvt_url_scheme2tls( lud->lud_scheme );
-#endif /* HAVE_TLS */
-
-    l.sl_is_proxied = ldap_pvt_url_scheme2proxied( lud->lud_scheme );
-
-#ifdef LDAP_TCP_BUFFER
-    l.sl_tcp_rmem = 0;
-    l.sl_tcp_wmem = 0;
-#endif /* LDAP_TCP_BUFFER */
-
-    port = (unsigned short)lud->lud_port;
-
-    tmp = ldap_pvt_url_scheme2proto( lud->lud_scheme );
-    if ( tmp == LDAP_PROTO_IPC ) {
-#ifdef LDAP_PF_LOCAL
-        if ( lud->lud_host == NULL || lud->lud_host[0] == '\0' ) {
-            err = lload_get_listener_addresses( LDAPI_SOCK, 0, &sal );
-        } else {
-            err = lload_get_listener_addresses( lud->lud_host, 0, &sal );
-        }
-#else /* ! LDAP_PF_LOCAL */
-
-        Debug( LDAP_DEBUG_ANY, "lload_open_listener: "
-                "URL scheme not supported: %s\n",
+#ifndef HAVE_TLS
+    if ( ldap_pvt_url_scheme2tls( lud->lud_scheme ) ) {
+        Debug( LDAP_DEBUG_ANY, "lload_configure_listener: "
+                "TLS not supported (%s)\n",
                 url );
         ldap_free_urldesc( lud );
-        return -1;
-#endif /* ! LDAP_PF_LOCAL */
-    } else {
-        if ( lud->lud_host == NULL || lud->lud_host[0] == '\0' ||
-                strcmp( lud->lud_host, "*" ) == 0 ) {
-            err = lload_get_listener_addresses( NULL, port, &sal );
-        } else {
-            err = lload_get_listener_addresses( lud->lud_host, port, &sal );
-        }
+        return NULL;
     }
+
+#else /* HAVE_TLS */
+    l->sl_is_tls = ldap_pvt_url_scheme2tls( lud->lud_scheme );
+#endif /* HAVE_TLS */
 
 #if defined(LDAP_PF_LOCAL) || defined(SLAP_X_LISTENER_MOD)
     if ( lud->lud_exts ) {
-        err = get_url_perms( lud->lud_exts, &l.sl_perms, &crit );
+        if ( get_url_perms( lud->lud_exts, &l->sl_perms ) ) {
+            ldap_free_urldesc( lud );
+            return NULL;
+        }
     } else {
-        l.sl_perms = S_IRWXU | S_IRWXO;
+        l->sl_perms = S_IRWXU | S_IRWXO;
     }
 #endif /* LDAP_PF_LOCAL || SLAP_X_LISTENER_MOD */
 
+    l->sl_is_proxied = ldap_pvt_url_scheme2proxied( lud->lud_scheme );
+
+    if ( lload_get_listener_addresses( l, lud, &l->sl_sockets ) ) {
+        ldap_free_urldesc( lud );
+        return NULL;
+    }
     ldap_free_urldesc( lud );
-    if ( err ) {
-        lload_free_listener_addresses( sal );
-        return -1;
-    }
 
-    /* If we got more than one address returned, we need to make space
-     * for it in the lload_listeners array.
-     */
-    for ( num = 0; sal[num]; num++ ) /* empty */;
-    if ( num > 1 ) {
-        *listeners += num - 1;
-        lload_listeners = ch_realloc( lload_listeners,
-                ( *listeners + 1 ) * sizeof(LloadListener *) );
-    }
-
-    psal = sal;
-    while ( *sal != NULL ) {
+    for ( ls = l->sl_sockets, prev = &l->sl_sockets; ls; ls = next ) {
+        struct sockaddr *sa = (struct sockaddr *)&ls->ls_sa;
+        ber_socket_t s;
         char *af;
-        switch ( (*sal)->sa_family ) {
+
+        next = ls->ls_next;
+        switch ( sa->sa_family ) {
             case AF_INET:
                 af = "IPv4";
                 break;
@@ -490,25 +494,34 @@ lload_open_listener(
                 break;
 #endif /* LDAP_PF_LOCAL */
             default:
-                sal++;
-                continue;
+                Debug( LDAP_DEBUG_ANY, "lload_configure_listener: "
+                        "unsupported address family (%d)\n",
+                        (int)sa->sa_family );
+                goto skip;
         }
 
-        s = socket( (*sal)->sa_family, socktype, 0 );
-        if ( s == AC_SOCKET_INVALID ) {
-            int err = sock_errno();
-            Debug( LDAP_DEBUG_ANY, "lload_open_listener: "
-                    "%s socket() failed errno=%d (%s)\n",
-                    af, err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
-            sal++;
+#ifdef BALANCER_MODULE
+        if ( !(slapMode & SLAP_SERVER_MODE) ) {
+            /* This is as much validation as we can (safely) do short of proper
+             * startup */
             continue;
         }
+#endif
+
+        s = socket( sa->sa_family, socktype, 0 );
+        if ( s == AC_SOCKET_INVALID ) {
+            int err = sock_errno();
+            Debug( LDAP_DEBUG_ANY, "lload_configure_listener: "
+                    "%s socket() failed errno=%d (%s)\n",
+                    af, err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
+            goto skip;
+        }
         ber_pvt_socket_set_nonblock( s, 1 );
-        l.sl_sd = s;
+        ls->ls_sd = s;
 
 #ifdef LDAP_PF_LOCAL
-        if ( (*sal)->sa_family == AF_LOCAL ) {
-            unlink( ((struct sockaddr_un *)*sal)->sun_path );
+        if ( sa->sa_family == AF_LOCAL ) {
+            unlink( ((struct sockaddr_un *)sa)->sun_path );
         } else
 #endif /* LDAP_PF_LOCAL */
         {
@@ -519,15 +532,14 @@ lload_open_listener(
                     s, SOL_SOCKET, SO_REUSEADDR, (char *)&tmp, sizeof(tmp) );
             if ( rc == AC_SOCKET_ERROR ) {
                 int err = sock_errno();
-                Debug( LDAP_DEBUG_ANY, "lload_open_listener(%ld): "
+                Debug( LDAP_DEBUG_ANY, "lload_configure_listener(%ld): "
                         "setsockopt(SO_REUSEADDR) failed errno=%d (%s)\n",
-                        (long)l.sl_sd, err,
-                        sock_errstr( err, ebuf, sizeof(ebuf) ) );
+                        (long)s, err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
             }
 #endif /* SO_REUSEADDR */
         }
 
-        switch ( (*sal)->sa_family ) {
+        switch ( sa->sa_family ) {
             case AF_INET:
                 addrlen = sizeof(struct sockaddr_in);
                 break;
@@ -540,9 +552,9 @@ lload_open_listener(
                         sizeof(tmp) );
                 if ( rc == AC_SOCKET_ERROR ) {
                     int err = sock_errno();
-                    Debug( LDAP_DEBUG_ANY, "lload_open_listener(%ld): "
+                    Debug( LDAP_DEBUG_ANY, "lload_configure_listener(%ld): "
                             "setsockopt(IPV6_V6ONLY) failed errno=%d (%s)\n",
-                            (long)l.sl_sd, err,
+                            (long)s, err,
                             sock_errstr( err, ebuf, sizeof(ebuf) ) );
                 }
 #endif /* IPV6_V6ONLY */
@@ -575,11 +587,11 @@ lload_open_listener(
         {
             mode_t old_umask = 0;
 
-            if ( (*sal)->sa_family == AF_LOCAL ) {
+            if ( sa->sa_family == AF_LOCAL ) {
                 old_umask = umask( 0 );
             }
 #endif /* LDAP_PF_LOCAL */
-            rc = bind( s, *sal, addrlen );
+            rc = bind( s, sa, addrlen );
 #ifdef LDAP_PF_LOCAL
             if ( old_umask != 0 ) {
                 umask( old_umask );
@@ -587,156 +599,72 @@ lload_open_listener(
         }
 #endif /* LDAP_PF_LOCAL */
         if ( rc ) {
-            err = sock_errno();
-            Debug( LDAP_DEBUG_ANY, "lload_open_listener: "
+            int err = sock_errno();
+            Debug( LDAP_DEBUG_ANY, "lload_configure_listener: "
                     "bind(%ld) failed errno=%d (%s)\n",
-                    (long)l.sl_sd, err,
-                    sock_errstr( err, ebuf, sizeof(ebuf) ) );
+                    (long)s, err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
             tcp_close( s );
-            sal++;
-            continue;
+            ls->ls_sd = AC_SOCKET_INVALID;
+            goto skip;
         }
 
-        switch ( (*sal)->sa_family ) {
-#ifdef LDAP_PF_LOCAL
-            case AF_LOCAL: /* {
-                char *path = ((struct sockaddr_un *)*sal)->sun_path;
-                l.sl_name.bv_len = strlen( path ) + STRLENOF("PATH=");
-                l.sl_name.bv_val = ch_malloc( l.sl_name.bv_len + 1 );
-                snprintf( l.sl_name.bv_val, l.sl_name.bv_len + 1, "PATH=%s",
-                        path );
-            } break; */
-#endif /* LDAP_PF_LOCAL */
-
-            case AF_INET:
-#ifdef LDAP_PF_INET6
-            case AF_INET6:
-#endif /* LDAP_PF_INET6 */
-                ldap_pvt_sockaddrstr( (Sockaddr *)*sal, &namebv );
-                ber_dupbv( &l.sl_name, &namebv );
-                break;
-
-            default:
-                Debug( LDAP_DEBUG_ANY, "lload_open_listener: "
-                        "unsupported address family (%d)\n",
-                        (int)(*sal)->sa_family );
-                break;
-        }
-
-        AC_MEMCPY( &l.sl_sa, *sal, addrlen );
-        ber_str2bv( url, 0, 1, &l.sl_url );
-        li = ch_malloc( sizeof(LloadListener) );
-        *li = l;
-        lload_listeners[*cur] = li;
-        (*cur)++;
-        sal++;
+        prev = &ls->ls_next;
+        continue;
+skip:
+        ber_memfree( ls->ls_name.bv_val );
+        ch_free( ls );
+        *prev = next;
     }
 
-    lload_free_listener_addresses( psal );
-
-    if ( l.sl_url.bv_val == NULL ) {
-        Debug( LDAP_DEBUG_ANY, "lload_open_listener: "
+    if ( !l->sl_sockets ) {
+        Debug( LDAP_DEBUG_ANY, "lload_configure_listener: "
                 "failed on %s\n",
                 url );
-        return -1;
+        return NULL;
     }
+    ber_str2bv( url, 0, 1, &l->sl_url );
 
-    Debug( LDAP_DEBUG_TRACE, "lload_open_listener: "
+    Debug( LDAP_DEBUG_TRACE, "lload_configure_listener: "
             "listener initialized %s\n",
-            l.sl_url.bv_val );
+            l->sl_url.bv_val );
 
-    return 0;
-}
-
-int
-lload_open_new_listener( const char *url, LDAPURLDesc *lud )
-{
-    int rc, i, j = 0;
-
-    for ( i = 0; lload_listeners && lload_listeners[i] != NULL;
-            i++ ) /* count */
-        ;
-    j = i;
-
-    i++;
-    lload_listeners = ch_realloc(
-            lload_listeners, ( i + 1 ) * sizeof(LloadListener *) );
-
-    rc = lload_open_listener( url, lud, &i, &j );
-    lload_listeners[j] = NULL;
-    return rc;
+    return l;
 }
 
 int lloadd_inited = 0;
 
-int
-lloadd_listeners_init( const char *urls )
+static void
+listener_error_cb( struct evconnlistener *lev, void *arg )
 {
-    int i, j, n;
-    char **u;
-    LDAPURLDesc *lud;
+    LloadListenerSocket *ls = arg;
+    int err = EVUTIL_SOCKET_ERROR();
 
-    Debug( LDAP_DEBUG_ARGS, "lloadd_listeners_init: %s\n",
-            urls ? urls : "<null>" );
-
-#ifdef HAVE_TCPD
-    ldap_pvt_thread_mutex_init( &sd_tcpd_mutex );
-#endif /* TCP Wrappers */
-
-    if ( urls == NULL ) urls = "ldap:///";
-
-    u = ldap_str2charray( urls, " " );
-
-    if ( u == NULL || u[0] == NULL ) {
-        Debug( LDAP_DEBUG_ANY, "lloadd_listeners_init: "
-                "no urls (%s) provided\n",
-                urls );
-        if ( u ) ldap_charray_free( u );
-        return -1;
+    assert( ls->listener == lev );
+    if (
+#ifdef EMFILE
+            err == EMFILE ||
+#endif /* EMFILE */
+#ifdef ENFILE
+            err == ENFILE ||
+#endif /* ENFILE */
+            0 ) {
+        ldap_pvt_thread_mutex_lock( &lload_daemon[0].sd_mutex );
+        emfile++;
+        /* Stop listening until an existing session closes */
+        ls->ls_mute = 1;
+        evconnlistener_disable( lev );
+        ldap_pvt_thread_mutex_unlock( &lload_daemon[0].sd_mutex );
+        Debug( LDAP_DEBUG_ANY, "listener_error_cb: "
+                "too many open files, cannot accept new connections on "
+                "url=%s\n",
+                ls->ls_lr->sl_url.bv_val );
+    } else {
+        char ebuf[128];
+        Debug( LDAP_DEBUG_ANY, "listener_error_cb: "
+                "received an error on a listener, shutting down: '%s'\n",
+                sock_errstr( err, ebuf, sizeof(ebuf) ) );
+        event_base_loopexit( ls->base, NULL );
     }
-
-    for ( i = 0; u[i] != NULL; i++ ) {
-        Debug( LDAP_DEBUG_TRACE, "lloadd_listeners_init: "
-                "listen on %s\n",
-                u[i] );
-    }
-
-    if ( i == 0 ) {
-        Debug( LDAP_DEBUG_ANY, "lloadd_listeners_init: "
-                "no listeners to open (%s)\n",
-                urls );
-        ldap_charray_free( u );
-        return -1;
-    }
-
-    Debug( LDAP_DEBUG_TRACE, "lloadd_listeners_init: "
-            "%d listeners to open...\n",
-            i );
-    lload_listeners = ch_malloc( ( i + 1 ) * sizeof(LloadListener *) );
-
-    for ( n = 0, j = 0; u[n]; n++ ) {
-        if ( ldap_url_parse_ext( u[n], &lud, LDAP_PVT_URL_PARSE_DEF_PORT ) ) {
-            Debug( LDAP_DEBUG_ANY, "lloadd_listeners_init: "
-                    "could not parse url %s\n",
-                    u[n] );
-            ldap_charray_free( u );
-            return -1;
-        }
-
-        if ( lload_open_listener( u[n], lud, &i, &j ) ) {
-            ldap_charray_free( u );
-            return -1;
-        }
-    }
-    lload_listeners[j] = NULL;
-
-    Debug( LDAP_DEBUG_TRACE, "lloadd_listeners_init: "
-            "%d listeners opened\n",
-            i );
-
-    ldap_charray_free( u );
-
-    return !i;
 }
 
 int
@@ -774,33 +702,17 @@ lloadd_daemon_destroy( void )
 static void
 destroy_listeners( void )
 {
-    LloadListener *lr, **ll = lload_listeners;
+    LloadListener *l, **ll = lload_listeners;
 
     if ( ll == NULL ) return;
 
     ldap_pvt_thread_join( listener_tid, (void *)NULL );
 
-    while ( (lr = *ll++) != NULL ) {
-        if ( lr->sl_url.bv_val ) {
-            ber_memfree( lr->sl_url.bv_val );
-        }
-
-        if ( lr->sl_name.bv_val ) {
-            ber_memfree( lr->sl_name.bv_val );
-        }
-
-#ifdef LDAP_PF_LOCAL
-        if ( lr->sl_sa.sa_addr.sa_family == AF_LOCAL ) {
-            unlink( lr->sl_sa.sa_un_addr.sun_path );
-        }
-#endif /* LDAP_PF_LOCAL */
-
-        evconnlistener_free( lr->listener );
-
-        free( lr );
+    while ( (l = *ll++) != NULL ) {
+        lload_listener_free( l );
     }
 
-    free( lload_listeners );
+    ch_free( lload_listeners );
     lload_listeners = NULL;
 
     if ( listener_base ) {
@@ -816,29 +728,22 @@ lload_listener(
         int len,
         void *arg )
 {
-    LloadListener *sl = arg;
+    LloadListenerSocket *ls = arg;
+    LloadListener *l = ls->ls_lr;
     LloadConnection *c;
     Sockaddr *from = (Sockaddr *)a;
     char peername[LDAP_IPADDRLEN];
     struct berval peerbv = BER_BVC(peername);
     int cflag;
-    int tid;
+    int tid = DAEMON_ID(s);
     char ebuf[128];
-
-    Debug( LDAP_DEBUG_TRACE, ">>> lload_listener(%s)\n", sl->sl_url.bv_val );
 
     peername[0] = '\0';
 
-    /* Resume the listener FD to allow concurrent-processing of
-     * additional incoming connections.
-     */
-    sl->sl_busy = 0;
-
-    tid = DAEMON_ID(s);
-
+    Debug( LDAP_DEBUG_TRACE, ">>> lload_listener(%s)\n", l->sl_url.bv_val );
     Debug( LDAP_DEBUG_CONNS, "lload_listener: "
             "listen=%ld, new connection fd=%ld\n",
-            (long)sl->sl_sd, (long)s );
+            (long)ls->ls_sd, (long)s );
 
 #if defined(SO_KEEPALIVE) || defined(TCP_NODELAY)
 #ifdef LDAP_PF_LOCAL
@@ -875,7 +780,7 @@ lload_listener(
     }
 #endif /* SO_KEEPALIVE || TCP_NODELAY */
 
-    if ( sl->sl_is_proxied ) {
+    if ( l->sl_is_proxied ) {
         if ( !proxyp( s, from ) ) {
             Debug( LDAP_DEBUG_ANY, "lload_listener: "
                     "proxyp(%ld) failed\n",
@@ -891,9 +796,9 @@ lload_listener(
         case AF_LOCAL:
             cflag |= CONN_IS_IPC;
 
-            /* FIXME: apparently accept doesn't fill the sun_path member */
-            peerbv.bv_len = sprintf(
-                    peername, "PATH=%s", sl->sl_sa.sa_un_addr.sun_path );
+            /* apparently accept doesn't fill the sun_path member, use
+             * listener name */
+            peerbv = ls->ls_name;
             break;
 #endif /* LDAP_PF_LOCAL */
 
@@ -910,18 +815,280 @@ lload_listener(
     }
 
 #ifdef HAVE_TLS
-    if ( sl->sl_is_tls ) cflag |= CONN_IS_TLS;
+    if ( l->sl_is_tls ) cflag |= CONN_IS_TLS;
 #endif
-    c = client_init( s, &sl->sl_name, &peerbv, lload_daemon[tid].base, cflag );
+    c = client_init( s, ls, &peerbv, lload_daemon[tid].base, cflag );
 
     if ( !c ) {
         Debug( LDAP_DEBUG_ANY, "lload_listener: "
                 "client_init(%ld, %s, %s) failed\n",
-                (long)s, peername, sl->sl_name.bv_val );
+                (long)s, peername, ls->ls_name.bv_val );
         lloadd_close( s );
     }
 
     return;
+}
+
+static int
+lload_sockets_activate( LloadListener *l )
+{
+    LloadListenerSocket *ls;
+    char ebuf[128];
+    struct evconnlistener *listener;
+    int rc;
+
+    for ( ls = l->sl_sockets; ls; ls = ls->ls_next ) {
+#ifdef LDAP_TCP_BUFFER
+        /* FIXME: TCP-only! */
+        int origsize, size, realsize;
+        socklen_t optlen;
+
+        size = 0;
+        if ( l->sl_tcp_rmem > 0 ) {
+            size = l->sl_tcp_rmem;
+        } else if ( slapd_tcp_rmem > 0 ) {
+            size = slapd_tcp_rmem;
+        }
+
+        if ( size > 0 ) {
+            optlen = sizeof(origsize);
+            rc = getsockopt( ls->ls_sd, SOL_SOCKET,
+                    SO_RCVBUF, (void *)&origsize, &optlen );
+
+            if ( rc ) {
+                int err = sock_errno();
+                Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                        "getsockopt(SO_RCVBUF) failed errno=%d (%s)\n",
+                        err, AC_STRERROR_R( err, ebuf, sizeof(ebuf) ) );
+            }
+
+            optlen = sizeof(size);
+            rc = setsockopt( ls->ls_sd, SOL_SOCKET,
+                    SO_RCVBUF, (const void *)&size, optlen );
+
+            if ( rc ) {
+                int err = sock_errno();
+                Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                        "setsockopt(SO_RCVBUF) failed errno=%d (%s)\n",
+                        err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
+            }
+
+            optlen = sizeof(realsize);
+            rc = getsockopt( ls->ls_sd, SOL_SOCKET,
+                    SO_RCVBUF, (void *)&realsize, &optlen );
+
+            if ( rc ) {
+                int err = sock_errno();
+                Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                        "getsockopt(SO_RCVBUF) failed errno=%d (%s)\n",
+                        err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
+            }
+
+            Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                    "url=%s RCVBUF original size=%d requested "
+                    "size=%d real size=%d\n",
+                    l->sl_url.bv_val, origsize, size, realsize );
+        }
+
+        size = 0;
+        if ( l->sl_tcp_wmem > 0 ) {
+            size = l->sl_tcp_wmem;
+        } else if ( slapd_tcp_wmem > 0 ) {
+            size = slapd_tcp_wmem;
+        }
+
+        if ( size > 0 ) {
+            optlen = sizeof(origsize);
+            rc = getsockopt( ls->ls_sd, SOL_SOCKET,
+                    SO_SNDBUF, (void *)&origsize, &optlen );
+
+            if ( rc ) {
+                int err = sock_errno();
+                Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                        "getsockopt(SO_SNDBUF) failed errno=%d (%s)\n",
+                        err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
+            }
+
+            optlen = sizeof(size);
+            rc = setsockopt( ls->ls_sd, SOL_SOCKET,
+                    SO_SNDBUF, (const void *)&size, optlen );
+
+            if ( rc ) {
+                int err = sock_errno();
+                Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                        "setsockopt(SO_SNDBUF) failed errno=%d (%s)\n",
+                        err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
+            }
+
+            optlen = sizeof(realsize);
+            rc = getsockopt( ls->ls_sd, SOL_SOCKET,
+                    SO_SNDBUF, (void *)&realsize, &optlen );
+
+            if ( rc ) {
+                int err = sock_errno();
+                Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                        "getsockopt(SO_SNDBUF) failed errno=%d (%s)\n",
+                        err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
+            }
+
+            Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                    "url=%s SNDBUF original size=%d requested "
+                    "size=%d real size=%d\n",
+                    l->sl_url.bv_val, origsize, size, realsize );
+        }
+#endif /* LDAP_TCP_BUFFER */
+
+        listener = evconnlistener_new( listener_base, lload_listener, ls,
+                LEV_OPT_THREADSAFE|LEV_OPT_DEFERRED_ACCEPT,
+                SLAPD_LISTEN_BACKLOG, ls->ls_sd );
+        if ( !listener ) {
+            int err = sock_errno();
+
+#ifdef LDAP_PF_INET6
+            /*
+             * If error is EADDRINUSE, we are trying to listen to INADDR_ANY and
+             * we are already listening to in6addr_any, then we want to ignore
+             * this and continue.
+             */
+            if ( err == EADDRINUSE ) {
+                LloadListenerSocket *ls2 = l->sl_sockets;
+                struct sockaddr_in sa = ls->ls_sa.sa_in_addr;
+                struct sockaddr_in6 sa6;
+
+                if ( sa.sin_family == AF_INET &&
+                        sa.sin_addr.s_addr == htonl( INADDR_ANY ) ) {
+                    for ( ; ls2 != ls; ls2 = ls2->ls_next ) {
+                        sa6 = ls2->ls_sa.sa_in6_addr;
+                        if ( sa6.sin6_family == AF_INET6 &&
+                                !memcmp( &sa6.sin6_addr, &in6addr_any,
+                                    sizeof(struct in6_addr) ) ) {
+                            break;
+                        }
+                    }
+
+                    if ( ls2 != ls ) {
+                        /* We are already listening to in6addr_any */
+                        Debug( LDAP_DEBUG_CONNS, "lload_sockets_activate: "
+                                "Attempt to listen to 0.0.0.0 failed, "
+                                "already listening on ::, assuming IPv4 "
+                                "included\n" );
+
+                        for ( ; ls2->ls_next != ls; ls2 = ls2->ls_next )
+                            /* scroll to ls's prev */;
+
+                        ls2->ls_next = ls->ls_next;
+                        lloadd_close( ls->ls_sd );
+                        ber_memfree( ls->ls_name.bv_val );
+                        ch_free( ls );
+                        continue;
+                    }
+                }
+            }
+#endif /* LDAP_PF_INET6 */
+            Debug( LDAP_DEBUG_ANY, "lload_sockets_activate: "
+                    "listen(%s, " LDAP_XSTRING(SLAPD_LISTEN_BACKLOG)
+                    ") failed errno=%d (%s)\n",
+                    l->sl_url.bv_val, err,
+                    sock_errstr( err, ebuf, sizeof(ebuf) ) );
+            return -1;
+        }
+
+        evconnlistener_set_error_cb( listener, listener_error_cb );
+        ls->base = listener_base;
+        ls->listener = listener;
+    }
+
+    return 0;
+}
+
+int
+lload_open_new_listener( LloadListener *l )
+{
+    int rc, i;
+
+    /* If we started up already, also activate it */
+    if ( lloadd_inited && (rc = lload_sockets_activate( l )) ) {
+        return rc;
+    }
+
+    for ( i = 0; lload_listeners && lload_listeners[i] != NULL;
+            i++ ) /* count */
+        ;
+
+    lload_listeners = ch_realloc(
+            lload_listeners, ( i + 2 ) * sizeof(LloadListener *) );
+    lload_listeners[i] = l;
+    lload_listeners[i+1] = NULL;
+
+    return 0;
+}
+
+int
+lloadd_listeners_init( const char *urls )
+{
+    int i;
+    char **u;
+
+    Debug( LDAP_DEBUG_ARGS, "lloadd_listeners_init: %s\n",
+            urls ? urls : "<null>" );
+
+#ifdef HAVE_TCPD
+    ldap_pvt_thread_mutex_init( &sd_tcpd_mutex );
+#endif /* TCP Wrappers */
+
+    if ( urls == NULL ) urls = "ldap:///";
+
+    u = ldap_str2charray( urls, " " );
+
+    if ( u == NULL || u[0] == NULL ) {
+        Debug( LDAP_DEBUG_ANY, "lloadd_listeners_init: "
+                "no urls (%s) provided\n",
+                urls );
+        if ( u ) ldap_charray_free( u );
+        return -1;
+    }
+
+    for ( i = 0; u[i] != NULL; i++ ) {
+        Debug( LDAP_DEBUG_TRACE, "lloadd_listeners_init: "
+                "listen on %s\n",
+                u[i] );
+    }
+
+    Debug( LDAP_DEBUG_TRACE, "lloadd_listeners_init: "
+            "%d listeners to open...\n",
+            i );
+    lload_listeners = ch_malloc( ( i + 1 ) * sizeof(LloadListener *) );
+
+    for ( i = 0; u[i]; i++ ) {
+        LDAPURLDesc *lud;
+
+        if ( ldap_url_parse_ext( u[i], &lud, LDAP_PVT_URL_PARSE_DEF_PORT ) ) {
+            Debug( LDAP_DEBUG_ANY, "lloadd_listeners_init: "
+                    "could not parse url %s\n",
+                    u[i] );
+            goto fail;
+        }
+
+        if ( !(lload_listeners[i] = lload_configure_listener( u[i], lud )) ) {
+            goto fail;
+        }
+    }
+    lload_listeners[i] = NULL;
+
+    ldap_charray_free( u );
+    return 0;
+
+fail:
+    ldap_charray_free( u );
+
+    for ( ; i >= 0; i-- ) {
+        if ( lload_listeners[i] ) {
+            lload_listener_free( lload_listeners[i] );
+        }
+    }
+    ch_free( lload_listeners );
+    lload_listeners = NULL;
+    return -1;
 }
 
 static void *
@@ -936,38 +1103,31 @@ lload_listener_thread( void *ctx )
     return (void *)NULL;
 }
 
-static void
-listener_error_cb( struct evconnlistener *lev, void *arg )
+static int
+lload_listener_activate( void )
 {
-    LloadListener *l = arg;
-    int err = EVUTIL_SOCKET_ERROR();
+    int i, rc;
 
-    assert( l->listener == lev );
-    if (
-#ifdef EMFILE
-            err == EMFILE ||
-#endif /* EMFILE */
-#ifdef ENFILE
-            err == ENFILE ||
-#endif /* ENFILE */
-            0 ) {
-        ldap_pvt_thread_mutex_lock( &lload_daemon[0].sd_mutex );
-        emfile++;
-        /* Stop listening until an existing session closes */
-        l->sl_mute = 1;
-        evconnlistener_disable( lev );
-        ldap_pvt_thread_mutex_unlock( &lload_daemon[0].sd_mutex );
-        Debug( LDAP_DEBUG_ANY, "listener_error_cb: "
-                "too many open files, cannot accept new connections on "
-                "url=%s\n",
-                l->sl_url.bv_val );
-    } else {
-        char ebuf[128];
-        Debug( LDAP_DEBUG_ANY, "listener_error_cb: "
-                "received an error on a listener, shutting down: '%s'\n",
-                sock_errstr( err, ebuf, sizeof(ebuf) ) );
-        event_base_loopexit( l->base, NULL );
+    listener_base = event_base_new();
+    if ( !listener_base ) return -1;
+
+    for ( i = 0; lload_listeners[i] != NULL; i++ ) {
+        LloadListener *l = lload_listeners[i];
+
+        if ( (rc = lload_sockets_activate( l )) ) {
+            return rc;
+        }
     }
+
+    rc = ldap_pvt_thread_create(
+            &listener_tid, 0, lload_listener_thread, NULL );
+
+    if ( rc != 0 ) {
+        Debug( LDAP_DEBUG_ANY, "lload_listener_activate(): "
+                "could not start listener thread (%d)\n",
+                rc );
+    }
+    return rc;
 }
 
 void
@@ -977,16 +1137,18 @@ listeners_reactivate( void )
 
     ldap_pvt_thread_mutex_lock( &lload_daemon[0].sd_mutex );
     for ( i = 0; emfile && lload_listeners[i] != NULL; i++ ) {
-        LloadListener *lr = lload_listeners[i];
+        LloadListener *l = lload_listeners[i];
+        LloadListenerSocket *ls = l->sl_sockets;
 
-        if ( lr->sl_sd == AC_SOCKET_INVALID ) continue;
-        if ( lr->sl_mute ) {
-            emfile--;
-            evconnlistener_enable( lr->listener );
-            lr->sl_mute = 0;
-            Debug( LDAP_DEBUG_CONNS, "listeners_reactivate: "
-                    "reactivated listener url=%s\n",
-                    lr->sl_url.bv_val );
+        for ( ; emfile && ls; ls = ls->ls_next ) {
+            if ( ls->ls_mute ) {
+                emfile--;
+                evconnlistener_enable( ls->listener );
+                ls->ls_mute = 0;
+                Debug( LDAP_DEBUG_CONNS, "listeners_reactivate: "
+                        "reactivated listener url=%s\n",
+                        l->sl_url.bv_val );
+            }
         }
     }
     if ( emfile && lload_listeners[i] == NULL ) {
@@ -995,188 +1157,6 @@ listeners_reactivate( void )
         emfile = 0;
     }
     ldap_pvt_thread_mutex_unlock( &lload_daemon[0].sd_mutex );
-}
-
-static int
-lload_listener_activate( void )
-{
-    struct evconnlistener *listener;
-    int l, rc;
-    char ebuf[128];
-
-    listener_base = event_base_new();
-    if ( !listener_base ) return -1;
-
-    for ( l = 0; lload_listeners[l] != NULL; l++ ) {
-        if ( lload_listeners[l]->sl_sd == AC_SOCKET_INVALID ) continue;
-
-            /* FIXME: TCP-only! */
-#ifdef LDAP_TCP_BUFFER
-        if ( 1 ) {
-            int origsize, size, realsize, rc;
-            socklen_t optlen;
-
-            size = 0;
-            if ( lload_listeners[l]->sl_tcp_rmem > 0 ) {
-                size = lload_listeners[l]->sl_tcp_rmem;
-            } else if ( slapd_tcp_rmem > 0 ) {
-                size = slapd_tcp_rmem;
-            }
-
-            if ( size > 0 ) {
-                optlen = sizeof(origsize);
-                rc = getsockopt( lload_listeners[l]->sl_sd, SOL_SOCKET,
-                        SO_RCVBUF, (void *)&origsize, &optlen );
-
-                if ( rc ) {
-                    int err = sock_errno();
-                    Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                            "getsockopt(SO_RCVBUF) failed errno=%d (%s)\n",
-                            err, AC_STRERROR_R( err, ebuf, sizeof(ebuf) ) );
-                }
-
-                optlen = sizeof(size);
-                rc = setsockopt( lload_listeners[l]->sl_sd, SOL_SOCKET,
-                        SO_RCVBUF, (const void *)&size, optlen );
-
-                if ( rc ) {
-                    int err = sock_errno();
-                    Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                            "setsockopt(SO_RCVBUF) failed errno=%d (%s)\n",
-                            err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
-                }
-
-                optlen = sizeof(realsize);
-                rc = getsockopt( lload_listeners[l]->sl_sd, SOL_SOCKET,
-                        SO_RCVBUF, (void *)&realsize, &optlen );
-
-                if ( rc ) {
-                    int err = sock_errno();
-                    Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                            "getsockopt(SO_RCVBUF) failed errno=%d (%s)\n",
-                            err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
-                }
-
-                Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                        "url=%s (#%d) RCVBUF original size=%d requested "
-                        "size=%d real size=%d\n",
-                        lload_listeners[l]->sl_url.bv_val, l, origsize, size,
-                        realsize );
-            }
-
-            size = 0;
-            if ( lload_listeners[l]->sl_tcp_wmem > 0 ) {
-                size = lload_listeners[l]->sl_tcp_wmem;
-            } else if ( slapd_tcp_wmem > 0 ) {
-                size = slapd_tcp_wmem;
-            }
-
-            if ( size > 0 ) {
-                optlen = sizeof(origsize);
-                rc = getsockopt( lload_listeners[l]->sl_sd, SOL_SOCKET,
-                        SO_SNDBUF, (void *)&origsize, &optlen );
-
-                if ( rc ) {
-                    int err = sock_errno();
-                    Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                            "getsockopt(SO_SNDBUF) failed errno=%d (%s)\n",
-                            err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
-                }
-
-                optlen = sizeof(size);
-                rc = setsockopt( lload_listeners[l]->sl_sd, SOL_SOCKET,
-                        SO_SNDBUF, (const void *)&size, optlen );
-
-                if ( rc ) {
-                    int err = sock_errno();
-                    Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                            "setsockopt(SO_SNDBUF) failed errno=%d (%s)\n",
-                            err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
-                }
-
-                optlen = sizeof(realsize);
-                rc = getsockopt( lload_listeners[l]->sl_sd, SOL_SOCKET,
-                        SO_SNDBUF, (void *)&realsize, &optlen );
-
-                if ( rc ) {
-                    int err = sock_errno();
-                    Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                            "getsockopt(SO_SNDBUF) failed errno=%d (%s)\n",
-                            err, sock_errstr( err, ebuf, sizeof(ebuf) ) );
-                }
-
-                Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                        "url=%s (#%d) SNDBUF original size=%d requested "
-                        "size=%d real size=%d\n",
-                        lload_listeners[l]->sl_url.bv_val, l, origsize, size,
-                        realsize );
-            }
-        }
-#endif /* LDAP_TCP_BUFFER */
-
-        lload_listeners[l]->sl_busy = 1;
-        listener = evconnlistener_new( listener_base, lload_listener,
-                lload_listeners[l],
-                LEV_OPT_THREADSAFE|LEV_OPT_DEFERRED_ACCEPT,
-                SLAPD_LISTEN_BACKLOG, lload_listeners[l]->sl_sd );
-        if ( !listener ) {
-            int err = sock_errno();
-
-#ifdef LDAP_PF_INET6
-            /* If error is EADDRINUSE, we are trying to listen to INADDR_ANY and
-             * we are already listening to in6addr_any, then we want to ignore
-             * this and continue.
-             */
-            if ( err == EADDRINUSE ) {
-                int i;
-                struct sockaddr_in sa = lload_listeners[l]->sl_sa.sa_in_addr;
-                struct sockaddr_in6 sa6;
-
-                if ( sa.sin_family == AF_INET &&
-                        sa.sin_addr.s_addr == htonl( INADDR_ANY ) ) {
-                    for ( i = 0; i < l; i++ ) {
-                        sa6 = lload_listeners[i]->sl_sa.sa_in6_addr;
-                        if ( sa6.sin6_family == AF_INET6 &&
-                                !memcmp( &sa6.sin6_addr, &in6addr_any,
-                                        sizeof(struct in6_addr) ) ) {
-                            break;
-                        }
-                    }
-
-                    if ( i < l ) {
-                        /* We are already listening to in6addr_any */
-                        Debug( LDAP_DEBUG_CONNS, "lload_listener_activate: "
-                                "Attempt to listen to 0.0.0.0 failed, "
-                                "already listening on ::, assuming IPv4 "
-                                "included\n" );
-                        lloadd_close( lload_listeners[l]->sl_sd );
-                        lload_listeners[l]->sl_sd = AC_SOCKET_INVALID;
-                        continue;
-                    }
-                }
-            }
-#endif /* LDAP_PF_INET6 */
-            Debug( LDAP_DEBUG_ANY, "lload_listener_activate: "
-                    "listen(%s, 5) failed errno=%d (%s)\n",
-                    lload_listeners[l]->sl_url.bv_val, err,
-                    sock_errstr( err, ebuf, sizeof(ebuf) ) );
-            return -1;
-        }
-
-        lload_listeners[l]->base = listener_base;
-        lload_listeners[l]->listener = listener;
-        evconnlistener_set_error_cb( listener, listener_error_cb );
-    }
-
-    rc = ldap_pvt_thread_create(
-            &listener_tid, 0, lload_listener_thread, lload_listeners[l] );
-
-    if ( rc != 0 ) {
-        Debug( LDAP_DEBUG_ANY, "lload_listener_activate(%d): "
-                "submit failed (%d)\n",
-                lload_listeners[l]->sl_sd, rc );
-    }
-    return rc;
 }
 
 static void *
@@ -1771,6 +1751,46 @@ lload_handle_global_invalidation( LloadChange *change )
             c->c_type = privileged ? LLOAD_C_PRIVILEGED : LLOAD_C_OPEN;
         }
     }
+
+    if ( change->flags.daemon & LLOAD_DAEMON_MOD_LISTENER ) {
+        LloadListener **lp, *l;
+        int i;
+
+        /* Mark clients linked to the disappearing listeners closing */
+        if ( !LDAP_CIRCLEQ_EMPTY( &clients ) ) {
+            LloadConnection *c = LDAP_CIRCLEQ_FIRST( &clients );
+            unsigned long first_connid = c->c_connid;
+
+            while ( c ) {
+                LloadConnection *next =
+                    LDAP_CIRCLEQ_LOOP_NEXT( &clients, c, c_next );
+                if ( c->c_listener && c->c_listener->ls_lr->sl_removed ) {
+                    int gentle = 1;
+                    c->c_listener = NULL;
+                    lload_connection_close( c, &gentle );
+                }
+                c = next;
+                if ( c->c_connid <= first_connid ) {
+                    c = NULL;
+                }
+            }
+        }
+
+        /* Go through listeners that have been removed and dispose of them */
+        assert( lload_listeners );
+        lp = lload_listeners;
+
+        for ( i = 0; lload_listeners[i]; i++ ) {
+            l = lload_listeners[i];
+
+            if ( l->sl_removed ) {
+                lload_listener_free( l );
+                continue;
+            }
+            *(lp++) = l;
+        }
+        *lp = NULL;
+    }
 }
 
 int
@@ -1918,10 +1938,6 @@ lload_get_base( ber_socket_t s )
 LloadListener **
 lloadd_get_listeners( void )
 {
-    /* Could return array with no listeners if !listening, but current
-     * callers mostly look at the URLs.  E.g. syncrepl uses this to
-     * identify the server, which means it wants the startup arguments.
-     */
     return lload_listeners;
 }
 
@@ -1931,9 +1947,13 @@ lload_suspend_listeners( void )
 {
     int i;
     for ( i = 0; lload_listeners[i]; i++ ) {
-        lload_listeners[i]->sl_mute = 1;
-        evconnlistener_disable( lload_listeners[i]->listener );
-        listen( lload_listeners[i]->sl_sd, 0 );
+        LloadListenerSocket *ls = lload_listeners[i]->sl_sockets;
+
+        for ( ; ls; ls = ls->ls_next ) {
+            ls->ls_mute = 1;
+            evconnlistener_disable( ls->listener );
+            listen( ls->ls_sd, 0 );
+        }
     }
 }
 
@@ -1943,8 +1963,12 @@ lload_resume_listeners( void )
 {
     int i;
     for ( i = 0; lload_listeners[i]; i++ ) {
-        lload_listeners[i]->sl_mute = 0;
-        listen( lload_listeners[i]->sl_sd, SLAPD_LISTEN_BACKLOG );
-        evconnlistener_enable( lload_listeners[i]->listener );
+        LloadListenerSocket *ls = lload_listeners[i]->sl_sockets;
+
+        for ( ; ls; ls = ls->ls_next ) {
+            ls->ls_mute = 0;
+            listen( ls->ls_sd, SLAPD_LISTEN_BACKLOG );
+            evconnlistener_enable( ls->listener );
+        }
     }
 }

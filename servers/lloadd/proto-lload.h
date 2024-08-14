@@ -63,7 +63,7 @@ LDAP_SLAPD_F (int) request_process( LloadConnection *c, LloadOperation *op );
 LDAP_SLAPD_F (int) handle_one_request( LloadConnection *c );
 LDAP_SLAPD_F (void) client_tls_handshake_cb( evutil_socket_t s, short what, void *arg );
 LDAP_SLAPD_F (LloadConnection *) client_init( ber_socket_t s,
-        struct berval *localname,
+        LloadListenerSocket *ls,
         struct berval *peername,
         struct event_base *base,
         int use_tls );
@@ -113,7 +113,8 @@ LDAP_SLAPD_F (void) connections_walk( ldap_pvt_thread_mutex_t *cq_mutex, lload_c
 /*
  * daemon.c
  */
-LDAP_SLAPD_F (int) lload_open_new_listener( const char *urls, LDAPURLDesc *lud );
+LDAP_SLAPD_F (LloadListener *) lload_configure_listener( const char *url, LDAPURLDesc *lud );
+LDAP_SLAPD_F (int) lload_open_new_listener( LloadListener *lr );
 LDAP_SLAPD_F (int) lloadd_listeners_init( const char *urls );
 LDAP_SLAPD_F (int) lloadd_daemon_destroy( void );
 LDAP_SLAPD_F (int) lloadd_daemon( struct event_base *daemon_base );
