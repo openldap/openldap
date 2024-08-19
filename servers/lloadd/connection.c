@@ -530,7 +530,7 @@ lload_connection_close( LloadConnection *c, void *arg )
             "marking connection connid=%lu closing\n",
             c->c_connid );
 
-    /* We were approached from the connection list or cn=monitor */
+    /* Caller makes sure we're safe to unlock */
     assert( IS_ALIVE( c, c_refcnt ) );
 
     /* Need to acquire this first, even if we won't need it */
