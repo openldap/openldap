@@ -801,8 +801,8 @@ static int translucent_search_cb(Operation *op, SlapReply *rs) {
 
 	tc = op->o_callback->sc_private;
 
-	/* Don't let the op complete while we're gathering data */
-	if ( rs->sr_type == REP_RESULT && ( tc->step & USE_LIST ))
+	/* We took over the op, don't let it complete yet */
+	if ( rs->sr_type == REP_RESULT )
 		return 0;
 
 	if(rs->sr_type != REP_SEARCH || !rs->sr_entry)
@@ -1229,9 +1229,9 @@ static int translucent_search(Operation *op, SlapReply *rs) {
 			rs->sr_flags = 0;
 			rs->sr_entry = NULL;
 		}
-		send_ldap_result( op, rs );
 	}
 
+	send_ldap_result( op, rs );
 	op->ors_slimit = tc.slimit;
 
 	/* Free in reverse order */
