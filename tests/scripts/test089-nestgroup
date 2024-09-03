@@ -195,6 +195,11 @@ objectClass: inetOrgPerson
 cn: Porky Pig
 sn: Pig
 
+dn: cn=Tom Riddle,ou=People,$BASEDN
+objectClass: inetOrgPerson
+cn: Tom Riddle
+sn: Riddle
+
 dn: cn=Rabbits,ou=Groups,$BASEDN
 objectClass: groupOfNames
 cn: Rabbits
@@ -293,6 +298,11 @@ cn: Loop, Endless
 member: cn=Wile E. Coyote,ou=People,$BASEDN
 member: cn=Endless Loop,ou=Groups,$BASEDN
 
+dn: cn=Strays,ou=Groups,$BASEDN
+objectClass: groupOfNames
+cn: Strays
+member: cn=Tom Riddle,ou=People,$BASEDN
+
 EOF
 RC=$?
 if test $RC != 0 ; then
@@ -323,6 +333,17 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
+echo "Search for non-nested member=cn=Tom Riddle..."
+echo "# Search for non-nested member=cn=Tom Riddle..." >> $SEARCHOUT
+$LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
+	"(member=cn=Tom Riddle,ou=People,$BASEDN)" '*' memberof >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapsearch failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
 echo "Running ldapmodify to enable nested member filter..."
 $LDAPMODIFY -H $URI1 -D 'cn=config' -w `cat $CONFIGPWF` \
 	>> $TESTOUT 2>&1 <<EOF
@@ -343,6 +364,17 @@ echo "Re-search for nested member=cn=Bugs Bunny..."
 echo "# Re-search for nested member=cn=Bugs Bunny..." >> $SEARCHOUT
 $LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
 	"(member=cn=Bugs Bunny,ou=People,$BASEDN)" '*' memberof >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapsearch failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Re-search for non-nested member=cn=Tom Riddle..."
+echo "# Re-search for non-nested member=cn=Tom Riddle..." >> $SEARCHOUT
+$LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
+	"(member=cn=Tom Riddle,ou=People,$BASEDN)" '*' memberof >> $SEARCHOUT 2>&1
 RC=$?
 if test $RC != 0 ; then
 	echo "ldapsearch failed ($RC)!"
@@ -540,6 +572,11 @@ changetype: modify
 replace: member
 member: cn=Wile E. Coyote,ou=People,$BASEDN
 member: cn=Endless Loop,ou=Groups,$BASEDN
+
+dn: cn=Strays,ou=Groups,$BASEDN
+changetype: modify
+replace: member
+member: cn=Tom Riddle,ou=People,$BASEDN
 
 EOF
 RC=$?

@@ -447,11 +447,11 @@ nestgroup_memberFilter( Operation *op, int mbr_nf, nestgroup_filterinst_t *mbr_f
 				t = ldap_tavl_next( t, TAVL_DIR_LEFT );
 				op->o_tmpfree( dp, op->o_tmpmemctx );
 			} while ( t );
-			ldap_tavl_free( gi->gi_DNs, NULL );
 			f->f_choice = LDAP_FILTER_EQUALITY;
 			f->f_ava = mbr_f[i].nf_f->f_ava;
 			mbr_f[i].nf_new = f;
 		}
+		ldap_tavl_free( gi->gi_DNs, NULL );
 	}
 	o.o_bd->bd_info = (BackendInfo *)on->on_info;
 	op->o_tmpfree( sc, op->o_tmpmemctx );

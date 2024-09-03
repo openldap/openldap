@@ -231,6 +231,17 @@ sn: Rabbit
 memberOf: cn=Rabbits,ou=Groups,dc=example,dc=com
 memberOf: cn=N-Z,ou=Groups,dc=example,dc=com
 
+dn: cn=Strays,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: Strays
+member: cn=Tom Riddle,ou=People,dc=example,dc=com
+
+dn: cn=Tom Riddle,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+cn: Tom Riddle
+sn: Riddle
+memberOf: cn=Strays,ou=Groups,dc=example,dc=com
+
 dn: cn=Tweety Bird,ou=People,dc=example,dc=com
 objectClass: inetOrgPerson
 cn: Tweety Bird
@@ -573,6 +584,17 @@ memberOf: cn=N-Z,ou=Groups,dc=example,dc=com
 memberOf: cn=Mixer1,ou=Groups,dc=example,dc=com
 memberOf: cn=Mixer4,ou=Groups,dc=example,dc=com
 memberOf: cn=Leporidae,ou=Groups,dc=example,dc=com
+
+dn: cn=Strays,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: Strays
+member: cn=Tom Riddle,ou=People,dc=example,dc=com
+
+dn: cn=Tom Riddle,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+cn: Tom Riddle
+sn: Riddle
+memberOf: cn=Strays,ou=Groups,dc=example,dc=com
 
 dn: cn=Tweety Bird,ou=People,dc=example,dc=com
 objectClass: inetOrgPerson

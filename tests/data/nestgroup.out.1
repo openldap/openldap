@@ -156,6 +156,16 @@ objectClass: inetOrgPerson
 cn: Roger Rabbit
 sn: Rabbit
 
+dn: cn=Strays,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: Strays
+member: cn=Tom Riddle,ou=People,dc=example,dc=com
+
+dn: cn=Tom Riddle,ou=People,dc=example,dc=com
+objectClass: inetOrgPerson
+cn: Tom Riddle
+sn: Riddle
+
 dn: cn=Tweety Bird,ou=People,dc=example,dc=com
 objectClass: inetOrgPerson
 cn: Tweety Bird
@@ -196,6 +206,12 @@ member: cn=Daffy Duck,ou=People,dc=example,dc=com
 member: cn=Elmer Fudd,ou=People,dc=example,dc=com
 member: cn=Bugs Bunny,ou=People,dc=example,dc=com
 member: cn=Tweety Bird,ou=People,dc=example,dc=com
+
+# Search for non-nested member=cn=Tom Riddle...
+dn: cn=Strays,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: Strays
+member: cn=Tom Riddle,ou=People,dc=example,dc=com
 
 # Re-search for nested member=cn=Bugs Bunny...
 dn: cn=A-M,ou=Groups,dc=example,dc=com
@@ -243,6 +259,12 @@ cn: Mixer5
 member: cn=Mixer2,ou=Groups,dc=example,dc=com
 member: cn=Mixer3,ou=Groups,dc=example,dc=com
 member: cn=A-M,ou=Groups,dc=example,dc=com
+
+# Re-search for non-nested member=cn=Tom Riddle...
+dn: cn=Strays,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: Strays
+member: cn=Tom Riddle,ou=People,dc=example,dc=com
 
 # Search the expanded groups...
 dn: cn=A-M,ou=Groups,dc=example,dc=com
@@ -386,4 +408,9 @@ objectClass: groupOfNames
 cn: Rabbits
 member: cn=Roger Rabbit,ou=People,dc=example,dc=com
 member: cn=Jessica Rabbit,ou=People,dc=example,dc=com
+
+dn: cn=Strays,ou=Groups,dc=example,dc=com
+objectClass: groupOfNames
+cn: Strays
+member: cn=Tom Riddle,ou=People,dc=example,dc=com
 
