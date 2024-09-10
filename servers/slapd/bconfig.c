@@ -6300,6 +6300,12 @@ config_back_modify( Operation *op, SlapReply *rs )
 		goto out;
 	}
 
+	/* global schema rejects all writes */
+	if ( ce->ce_type == Cft_Schema && ce->ce_parent->ce_type == Cft_Global ) {
+		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+		goto out;
+	}
+
 	if ( !acl_check_modlist( op, ce->ce_entry, op->orm_modlist )) {
 		rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 		goto out;
