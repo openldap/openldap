@@ -3561,39 +3561,20 @@ static int
 config_restrict(ConfigArgs *c) {
 	slap_mask_t restrictops = 0;
 	int i;
-	slap_verbmasks restrictable_ops[] = {
-		{ BER_BVC("bind"),		SLAP_RESTRICT_OP_BIND },
-		{ BER_BVC("add"),		SLAP_RESTRICT_OP_ADD },
-		{ BER_BVC("modify"),		SLAP_RESTRICT_OP_MODIFY },
-		{ BER_BVC("rename"),		SLAP_RESTRICT_OP_RENAME },
-		{ BER_BVC("modrdn"),		0 },
-		{ BER_BVC("delete"),		SLAP_RESTRICT_OP_DELETE },
-		{ BER_BVC("search"),		SLAP_RESTRICT_OP_SEARCH },
-		{ BER_BVC("compare"),		SLAP_RESTRICT_OP_COMPARE },
-		{ BER_BVC("read"),		SLAP_RESTRICT_OP_READS },
-		{ BER_BVC("write"),		SLAP_RESTRICT_OP_WRITES },
-		{ BER_BVC("extended"),		SLAP_RESTRICT_OP_EXTENDED },
-		{ BER_BVC("extended=" LDAP_EXOP_START_TLS ),		SLAP_RESTRICT_EXOP_START_TLS },
-		{ BER_BVC("extended=" LDAP_EXOP_MODIFY_PASSWD ),	SLAP_RESTRICT_EXOP_MODIFY_PASSWD },
-		{ BER_BVC("extended=" LDAP_EXOP_X_WHO_AM_I ),		SLAP_RESTRICT_EXOP_WHOAMI },
-		{ BER_BVC("extended=" LDAP_EXOP_X_CANCEL ),		SLAP_RESTRICT_EXOP_CANCEL },
-		{ BER_BVC("all"),		SLAP_RESTRICT_OP_ALL },
-		{ BER_BVNULL,	0 }
-	};
 
 	if (c->op == SLAP_CONFIG_EMIT) {
-		return mask_to_verbs( restrictable_ops, c->be->be_restrictops,
+		return mask_to_verbs( slap_restrictable_ops, c->be->be_restrictops,
 			&c->rvalue_vals );
 	} else if ( c->op == LDAP_MOD_DELETE ) {
 		if ( !c->line ) {
 			c->be->be_restrictops = 0;
 		} else {
-			i = verb_to_mask( c->line, restrictable_ops );
-			c->be->be_restrictops &= ~restrictable_ops[i].mask;
+			i = verb_to_mask( c->line, slap_restrictable_ops );
+			c->be->be_restrictops &= ~slap_restrictable_ops[i].mask;
 		}
 		return 0;
 	}
-	i = verbs_to_mask( c->argc, c->argv, restrictable_ops, &restrictops );
+	i = verbs_to_mask( c->argc, c->argv, slap_restrictable_ops, &restrictops );
 	if ( i ) {
 		snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> unknown operation", c->argv[0] );
 		Debug(LDAP_DEBUG_ANY, "%s: %s %s\n",

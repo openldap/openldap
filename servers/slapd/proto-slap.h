@@ -747,6 +747,9 @@ LDAP_SLAPD_F (int) slap_bv_x_ordered_unparse LDAP_P(( BerVarray in, BerVarray *o
 LDAP_SLAPD_F (int) slap_keepalive_parse( struct berval *val, void *bc,
 	slap_cf_aux_table *tab0, const char *tabmsg, int unparse );
 
+LDAP_SLAPD_V (slap_verbmasks *) slap_ops;
+LDAP_SLAPD_V (slap_verbmasks *) slap_restrictable_ops;
+
 #ifdef LDAP_SLAPI
 LDAP_SLAPD_V (int) slapi_plugins_used;
 #endif

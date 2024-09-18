@@ -1156,6 +1156,43 @@ static slap_verbmasks versionkey[] = {
 	{ BER_BVNULL, 0 }
 };
 
+static slap_verbmasks slap_ops_[] = {
+	{ BER_BVC("bind"), SLAP_OP_BIND },
+	{ BER_BVC("unbind"), SLAP_OP_UNBIND },
+	{ BER_BVC("search"), SLAP_OP_SEARCH },
+	{ BER_BVC("compare"), SLAP_OP_COMPARE },
+	{ BER_BVC("modify"), SLAP_OP_MODIFY },
+	{ BER_BVC("rename"), SLAP_OP_RENAME },
+	{ BER_BVC("modrdn"), SLAP_OP_MODRDN },
+	{ BER_BVC("add"), SLAP_OP_ADD },
+	{ BER_BVC("delete"), SLAP_OP_DELETE },
+	{ BER_BVC("abandon"), SLAP_OP_ABANDON },
+	{ BER_BVC("extended"), SLAP_OP_EXTENDED },
+	{ BER_BVNULL, SLAP_OP_LAST }
+};
+slap_verbmasks *slap_ops = slap_ops_;
+
+static slap_verbmasks slap_restrictable_ops_[] = {
+	{ BER_BVC("all"), SLAP_RESTRICT_OP_ALL },
+	{ BER_BVC("read"), SLAP_RESTRICT_OP_READS },
+	{ BER_BVC("write"), SLAP_RESTRICT_OP_WRITES },
+	{ BER_BVC("bind"), SLAP_RESTRICT_OP_BIND },
+	{ BER_BVC("add"), SLAP_RESTRICT_OP_ADD },
+	{ BER_BVC("modify"), SLAP_RESTRICT_OP_MODIFY },
+	{ BER_BVC("rename"), SLAP_RESTRICT_OP_RENAME },
+	{ BER_BVC("modrdn"), SLAP_RESTRICT_OP_MODRDN },
+	{ BER_BVC("delete"), SLAP_RESTRICT_OP_DELETE },
+	{ BER_BVC("search"), SLAP_RESTRICT_OP_SEARCH },
+	{ BER_BVC("compare"), SLAP_RESTRICT_OP_COMPARE },
+	{ BER_BVC("extended"), SLAP_RESTRICT_OP_EXTENDED },
+	{ BER_BVC("extended=" LDAP_EXOP_START_TLS ), SLAP_RESTRICT_EXOP_START_TLS },
+	{ BER_BVC("extended=" LDAP_EXOP_MODIFY_PASSWD ), SLAP_RESTRICT_EXOP_MODIFY_PASSWD },
+	{ BER_BVC("extended=" LDAP_EXOP_X_WHO_AM_I ), SLAP_RESTRICT_EXOP_WHOAMI },
+	{ BER_BVC("extended=" LDAP_EXOP_X_CANCEL ), SLAP_RESTRICT_EXOP_CANCEL },
+	{ BER_BVNULL, 0 }
+};
+slap_verbmasks *slap_restrictable_ops = slap_restrictable_ops_;
+
 int
 slap_keepalive_parse(
 	struct berval *val,
