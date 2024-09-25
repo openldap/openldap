@@ -72,6 +72,13 @@ struct mdb_info {
 	unsigned	mi_dbenv_flags;
 	int			mi_dbenv_mode;
 
+#ifdef MDB_ENCRYPT
+	char		*mi_dbenv_crypto;
+	char		*mi_dbenv_enckey;
+	void		*mi_dbenv_encmodule;
+	void		*mi_dbenv_encfuncs;
+#endif	/* MDB_ENCRYPT */
+
 	size_t		mi_mapsize;
 	ID			mi_nextid;
 	size_t		mi_maxentrysize;

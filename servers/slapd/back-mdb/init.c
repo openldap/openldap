@@ -126,6 +126,12 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 		goto fail;
 	}
 
+#ifdef MDB_ENCRYPT
+	if ( mdb->mi_dbenv_encfuncs ) {
+		mdb_modsetup( mdb->mi_dbenv, mdb->mi_dbenv_encfuncs, mdb->mi_dbenv_enckey );
+	}
+#endif
+
 	if ( mdb->mi_readers ) {
 		rc = mdb_env_set_maxreaders( mdb->mi_dbenv, mdb->mi_readers );
 		if( rc != 0 ) {
@@ -371,6 +377,13 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 
 		mdb_env_close( mdb->mi_dbenv );
 		mdb->mi_dbenv = NULL;
+#ifdef MDB_ENCRYPT
+		if ( mdb->mi_dbenv_encmodule ) {
+			mdb_modunload( mdb->mi_dbenv_encmodule );
+			mdb->mi_dbenv_encmodule = NULL;
+			mdb->mi_dbenv_encfuncs = NULL;
+		}
+#endif
 	}
 
 	return 0;
