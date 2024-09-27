@@ -444,6 +444,9 @@ ldap_int_tls_connect( LDAP *ld, LDAPConn *conn, const char *host )
 		return -1;
 	}
 
+	Debug2( LDAP_DEBUG_CONNS, "TLS: session established tls_proto=%s tls_cipher=%s\n",
+		ldap_pvt_tls_get_version( ssl ), ldap_pvt_tls_get_cipher( ssl ) );
+
 	return 0;
 }
 
