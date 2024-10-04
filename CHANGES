@@ -4,6 +4,8 @@ OpenLDAP 2.5.19 Engineering
 	Fixed libldap OpenSSL set_ciphersuite error handling (ITS#10223)
 	Fixed libldap to check for OpenSSL EVP_Digest* failure (ITS#10224)
 	Fixed slapd-ldap use of multi-precision add for op counters (ITS#10237)
+	Fixed slapd-mdb idl intersection (ITS#10233)
+	Fixed slapd-wt idl intersection (ITS#10233)
 	Fixed slappw-argon2 defaults to be more secure (ITS#9827)
 	Minor Cleanup
 		ITS#10219
@@ -345,7 +347,7 @@ OpenLDAP 2.5.5 Release (2021/06/03)
 		Update ldapc++/ldaptcl to use configure.ac (ITS#9554)
 	Documentation
 		ldap_first_attribute(3) - Document ldap_get_attribute_ber (ITS#8820)
-        ldap_modify(3) - Delete non-existent mod_next parameter (ITS#9559)
+		ldap_modify(3) - Delete non-existent mod_next parameter (ITS#9559)
 
 OpenLDAP 2.5.4 Release (2021/04/29)
 	Initial release for "general use".
