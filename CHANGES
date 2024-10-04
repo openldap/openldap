@@ -9,6 +9,7 @@ OpenLDAP 2.6.9 Engineering
 	Fixed slapd-mdb idl intersection (ITS#10233)
 	Fixed slapd-wt idl intersection (ITS#10233)
 	Fixed slapo-memberof to omit dynamic values (ITS#10230)
+	Fixed slapo-nestgroup leak in nestgroup_memberFilter (ITS#10249)
 	Fixed slappw-argon2 defaults to be more secure (ITS#9827)
 	Minor Cleanup
 		ITS#10218
