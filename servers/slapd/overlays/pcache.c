@@ -749,7 +749,7 @@ url2query(
 		}
 	}
 
-	if ( got != GOT_ALL ) {
+	if ( (got & GOT_ALL) != GOT_ALL) {
 		rc = 1;
 		goto error;
 	}
