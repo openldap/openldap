@@ -1580,6 +1580,8 @@ add_query(
 
 	case PC_NEGATIVE:
 		ttl = templ->negttl;
+		if ( templ->ttr )
+			ttr = now + templ->ttr;
 		break;
 
 	case PC_SIZELIMIT:
