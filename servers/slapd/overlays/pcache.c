@@ -802,7 +802,11 @@ url2query(
 			goto error;
 		}
 
-		cq = add_query( op, qm, &query, qt, PC_POSITIVE, 0 );
+		if (BER_BVISNULL( &uuid )) {
+		  cq = add_query( op, qm, &query, qt, PC_NEGATIVE, 0 );
+		} else {
+		  cq = add_query( op, qm, &query, qt, PC_POSITIVE, 0 );
+		}
 		if ( cq != NULL ) {
 			cq->expiry_time = expiry_time;
 			cq->refresh_time = refresh_time;
