@@ -127,7 +127,44 @@ do_modify(
 		}
 	}
 
-	if (LogTest( LDAP_DEBUG_STATS ) ) {
+	if ( LogTest( LDAP_DEBUG_STATS2 ) ) {
+		Modifications *prevmod = NULL;
+
+		for ( tmp = op->orm_modlist; tmp != NULL; tmp = tmp->sml_next ) {
+			unsigned int i;
+			char optype = '?';
+
+			switch (tmp->sml_op) {
+				case LDAP_MOD_ADD:
+					optype = '+';
+					break;
+				case LDAP_MOD_DELETE:
+					optype = '-';
+					break;
+				case LDAP_MOD_REPLACE:
+					optype = '=';
+					break;
+				case LDAP_MOD_INCREMENT:
+					optype = '#';
+					break;
+			}
+
+			if ( prevmod && tmp->sml_op == prevmod->sml_op &&
+					ber_bvcmp( &prevmod->sml_type, &tmp->sml_type ) == 0 ) {
+				Debug( LDAP_DEBUG_STATS2, "%s MOD -\n", op->o_log_prefix );
+			}
+			prevmod = tmp;
+
+			if ( !tmp->sml_values ) {
+				Debug( LDAP_DEBUG_STATS2, "%s MOD %s%c=\n",
+						op->o_log_prefix, tmp->sml_type.bv_val, optype );
+			} else for ( i=0; !BER_BVISNULL( &tmp->sml_values[i] ); i++ ) {
+				Debug( LDAP_DEBUG_STATS2, "%s MOD %s%c=\"%s\"\n",
+						op->o_log_prefix, tmp->sml_type.bv_val, optype,
+						tmp->sml_values[i].bv_val );
+			}
+		}
+	} else if ( LogTest( LDAP_DEBUG_STATS ) ) {
 		char abuf[BUFSIZ/2], *ptr = abuf;
 		int len = 0;
 
