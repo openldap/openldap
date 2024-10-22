@@ -894,7 +894,7 @@ handle_private_option( int i )
 		break;
 	case 'F':	/* uri prefix */
 		if( urlpre ) free( urlpre );
-		urlpre = optarg;
+		urlpre = strdup( optarg );
 		break;
 	case 'l':	/* time limit */
 		if ( strcasecmp( optarg, "none" ) == 0 ) {
@@ -945,7 +945,7 @@ handle_private_option( int i )
 		break;
 	case 'T':	/* tmpdir */
 		if( tmpdir ) free( tmpdir );
-		tmpdir = optarg;
+		tmpdir = strdup( optarg );
 		break;
 	case 'u':	/* include UFN */
 		++includeufn;
@@ -1659,6 +1659,9 @@ getNextPage:
 		if ( def_urlpre != urlpre )
 			free( def_urlpre );
 		free( urlpre );
+	}
+	if ( tmpdir && tmpdir != def_tmpdir ) {
+		free( tmpdir );
 	}
 
 	if ( c ) {
