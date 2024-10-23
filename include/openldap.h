@@ -34,6 +34,10 @@ ldap_init_fd LDAP_P((
 	LDAP_CONST char *url,
 	LDAP **ldp ));
 
+LDAP_F( int ) ldap_pvt_put_filter LDAP_P((
+	BerElement *ber,
+	const char *str ));
+
 LDAP_END_DECL
 
 #endif /* _OPENLDAP_H */
