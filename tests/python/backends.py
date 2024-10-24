@@ -20,7 +20,7 @@
 OpenLDAP fixtures for backends
 """
 
-import ldap0
+import ldap
 import logging
 import os
 import pathlib
@@ -28,7 +28,7 @@ import pytest
 import secrets
 import tempfile
 
-from ldap0.controls.readentry import PostReadControl
+from ldap.controls.readentry import PostReadControl
 
 from .slapd import server
 
@@ -62,10 +62,11 @@ class Database:
         # We're just after the generated DN, no other attributes at the moment
         control = PostReadControl(True, [])
 
-        result = conn.add_s(
-            f"olcDatabase={backend},cn=config", self._entry(),
-            req_ctrls=[control])
-        dn = result.ctrls[0].res.dn_s
+        _, _, _, ctrls = conn.add_ext_s(
+            f"olcDatabase={backend},cn=config",
+            list(self._entry().items()),
+            serverctrls=[control])
+        dn = ctrls[0].dn
 
         self.dn = dn
         server.suffixes[suffix] = self

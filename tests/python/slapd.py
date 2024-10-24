@@ -20,7 +20,7 @@
 OpenLDAP server fixtures
 """
 
-import ldap0
+import ldap
 import ldapurl
 import logging
 import os
@@ -34,7 +34,7 @@ import subprocess
 import tempfile
 import textwrap
 
-from ldap0.ldapobject import LDAPObject
+from ldap.ldapobject import LDAPObject
 
 
 SOURCEROOT = pathlib.Path(os.environ.get('TOP_SRCDIR', "..")).absolute()
@@ -208,12 +208,13 @@ class Server:
         conn.simple_bind_s('cn=config', self.secret)
 
         moduleload_object = None
-        for entry in conn.search_s('cn=config', ldap0.SCOPE_SUBTREE,
+        for dn, attrs in conn.search_s('cn=config', ldap.SCOPE_SUBTREE,
                                    'objectclass=olcModuleList',
                                    ['olcModuleLoad']):
             if not moduleload_object:
-                moduleload_object = entry.dn_s
-            for value in entry.entry_s.get('olcModuleLoad', []):
+                moduleload_object = dn
+            for value in attrs.get('olcModuleLoad', []):
+                value = value.decode()
                 if value[0] == '{':
                     value = value[value.find('}')+1:]
                 if pathlib.Path(value).stem == module_name:
@@ -224,11 +225,11 @@ class Server:
         if moduleload_object:
             conn.modify_s(
                 moduleload_object,
-                [(ldap0.MOD_ADD, b'olcModuleLoad', [str(module).encode()])])
+                [(ldap.MOD_ADD, 'olcModuleLoad', [str(module).encode()])])
         else:
-            conn.add_s('cn=module,cn=config',
-                       {'objectClass': [b'olcModuleList'],
-                        'olcModuleLoad': [str(module).encode()]})
+            entry = {'objectClass': [b'olcModuleList'],
+                     'olcModuleLoad': [str(module).encode()]}
+            conn.add_s('cn=module,cn=config', list(entry.items()))
 
     @property
     def uri(self):
@@ -292,4 +293,4 @@ def server(server_factory):
 
 def test_rootdse(server):
     conn = server.connect()
-    conn.search_s("", scope=ldap0.SCOPE_BASE)
+    conn.search_s("", scope=ldap.SCOPE_BASE)

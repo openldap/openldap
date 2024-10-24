@@ -20,7 +20,7 @@
 OpenLDAP fixtures for overlays
 """
 
-import ldap0
+import ldap
 import logging
 import os
 import pathlib
@@ -86,7 +86,7 @@ def mmr(request, server_factory):
         conn.simple_bind_s("cn=config", server.secret)
 
         conn.modify_s("cn=config", [
-                (ldap0.MOD_REPLACE, b"olcServerId", [str(serverid).encode()])])
+                (ldap.MOD_REPLACE, "olcServerId", [str(serverid).encode()])])
 
         server.serverid = serverid
         servers[serverid] = server
@@ -110,8 +110,8 @@ def mmr(request, server_factory):
                 f'binddn="{db.suffix}" credentials="{db.secret}"').encode())
 
         connections[serverid].modify_s(db.dn, [
-            (ldap0.MOD_REPLACE, b"olcSyncrepl", syncrepl),
-            (ldap0.MOD_REPLACE, b"olcMultiprovider", [b"TRUE"])])
+            (ldap.MOD_REPLACE, "olcSyncrepl", syncrepl),
+            (ldap.MOD_REPLACE, "olcMultiprovider", [b"TRUE"])])
 
     yield servers
 
@@ -142,27 +142,29 @@ def test_mmr(mmr):
         conn.simple_bind_s(db.rootdn, db.secret)
 
         if not entries_added:
-            conn.add_s(suffix, {
+            entry = {
                 "objectClass": [b"organization",
                                 b"domainRelatedObject",
                                 b"dcobject"],
                 "o": [b"Example, Inc."],
-                "associatedDomain": [b"example.com"]})
+                "associatedDomain": [b"example.com"]}
+            conn.add_s(suffix, list(entry.items()))
             entries_added.add(suffix)
             # Make sure all hosts have the suffix entry
             wait_for_resync(suffix, mmr.values())
 
         dn = f"cn=entry{serverid},{suffix}"
-        conn.add_s(dn, {"objectClass": [b"device"],
-                        "description": [(f"Entry created on serverid "
-                                         f"{serverid}").encode()]})
+        entry = {"objectClass": [b"device"],
+                 "description": [(f"Entry created on serverid "
+                                  f"{serverid}").encode()]}
+        conn.add_s(dn, list(entry.items()))
         entries_added.add(dn)
         connections.append(conn)
 
     wait_for_resync(suffix, mmr.values())
 
     for conn in connections:
-        result = conn.search_s(suffix, ldap0.SCOPE_SUBTREE, attrlist=['1.1'])
-        dns = {entry.dn_s for entry in result}
+        result = conn.search_s(suffix, ldap.SCOPE_SUBTREE, attrlist=['1.1'])
+        dns = {dn for dn, entry in result}
         assert dns == entries_added, \
                 f"Server {serverid} contents do not match expectations"

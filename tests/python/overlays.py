@@ -24,7 +24,7 @@ import logging
 import os
 import pathlib
 
-from ldap0.controls.readentry import PostReadControl
+from ldap.controls.readentry import PostReadControl
 
 
 SOURCEROOT = pathlib.Path(os.environ.get('TOP_SRCDIR', "..")).absolute()
@@ -53,10 +53,11 @@ class Overlay:
         # We're just after the generated DN, no other attributes at the moment
         control = PostReadControl(True, [])
 
-        result = conn.add_s(
-            f"olcOverlay={overlay_name},{database.dn}", self._entry(),
-            req_ctrls=[control])
-        self.dn = result.ctrls[0].res.dn_s
+        _, _, _, ctrls = conn.add_ext_s(
+            f"olcOverlay={overlay_name},{database.dn}",
+            list(self._entry().items()),
+            serverctrls=[control])
+        self.dn = ctrls[0].dn
 
         if order == -1:
             database.overlays.append(self)
