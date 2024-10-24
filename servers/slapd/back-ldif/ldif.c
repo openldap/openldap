@@ -1743,12 +1743,39 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 	char textbuf[SLAP_TEXT_BUFLEN];
 	int rc, same_ndn;
 
+	LDAPControl **preread_ctrl = NULL;
+	LDAPControl **postread_ctrl = NULL;
+	LDAPControl *ctrls[SLAP_MAX_RESPONSE_CONTROLS];
+	int num_ctrls = 0;
+
+	ctrls[num_ctrls] = NULL;
+
 	slap_mods_opattrs( op, &op->orr_modlist, 1 );
 
 	ldap_pvt_thread_mutex_lock( &li->li_modop_mutex );
 
 	rc = get_entry( op, &entry, &old_path, &rs->sr_text );
 	if ( rc == LDAP_SUCCESS ) {
+		if ( op->o_preread ) {
+			if ( preread_ctrl == NULL ) {
+				preread_ctrl = &ctrls[num_ctrls++];
+				ctrls[num_ctrls] = NULL;
+			}
+			if ( slap_read_controls( op, rs, entry,
+				&slap_pre_read_bv, preread_ctrl ) )
+			{
+				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
+					"pre-read failed \"%s\"\n",
+					entry->e_name.bv_val );
+				if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+					/* FIXME: is it correct to abort
+					 * operation if control fails? */
+					rc = rs->sr_err;
+					goto done;
+				}
+			}
+		}
+
 		same_ndn = !ber_bvcmp( &entry->e_nname, &op->orr_nnewDN );
 		ber_bvreplace( &entry->e_name, &op->orr_newDN );
 		ber_bvreplace( &entry->e_nname, &op->orr_nnewDN );
@@ -1759,11 +1786,32 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 			rc = ldif_move_entry( op, entry, same_ndn, &old_path,
 				&rs->sr_text );
 
+		if ( rc == LDAP_SUCCESS && op->o_postread ) {
+			if ( postread_ctrl == NULL ) {
+				postread_ctrl = &ctrls[num_ctrls++];
+				ctrls[num_ctrls] = NULL;
+			}
+			if ( slap_read_controls( op, rs, entry,
+				&slap_post_read_bv, postread_ctrl ) )
+			{
+				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
+					"post-read failed \"%s\"\n",
+					entry->e_name.bv_val );
+				if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+					/* FIXME: is it correct to abort
+					 * operation if control fails? */
+					rc = rs->sr_err;
+				}
+			}
+		}
+
 		entry_free( entry );
 		SLAP_FREE( old_path.bv_val );
 	}
 
+done:
 	ldap_pvt_thread_mutex_unlock( &li->li_modop_mutex );
+	if ( num_ctrls ) rs->sr_ctrls = ctrls;
 	rs->sr_err = rc;
 	send_ldap_result( op, rs );
 	slap_graduate_commit_csn( op );
