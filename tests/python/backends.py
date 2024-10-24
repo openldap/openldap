@@ -36,6 +36,7 @@ from .slapd import server
 SOURCEROOT = pathlib.Path(os.environ.get('TOP_SRCDIR', "..")).absolute()
 BUILDROOT = pathlib.Path(os.environ.get('TOP_BUILDDIR', SOURCEROOT)).absolute()
 
+NOTSET = object()
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,12 @@ logger = logging.getLogger(__name__)
 class Database:
     have_directory = True
 
-    def __init__(self, server, suffix, backend):
+    def __init__(self, server, suffix, backend, *,
+                 module=NOTSET):
+        if module is NOTSET:
+            module = (BUILDROOT/"servers"/"slapd"/
+                      f"back-{backend}"/f"back_{backend}")
+
         self.server = server
         self.suffix = suffix
         self.rootdn = suffix
@@ -56,6 +62,9 @@ class Database:
         if self.have_directory:
             self.directory = tempfile.TemporaryDirectory(dir=server.home, delete=False)
 
+        if module:
+            server.load_module(module)
+
         conn = server.connect()
         conn.simple_bind_s("cn=config", server.secret)
 
@@ -63,8 +72,7 @@ class Database:
         control = PostReadControl(True, [])
 
         _, _, _, ctrls = conn.add_ext_s(
-            f"olcDatabase={backend},cn=config",
-            list(self._entry().items()),
+            f"olcDatabase={backend},cn=config", list(self._entry().items()),
             serverctrls=[control])
         dn = ctrls[0].dn
 
