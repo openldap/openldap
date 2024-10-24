@@ -69,7 +69,7 @@ class Database:
         conn.simple_bind_s("cn=config", server.secret)
 
         # We're just after the generated DN, no other attributes at the moment
-        control = PostReadControl(True, [])
+        control = PostReadControl(True, ["1.1"])
 
         _, _, _, ctrls = conn.add_ext_s(
             f"olcDatabase={backend},cn=config", list(self._entry().items()),

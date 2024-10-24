@@ -51,7 +51,7 @@ class Overlay:
         server.load_module(overlay)
 
         # We're just after the generated DN, no other attributes at the moment
-        control = PostReadControl(True, [])
+        control = PostReadControl(True, ["1.1"])
 
         _, _, _, ctrls = conn.add_ext_s(
             f"olcOverlay={overlay_name},{database.dn}",
