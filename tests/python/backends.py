@@ -54,7 +54,7 @@ class Database:
             raise RuntimeError(f"Suffix {suffix} already configured in server")
 
         if self.have_directory:
-            self.directory = tempfile.TemporaryDirectory(dir=server.home)
+            self.directory = tempfile.TemporaryDirectory(dir=server.home, delete=False)
 
         conn = server.connect()
         conn.simple_bind_s("cn=config", server.secret)

@@ -252,7 +252,7 @@ class ServerManager:
         return self.address[1]
 
     def new_server(self):
-        path = tempfile.TemporaryDirectory(dir=self.tmpdir)
+        path = tempfile.TemporaryDirectory(dir=self.tmpdir, delete=False)
         return Server(path, self)
 
     def wait(self, token):
