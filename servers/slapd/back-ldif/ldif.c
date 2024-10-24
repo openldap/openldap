@@ -1576,28 +1576,6 @@ ldif_back_delete( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
-	rc = ndn2path( op, &op->o_req_ndn, &path, 0 );
-	if ( rc != LDAP_SUCCESS ) {
-		goto done;
-	}
-
-	ldif2dir_len( path );
-	ldif2dir_name( path );
-	if ( rmdir( path.bv_val ) < 0 ) {
-		switch ( errno ) {
-		case ENOTEMPTY:
-			rc = LDAP_NOT_ALLOWED_ON_NONLEAF;
-			break;
-		case ENOENT:
-			/* is leaf, go on */
-			break;
-		default:
-			rc = LDAP_OTHER;
-			rs->sr_text = "internal error (cannot delete subtree directory)";
-			break;
-		}
-	}
-
 	/* pre-read */
 	if ( op->o_preread ) {
 		Entry *e = NULL;
@@ -1620,6 +1598,29 @@ ldif_back_delete( Operation *op, SlapReply *rs )
 			}
 		}
 		entry_free( e );
+	} else {
+		rc = ndn2path( op, &op->o_req_ndn, &path, 0 );
+	}
+
+	if ( rc != LDAP_SUCCESS ) {
+		goto done;
+	}
+
+	ldif2dir_len( path );
+	ldif2dir_name( path );
+	if ( rmdir( path.bv_val ) < 0 ) {
+		switch ( errno ) {
+		case ENOTEMPTY:
+			rc = LDAP_NOT_ALLOWED_ON_NONLEAF;
+			break;
+		case ENOENT:
+			/* is leaf, go on */
+			break;
+		default:
+			rc = LDAP_OTHER;
+			rs->sr_text = "internal error (cannot delete subtree directory)";
+			break;
+		}
 	}
 
 	if ( rc == LDAP_SUCCESS ) {
