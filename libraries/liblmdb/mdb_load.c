@@ -308,10 +308,11 @@ int main(int argc, char *argv[])
 	 * -n: use NOSUBDIR flag on env_open
 	 * -s: load into named subDB
 	 * -N: use NOOVERWRITE on puts
+	 * -Q: quick mode using NOSYNC
 	 * -T: read plaintext
 	 * -V: print version and exit
 	 */
-	while ((i = getopt(argc, argv, "af:ns:NTV")) != EOF) {
+	while ((i = getopt(argc, argv, "af:ns:NQTV")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -335,6 +336,9 @@ int main(int argc, char *argv[])
 			break;
 		case 'N':
 			putflags = MDB_NOOVERWRITE|MDB_NODUPDATA;
+			break;
+		case 'Q':
+			envflags |= MDB_NOSYNC;
 			break;
 		case 'T':
 			mode |= NOHDR | PRINT;
@@ -399,9 +403,9 @@ int main(int argc, char *argv[])
 			goto env_close;
 		}
 
-		rc = mdb_open(txn, subname, flags|MDB_CREATE, &dbi);
+		rc = mdb_dbi_open(txn, subname, flags|MDB_CREATE, &dbi);
 		if (rc) {
-			fprintf(stderr, "mdb_open failed, error %d %s\n", rc, mdb_strerror(rc));
+			fprintf(stderr, "mdb_dbi_open failed, error %d %s\n", rc, mdb_strerror(rc));
 			goto txn_abort;
 		}
 		prevk.mv_size = 0;
@@ -481,6 +485,13 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "%s: line %"Yu": txn_commit: %s\n",
 				prog, lineno, mdb_strerror(rc));
 			goto env_close;
+		}
+		if (envflags & MDB_NOSYNC) {
+			rc = mdb_env_sync(env, 1);
+			if (rc) {
+				fprintf(stderr, "mdb_env_sync failed, error %d %s\n", rc, mdb_strerror(rc));
+				goto env_close;
+			}
 		}
 		mdb_dbi_close(env, dbi);
 	}
