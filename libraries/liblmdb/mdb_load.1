@@ -18,6 +18,8 @@ mdb_load \- LMDB environment import tool
 [\c
 .BR \-N ]
 [\c
+.BR \-Q ]
+[\c
 .BR \-T ]
 .BR \ envpath
 .SH DESCRIPTION
@@ -57,6 +59,9 @@ Load a specific subdatabase. If no database is specified, data is loaded into th
 .TP
 .BR \-N
 Don't overwrite existing records when loading into an already existing database; just skip them.
+.TP
+.BR \-Q
+Quick mode, uses MDB_NOSYNC for faster loading.  Forces sync with mdb_env_sync() before exiting.
 .TP
 .BR \-T
 Load data from simple text files. The input must be paired lines of text, where the first
