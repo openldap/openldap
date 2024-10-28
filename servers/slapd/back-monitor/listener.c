@@ -27,6 +27,46 @@
 #include "slap.h"
 #include "back-monitor.h"
 
+static int
+monitor_subsys_listener_update(
+	Operation		*op,
+	SlapReply		*rs,
+	Entry           *e )
+{
+	monitor_info_t	*mi = ( monitor_info_t * )op->o_bd->be_private;
+	int i;
+	Listener	**l;
+
+	assert( mi != NULL );
+	assert( e != NULL );
+
+	if ( ( l = slapd_get_listeners() ) == NULL ) {
+		if ( slapMode & SLAP_TOOL_MODE ) {
+			return 0;
+		}
+
+		Debug( LDAP_DEBUG_ANY,
+			"monitor_subsys_listener_update: "
+			"unable to get listeners\n" );
+		return( -1 );
+	}
+
+	for ( i = 0; l[ i ]; i++ ) {
+		char 		buf[ BACKMONITOR_BUFSIZE ];
+		struct berval	sl_bv;
+		struct berval		rdn;
+		dnRdn( &e->e_nname, &rdn );
+		sl_bv.bv_len = snprintf( buf, sizeof( buf ),
+								 "cn=listener %d", i );
+		sl_bv.bv_val = buf;
+		if ( dn_match( &rdn, &sl_bv ) ) {
+			Attribute *a = attr_find( e->e_attrs, mi->mi_ad_monitorTotalListenerConnections );
+			assert( a != NULL );
+			UI2BV( &a->a_vals[ 0 ], l[ i ]->sl_n_conns_opened );
+		}
+	}
+}
+
 int
 monitor_subsys_listener_init(
 	BackendDB		*be,
@@ -51,6 +91,8 @@ monitor_subsys_listener_init(
 			"unable to get listeners\n" );
 		return( -1 );
 	}
+
+	ms->mss_update = monitor_subsys_listener_update;
 
 	mi = ( monitor_info_t * )be->be_private;
 
@@ -86,6 +128,10 @@ monitor_subsys_listener_init(
 
 		attr_merge_normalize_one( e, slap_schema.si_ad_labeledURI,
 				&l[ i ]->sl_url, NULL );
+
+		ber_str2bv( "0", STRLENOF( "0" ), 0, &bv );
+		attr_merge_normalize_one( e, mi->mi_ad_monitorTotalListenerConnections,
+				&bv, NULL );
 
 #ifdef HAVE_TLS
 		if ( l[ i ]->sl_is_tls ) {

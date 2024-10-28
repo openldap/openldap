@@ -1561,6 +1561,7 @@ slap_open_listener(
 	l.sl_tcp_rmem = 0;
 	l.sl_tcp_wmem = 0;
 #endif /* LDAP_TCP_BUFFER */
+	ldap_pvt_mp_init( l.sl_n_conns_opened );
 
 	port = (unsigned short) lud->lud_port;
 

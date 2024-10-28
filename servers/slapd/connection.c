@@ -537,6 +537,10 @@ Connection * connection_init(
 	slapd_add_internal( s, 1 );
 
 	backend_connection_init(c);
+
+	if ( c->c_listener )
+		ldap_pvt_mp_add_ulong(c->c_listener->sl_n_conns_opened, 1);
+
 	ldap_pvt_thread_mutex_unlock( &c->c_mutex );
 
 	if ( !(flags & CONN_IS_UDP ))

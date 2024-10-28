@@ -1954,6 +1954,13 @@ monitor_back_initialize(
 			"SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
 			"USAGE dSAOperation )", SLAP_AT_FINAL|SLAP_AT_HIDE,
 			offsetof(monitor_info_t, mi_ad_monitorDebugLevel) },
+		{ "( 1.3.6.1.4.1.4203.666.1.55.34 "
+			"NAME 'monitorTotalListenerConnections' "
+			"DESC 'monitor total number established of connections per listener since startup' "
+			"SUP monitorCounter "
+			"NO-USER-MODIFICATION "
+			"USAGE dSAOperation )", SLAP_AT_FINAL|SLAP_AT_HIDE,
+			offsetof(monitor_info_t, mi_ad_monitorTotalListenerConnections) },
 		{ NULL, 0, -1 }
 	};
 

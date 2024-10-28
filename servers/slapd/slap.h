@@ -3046,6 +3046,7 @@ struct Listener {
 	int	sl_tcp_rmem;	/* custom TCP read buffer size */
 	int	sl_tcp_wmem;	/* custom TCP write buffer size */
 #endif
+	ldap_pvt_mp_t sl_n_conns_opened; /* total number of connections opened since startup */
 };
 
 /*
