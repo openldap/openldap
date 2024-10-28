@@ -45,14 +45,16 @@ class Database:
     have_directory = True
 
     def __init__(self, server, suffix, backend, *,
-                 module=NOTSET):
+                 rootdn=NOTSET, module=NOTSET):
+        if rootdn is NOTSET:
+            rootdn = suffix
         if module is NOTSET:
             module = (BUILDROOT/"servers"/"slapd"/
                       f"back-{backend}"/f"back_{backend}")
 
         self.server = server
         self.suffix = suffix
-        self.rootdn = suffix
+        self.rootdn = rootdn
         self.secret = secrets.token_urlsafe()
         self.overlays = []
 
@@ -83,9 +85,11 @@ class Database:
         entry = {
             "objectclass": [self.objectclass.encode()],
             "olcSuffix": [self.suffix.encode()],
-            "olcRootDN": [self.suffix.encode()],
-            "olcRootPW": [self.secret.encode()],
         }
+        if self.rootdn is not None:
+            entry["olcRootDN"] = [self.rootdn.encode()]
+            if self.rootdn.endswith(self.suffix):
+                entry["olcRootPW"] = [self.secret.encode()]
         if self.have_directory:
             entry["olcDbDirectory"] = [self.directory.name.encode()]
         return entry
@@ -101,10 +105,9 @@ class MDB(Database):
         super().__init__(server, suffix, "mdb")
 
     def _entry(self):
-        entry = {
+        return super()._entry() | {
             "olcDbMaxSize": [str(self._size).encode()],
         }
-        return {**super()._entry(), **entry}
 
 
 class LDAP(Database):
@@ -116,15 +119,24 @@ class LDAP(Database):
         super().__init__(server, suffix, "ldap")
 
     def _entry(self):
-        entry = {
+        return super()._entry() | {
             "olcDbURI": [" ".join(self.uris).encode()],
         }
-        return {**super()._entry(), **entry}
+
+
+class Monitor(Database):
+    have_directory = False
+    objectclass = "olcMonitorConfig"
+
+    def __init__(self, server):
+        super().__init__(server, "cn=monitor", "monitor",
+                         rootdn="cn=config", module=None)
 
 
 backend_types = {
     "mdb": MDB,
     "ldap": LDAP,
+    "monitor": Monitor,
 }
 
 
