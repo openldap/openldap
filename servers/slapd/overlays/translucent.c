@@ -1174,6 +1174,7 @@ static int translucent_search(Operation *op, SlapReply *rs) {
 		op2.o_hdr = &oh;
 		op2.o_extra = op->o_extra;
 		op2.o_callback = &cb;
+		op2.ors_attrs = slap_anlist_all_attributes;
 
 		tc.attrs = op->ors_attrs;
 		op->ors_slimit = SLAP_NO_LIMIT;
