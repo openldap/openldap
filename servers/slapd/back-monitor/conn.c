@@ -370,6 +370,24 @@ conn_create(
 	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_write );
 	attr_merge_one( e, mi->mi_ad_monitorConnectionWrite, &bv, NULL );
 
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_defer_total );
+	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsDeferTotal, &bv, NULL );
+
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_defer_binding );
+	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsDeferBinding, &bv, NULL );
+
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_defer_closing );
+	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsDeferClosing, &bv, NULL );
+
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_defer_executing );
+	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsDeferExecuting, &bv, NULL );
+
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_defer_pending );
+	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsDeferPending, &bv, NULL );
+
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%ld", c->c_n_ops_defer_writewait );
+	attr_merge_one( e, mi->mi_ad_monitorConnectionOpsDeferWritewait, &bv, NULL );
+
 	bv.bv_len = snprintf( buf, sizeof( buf ), "%s%s%s%s%s%s",
 			c->c_currentber ? "r" : "",
 			c->c_writewaiter ? "w" : "",

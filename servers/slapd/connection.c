@@ -430,6 +430,13 @@ Connection * connection_init(
 	c->c_n_ops_completed = 0;
 	c->c_n_ops_async = 0;
 
+	c->c_n_ops_defer_total = 0;
+	c->c_n_ops_defer_binding = 0;
+	c->c_n_ops_defer_closing = 0;
+	c->c_n_ops_defer_executing = 0;
+	c->c_n_ops_defer_pending = 0;
+	c->c_n_ops_defer_writewait = 0;
+
 	c->c_n_get = 0;
 	c->c_n_read = 0;
 	c->c_n_write = 0;
@@ -1661,11 +1668,14 @@ connection_input( Connection *conn , conn_readinfo *cri )
 		/* Abandon and Unbind are exempt from these checks */
 		if (conn->c_conn_state == SLAP_C_CLOSING) {
 			defer = "closing";
+			conn->c_n_ops_defer_closing++;
 			break;
 		} else if (conn->c_writewaiter) {
 			defer = "awaiting write";
+			conn->c_n_ops_defer_writewait++;
 			break;
 		} else if (conn->c_n_ops_pending) {
+			conn->c_n_ops_defer_pending++;
 			defer = "pending operations";
 			break;
 		}
@@ -1673,9 +1683,11 @@ connection_input( Connection *conn , conn_readinfo *cri )
 	case LDAP_REQ_ABANDON:
 		/* Unbind is exempt from these checks */
 		if (conn->c_n_ops_executing >= connection_pool_max/2) {
+			conn->c_n_ops_defer_executing++;
 			defer = "too many executing";
 			break;
 		} else if (conn->c_conn_state == SLAP_C_BINDING) {
+			conn->c_n_ops_defer_binding++;
 			defer = "binding";
 			break;
 		}
@@ -1692,6 +1704,7 @@ connection_input( Connection *conn , conn_readinfo *cri )
 		Debug( LDAP_DEBUG_ANY,
 			"connection_input: conn=%lu deferring operation: %s\n",
 			conn->c_connid, defer );
+		conn->c_n_ops_defer_total++;
 		conn->c_n_ops_pending++;
 		LDAP_STAILQ_INSERT_TAIL( &conn->c_pending_ops, op, o_next );
 		rc = ( conn->c_n_ops_pending > max ) ? -1 : 0;

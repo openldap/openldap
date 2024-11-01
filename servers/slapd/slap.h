@@ -2990,6 +2990,13 @@ struct Connection {
 	long	c_n_ops_completed;	/* num of ops completed */
 	long	c_n_ops_async;		/* mum of ops currently executing asynchronously */
 
+	long    c_n_ops_defer_total;      /* num of total deferred ops */
+	long    c_n_ops_defer_binding;    /* num of ops deferred because the connection is binding */
+	long    c_n_ops_defer_closing;    /* num of ops deferred because the connection is closing */
+	long    c_n_ops_defer_executing;  /* num of ops deferred because of too many executing ops */
+	long    c_n_ops_defer_pending;    /* num of ops deferred because of too many pending ops */
+	long    c_n_ops_defer_writewait;  /* num of ops deferred because the connection is waiting to write */
+
 	long	c_n_get;		/* num of get calls */
 	long	c_n_read;		/* num of read calls */
 	long	c_n_write;		/* num of write calls */
