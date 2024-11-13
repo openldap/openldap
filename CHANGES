@@ -9,6 +9,7 @@ OpenLDAP 2.5.19 Engineering
 	Fixed slapd-mdb idl intersection (ITS#10233)
 	Fixed slapd-wt idl intersection (ITS#10233)
 	Fixed slapo-translucent regression with subordinate databases (ITS#10248)
+	Fixed slapo-translucent regression when requesting attributes (ITS#10272)
 	Fixed slappw-argon2 defaults to be more secure (ITS#9827)
 	Minor Cleanup
 		ITS#10155
