@@ -14,6 +14,7 @@ OpenLDAP 2.6.9 Engineering
 	Fixed slapo-memberof to omit dynamic values (ITS#10230)
 	Fixed slapo-nestgroup leak in nestgroup_memberFilter (ITS#10249)
 	Fixed slapo-translucent regression with subordinate databases (ITS#10248)
+	Fixed slapo-translucent regression when requesting attributes (ITS#10272)
 	Fixed slappw-argon2 defaults to be more secure (ITS#9827)
 	Minor Cleanup
 		ITS#10155
