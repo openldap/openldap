@@ -313,18 +313,23 @@ ldap_pvt_gettime( struct lutil_tm *ltm )
 #define	FRAC	tv_nsec
 #define	NSECS(x)	x
 	struct timespec tv;
-
+#ifndef _WIN32
+	LDAP_MUTEX_LOCK( &ldap_int_gettime_mutex );
+#endif
 	clock_gettime( CLOCK_REALTIME, &tv );
 #else
 #define	FRAC	tv_usec
 #define	NSECS(x)	x * 1000
 	struct timeval tv;
-
+#ifndef _WIN32
+	LDAP_MUTEX_LOCK( &ldap_int_gettime_mutex );
+#endif
 	gettimeofday( &tv, NULL );
 #endif
 	t = tv.tv_sec;
-
+#ifdef _WIN32
 	LDAP_MUTEX_LOCK( &ldap_int_gettime_mutex );
+#endif
 	if ( tv.tv_sec < _ldap_pvt_gt_prevTv.tv_sec
 		|| ( tv.tv_sec == _ldap_pvt_gt_prevTv.tv_sec
 		&& tv.FRAC <= _ldap_pvt_gt_prevTv.FRAC )) {
