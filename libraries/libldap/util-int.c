@@ -327,7 +327,7 @@ ldap_pvt_gettime( struct lutil_tm *ltm )
 	gettimeofday( &tv, NULL );
 #endif
 	t = tv.tv_sec;
-#ifndef _WIN32
+#ifdef _WIN32
 	LDAP_MUTEX_LOCK( &ldap_int_gettime_mutex );
 #endif
 	if ( tv.tv_sec < _ldap_pvt_gt_prevTv.tv_sec
