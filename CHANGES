@@ -1,6 +1,6 @@
 OpenLDAP 2.5 Change Log
 
-OpenLDAP 2.5.19 Engineering
+OpenLDAP 2.5.19 Release (2024/11/26)
 	Fixed libldap GnuTLS incompatible pointer type (ITS#10253)
 	Fixed libldap OpenSSL set_ciphersuite error handling (ITS#10223)
 	Fixed libldap to check for OpenSSL EVP_Digest* failure (ITS#10224)
