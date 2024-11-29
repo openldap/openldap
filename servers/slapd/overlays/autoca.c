@@ -670,6 +670,7 @@ static int autoca_cf( ConfigArgs *c )
 				else
 					rc = 1;
 			}
+			break;
 		case ACA_USRKEYBITS:
 			if ( c->value_int < MIN_KEYBITS )
 				rc = 1;
