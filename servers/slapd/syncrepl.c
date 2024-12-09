@@ -2793,7 +2793,6 @@ drop:
 
 typedef struct modify_ctxt {
 	Modifications *mx_orig;
-	Modifications *mx_free;
 	Entry *mx_entry;
 } modify_ctxt;
 
@@ -2805,11 +2804,8 @@ syncrepl_modify_cb( Operation *op, SlapReply *rs )
 	Modifications *ml;
 
 	op->orm_no_opattrs = 0;
+	slap_mods_free( op->orm_modlist, 0 );
 	op->orm_modlist = mx->mx_orig;
-	for ( ml = mx->mx_free; ml; ml = mx->mx_free ) {
-		mx->mx_free = ml->sml_next;
-		op->o_tmpfree( ml, op->o_tmpmemctx );
-	}
 	if ( mx->mx_entry ) {
 		entry_free( mx->mx_entry );
 	}
@@ -2997,10 +2993,10 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 		sc->sc_next = op->o_callback;
 		sc->sc_cleanup = NULL;
 		sc->sc_writewait = NULL;
-		op->o_callback = sc;
+		overlay_callback_after_backover( op, sc, 1 );
+
 		op->orm_no_opattrs = 1;
 		mx->mx_orig = op->orm_modlist;
-		mx->mx_free = newlist;
 		mx->mx_entry = e_dup;
 		for ( ml = newlist; ml; ml=ml->sml_next ) {
 			if ( ml->sml_flags == SLAP_MOD_INTERNAL ) {
