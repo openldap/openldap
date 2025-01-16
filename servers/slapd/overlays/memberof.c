@@ -2151,6 +2151,15 @@ mo_cf_gen( ConfigArgs *c )
 
 		case MO_ADDCHECK:
 			if ( c->value_int ) {
+				if ( SLAP_ISGLOBALOVERLAY( c->be ) ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"addcheck functionality not supported "
+						"when memberof is a global overlay",
+						c->argv[ 1 ] );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
+						c->log, c->cr_msg );
+					return 1;
+				}
 				mo->mo_flags |= MEMBEROF_FADDCHECK;
 
 			} else {
