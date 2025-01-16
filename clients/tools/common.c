@@ -1180,6 +1180,7 @@ tool_conn_setup( int dont, void (*private_setup)( LDAP * ) )
 	LDAP *ld = NULL;
 
 	if ( debug ) {
+#ifdef LDAP_DEBUG
 		if( ber_set_option( NULL, LBER_OPT_DEBUG_LEVEL, &debug )
 			!= LBER_OPT_SUCCESS )
 		{
@@ -1192,6 +1193,10 @@ tool_conn_setup( int dont, void (*private_setup)( LDAP * ) )
 			fprintf( stderr,
 				"Could not set LDAP_OPT_DEBUG_LEVEL %d\n", debug );
 		}
+#else /* !LDAP_DEBUG */
+		fprintf( stderr,
+				"Must compile with LDAP_DEBUG for debugging\n", prog );
+#endif /* !LDAP_DEBUG */
 	}
 
 #ifdef SIGPIPE
