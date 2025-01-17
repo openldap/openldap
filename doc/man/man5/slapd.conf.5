@@ -626,7 +626,7 @@ no effect on the command line tools. By default these messages
 only go to stderr and are not recorded anywhere else.
 Specifying a logfile copies messages to both stderr and the logfile.
 .TP
-.B logfile-format debug | syslog-utc | syslog-localtime
+.B logfile-format debug|syslog-utc|syslog-localtime|rfc3339-utc
 Specify the prefix format for messages written to the logfile. The debug
 format is the normal format used for slapd debug messages, with a timestamp
 in hexadecimal, followed by a thread ID.  The other options are to
