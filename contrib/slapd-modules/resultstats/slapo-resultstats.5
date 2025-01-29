@@ -1,0 +1,96 @@
+.TH SLAPO-RESULTSTATS 5 "RELEASEDATE" "OpenLDAP LDVERSION"
+.\" Copyright 2005-2025 The OpenLDAP Foundation All Rights Reserved.
+.\" Copying restrictions apply.  See COPYRIGHT/LICENSE.
+.\" $OpenLDAP$
+.SH NAME
+slapo\-resultstats \- Operation result statistics for slapd
+.SH SYNOPSIS
+ETCDIR/slapd.conf
+.SH DESCRIPTION
+The
+.B resultstats
+overlay adds per-operation counters for LDAP operation results and
+exposes them via
+.B cn=monitor.
+Result codes from
+.B LdapSuccess(0)
+to
+.B LdapOther(80)
+are counted separately as individual values. Codes higher than that are counted
+together.
+.P
+The overlay can be configured on a particular database, or on the front-end,
+or both. When configured on the front-end, it will count operations
+processed by all databases. When configured on a particular databases,
+only operations processed by that database will be counted.  Monitoring
+must be enabled for the database (mdb databases have monitoring on by default),
+and
+.B cn=monitor
+bust be configured.
+.P
+.B Note:
+Bind request responses will be counted for the database where
+the identity used is located. For example, binding with the rootdn of
+the database will be counted for that database, but anonymous binds
+will be counted only at the front-end level. Failed schema checks
+(such as undefinedAttributeType) cannot be counted at all, since they
+happen before a database is chosen.
+.P
+When enabled, the resultstats overlay will add a
+.B cn=Result Stats
+container under the database entry in cn=monitor, and under it entries
+for all types of LDAP operations. The statistic is exposed via the
+.B olmResultCodeStat
+attribute with the
+.B x-resultcode-<number>
+tag. Errors higher than 80 will be exposed under the
+.B x-resultcode-more
+tag. Only result codes with counters higher than 0
+will be displayed.
+
+.SH EXAPLES
+This is an example entry for search requests, where we have 1 successful operation and one that returned
+.B NoSuchObject(32)
+.P
+.nf
+dn: cn=Search,cn=Result Stats,cn=database 2,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+olmResultCodeStat;x-resultcode-0: 1
+olmResultCodeStat;x-resultcode-32: 1
+entryDN: cn=Search,cn=Result Stats,cn=database 2,cn=databases,cn=monitor
+
+.SH CONFIGURATION
+This overlay does not have any configuration directives.
+.SH Configuration Example
+.nf
+moduleload resultstats.la
+
+database config
+rootdn cn=config
+rootpw password
+
+#resultstats configured on the front-end
+#entries will appear under cn=Result Stats,cn=database 0,cn=databases,cn=monitor
+overlay resultstats
+
+database monitor
+
+database mdb
+
+suffix dc=example,dc=com
+rootdn cn=admin,dc=example,dc=com
+rootpw password
+
+#resultstats configured on this database
+#entries will appear under cn=Result Stats,cn=database 2,cn=databases,cn=monitor
+overlay resultstats
+
+.SH FILES
+.TP
+ETCDIR/slapd.conf
+default slapd configuration file
+.SH SEE ALSO
+.BR slapd.conf (5),
+.BR slapd\-monitor (5),
+.SH AUTHOR
+Nadezhda Ivanova, on behalf of Symas Corp.

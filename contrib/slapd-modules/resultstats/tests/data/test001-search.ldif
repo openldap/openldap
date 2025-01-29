@@ -1,0 +1,6 @@
+dn: cn=Search,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Search
+olmResultCodeStat;x-resultcode-0: 5
+olmResultCodeStat;x-resultcode-32: 5
+

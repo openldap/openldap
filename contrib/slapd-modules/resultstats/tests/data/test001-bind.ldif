@@ -1,0 +1,6 @@
+dn: cn=Bind,cn=Result Stats,cn=frontend,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Bind
+olmResultCodeStat;x-resultcode-0: 28
+olmResultCodeStat;x-resultcode-49: 5
+

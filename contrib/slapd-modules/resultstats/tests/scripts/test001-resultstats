@@ -1,0 +1,372 @@
+#! /bin/sh
+# $OpenLDAP$
+## This work is part of OpenLDAP Software <http://www.openldap.org/>.
+##
+## Copyright 1998-2025 The OpenLDAP Foundation.
+## Copyright 2025 Symas Corp.
+##
+## All rights reserved.
+##
+## Redistribution and use in source and binary forms, with or without
+## modification, are permitted only as authorized by the OpenLDAP
+## Public License.
+##
+## A copy of this license is available in the file LICENSE in the
+## top-level directory of the distribution or, alternatively, at
+## <http://www.OpenLDAP.org/license.html>.
+##
+## ACKNOWLEDGEMENTS:
+## This work was developed in 2025 by Nadezhda Ivanova for Symas Corp.
+echo "running defines.sh"
+. $SRCDIR/scripts/defines.sh
+
+echo ""
+
+rm -rf $TESTDIR
+
+mkdir -p $TESTDIR $DBDIR1
+
+$SLAPPASSWD -g -n >$CONFIGPWF
+echo "rootpw `$SLAPPASSWD -T $CONFIGPWF`" >$TESTDIR/configpw.conf
+
+echo "Starting slapd on TCP/IP port $PORT1..."
+. $CONFFILTER $BACKEND < data/slapd.conf > $CONF1
+$SLAPD -f $CONF1 -h $URI1 -d $LVL > $LOG1 2>&1 &
+PID=$!
+if test $WAIT != 0 ; then
+	echo PID $PID
+	read foo
+fi
+KILLPIDS="$PID"
+
+sleep 1
+
+echo "Using ldapsearch to check that slapd is running..."
+for i in 0 1 2 3 4 5; do
+	$LDAPSEARCH -s base -b "$MONITOR" -H $URI1 \
+		'objectclass=*' > /dev/null 2>&1
+	RC=$?
+	if test $RC = 0 ; then
+		break
+	fi
+	echo "Waiting 5 seconds for slapd to start..."
+	sleep 5
+done
+if test $RC != 0 ; then
+	echo "ldapsearch failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapadd to populate the database..."
+$LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD < \
+	data/test001-add.ldif > $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+cat /dev/null > $SEARCHOUT
+
+echo "Searching base=\"$BASEDN\"..."
+echo "# searching base=\"$BASEDN\"..." >> $SEARCHOUT
+$LDAPSEARCH -S "" -H $URI1 -b "$BASEDN" >> $SEARCHOUT 2>&1
+RC=$?
+
+if test $RC != 0 ; then
+	echo "Search failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+#enable the overlay
+echo "Modifying cn=config, enabling resultstats overlay on $BACKEND"
+$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF \
+	>> $TESTOUT 2>&1 << EOMODS
+dn: olcOverlay=resultstats,olcDatabase={1}$BACKEND,cn=config
+objectClass: olcOverlayConfig
+EOMODS
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)! Unable to start resultstats overlay"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Modifying cn=config, enabling resultstats overlay on frontend"
+$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF \
+	>> $TESTOUT 2>&1 << EOMODS
+dn: olcOverlay=resultstats,olcDatabase={-1}frontend,cn=config
+objectClass: olcOverlayConfig
+EOMODS
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)! Unable to start resultstats overlay"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+#run successful searches
+echo "Performing successful search..."
+for i in 1 2 3 4 5; do
+	$LDAPSEARCH -S "" -H $URI1 -b "cn=user0$i,ou=people,$BASEDN" "(objectClass=*)" '*' \
+				> /dev/null 2>&1
+	RC=$?
+	if test $RC != 0 ; then
+		echo "Expected successful search ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+done
+#verify
+
+RC=$?
+if test $RC != 0 ; then
+	echo "Expected successful search ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+#run noSuchObject searches
+echo "Performing incorrect search (noSuchObject).."
+for i in 1 2 3 4 5; do
+	$LDAPSEARCH -S "" -H $URI1 -b "cn=user0$i,$BASEDN" "(objectClass=*)" '*' \
+				> /dev/null 2>&1
+	RC=$?
+	if test $RC != 32 ; then
+		echo "Expected noSuchObject ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+done
+#verify
+SEARCHDN="cn=Search,cn=Result Stats,cn=database 1,cn=databases,cn=monitor"
+echo "Verifying search statistics..."
+cat /dev/null > $SEARCHOUT
+
+echo "	base=\"$SEARCHDN\"..."
+echo "# 	base=\"$SEARCHDN\"..." >> $SEARCHOUT
+$LDAPSEARCH  -H $URI1 \
+			 -b "$SEARCHDN" \
+			 "(objectClass=*)" '*' >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor stats ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < data/test001-search.ldif > $LDIFFLT
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+
+if test $? != 0 ; then
+	echo "comparison failed - search statistics incorrect"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+#run successful mods
+echo "Performing successful modify..."
+for i in 1 2 3 4 5; do
+	$LDAPMODIFY -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+				>> $TESTOUT 2>&1 << EOMODS
+dn: cn=user0$i,ou=people,$BASEDN
+changetype: modify
+replace: roomNumber
+roomNumber: 200
+EOMODS
+	RC=$?
+	if test $RC != 0 ; then
+		echo "Expected successful modify ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+done
+
+#run incorrect mods
+#this will not be counted, as it happens before database choice
+echo "Performing incorrect modify (undefinedAttributeType)..."
+for i in 1 2 3 4 5; do
+	$LDAPMODIFY -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+				>> $TESTOUT 2>&1 << EOMODS
+dn: cn=user0$i,ou=people,$BASEDN
+changetype: modify
+replace: IsBusy
+IsBusy: TRUE
+EOMODS
+	RC=$?
+	if test $RC != 17 ; then
+		echo "Expected undefinedAttributeType ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+done
+echo "Performing incorrect modify (noSuchObject)..."
+for i in 1 2 3 4 5; do
+	$LDAPMODIFY -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+				>> $TESTOUT 2>&1 << EOMODS
+dn: cn=user0$i,$BASEDN
+changetype: modify
+replace: roomNumber
+roomNumber: 200
+EOMODS
+	RC=$?
+	if test $RC != 32 ; then
+		echo "Expected noSuchObject ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+done
+echo "Performing incorrect modify (invalidCredentials)..."
+#this will only be counted on the frontend
+for i in 1 2 3 4 5; do
+	$LDAPMODIFY -D "$MANAGERDN" -H $URI1 -w "wrongpassword" \
+				>> $TESTOUT 2>&1 << EOMODS
+dn: cn=user0$i,ou=people,$BASEDN
+changetype: modify
+replace: roomNumber
+roomNumber: 200
+EOMODS
+	RC=$?
+	if test $RC != 49 ; then
+		echo "Expected invalidCredentials ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+done
+#verify
+echo "Verifying modify statistics..."
+cat /dev/null > $SEARCHOUT
+MODIFYDN="cn=Modify,cn=Result Stats,cn=database 1,cn=databases,cn=monitor"
+echo "	base=\"$MODIFYDN\"..."
+echo "# 	base=\"$MODIFYDN\"..." >> $SEARCHOUT
+$LDAPSEARCH  -H $URI1 \
+			 -b "$MODIFYDN" \
+			 "(objectClass=*)" '*' >> $SEARCHOUT 2>&1
+
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor stats ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < data/test001-modify.ldif > $LDIFFLT
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+if test $? != 0 ; then
+	echo "comparison failed - modify statistics incorrect"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+echo "Verifying bind statistics..."
+cat /dev/null > $SEARCHOUT
+BINDDN="cn=Bind,cn=Result Stats,cn=frontend,cn=databases,cn=monitor"
+echo "	base=\"$BINDDN\"..."
+echo "# 	base=\"$BINDDN\"..." >> $SEARCHOUT
+$LDAPSEARCH  -H $URI1 \
+			 -b "$BINDDN" \
+			 "(objectClass=*)" '*' >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor stats ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < data/test001-bind.ldif > $LDIFFLT
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+
+if test $? != 0 ; then
+	echo "comparison failed - bind statistics incorrect"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+cat /dev/null > $SEARCHOUT
+
+OVERLAYDN="olcOverlay={0}resultstats,olcDatabase={1}$BACKEND,cn=config"
+echo "Modifying cn=config, deleting resultstats overlay on $BACKEND"
+$LDAPDELETE -D cn=config -H $URI1 -y $CONFIGPWF $OVERLAYDN\
+	>> $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapdelete failed ($RC)! Unable to delete resultstats overlay"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Modifying cn=config, enabling resultstats overlay on $BACKEND"
+$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF \
+	>> $TESTOUT 2>&1 << EOMODS
+dn: olcOverlay=resultstats,olcDatabase={1}$BACKEND,cn=config
+objectClass: olcOverlayConfig
+EOMODS
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)! Unable to start resultstats overlay"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Verifying statistics are reset..."
+cat /dev/null > $SEARCHOUT
+RESDN="cn=Result Stats,cn=database 1,cn=databases,cn=monitor"
+echo "	base=\"$RESDN\"..."
+echo "# 	base=\"$RESDN\"..." >> $SEARCHOUT
+$LDAPSEARCH  -H $URI1 \
+			 -b "$RESDN" \
+			 "(objectClass=*)" '*' >> $SEARCHOUT 2>&1
+
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor stats ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < data/test001-reset.ldif > $LDIFFLT
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+if test $? != 0 ; then
+	echo "comparison failed - reset statistics incorrect"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+OVERLAYDN="olcOverlay={0}resultstats,olcDatabase={1}$BACKEND,cn=config"
+echo "Modifying cn=config, deleting resultstats overlay on $BACKEND"
+$LDAPDELETE -D cn=config -H $URI1 -y $CONFIGPWF $OVERLAYDN\
+	>> $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapdelete failed ($RC)! Unable to delete resultstats overlay"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Modifying cn=config, enabling resultstats overlay on $BACKEND"
+$LDAPADD -D cn=config -H $URI1 -y $CONFIGPWF \
+	>> $TESTOUT 2>&1 << EOMODS
+dn: olcOverlay=resultstats,olcDatabase={1}$BACKEND,cn=config
+objectClass: olcOverlayConfig
+EOMODS
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)! Unable to start resultstats overlay"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+test $KILLSERVERS != no && kill -HUP $KILLPIDS
+
+echo ">>>>> Test succeeded"
+
+test $KILLSERVERS != no && wait
+
+exit 0

@@ -1,0 +1,45 @@
+# 	base="cn=Result Stats,cn=database 1,cn=databases,cn=monitor"...
+dn: cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: monitorContainer
+cn: Result Stats
+
+dn: cn=Bind,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Bind
+
+dn: cn=Unbind,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Unbind
+
+dn: cn=Search,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Search
+
+dn: cn=Compare,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Compare
+
+dn: cn=Modify,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Modify
+
+dn: cn=Modrdn,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Modrdn
+
+dn: cn=Add,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Add
+
+dn: cn=Delete,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Delete
+
+dn: cn=Abandon,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Abandon
+
+dn: cn=Extended,cn=Result Stats,cn=database 1,cn=databases,cn=monitor
+objectClass: olmResultStatOperation
+cn: Extended
+
