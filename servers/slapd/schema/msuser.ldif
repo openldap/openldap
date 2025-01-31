@@ -3208,7 +3208,7 @@ olcAttributeTypes: ( MSADat4:675
 #
 # NO-USER-MODIFICATION
 olcAttributeTypes: ( MSADat2:102
-  NAME 'memberOf'
+  NAME 'MSADatmemberOf'
   SYNTAX '1.3.6.1.4.1.1466.115.121.1.12' )
 #
 olcAttributeTypes: ( MSADat4:690
