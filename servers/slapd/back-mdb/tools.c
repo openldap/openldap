@@ -1051,7 +1051,7 @@ ID mdb_tool_entry_modify(
 	op.o_tmpmfuncs = &ch_mfuncs;
 
 	/* id2entry index */
-	rc = mdb_id2entry_update( &op, mdb_tool_txn, NULL, e );
+	rc = mdb_id2entry_update( &op, mdb_tool_txn, idcursor, e );
 	if( rc != 0 ) {
 		snprintf( text->bv_val, text->bv_len,
 				"id2entry_update failed: err=%d", rc );
@@ -1086,6 +1086,7 @@ done:
 		e->e_id = NOID;
 	}
 	mdb_tool_txn = NULL;
+	idcursor = NULL;
 
 	return e->e_id;
 }
