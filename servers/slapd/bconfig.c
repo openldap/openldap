@@ -6327,7 +6327,7 @@ static int
 config_back_modify( Operation *op, SlapReply *rs )
 {
 	CfBackInfo *cfb;
-	CfEntryInfo *ce, *last;
+	CfEntryInfo *ce, *last = NULL;
 	Modifications *ml;
 	ConfigArgs ca = {0};
 	struct berval rdn;
@@ -6490,7 +6490,7 @@ static int
 config_back_modrdn( Operation *op, SlapReply *rs )
 {
 	CfBackInfo *cfb;
-	CfEntryInfo *ce, *last;
+	CfEntryInfo *ce, *last = NULL;
 	struct berval rdn;
 	int ixold, ixnew, dopause = 1;
 
@@ -6800,7 +6800,7 @@ config_back_delete( Operation *op, SlapReply *rs )
 {
 #ifdef SLAP_CONFIG_DELETE
 	CfBackInfo *cfb;
-	CfEntryInfo *ce, *last, *ce2;
+	CfEntryInfo *ce, *ce2, *last = NULL;
 	int dopause = 1;
 
 	LDAPControl **preread_ctrl = NULL;
@@ -6989,7 +6989,7 @@ static int
 config_back_search( Operation *op, SlapReply *rs )
 {
 	CfBackInfo *cfb;
-	CfEntryInfo *ce, *last;
+	CfEntryInfo *ce, *last = NULL;
 	slap_mask_t mask;
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
@@ -7070,7 +7070,7 @@ int config_back_entry_get(
 	Entry **ent )
 {
 	CfBackInfo *cfb;
-	CfEntryInfo *ce, *last;
+	CfEntryInfo *ce, *last = NULL;
 	Entry *e = NULL;
 	int paused = 0, rc = LDAP_NO_SUCH_OBJECT;
 
@@ -7382,7 +7382,7 @@ config_check_schema(Operation *op, CfBackInfo *cfb)
 {
 	struct berval schema_dn = BER_BVC(SCHEMA_RDN "," CONFIG_RDN);
 	ConfigArgs c = {0};
-	CfEntryInfo *ce, *last;
+	CfEntryInfo *ce, *last = NULL;
 	Entry *e;
 
 	/* If there's no root entry, we must be in the midst of converting */
@@ -8090,7 +8090,7 @@ config_tool_entry_modify( BackendDB *be, Entry *e, struct berval *text )
 {
 	CfBackInfo *cfb = be->be_private;
 	BackendInfo *bi = cfb->cb_db.bd_info;
-	CfEntryInfo *ce, *last;
+	CfEntryInfo *ce, *last = NULL;
 
 	ce = config_find_base( cfb->cb_root, &e->e_nname, &last, NULL );
 
@@ -8105,7 +8105,7 @@ config_tool_entry_delete( BackendDB *be, struct berval *ndn, struct berval *text
 {
 	CfBackInfo *cfb = be->be_private;
 	BackendInfo *bi = cfb->cb_db.bd_info;
-	CfEntryInfo *ce, *last;
+	CfEntryInfo *ce, *last = NULL;
 
 	ce = config_find_base( cfb->cb_root, ndn, &last, NULL );
 
