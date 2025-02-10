@@ -176,6 +176,7 @@ enum {
 	CFG_LASTMOD,
 	CFG_LASTBIND,
 	CFG_LASTBIND_PRECISION,
+	CFG_LASTBIND_ASSERT,
 	CFG_AZPOLICY,
 	CFG_AZREGEXP,
 	CFG_AZDUC,
@@ -456,6 +457,12 @@ static ConfigTable config_back_cf_table[] = {
 			"EQUALITY integerMatch "
 			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
 			{ .v_uint = 0 }
+	},
+	{ "lastbind-send-assert", "on|off", 2, 2, 0,
+		ARG_DB|ARG_ON_OFF|ARG_MAGIC|CFG_LASTBIND_ASSERT,
+		&config_generic, "( OLcfgDbAt:0.24 NAME 'olcLastBindSendAssert' "
+			"EQUALITY booleanMatch "
+			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL,
 	},
 	{ "ldapsyntax",	"syntax", 2, 0, 0,
 		ARG_PAREN|ARG_MAGIC|CFG_SYNTAX,
@@ -1034,7 +1041,7 @@ static ConfigOCs cf_ocs[] = {
 		 "olcReplogFile $ olcRequires $ olcRestrict $ olcRootDN $ olcRootPW $ "
 		 "olcSchemaDN $ olcSecurity $ olcSizeLimit $ olcSyncUseSubentry $ olcSyncrepl $ "
 		 "olcTimeLimit $ olcUpdateDN $ olcUpdateRef $ olcMultiProvider $ "
-		 "olcMonitoring $ olcExtraAttrs ) )",
+		 "olcMonitoring $ olcExtraAttrs $ olcLastBindSendAssert ) )",
 		 	Cft_Database, NULL, cfAddDatabase },
 	{ "( OLcfgGlOc:5 "
 		"NAME 'olcOverlayConfig' "
@@ -1413,6 +1420,9 @@ config_generic(ConfigArgs *c) {
 		case CFG_LASTBIND_PRECISION:
 			c->value_uint = c->be->be_lastbind_precision;
 			break;
+		case CFG_LASTBIND_ASSERT:
+			c->value_int = (SLAP_LASTBIND_ASSERT(c->be) != 0);
+			break;
 		case CFG_SYNC_SUBENTRY:
 			c->value_int = (SLAP_SYNC_SUBENTRY(c->be) != 0);
 			break;
@@ -1568,6 +1578,10 @@ config_generic(ConfigArgs *c) {
 
 		case CFG_LASTBIND_PRECISION:
 			c->be->be_lastbind_precision = 0;
+			break;
+
+		case CFG_LASTBIND_ASSERT:
+			SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_LASTBIND_ASSERT;
 			break;
 
 		case CFG_RO:
@@ -2443,6 +2457,13 @@ sortval_reject:
 
 		case CFG_LASTBIND_PRECISION:
 			c->be->be_lastbind_precision = c->value_uint;
+			break;
+
+		case CFG_LASTBIND_ASSERT:
+			if (c->value_int)
+				SLAP_DBFLAGS(c->be) |= SLAP_DBFLAG_LASTBIND_ASSERT;
+			else
+				SLAP_DBFLAGS(c->be) &= ~SLAP_DBFLAG_LASTBIND_ASSERT;
 			break;
 
 		case CFG_MULTIPROVIDER:

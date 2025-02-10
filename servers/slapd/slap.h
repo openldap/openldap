@@ -1894,6 +1894,7 @@ struct BackendDB {
 #define SLAP_DBFLAG_DISABLED	0x100000U
 #define SLAP_DBFLAG_LASTBIND	0x200000U
 #define SLAP_DBFLAG_OPEN	0x400000U	/* db is currently open */
+#define SLAP_DBFLAG_LASTBIND_ASSERT	0x800000U /* send assert control when forwarding pwdLastSuccess */
 	slap_mask_t	be_flags;
 #define SLAP_DBFLAGS(be)			((be)->be_flags)
 #define SLAP_NOLASTMOD(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_NOLASTMOD)
@@ -1926,6 +1927,7 @@ struct BackendDB {
 #define SLAP_DBOPEN(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_OPEN)
 #define SLAP_DBACL_ADD(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_ACL_ADD)
 #define SLAP_SYNC_SUBENTRY(be)			(SLAP_DBFLAGS(be) & SLAP_DBFLAG_SYNC_SUBENTRY)
+#define SLAP_LASTBIND_ASSERT(be)		(SLAP_DBFLAGS(be) & SLAP_DBFLAG_LASTBIND_ASSERT)
 
 	slap_mask_t	be_restrictops;		/* restriction operations */
 #define SLAP_RESTRICT_OP_ADD		0x0001U

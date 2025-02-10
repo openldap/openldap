@@ -406,13 +406,14 @@ fe_op_lastbind( Operation *op )
 	Operation op2 = *op;
 	SlapReply r2 = { REP_RESULT };
 	slap_callback cb = { NULL, slap_null_cb, NULL, NULL };
-	LDAPControl c, *ca[2];
+	LDAPControl c_relax, c_assert = {}, *ca[3];
 	Modifications *m;
 	Entry *e;
 	Attribute *a;
 	char nowstr[ LDAP_LUTIL_GENTIME_BUFSIZE ];
 	struct berval timestamp;
 	time_t bindtime = (time_t)-1;
+	unsigned int precision = op->o_bd->be_lastbind_precision;
 	int rc;
 
 	rc = be_entry_get_rw( op, &op->o_conn->c_ndn, NULL, NULL, 0, &e );
@@ -424,7 +425,6 @@ fe_op_lastbind( Operation *op )
 	if ( (a = attr_find( e->e_attrs, slap_schema.si_ad_pwdLastSuccess )) != NULL ) {
 		struct lutil_tm tm;
 		struct lutil_timet tt;
-		unsigned int precision = op->o_bd->be_lastbind_precision;
 
 		if ( precision == 0 ) {
 			precision = frontendDB->be_lastbind_precision;
@@ -491,11 +491,53 @@ fe_op_lastbind( Operation *op )
 		/* Must use Relax control since these are no-user-mod */
 		op2.o_relax = SLAP_CONTROL_CRITICAL;
 		op2.o_ctrls = ca;
-		ca[0] = &c;
+		ca[0] = &c_relax;
 		ca[1] = NULL;
-		BER_BVZERO( &c.ldctl_value );
-		c.ldctl_iscritical = 1;
-		c.ldctl_oid = LDAP_CONTROL_RELAX;
+		BER_BVZERO( &c_relax.ldctl_value );
+		c_relax.ldctl_iscritical = 1;
+		c_relax.ldctl_oid = LDAP_CONTROL_RELAX;
+
+		if ( SLAP_LASTBIND_ASSERT( op->o_bd ) ) {
+			/*
+			 * We assert that the following filter still holds:
+			 * "(!(pwdLastSuccess>=timestamp))"
+			 *
+			 * Where "timestamp" is the lowest timestamp within precision. This
+			 * lets the server skip this mod if it would be superfluous.
+			 *
+			 * Keep it non-critical so if the server doesn't implement RFC 4528,
+			 * it will still work, just won't be able to filter any noise out.
+			 */
+
+			BerElementBuffer berbuf;
+			BerElement *ber = (BerElement *)&berbuf;
+			time_t threshold = op->o_time - precision;
+
+			ber_init2( ber, NULL, LBER_USE_DER );
+			if ( op2.o_tmpmemctx ) {
+				ber_set_option( ber, LBER_OPT_BER_MEMCTX, &op2.o_tmpmemctx );
+			}
+
+			timestamp.bv_len = sizeof(nowstr);
+			slap_timestamp( &threshold, &timestamp );
+
+			ca[1] = &c_assert;
+			ca[2] = NULL;
+
+			c_assert.ldctl_oid = LDAP_CONTROL_ASSERT;
+			c_assert.ldctl_iscritical = 0;
+
+			if ( ber_printf( ber, "t{t{OO}}",
+					LDAP_FILTER_NOT, LDAP_FILTER_GE,
+						&slap_schema.si_ad_pwdLastSuccess->ad_cname, &timestamp
+					) < 0 ||
+					ber_flatten2( ber, &c_assert.ldctl_value, 0 ) == -1 ) {
+				Debug( LDAP_DEBUG_ANY, "%s fe_op_lastbind: "
+						"failed to construct assertion control for forwarding\n",
+						op->o_log_prefix );
+				ca[1] = NULL;
+			}
+		}
 	} else {
 		/* If not forwarding, don't update opattrs and don't replicate */
 		if ( SLAP_SINGLE_SHADOW( op->o_bd )) {
@@ -505,6 +547,13 @@ fe_op_lastbind( Operation *op )
 	}
 
 	rc = op2.o_bd->be_modify( &op2, &r2 );
+	if ( !BER_BVISNULL( &c_assert.ldctl_value ) ) {
+		if ( rc == LDAP_ASSERTION_FAILED ) {
+			/* We intended this to be a noop */
+			rc = LDAP_SUCCESS;
+		}
+		op->o_tmpfree( c_assert.ldctl_value.bv_val, op2.o_tmpmemctx );
+	}
 	slap_mods_free( m, 1 );
 
 done:
