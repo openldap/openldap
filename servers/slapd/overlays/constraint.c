@@ -42,7 +42,9 @@
 #define REGEX_STR "regex"
 #define NEG_REGEX_STR "negregex"
 #define URI_STR "uri"
+#define NEG_URI_STR "neguri"
 #define SET_STR "set"
+#define NEG_SET_STR "negset"
 #define SIZE_STR "size"
 #define COUNT_STR "count"
 
@@ -82,13 +84,15 @@ enum {
 	CONSTRAINT_REGEX,
 	CONSTRAINT_NEG_REGEX,
 	CONSTRAINT_SET,
+	CONSTRAINT_NEG_SET,
 	CONSTRAINT_URI,
+	CONSTRAINT_NEG_URI,
 };
 
 static ConfigDriver constraint_cf_gen;
 
 static ConfigTable constraintcfg[] = {
-	{ "constraint_attribute", "attribute[list]> (regex|negregex|uri|set|size|count) <value> [<restrict URI>]",
+	{ "constraint_attribute", "attribute[list]> (regex|negregex|uri|neguri|set|negset|size|count) <value> [<restrict URI>]",
 	  4, 0, 0, ARG_MAGIC | CONSTRAINT_ATTRIBUTE, constraint_cf_gen,
 	  "( OLcfgOvAt:13.1 NAME 'olcConstraintAttribute' "
 	  "DESC 'constraint for list of attributes' "
@@ -187,8 +191,16 @@ constraint_cf_gen( ConfigArgs *c )
 						tstr = SET_STR;
 						quotes = 1;
 						break;
+					case CONSTRAINT_NEG_SET:
+						tstr = NEG_SET_STR;
+						quotes = 1;
+						break;
 					case CONSTRAINT_URI:
 						tstr = URI_STR;
+						quotes = 1;
+						break;
+					case CONSTRAINT_NEG_URI:
+						tstr = NEG_URI_STR;
 						quotes = 1;
 						break;
 					default:
@@ -339,10 +351,10 @@ constraint_cf_gen( ConfigArgs *c )
 				ap.count = strtoull(c->argv[3], &endptr, 10);
 				if ( *endptr )
 					rc = ARG_BAD_CONF;
-			} else if ( strcasecmp( c->argv[2], URI_STR ) == 0 ) {
+			} else if ( strcasecmp( c->argv[2], URI_STR ) == 0 || strcasecmp( c->argv[2], NEG_URI_STR ) == 0 ) {
 				int err;
 			
-				ap.type = CONSTRAINT_URI;
+				ap.type = strcasecmp( c->argv[2], URI_STR ) == 0 ? CONSTRAINT_URI : CONSTRAINT_NEG_URI;
 				err = ldap_url_parse(c->argv[3], &ap.lud);
 				if ( err != LDAP_URL_SUCCESS ) {
 					snprintf( c->cr_msg, sizeof( c->cr_msg ),
@@ -420,6 +432,11 @@ constraint_cf_gen( ConfigArgs *c )
 				ap.set = 1;
 				ber_str2bv( c->argv[3], 0, 1, &ap.val );
 				ap.type = CONSTRAINT_SET;
+
+			} else if ( strcasecmp( c->argv[2], NEG_SET_STR ) == 0 ) {
+				ap.set = 1;
+				ber_str2bv( c->argv[3], 0, 1, &ap.val );
+				ap.type = CONSTRAINT_NEG_SET;
 
 			} else {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ),
@@ -616,7 +633,9 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 			if (regexec(c->re, bv->bv_val, 0, NULL, 0) != REG_NOMATCH)
 				return LDAP_CONSTRAINT_VIOLATION; /* regular expression violation */
 			break;
-		case CONSTRAINT_URI: {
+		case CONSTRAINT_URI: /* fallthrough */
+		case CONSTRAINT_NEG_URI:
+		{
 			Operation nop = *op;
 			slap_overinst *on = (slap_overinst *) op->o_bd->bd_info;
 			slap_callback cb = { 0 };
@@ -719,7 +738,7 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 				return rc; /* unexpected error */
 			}
 
-			if (!found)
+			if (found ^ c->type == CONSTRAINT_URI)
 				return LDAP_CONSTRAINT_VIOLATION; /* constraint violation */
 			break;
 		}
@@ -856,6 +875,10 @@ constraint_add( Operation *op, SlapReply *rs )
 					break;
 				case CONSTRAINT_SET:
 					if (acl_match_set(&cp->val, op, op->ora_e, NULL) == 0)
+						rc = LDAP_CONSTRAINT_VIOLATION;
+					break;
+				case CONSTRAINT_NEG_SET:
+					if (acl_match_set(&cp->val, op, op->ora_e, NULL) != 0)
 						rc = LDAP_CONSTRAINT_VIOLATION;
 					break;
 				default:
@@ -1051,7 +1074,7 @@ constraint_update( Operation *op, SlapReply *rs )
 				}
 			}
 
-			if (cp->type == CONSTRAINT_SET && target_entry) {
+			if ((cp->type == CONSTRAINT_SET || cp->type == CONSTRAINT_NEG_SET) && target_entry) {
 				if (target_entry_copy == NULL) {
 					Modifications *ml;
 
@@ -1145,7 +1168,7 @@ constraint_update( Operation *op, SlapReply *rs )
 					}
 				}
 
-				if ( acl_match_set(&cp->val, op, target_entry_copy, NULL) == 0) {
+				if ((acl_match_set(&cp->val, op, target_entry_copy, NULL) == 1) ^ (cp->type == CONSTRAINT_SET)) {
 					rc = LDAP_CONSTRAINT_VIOLATION;
 					goto mod_violation;
 				}

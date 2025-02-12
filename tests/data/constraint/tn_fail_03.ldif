@@ -1,0 +1,4 @@
+dn: givenName=John,ou=users2,dc=example,dc=com
+changetype: modify
+replace: uid
+uid: 1

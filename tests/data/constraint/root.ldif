@@ -8,6 +8,10 @@ dn: ou=users,dc=example,dc=com
 ou: users
 objectclass: organizationalUnit
 
+dn: ou=users2,dc=example,dc=com
+ou: users2
+objectclass: organizationalUnit
+
 dn: ou=groups,dc=example,dc=com
 ou: groups
 objectclass: organizationalUnit

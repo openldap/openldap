@@ -1,0 +1,10 @@
+dn: givenName=John,ou=users2,dc=example,dc=com
+objectclass: inetOrgPerson
+objectclass: organizationalPerson
+cn: John le Rouge
+givenname: John
+sn: Rouge
+mail: original@example.com
+description: desc1
+description: desc2
+uid: 3

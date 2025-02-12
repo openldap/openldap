@@ -35,14 +35,16 @@ directive.
 .B constraint_attribute <attribute_name>[,...] <type> <value> [<extra> [...]]
 Specifies the constraint which should apply to the comma-separated
 attribute list named as the first parameter.
-Six types of constraint are currently supported -
+Eight types of constraint are currently supported -
 .BR regex ,
 .BR negregex ,
 .BR size ,
 .BR count ,
 .BR uri ,
+.BR neguri ,
+.BR set ,
 and
-.BR set .
+.BR negset .
 
 The parameter following the
 .B regex
@@ -52,12 +54,16 @@ type is a Unix style regular expression (See
 .BR regex (7)
 ). The parameter following the
 .B uri
+or
+.B neguri
 type is an LDAP URI. The URI will be evaluated using an internal search.
 It must not include a hostname, and it must include a list of attributes
 to evaluate.
 
 The parameter following the
 .B set
+or
+.B negset
 type is a string that is interpreted according to the syntax in use
 for ACL sets.  This allows one to construct constraints based on the contents
 of the entry.
@@ -110,6 +116,8 @@ constraint_attribute mail regex ^[[:alnum:]]+@mydomain.com$
 constraint_attribute mail negregex ^[[:alnum:]]+@notallowed.com$
 constraint_attribute title uri
   ldap:///dc=catalog,dc=example,dc=com?title?sub?(objectClass=titleCatalog)
+constraint_attribute cn neguri
+  ldap:///ou=People,dc=example,dc=com?cn,sn?sub?(objectClass=inetOrgPerson)
 constraint_attribute cn,sn,givenName set
   "(this/givenName + [ ] + this/sn) & this/cn"
   restrict="ldap:///ou=People,dc=example,dc=com??sub?(objectClass=inetOrgPerson)"
@@ -133,6 +141,22 @@ entries in the given scope. (Note that the
 in a separate database, otherwise the initial set of
 titleCatalog entries could not be populated while the
 constraint is in effect.)
+With the type "neguri" (negated "uri"), it would
+ensure uniqueness of one (or more) attributes against one (or
+more) other attributes. A specification like the above
+would reject any
+.B cn
+attributes whose
+.B any
+values
+.B was already listed
+in another
+.B cn
+or
+.B sn
+attributes of any
+.B inetOrgPerson
+entries in the given scope.
 Finally, it requires the values of the attribute
 .B cn
 to be constructed by pairing values of the attributes
@@ -141,6 +165,8 @@ and
 .BR givenName ,
 separated by a space, but only for entries derived from the objectClass
 .BR inetOrgPerson .
+Should the type "negset" have been used instead of "set", the
+condition would have been reversed.
 .RE
 .SH FILES
 .TP

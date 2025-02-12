@@ -24,9 +24,11 @@ fi
 CONSTRAINTDIR="$DATADIR/constraint"
 ROOTLDIF="$CONSTRAINTDIR/root.ldif"
 USERLDIF="$CONSTRAINTDIR/user.ldif"
+USER2LDIF="$CONSTRAINTDIR/user2.ldif"
 RESULTOUT="$CONSTRAINTDIR/constraint.out"
 SCRIPTOUT="$TESTDIR/constraint.out"
 USERDN="cn=John Doe,ou=users,$BASEDN"
+USER2DN="givenName=John,ou=users2,$BASEDN"
 
 CONFDIR=$TESTDIR/slapd.d
 mkdir -p $TESTDIR $CONFDIR $DBDIR1
@@ -117,6 +119,12 @@ olcConstraintAttribute: cn,sn,givenName
 olcConstraintAttribute: uid
   uri "ldap:///ou=groups,$BASEDN?uid?one?(objectClass=inetOrgPerson)"
   restrict="ldap:///ou=users,$BASEDN??one"
+olcConstraintAttribute: cn,sn,givenName
+  negset "(this/givenName + [ ] + this/sn) & this/cn"
+  restrict="ldap:///$USER2DN??sub?(objectClass=inetOrgPerson)"
+olcConstraintAttribute: uid
+  neguri "ldap:///ou=groups,$BASEDN?uid?one?(objectClass=inetOrgPerson)"
+  restrict="ldap:///ou=users2,$BASEDN??one"
 EOF
 
 $SLAPADD -F $CONFDIR -n 0 -l $TESTDIR/config.ldif
@@ -168,9 +176,16 @@ if test $RC != 0 ; then
 	test $KILLSERVERS != no && kill -HUP $PID
 	exit $RC
 fi
+$LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD -f $USER2LDIF >/dev/null 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $PID
+	exit $RC
+fi
 
 echo "Running constraint tests..."
-for ldif in $CONSTRAINTDIR/*ok*.ldif $CONSTRAINTDIR/*fail*.ldif; do
+for ldif in $CONSTRAINTDIR/t_ok*.ldif $CONSTRAINTDIR/t_fail*.ldif; do
 	### reload
 	$LDAPDELETE -D "$MANAGERDN" -H $URI1 -w $PASSWD "$USERDN" >/dev/null 2>&1
 	RC=$?
@@ -180,6 +195,39 @@ for ldif in $CONSTRAINTDIR/*ok*.ldif $CONSTRAINTDIR/*fail*.ldif; do
 		exit $RC
 	fi
 	$LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD -f $USERLDIF >/dev/null 2>&1
+	RC=$?
+	if test $RC != 0 ; then
+		echo "ldapadd failed ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $PID
+		exit $RC
+	fi
+
+	### info
+	echo -n "  [$ldif]: "
+
+	### modify
+	$LDAPMODIFY -H $URI1 -x -D "$MANAGERDN" -f $ldif -w $PASSWD >/dev/null 2>&1
+	RC=$?
+	if test $RC = 0 ; then
+		echo "OK" | tee -a $SCRIPTOUT
+	elif test $RC = 19 ; then
+		echo "FAIL" | tee -a $SCRIPTOUT
+	else
+		echo "UNEXPECTED ($RC)"
+	fi
+done
+
+echo "Running *neg* constraint tests..."
+for ldif in $CONSTRAINTDIR/tn_ok*.ldif $CONSTRAINTDIR/tn_fail*.ldif; do
+	### reload
+	$LDAPDELETE -D "$MANAGERDN" -H $URI1 -w $PASSWD "$USER2DN" >/dev/null 2>&1
+	RC=$?
+	if test $RC != 0 ; then
+		echo "ldapdelete failed ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $PID
+		exit $RC
+	fi
+	$LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD -f $USER2LDIF >/dev/null 2>&1
 	RC=$?
 	if test $RC != 0 ; then
 		echo "ldapadd failed ($RC)!"
