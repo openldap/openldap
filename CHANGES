@@ -1,6 +1,8 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.20 Engineering
+	Minor Cleanup
+		ITS#10226
 
 OpenLDAP 2.5.19 Release (2024/11/26)
 	Fixed libldap GnuTLS incompatible pointer type (ITS#10253)
