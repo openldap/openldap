@@ -1123,7 +1123,7 @@ config_copy_controls( Operation *op, SlapReply *rs )
 
 		rs->sr_ctrls = prepared;
 		rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
-		slap_add_ctrls( op, rs, received, 0 );
+		slap_add_ctrls( op, rs, received );
 		op->o_callback->sc_private = rs->sr_ctrls;
 
 		rs->sr_ctrls = received;
