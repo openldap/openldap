@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.20 Engineering
+	Fixed slapd regression with certain searches (ITS#10307)
 	Minor Cleanup
 		ITS#10226
 
