@@ -1,6 +1,7 @@
 OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.10 Engineering
+	Fixed slapo-autoca olcAutoCAserverClass object (ITS#10288)
 	Minor Cleanup
 		ITS#10226
 
