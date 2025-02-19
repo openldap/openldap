@@ -4,6 +4,7 @@ OpenLDAP 2.5.20 Engineering
 	Fixed slapd regression with certain searches (ITS#10307)
 	Minor Cleanup
 		ITS#10226
+		ITS#10279
 
 OpenLDAP 2.5.19 Release (2024/11/26)
 	Fixed libldap GnuTLS incompatible pointer type (ITS#10253)
