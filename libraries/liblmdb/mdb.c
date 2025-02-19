@@ -168,7 +168,7 @@ typedef SSIZE_T	ssize_t;
 # define MDB_USE_SYSV_SEM	1
 # endif
 # if defined(__APPLE__)
-# define MDB_FDATASYNC(fd)		fcntl(fd, F_FULLSYNC)
+# define MDB_FDATASYNC(fd)		fcntl(fd, F_FULLFSYNC)
 # else
 # define MDB_FDATASYNC		fsync
 # endif
