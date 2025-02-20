@@ -165,6 +165,9 @@ handle_private_option( int i )
 			}
 
 			vc_sasl_mech = ber_strdup(cvalue);
+			if (vc_sasl_mech == NULL) {
+				exit(EXIT_FAILURE);
+			}
 #else
 #endif
 
@@ -182,6 +185,9 @@ handle_private_option( int i )
 			}
 
 			vc_sasl_realm = ber_strdup(cvalue);
+			if (vc_sasl_realm == NULL) {
+				exit(EXIT_FAILURE);
+			}
 #else
 			fprintf(stderr,
 				_("%s: not compiled with SASL support\n"), prog);
@@ -202,6 +208,9 @@ handle_private_option( int i )
 			}
 
 			vc_sasl_authcid = ber_strdup(cvalue);
+			if (vc_sasl_authcid == NULL) {
+				exit(EXIT_FAILURE);
+			}
 #else
 			fprintf(stderr,
 				_("%s: not compiled with SASL support\n"), prog);
@@ -222,6 +231,9 @@ handle_private_option( int i )
 			}
 
 			vc_sasl_authzid = ber_strdup(cvalue);
+			if (vc_sasl_authzid == NULL) {
+				exit(EXIT_FAILURE);
+			}
 #else
 			fprintf(stderr,
 				_("%s: not compiled with SASL support\n"), prog);
@@ -242,6 +254,9 @@ handle_private_option( int i )
 			}
 
 			vc_sasl_secprops = ber_strdup(cvalue);
+			if (vc_sasl_secprops == NULL) {
+				exit(EXIT_FAILURE);
+			}
 #else
 			fprintf(stderr,
 				_("%s: not compiled with SASL support\n"), prog);

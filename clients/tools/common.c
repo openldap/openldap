@@ -794,6 +794,9 @@ tool_args( int argc, char **argv )
 				exit( EXIT_FAILURE );
 			}
 			ldapuri = ber_strdup( optarg );
+			if ( ldapuri == NULL ) {
+				exit( EXIT_FAILURE );
+			}
 			break;
 		case 'I':
 #ifdef HAVE_CYRUS_SASL
@@ -994,6 +997,9 @@ tool_args( int argc, char **argv )
 			break;
 		case 'w':	/* password */
 			passwd.bv_val = ber_strdup( optarg );
+			if ( passwd.bv_val == NULL ) {
+				exit( EXIT_FAILURE );
+			}
 			{
 				char* p;
 
@@ -1504,6 +1510,9 @@ tool_bind( LDAP *ld )
 				tool_exit( ld, EXIT_FAILURE );
 			}
 			passwd.bv_val = ber_strdup( pw );
+			if ( passwd.bv_val == NULL ) {
+				tool_exit( ld, EXIT_FAILURE );
+			}
 			passwd.bv_len = strlen( passwd.bv_val );
 		}
 	}
