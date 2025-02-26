@@ -43,6 +43,8 @@ typedef void (*pbkdf2_hmac_digest)(void *, unsigned, uint8_t *);
 #define PBKDF2_SHA512_DK_SIZE 64
 #define PBKDF2_MAX_DK_SIZE 64
 
+static int pbkdf2_iteration = PBKDF2_ITERATION;
+
 const struct berval pbkdf2_scheme = BER_BVC("{PBKDF2}");
 const struct berval pbkdf2_sha1_scheme = BER_BVC("{PBKDF2-SHA1}");
 const struct berval pbkdf2_sha256_scheme = BER_BVC("{PBKDF2-SHA256}");
@@ -147,7 +149,7 @@ static int pbkdf2_encrypt(
 	struct berval salt;
 	unsigned char dk_value[PBKDF2_MAX_DK_SIZE];
 	struct berval dk;
-	int iteration = PBKDF2_ITERATION;
+	int iteration = pbkdf2_iteration;
 	int rc;
 #ifdef HAVE_OPENSSL
 	const EVP_MD *md;
@@ -426,6 +428,14 @@ static int pbkdf2_check(
 
 int init_module(int argc, char *argv[]) {
 	int rc;
+
+	if (argc == 2) {
+		int iter = atoi(argv[1]);
+		if (iter > 0)
+			pbkdf2_iteration = iter;
+		else
+			return -1;
+	}
 	rc = lutil_passwd_add((struct berval *)&pbkdf2_scheme,
 						  pbkdf2_check, pbkdf2_encrypt);
 	if(rc) return rc;

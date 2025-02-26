@@ -9,7 +9,7 @@ ETCDIR/slapd.conf
 .RS
 .LP
 .B moduleload
-.B pw-pbkdf2
+.B pw-pbkdf2 [iterations]
 .RE
 .SH DESCRIPTION
 .LP
@@ -40,7 +40,9 @@ PBKDF2 using HMAC-SHA-512 as the underlying pseudorandom function
 .SH CONFIGURATION
 The
 .B pw-pbkdf2
-module does not need any configuration.
+module does not need any configuration. If the optional
+.B iterations
+parameter is not specified, it defaults to 10000.
 .LP
 After loading the module, the password schemes
 {PBKDF2}, {PBKDF2-SHA1}, {PBKDF2-SHA256}, and {PBKDF2-SHA512}
