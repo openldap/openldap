@@ -15,16 +15,21 @@
 
 all-local: ldap_config.h FORCE
 
+BUILD_SLAPI = @BUILD_SLAPI@
+
 install-local: FORCE
 	-$(MKDIR) $(DESTDIR)$(includedir)
 	for header in $(srcdir)/lber.h lber_types.h \
 		$(srcdir)/ldap.h $(srcdir)/ldap_cdefs.h \
 		$(srcdir)/ldap_schema.h $(srcdir)/ldap_utf8.h \
-		$(srcdir)/slapi-plugin.h ldap_features.h \
+		ldap_features.h \
 		$(srcdir)/ldif.h $(srcdir)/openldap.h ; \
 	do \
 		$(INSTALL) $(INSTALLFLAGS) -m 644 $$header $(DESTDIR)$(includedir); \
 	done
+	if test "$(BUILD_SLAPI)" = "yes"; then \
+		$(INSTALL) $(INSTALLFLAGS) -m 644 $(srcdir)/slapi-plugin.h $(DESTDIR)$(includedir); \
+	fi
 
 clean-local: FORCE 
 	$(RM) ldap_config.h
