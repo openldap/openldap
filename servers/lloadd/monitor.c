@@ -705,6 +705,12 @@ lload_monitor_conn_update( Operation *op, SlapReply *rs, Entry *e, void *priv )
         } break;
     }
 
+    attr_delete( &e->e_attrs, ad_olmConnectionAuthzDN );
+    if ( !BER_BVISNULL( &c->c_auth ) ) {
+        attr_merge_normalize_one( e, ad_olmConnectionAuthzDN,
+                &c->c_auth, op->o_tmpmemctx );
+    }
+
     CONNECTION_UNLOCK(c);
 
     a = attr_find( e->e_attrs, ad_olmConnectionType );
@@ -722,12 +728,6 @@ lload_monitor_conn_update( Operation *op, SlapReply *rs, Entry *e, void *priv )
         a->a_flags |= SLAP_ATTR_DONT_FREE_DATA;
     }
     a->a_vals[0] = bv_state;
-
-    attr_delete( &e->e_attrs, ad_olmConnectionAuthzDN );
-    if ( !BER_BVISNULL( &c->c_auth ) ) {
-        attr_merge_normalize_one( e, ad_olmConnectionAuthzDN,
-                &c->c_auth, op->o_tmpmemctx );
-    }
 
     a = attr_find( e->e_attrs, ad_olmPendingOps );
     assert( a != NULL );
