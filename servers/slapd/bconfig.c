@@ -2973,13 +2973,16 @@ config_subordinate(ConfigArgs *c)
 		}
 
 		if ( c->argc == 2 ) {
-			if ( strcasecmp( c->argv[1], "advertise" ) == 0 ) {
+			if ( strcasecmp( c->argv[1], "FALSE" ) == 0 ) {
+				rc = 0;
+				break;
+			} else if ( strcasecmp( c->argv[1], "advertise" ) == 0 ) {
 				advertise = 1;
 
 			} else if ( strcasecmp( c->argv[1], "TRUE" ) != 0 ) {
 				/* log error */
 				snprintf( c->cr_msg, sizeof( c->cr_msg),
-					"subordinate must be \"TRUE\" or \"advertise\"" );
+					"subordinate must be \"TRUE\", \"FALSE\" or \"advertise\"" );
 				Debug( LDAP_DEBUG_ANY,
 					"%s: suffix \"%s\": %s.\n",
 					c->log, c->be->be_suffix[0].bv_val, c->cr_msg );
