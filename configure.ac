@@ -358,6 +358,8 @@ OL_ARG_ENABLE_OV(memberof, [Reverse Group Membership overlay],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE_OV(nestgroup, [Nested Group overlay],
 	no, [no yes mod], ol_enable_overlays)
+OL_ARG_ENABLE_OV(otp, [OTP 2-factor authentication overlay],
+	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE_OV(ppolicy, [Password Policy overlay],
 	no, [no yes mod], ol_enable_overlays)
 OL_ARG_ENABLE_OV(proxycache, [Proxy Cache overlay],
