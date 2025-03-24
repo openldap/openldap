@@ -80,6 +80,16 @@ one-time password shared secret: its length and algorithm to use as well as the
 permitted number of passwords to skip.
 .RE
 
+The overlay also intercepts LDAP Compare requests against the
+.B oathSecret
+attribute of an
+.B oathTOTPToken
+or
+.B oathHOTPToken
+entry and checks the asserted value against the configured secret. This is subject to
+.B compare
+access to the attribute.
+
 The following parts of the OATH-LDAP schema are implemented.
 
 General attributes:

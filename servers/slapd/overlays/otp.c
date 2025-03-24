@@ -684,8 +684,27 @@ otp_hotp( Operation *op, Entry *token )
 				a->a_vals[0].bv_val );
 		goto done;
 	}
-	if ( otp_len > MAX_DIGITS || op->orb_cred.bv_len < otp_len ) {
-		/* Client didn't even send the token, fail immediately */
+
+	if ( otp_len < 1 || otp_len > MAX_DIGITS ) {
+		/* Unsupported settings */
+		goto done;
+	} else if ( op->o_tag == LDAP_REQ_BIND ) {
+		if ( op->orb_cred.bv_len < otp_len ) {
+			/* Client didn't even send full token, fail immediately */
+			goto done;
+		}
+		/* We are provided "password" + "OTP", split accordingly */
+		client_otp.bv_len = otp_len;
+		client_otp.bv_val = op->orb_cred.bv_val + op->orb_cred.bv_len - otp_len;
+	} else if ( op->o_tag == LDAP_REQ_COMPARE ) {
+		if ( op->orc_ava->aa_value.bv_len != otp_len ) {
+			/* Token incompatible */
+			goto done;
+		}
+		client_otp = op->orc_ava->aa_value;
+	} else {
+		/* Operation unsupported, how did we get here? */
+		assert(0);
 		goto done;
 	}
 
@@ -705,10 +724,6 @@ otp_hotp( Operation *op, Entry *token )
 	be_entry_release_r( op, params );
 	params = NULL;
 
-	/* We are provided "password" + "OTP", split accordingly */
-	client_otp.bv_len = otp_len;
-	client_otp.bv_val = op->orb_cred.bv_val + op->orb_cred.bv_len - otp_len;
-
 	/* If check succeeds, advance the step counter accordingly */
 	for ( i = 1; i <= window; i++ ) {
 		BerValue out = { .bv_val = outbuf, .bv_len = sizeof(outbuf) };
@@ -720,10 +735,12 @@ otp_hotp( Operation *op, Entry *token )
 		}
 	}
 
+	/* OTP check passed, trim the password if Bind */
 	if ( found >= 0 ) {
-		/* OTP check passed, trim the password */
-		op->orb_cred.bv_len -= otp_len;
-		Debug( LDAP_DEBUG_STATS, "%s HOTP token %s no. %ld redeemed\n",
+		if ( op->o_tag == LDAP_REQ_BIND ) {
+			op->orb_cred.bv_len -= otp_len;
+		}
+		Debug( LDAP_DEBUG_TRACE, "%s HOTP token %s no. %ld redeemed\n",
 				op->o_log_prefix, token->e_name.bv_val, found );
 	}
 
@@ -797,8 +814,27 @@ otp_totp( Operation *op, Entry *token, long *drift )
 				a->a_vals[0].bv_val );
 		goto done;
 	}
-	if ( otp_len > MAX_DIGITS || op->orb_cred.bv_len < otp_len ) {
-		/* Client didn't even send the token, fail immediately */
+
+	if ( otp_len < 1 || otp_len > MAX_DIGITS ) {
+		/* Unsupported settings */
+		goto done;
+	} else if ( op->o_tag == LDAP_REQ_BIND ) {
+		if ( op->orb_cred.bv_len < otp_len ) {
+			/* Client didn't even send full token, fail immediately */
+			goto done;
+		}
+		/* We are provided "password" + "OTP", split accordingly */
+		client_otp.bv_len = otp_len;
+		client_otp.bv_val = op->orb_cred.bv_val + op->orb_cred.bv_len - otp_len;
+	} else if ( op->o_tag == LDAP_REQ_COMPARE ) {
+		if ( op->orc_ava->aa_value.bv_len != otp_len ) {
+			/* Token incompatible */
+			goto done;
+		}
+		client_otp = op->orc_ava->aa_value;
+	} else {
+		/* Operation unsupported, how did we get here? */
+		assert(0);
 		goto done;
 	}
 
@@ -808,10 +844,6 @@ otp_totp( Operation *op, Entry *token, long *drift )
 	}
 	be_entry_release_r( op, params );
 	params = NULL;
-
-	/* We are provided "password" + "OTP", split accordingly */
-	client_otp.bv_len = otp_len;
-	client_otp.bv_val = op->orb_cred.bv_val + op->orb_cred.bv_len - otp_len;
 
 	/* If check succeeds, advance the step counter accordingly */
 	/* Negation of A001057 series that enumerates all integers:
@@ -829,11 +861,13 @@ otp_totp( Operation *op, Entry *token, long *drift )
 		}
 	}
 
-	/* OTP check passed, trim the password */
+	/* OTP check passed, trim the password if Bind */
 	if ( found >= 0 ) {
 		assert( found > last_step );
 
-		op->orb_cred.bv_len -= otp_len;
+		if ( op->o_tag == LDAP_REQ_BIND ) {
+			op->orb_cred.bv_len -= otp_len;
+		}
 		Debug( LDAP_DEBUG_TRACE, "%s TOTP token %s redeemed with new drift of %ld\n",
 				op->o_log_prefix, token->e_name.bv_val, *drift );
 	}
@@ -847,59 +881,36 @@ done:
 }
 
 static int
-otp_op_bind( Operation *op, SlapReply *rs )
+otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
+		Entry *token )
 {
-	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
-	BerValue totpdn = BER_BVNULL, hotpdn = BER_BVNULL, ndn;
-	Entry *user = NULL, *token = NULL;
 	AttributeDescription *ad = NULL, *drift_ad = NULL;
-	Attribute *a;
+	BerValue ndn;
 	long t = -1, drift = 0;
-	int rc = SLAP_CB_CONTINUE;
+	int rc = LDAP_INVALID_CREDENTIALS;
 
-	if ( op->oq_bind.rb_method != LDAP_AUTH_SIMPLE ) {
-		return rc;
+	if ( !BER_BVISNULL( totpdn ) ) {
+		if ( token || be_entry_get_rw( op, totpdn, oc_oathTOTPToken, ad_oathSecret,
+					0, &token ) == LDAP_SUCCESS ) {
+			ndn = *totpdn;
+			ad = ad_oathTOTPLastTimeStep;
+			drift_ad = ad_oathTOTPTimeStepDrift;
+			t = otp_totp( op, token, &drift );
+			be_entry_release_r( op, token );
+			token = NULL;
+		}
 	}
-
-	op->o_bd->bd_info = (BackendInfo *)on->on_info;
-
-	if ( be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &user ) ) {
-		goto done;
+	if ( t < 0 && !BER_BVISNULL( hotpdn ) ) {
+		if ( token || be_entry_get_rw( op, hotpdn, oc_oathHOTPToken, ad_oathSecret,
+					0, &token ) == LDAP_SUCCESS ) {
+			ndn = *hotpdn;
+			ad = ad_oathHOTPCounter;
+			t = otp_hotp( op, token );
+			be_entry_release_r( op, token );
+			token = NULL;
+		}
 	}
-
-	if ( !is_entry_objectclass_or_sub( user, oc_oathOTPUser ) ) {
-		be_entry_release_r( op, user );
-		goto done;
-	}
-
-	if ( (a = attr_find( user->e_attrs, ad_oathTOTPToken )) ) {
-		ber_dupbv_x( &totpdn, &a->a_nvals[0], op->o_tmpmemctx );
-	}
-
-	if ( (a = attr_find( user->e_attrs, ad_oathHOTPToken )) ) {
-		ber_dupbv_x( &hotpdn, &a->a_nvals[0], op->o_tmpmemctx );
-	}
-	be_entry_release_r( op, user );
-
-	if ( !BER_BVISNULL( &totpdn ) &&
-			be_entry_get_rw( op, &totpdn, oc_oathTOTPToken, ad_oathSecret, 0,
-					&token ) == LDAP_SUCCESS ) {
-		ndn = totpdn;
-		ad = ad_oathTOTPLastTimeStep;
-		drift_ad = ad_oathTOTPTimeStepDrift;
-		t = otp_totp( op, token, &drift );
-		be_entry_release_r( op, token );
-		token = NULL;
-	}
-	if ( t < 0 && !BER_BVISNULL( &hotpdn ) &&
-			be_entry_get_rw( op, &hotpdn, oc_oathHOTPToken, ad_oathSecret, 0,
-					&token ) == LDAP_SUCCESS ) {
-		ndn = hotpdn;
-		ad = ad_oathHOTPCounter;
-		t = otp_hotp( op, token );
-		be_entry_release_r( op, token );
-		token = NULL;
-	}
+	assert( token == NULL );
 
 	/* If check succeeds, advance the step counter and drift accordingly */
 	if ( t >= 0 ) {
@@ -954,12 +965,49 @@ otp_op_bind( Operation *op, SlapReply *rs )
 		op2.o_req_ndn = ndn;
 		op2.o_opid = -1;
 
-		op2.o_bd->be_modify( &op2, &rs2 );
+		rc = op2.o_bd->be_modify( &op2, &rs2 );
 		if ( rs2.sr_err != LDAP_SUCCESS ) {
 			rc = LDAP_OTHER;
-			goto done;
 		}
-	} else {
+	}
+
+	return rc;
+}
+
+static int
+otp_op_bind( Operation *op, SlapReply *rs )
+{
+	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
+	BerValue totpdn = BER_BVNULL, hotpdn = BER_BVNULL;
+	Entry *user = NULL;
+	Attribute *a;
+	int rc = SLAP_CB_CONTINUE;
+
+	if ( op->oq_bind.rb_method != LDAP_AUTH_SIMPLE ) {
+		return rc;
+	}
+
+	op->o_bd->bd_info = (BackendInfo *)on->on_info;
+
+	if ( be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &user ) ) {
+		goto done;
+	}
+
+	if ( !is_entry_objectclass_or_sub( user, oc_oathOTPUser ) ) {
+		be_entry_release_r( op, user );
+		goto done;
+	}
+
+	if ( (a = attr_find( user->e_attrs, ad_oathTOTPToken )) ) {
+		ber_dupbv_x( &totpdn, &a->a_nvals[0], op->o_tmpmemctx );
+	}
+
+	if ( (a = attr_find( user->e_attrs, ad_oathHOTPToken )) ) {
+		ber_dupbv_x( &hotpdn, &a->a_nvals[0], op->o_tmpmemctx );
+	}
+	be_entry_release_r( op, user );
+
+	if ( otp_check_and_update( op, &totpdn, &hotpdn, NULL ) ) {
 		/* Client failed the bind, but we still have to pass it over to the
 		 * backend and fail the Bind later */
 		slap_callback *cb;
@@ -980,6 +1028,86 @@ done:
 	return rc;
 }
 
+static int
+otp_op_compare( Operation *op, SlapReply *rs )
+{
+	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
+	BerValue totpdn = BER_BVNULL, hotpdn = BER_BVNULL;
+	Entry *token = NULL;
+	slap_mask_t mask;
+	int disclosure_limited = 0, rc = SLAP_CB_CONTINUE;
+
+	/* Check access first, then validate data, then run OTP logic */
+
+	if ( op->orc_ava->aa_desc != ad_oathSecret ) {
+		return rc;
+	}
+
+	op->o_bd->bd_info = (BackendInfo *)on->on_info;
+
+	if ( be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL,
+				0, &token ) != LDAP_SUCCESS ) {
+		/* no entry -> let the backend handle it */
+		goto done;
+	}
+
+	disclosure_limited = access_allowed( op, token, slap_schema.si_ad_entry,
+			NULL, ACL_DISCLOSE, NULL );
+
+	if ( !access_allowed_mask( op, token, ad_oathSecret, NULL, ACL_COMPARE,
+				NULL, &mask ) ) {
+		if ( !ACL_GRANT( mask, ACL_DISCLOSE ) ) {
+			rc = LDAP_NO_SUCH_ATTRIBUTE;
+		} else {
+			rc = LDAP_INSUFFICIENT_ACCESS;
+		}
+		goto done;
+	}
+
+	if ( is_entry_objectclass_or_sub( token, oc_oathTOTPToken ) ) {
+		totpdn = op->o_req_ndn;
+	} else if ( is_entry_objectclass_or_sub( token, oc_oathHOTPToken ) ) {
+		hotpdn = op->o_req_ndn;
+	} else {
+		/* Not implemented, pass to backend */
+		goto done;
+	}
+
+	if ( !attr_find( token->e_attrs, ad_oathSecret ) ) {
+		rc = LDAP_NO_SUCH_ATTRIBUTE;
+		goto done;
+	}
+
+	/*
+	 * Pass our entry to avoid a race (reading the entry twice), it gets
+	 * released inside as well.
+	 */
+	rc = otp_check_and_update( op, &totpdn, &hotpdn, token );
+	token = NULL;
+	switch (rc) {
+		case LDAP_SUCCESS:
+			rc = LDAP_COMPARE_TRUE;
+			break;
+		case LDAP_INVALID_CREDENTIALS:
+			rc = LDAP_COMPARE_FALSE;
+			break;
+		default:
+			break;
+	}
+
+done:
+	if ( token ) {
+		be_entry_release_r( op, token );
+	}
+	op->o_bd->bd_info = (BackendInfo *)on;
+	if ( disclosure_limited && rc != SLAP_CB_CONTINUE &&
+			rc != LDAP_COMPARE_TRUE && rc != LDAP_COMPARE_FALSE ) {
+		rc = LDAP_NO_SUCH_OBJECT;
+	}
+	send_ldap_error( op, rs, rc, NULL );
+	return rc;
+}
+
 static slap_overinst otp;
 
 int
@@ -991,6 +1119,7 @@ otp_initialize( void )
 
 	otp.on_bi.bi_type = "otp";
 	otp.on_bi.bi_op_bind = otp_op_bind;
+	otp.on_bi.bi_op_compare = otp_op_compare;
 
 	ca.argv = argv;
 	argv[0] = "otp";

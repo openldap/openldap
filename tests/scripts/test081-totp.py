@@ -127,9 +127,25 @@ def main():
     except ldap.INVALID_CREDENTIALS:
         raise SystemExit("Bind should have succeeded")
 
+    print("Testing a compare operation against token secret")
+    token = get_hotp_token(secret, interval_no+2)
+    try:
+        if not bind_conn.compare_s(dn, 'oathSecret', token):
+            raise SystemExit("Compare on oathSecret did not match")
+    except ldap.LDAPError:
+        raise SystemExit("Compare failed")
+
+    print("Testing a compare operation with a reused token")
+    token = get_hotp_token(secret, interval_no+2)
+    try:
+        if bind_conn.compare_s(dn, 'oathSecret', token):
+            raise SystemExit("Compare on oathSecret should not have matched")
+    except ldap.LDAPError:
+        raise SystemExit("Compare failed")
+
     dn, token_entry = get_token_for(connection, babsdn)
     last = int(token_entry['oathTOTPLastTimeStep'][0].decode())
-    if last != interval_no+1:
+    if last != interval_no+2:
         SystemExit("Unexpected counter value %d (expected %d)" %
                    (last, interval_no+1))
 

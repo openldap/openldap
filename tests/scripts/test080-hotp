@@ -40,6 +40,7 @@ TOKEN_10=409144
 # OTPs for the second set of parameters
 TOKEN_SHA512_11=17544155
 TOKEN_SHA512_12=48953477
+TOKEN_SHA512_13=94485071
 
 mkdir -p $TESTDIR $DBDIR1
 
@@ -251,12 +252,14 @@ if test $RC != 0 ; then
     exit $RC
 fi
 
-echo "\tthe previous long token that's just become valid..."
-$LDAPWHOAMI -D "$BABSDN" -H $URI1 -w "bjensen$TOKEN_SHA512_12" \
+echo "\tthe previous long token that's just become valid, then a compare operation..."
+$LDAPCOMPARE -D "$BABSDN" -H $URI1 -w "bjensen$TOKEN_SHA512_12" \
+    "ou=Information Technology Division,ou=People,dc=example,dc=com" \
+    "oathSecret:$TOKEN_SHA512_13" \
     >> $TESTOUT 2>&1
 RC=$?
-if test $RC != 0 ; then
-    echo "ldapwhoami failed ($RC)!"
+if test $RC != 6 ; then
+    echo "ldapcompare failed ($RC)!"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
     exit $RC
 fi
