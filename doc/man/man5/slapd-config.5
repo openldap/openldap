@@ -954,6 +954,13 @@ or the olcTLSCACertificateFile is defined. If both are specified, both
 locations will be used. Multiple directories may be specified,
 separated by a semi-colon.
 .TP
+.B olcTLSCACertificate: <CA cert>
+Stores a single CA certificate that will be trusted by the server, in DER format.
+If this option is set, the \fBolcTLSCACertificateFile\fP and
+\fBolcTLSCACertificatePath\fP options are ignored. If multiple
+CA certificates are required, the \fBolcTLSCACertificateFile\fP
+or \fBolcTLSCACertificatePath\fP options must be used instead of this option.
+.TP
 .B olcTLSCertificateFile: <filename>
 Specifies the file that contains the
 .B slapd
@@ -962,16 +969,23 @@ server certificate.
 When using OpenSSL that file may also contain any number of intermediate
 certificates after the server certificate.
 .TP
+.B olcTLSCertificate: <cert>
+Stores a single certificate for the server, in DER format. If this option is
+used, the \fBolcTLSCertificateFile\fP option is ignored.
+.TP
 .B olcTLSCertificateKeyFile: <filename>
 Specifies the file that contains the
 .B slapd
-server private key that matches the certificate stored in the
-.B olcTLSCertificateFile
-file. If the private key is protected with a password, the password must
+server private key that matches the specified server certificate.
+If the private key file is protected with a password, the password must
 be manually typed in when slapd starts.  Usually the private key is not
 protected with a password, to allow slapd to start without manual
 intervention, so
 it is of critical importance that the file is protected carefully. 
+.TP
+.B olcTLSCertificateKey <key>
+Stores the private key that matches the server certificate. If this option is
+used, the \fBolcTLSCertificateKeyFile\fP option is ignored.
 .TP
 .B olcTLSDHParamFile: <filename>
 This directive specifies the file that contains parameters for Diffie-Hellman
