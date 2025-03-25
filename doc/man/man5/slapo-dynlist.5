@@ -128,6 +128,9 @@ If the optional
 .B static-oc
 objectClass is also specified, then the memberOf attribute will also be
 populated with the DNs of the static groups that an entry is a member of.
+Note that using the same
+.B static-oc
+objectClass in more than one dynamic group configuration is not supported.
 If the optional
 .B *
 character is also specified, then the member and memberOf values will be
