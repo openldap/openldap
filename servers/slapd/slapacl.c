@@ -60,6 +60,18 @@ print_access(
 	return rc;
 }
 
+static int
+slapacl_entry_get(
+	Operation *op,
+	struct berval *dn,
+	ObjectClass *oc,
+	AttributeDescription *ad,
+	int rw,
+	Entry **e )
+{
+	return LDAP_UNWILLING_TO_PERFORM;
+}
+
 int
 slapacl( int argc, char **argv )
 {
@@ -293,6 +305,8 @@ slapacl( int argc, char **argv )
 				}
 			}
 		}
+	} else {
+		op->o_bd->be_fetch = slapacl_entry_get;
 	}
 
 	for ( ; argc--; argv++ ) {
