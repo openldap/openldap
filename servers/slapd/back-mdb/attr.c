@@ -98,6 +98,9 @@ mdb_attr_dbs_open(
 	int i, flags;
 	int rc;
 
+	if ( !mdb->mi_nattrs )
+		return 0;
+
 	txn = tx0;
 	if ( txn == NULL ) {
 		rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txn );
