@@ -371,6 +371,9 @@ mdb_setup_indexer( struct mdb_info *mdb )
 	int i, rc, changed = 0;
 	unsigned short s;
 
+	if ( !mdb->mi_nattrs )
+		return 0;
+
 	rc = mdb_txn_begin( mdb->mi_dbenv, NULL, 0, &txn );
 	if ( rc )
 		return rc;
