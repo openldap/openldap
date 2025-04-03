@@ -529,6 +529,7 @@ autogroup_add_members_from_filter( Operation *op, Entry *e, autogroup_entry_t *a
 	o.ors_attrs =  agf->agf_anlist ? agf->agf_anlist : slap_anlist_no_attrs;
 	o.o_do_not_cache = 1;
 	o.o_abandon = 0;
+	o.o_managedsait = SLAP_CONTROL_NONCRITICAL;
 
 	agg.agg_group = age;
 	agg.agg_filter = agf;
@@ -2130,6 +2131,7 @@ autogroup_db_open(
 	op->ors_slimit = SLAP_NO_LIMIT;
 	op->ors_attrs =  slap_anlist_no_attrs;
 	op->o_do_not_cache = 1;
+	op->o_managedsait = SLAP_CONTROL_CRITICAL;
 
 	op->o_bd = be;
 	op->o_bd->bd_info = (BackendInfo *)on->on_info;
