@@ -5373,6 +5373,14 @@ mdb_env_open2(MDB_env *env, int prev)
 #endif
 	;
 
+	/* if RAWPART, we did a preliminary mapping in read_header. drop it now. */
+	if (flags & MDB_RAWPART) {
+		munmap(env->me_map, env->me_mapsize);
+		env->me_map = NULL;
+		/* if mapsize was defaulted, use mapsize from metapage */
+		if (env->me_mapsize == DEFAULT_MAPSIZE)
+			env->me_mapsize = 0;
+	}
 	/* Was a mapsize configured? */
 	if (!env->me_mapsize) {
 		env->me_mapsize = meta.mm_mapsize;
