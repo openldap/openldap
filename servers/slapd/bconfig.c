@@ -6944,10 +6944,17 @@ config_back_search( Operation *op, SlapReply *rs )
 	CfBackInfo *cfb;
 	CfEntryInfo *ce, *last = NULL;
 	slap_mask_t mask;
+	int paused = 0;
 
 	cfb = (CfBackInfo *)op->o_bd->be_private;
 
-	ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
+	if ( ldap_pvt_thread_pool_query( &connection_pool,
+			LDAP_PVT_THREAD_POOL_PARAM_PAUSED, &paused ) ) {
+		return -1;
+	}
+	if ( !paused ) {
+		ldap_pvt_thread_rdwr_rlock( &cfb->cb_rwlock );
+	}
 	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
 	if ( !ce ) {
 		if ( last )
@@ -6982,7 +6989,8 @@ config_back_search( Operation *op, SlapReply *rs )
 	}
 
 out:
-	ldap_pvt_thread_rdwr_runlock( &cfb->cb_rwlock );
+	if ( !paused )
+		ldap_pvt_thread_rdwr_runlock( &cfb->cb_rwlock );
 	send_ldap_result( op, rs );
 	return rs->sr_err;
 }
