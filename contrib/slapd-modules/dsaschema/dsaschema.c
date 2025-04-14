@@ -77,7 +77,7 @@ static ConfigTable dsaschemacfg[] = {
 static ConfigLDAPadd dsaschema_ldadd;
 
 static ConfigOCs dsaschemaocs[] = {
-	{ "( OLcfgOvOc:11.1 "
+	{ "( OLcfgCtOc:11.1 "
 	  "NAME 'olcDSASchemaConfig' "
 	  "DESC 'DSA schema object' "
 	  "SUP olcSchemaConfig STRUCTURAL )",
