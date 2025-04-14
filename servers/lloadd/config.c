@@ -3689,6 +3689,10 @@ backend_cf_gen( ConfigArgs *c )
             }
 #endif /* ! HAVE_TLS */
             b->b_tls_conf = tlskey[i].mask;
+            if ( b->b_tls != LLOAD_LDAPS ) {
+                b->b_tls = b->b_tls_conf;
+                flag = LLOAD_BACKEND_MOD_OTHER;
+            }
         } break;
         default:
             rc = 1;
