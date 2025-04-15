@@ -1641,7 +1641,7 @@ ppolicy_rule_ldmove( CfEntryInfo *ce, Operation *op, SlapReply *rs,
 	slap_overinst *on = (slap_overinst *)ce->ce_bi;
 	pp_info *pi = (pp_info *)on->on_bi.bi_private;
 	policy_rule *pr = ce->ce_private, **prp;
-	int i;
+	int i = 0;
 
 	for ( prp = &pi->policy_rules; *prp != pr; prp = &(*prp)->next, i++ )
 		/* Find removal point */;
