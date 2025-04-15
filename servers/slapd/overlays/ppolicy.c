@@ -170,6 +170,7 @@ typedef struct pass_policy {
 	int pwdUseCheckModule; /* 0 = do not use password check module, 1 = use */
 	struct berval pwdCheckModuleArg; /* Optional argument to the password check
 										module */
+	struct berval pwdDefaultHash; /* A per-policy default password hash */
 } PassPolicy;
 
 typedef struct pw_hist {
@@ -193,10 +194,10 @@ static AttributeDescription *ad_pwdMinAge, *ad_pwdMaxAge, *ad_pwdMaxIdle,
 	*ad_pwdLockoutDuration, *ad_pwdFailureCountInterval,
 	*ad_pwdCheckModule, *ad_pwdCheckModuleArg, *ad_pwdUseCheckModule, *ad_pwdLockout,
 	*ad_pwdMustChange, *ad_pwdAllowUserChange, *ad_pwdSafeModify,
-	*ad_pwdAttribute, *ad_pwdMaxRecordedFailure;
+	*ad_pwdAttribute, *ad_pwdMaxRecordedFailure, *ad_pwdDefaultHash;
 
 /* Policy objectclasses */
-static ObjectClass *oc_pwdPolicyChecker, *oc_pwdPolicy;
+static ObjectClass *oc_pwdPolicyChecker, *oc_pwdPolicy, *oc_pwdHashingPolicy;
 
 static struct schema_info {
 	char *def;
@@ -467,6 +468,13 @@ static struct schema_info {
 		"DESC 'Toggle use of the loaded pwdCheckModule' "
 		"SINGLE-VALUE )",
 		&ad_pwdUseCheckModule },
+	{	"( 1.3.6.1.4.1.4754.1.99.4 "
+		"NAME ( 'pwdDefaultHash' ) "
+		"EQUALITY caseIgnoreMatch "
+		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 "
+		"DESC 'Per policy default hash setting' "
+		"SINGLE-VALUE )",
+		&ad_pwdDefaultHash },
 
 	{ NULL, NULL }
 };
@@ -497,6 +505,14 @@ static struct oc_info {
 			"pwdMinDelay $ pwdMaxDelay $ pwdMaxIdle $ "
 			"pwdMaxRecordedFailure ) )",
 		&oc_pwdPolicy,
+	},
+	{
+		"( 1.3.6.1.4.1.4754.2.99.2 "
+			"NAME 'pwdHashingPolicy' "
+			"SUP pwdPolicy "
+			"AUXILIARY "
+			"MAY pwdDefaultHash )",
+		&oc_pwdHashingPolicy,
 	},
 	NULL
 };
@@ -2417,6 +2433,19 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 		}
 	}
 
+	if ( is_entry_objectclass_or_sub( pe, oc_pwdHashingPolicy ) ) {
+		ad = ad_pwdDefaultHash;
+		if ( (a = attr_find( pe->e_attrs, ad )) ) {
+			if ( lutil_passwd_scheme( a->a_vals[0].bv_val ) ) {
+				ber_dupbv_x( &pp->pwdDefaultHash, &a->a_vals[0], op->o_tmpmemctx );
+			} else {
+				Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
+						"Ignoring unknown hash '%s' in policy %s.\n",
+						a->a_vals[0].bv_val, pe->e_name.bv_val );
+			}
+		}
+	}
+
 	ad = ad_pwdLockout;
 	if ( (a = attr_find( pe->e_attrs, ad )) )
 		pp->pwdLockout = bvmatch( &a->a_nvals[0], &slap_true_bv );
@@ -3693,7 +3722,7 @@ ppolicy_add(
 			(password_scheme( &(pa->a_vals[0]), NULL ) != LDAP_SUCCESS)) {
 			struct berval hpw;
 
-			slap_passwd_hash( &(pa->a_vals[0]), &hpw, &txt );
+			slap_passwd_hash_type( &(pa->a_vals[0]), &hpw, pp.pwdDefaultHash.bv_val, &txt );
 			if (hpw.bv_val == NULL) {
 				/*
 				 * hashing didn't work. Emit an error.
@@ -4474,7 +4503,7 @@ do_modify:
 		{
 			struct berval hpw, bv;
 			
-			slap_passwd_hash( &(addmod->sml_values[0]), &hpw, &txt );
+			slap_passwd_hash_type( &(addmod->sml_values[0]), &hpw, pp.pwdDefaultHash.bv_val, &txt );
 			if (hpw.bv_val == NULL) {
 					/*
 					 * hashing didn't work. Emit an error.
