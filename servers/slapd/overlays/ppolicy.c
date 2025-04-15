@@ -171,6 +171,9 @@ typedef struct pass_policy {
 	struct berval pwdCheckModuleArg; /* Optional argument to the password check
 										module */
 	struct berval pwdDefaultHash; /* A per-policy default password hash */
+	int pwdRehashOnBind; /* 1 = if the current password doesn't have the same
+							hash as our default, update the stored hash on a
+							successful simple bind */
 } PassPolicy;
 
 typedef struct pw_hist {
@@ -194,7 +197,8 @@ static AttributeDescription *ad_pwdMinAge, *ad_pwdMaxAge, *ad_pwdMaxIdle,
 	*ad_pwdLockoutDuration, *ad_pwdFailureCountInterval,
 	*ad_pwdCheckModule, *ad_pwdCheckModuleArg, *ad_pwdUseCheckModule, *ad_pwdLockout,
 	*ad_pwdMustChange, *ad_pwdAllowUserChange, *ad_pwdSafeModify,
-	*ad_pwdAttribute, *ad_pwdMaxRecordedFailure, *ad_pwdDefaultHash;
+	*ad_pwdAttribute, *ad_pwdMaxRecordedFailure, *ad_pwdDefaultHash,
+	*ad_pwdRehashOnBind;
 
 /* Policy objectclasses */
 static ObjectClass *oc_pwdPolicyChecker, *oc_pwdPolicy, *oc_pwdHashingPolicy;
@@ -475,6 +479,14 @@ static struct schema_info {
 		"DESC 'Per policy default hash setting' "
 		"SINGLE-VALUE )",
 		&ad_pwdDefaultHash },
+	{	"( 1.3.6.1.4.1.4754.1.99.5 "
+		"NAME ( 'pwdRehashOnBind' ) "
+		"EQUALITY booleanMatch "
+		"SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 "
+		"DESC 'On successful Simple Bind, rehash password "
+			"with default hash if different' "
+		"SINGLE-VALUE )",
+		&ad_pwdRehashOnBind },
 
 	{ NULL, NULL }
 };
@@ -511,7 +523,7 @@ static struct oc_info {
 			"NAME 'pwdHashingPolicy' "
 			"SUP pwdPolicy "
 			"AUXILIARY "
-			"MAY pwdDefaultHash )",
+			"MAY ( pwdDefaultHash $ pwdRehashOnBind ) )",
 		&oc_pwdHashingPolicy,
 	},
 	NULL
@@ -2444,6 +2456,10 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 						a->a_vals[0].bv_val, pe->e_name.bv_val );
 			}
 		}
+
+		ad = ad_pwdRehashOnBind;
+		if ( (a = attr_find( pe->e_attrs, ad )) )
+			pp->pwdRehashOnBind = bvmatch( &a->a_nvals[0], &slap_true_bv );
 	}
 
 	ad = ad_pwdLockout;
@@ -2473,6 +2489,12 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 				"pwdMinDelay was set but pwdMaxDelay wasn't, assuming they "
 				"are equal\n" );
 		pp->pwdMaxDelay = pp->pwdMinDelay;
+	}
+
+	if ( pp->pwdRehashOnBind && BER_BVISNULL( &pp->pwdDefaultHash ) ) {
+		Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
+				"pwdRehashOnBind is set but pwdDefaultHash not set.\n" );
+		pp->pwdRehashOnBind = 0;
 	}
 
 	op->o_bd = bd;
@@ -2848,6 +2870,7 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 	char nowstr[ LDAP_LUTIL_GENTIME_BUFSIZE ];
 	char nowstr_usec[ LDAP_LUTIL_GENTIME_BUFSIZE+8 ];
 	struct berval timestamp, timestamp_usec;
+	struct berval oldpw = BER_BVNULL, scheme = BER_BVNULL;
 	BackendDB *be = op->o_bd;
 	LDAPControl *ctrl = NULL;
 	Entry *e;
@@ -2867,9 +2890,12 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 	}
 
 	/* ITS#7089 Skip lockout checks/modifications if password attribute missing */
-	if ( attr_find( e->e_attrs, ppb->pp.ad ) == NULL ) {
+	if ( (a = attr_find( e->e_attrs, ppb->pp.ad )) == NULL ) {
 		goto done;
 	}
+
+	oldpw = a->a_vals[0];
+	password_scheme( &oldpw, &scheme );
 
 	ldap_pvt_gettime(&now_tm); /* stored for later consideration */
 	lutil_tm2time(&now_tm, &now_usec);
@@ -3056,6 +3082,58 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 			ppb->pErr = PP_changeAfterReset;
 
 		} else {
+			/*
+			 * Check if we're expected to rewrite the stored hash
+			 */
+			if ( ppb->pp.pwdRehashOnBind && op->o_tag == LDAP_REQ_BIND &&
+					op->orb_method == LDAP_AUTH_SIMPLE &&
+					!BER_BVISNULL( &ppb->pp.pwdDefaultHash ) &&
+					ber_bvstrcasecmp( &scheme, &ppb->pp.pwdDefaultHash ) ) {
+				struct berval newpw = BER_BVNULL, newhash = BER_BVNULL;
+
+				if ( op->o_tag == LDAP_REQ_COMPARE ) {
+					newpw = op->orc_ava->aa_value;
+				} else if ( op->o_tag == LDAP_REQ_BIND &&
+						op->orb_method == LDAP_AUTH_SIMPLE ) {
+					newpw = op->orb_cred;
+				}
+
+				if ( !BER_BVISNULL( &newpw ) ) {
+					const char *txt;
+					slap_passwd_hash_type( &newpw, &newhash,
+							ppb->pp.pwdDefaultHash.bv_val, &txt );
+					if ( BER_BVISNULL( &newhash ) ) {
+						Debug( LDAP_DEBUG_ANY, "ppolicy_bind_response: "
+								"rehashing password for user %s failed: %s\n",
+								op->o_req_dn.bv_val, txt );
+					}
+				}
+
+				if ( !BER_BVISNULL( &newhash ) ) {
+					m = ch_calloc( sizeof(Modifications), 1 );
+					m->sml_op = LDAP_MOD_ADD;
+					m->sml_flags = SLAP_MOD_INTERNAL;
+					m->sml_type = ppb->pp.ad->ad_cname;
+					m->sml_desc = ppb->pp.ad;
+					m->sml_next = mod;
+					m->sml_numvals = 1;
+					m->sml_values = ch_calloc( sizeof(struct berval), 2 );
+					m->sml_values[0] = newhash;
+
+					/* Before we add new, delete old value */
+					mod = m;
+					m = (Modifications *)ch_calloc( sizeof( Modifications ), 1 );
+					m->sml_op = LDAP_MOD_DELETE;
+					m->sml_flags = SLAP_MOD_INTERNAL;
+					m->sml_desc = ppb->pp.ad;
+					m->sml_type = ppb->pp.ad->ad_cname;
+					m->sml_numvals = 1;
+					m->sml_values = ch_calloc( sizeof( struct berval ), 2 );
+					ber_dupbv( &m->sml_values[0], &oldpw );
+					mod = m;
+				}
+			}
+
 			/*
 			 * the password does not need to be changed, so
 			 * we now check whether the password has expired.
