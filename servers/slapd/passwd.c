@@ -572,25 +572,26 @@ slap_passwd_hash_type(
 	new->bv_len = 0;
 	new->bv_val = NULL;
 
+	if ( hash == NULL ) {
+		if ( default_passwd_hash ) {
+			hash = default_passwd_hash[0];
+		}
+		if ( !hash ) {
+			hash = (char *)defhash[0];
+		}
+	}
 	assert( hash != NULL );
 
 	lutil_passwd_hash( cred , hash, new, text );
 }
+
 void
 slap_passwd_hash(
 	struct berval * cred,
 	struct berval * new,
 	const char **text )
 {
-	char *hash = NULL;
-	if ( default_passwd_hash ) {
-		hash = default_passwd_hash[0];
-	}
-	if ( !hash ) {
-		hash = (char *)defhash[0];
-	}
-
-	slap_passwd_hash_type( cred, new, hash, text );
+	slap_passwd_hash_type( cred, new, NULL, text );
 }
 
 #ifdef SLAPD_CRYPT
