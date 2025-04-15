@@ -2529,7 +2529,7 @@ password_scheme( struct berval *cred, struct berval *sch )
 		if (rc) {
 			if (sch) {
 				sch->bv_val = cred->bv_val;
-				sch->bv_len = e;
+				sch->bv_len = e + 1;
 			}
 			return LDAP_SUCCESS;
 		}
