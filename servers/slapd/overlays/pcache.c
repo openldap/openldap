@@ -3281,6 +3281,7 @@ typedef struct refresh_info {
 	dnlist *ri_dels;
 	BackendDB *ri_be;
 	CachedQuery *ri_q;
+	time_t		ri_ttl;
 } refresh_info;
 
 static dnlist *dnl_alloc( Operation *op, struct berval *bvdn )
@@ -3314,6 +3315,7 @@ refresh_merge( Operation *op, SlapReply *rs )
 			 */
 			if ( BER_BVISNULL( &ri->ri_q->q_uuid )) {
 				assign_uuid( &ri->ri_q->q_uuid );
+				ri->ri_q->expiry_time = slap_get_time() + ri->ri_ttl;
 			}
 			merge_entry( op, rs->sr_entry, 1, &ri->ri_q->q_uuid );
 		} else {
@@ -3412,7 +3414,7 @@ refresh_purge( Operation *op, SlapReply *rs )
 }
 
 static int
-refresh_query( Operation *op, CachedQuery *query, slap_overinst *on )
+refresh_query( Operation *op, CachedQuery *query, slap_overinst *on, QueryTemplate *templ)
 {
 	SlapReply rs = {REP_RESULT};
 	slap_callback cb = { 0 };
@@ -3423,6 +3425,7 @@ refresh_query( Operation *op, CachedQuery *query, slap_overinst *on )
 	AttributeName attrs[ 2 ] = {{{ 0 }}};
 	dnlist *dn;
 	int rc;
+	int query_is_negative = 0;
 
 	ldap_pvt_thread_mutex_lock( &query->answerable_cnt_mutex );
 	query->refcnt = 0;
@@ -3434,6 +3437,7 @@ refresh_query( Operation *op, CachedQuery *query, slap_overinst *on )
 	/* cache DB */
 	ri.ri_be = op->o_bd;
 	ri.ri_q = query;
+	ri.ri_ttl = templ->ttl;
 
 	op->o_tag = LDAP_REQ_SEARCH;
 	op->o_protocol = LDAP_VERSION3;
@@ -3454,14 +3458,13 @@ refresh_query( Operation *op, CachedQuery *query, slap_overinst *on )
 
 	op->o_bd = on->on_info->oi_origdb;
 	rc = op->o_bd->be_search( op, &rs );
-	if (!ri.ri_dns && !BER_BVISNULL( &query->q_uuid )) {
-		ber_memfree( query->q_uuid.bv_val );
-		BER_BVZERO( &query->q_uuid );
-	}
 	if ( rc ) {
 		op->o_bd = ri.ri_be;
 		goto leave;
 	}
+
+	if (!ri.ri_dns && !BER_BVISNULL( &query->q_uuid ))
+	        query_is_negative = 1;
 
 	/* Get the DNs of all entries matching this query */
 	cb.sc_response = refresh_purge;
@@ -3512,6 +3515,12 @@ refresh_query( Operation *op, CachedQuery *query, slap_overinst *on )
 		}
 		ri.ri_dels = dn->next;
 		op->o_tmpfree( dn, op->o_tmpmemctx );
+	}
+
+	if ( query_is_negative ) {
+		ber_memfree( query->q_uuid.bv_val );
+		BER_BVZERO( &query->q_uuid );
+		query->expiry_time = slap_get_time() + templ->negttl;
 	}
 
 leave:
@@ -3580,8 +3589,13 @@ consistency_check(
 				 * expiration has been hit, then skip the refresh since
 				 * we're just going to discard the result anyway.
 				 */
-				if ( query->refcnt )
-					query->expiry_time = op->o_time + templ->ttl;
+				if ( query->refcnt ) {
+					if ( BER_BVISNULL( &query->q_uuid )) {
+						query->expiry_time = op->o_time + templ->negttl;
+					} else {
+						query->expiry_time = op->o_time + templ->ttl;
+					}
+				}
 				if ( query->expiry_time > op->o_time ) {
 					/* perform actual refresh below */
 					continue;
@@ -3661,7 +3675,7 @@ consistency_check(
 					 * we're just going to discard the result anyway.
 					 */
 					if ( query->expiry_time > op->o_time ) {
-						refresh_query( op, query, on );
+					        refresh_query( op, query, on, templ );
 						query->refresh_time = op->o_time + templ->ttr;
 					}
 				}
