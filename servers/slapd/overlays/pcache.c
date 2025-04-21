@@ -2301,6 +2301,14 @@ pcache_remove_entry_queries_from_cache(
 	return LDAP_SUCCESS;
 }
 
+static void
+assign_uuid( struct berval *query_uuid )
+{
+	char		uuidbuf[ LDAP_LUTIL_UUIDSTR_BUFSIZE ];
+	query_uuid->bv_len = lutil_uuidstr( uuidbuf, sizeof(uuidbuf) );
+	ber_str2bv( uuidbuf, query_uuid->bv_len, 1, query_uuid );
+}
+
 static int
 cache_entries(
 	Operation	*op,
@@ -2312,15 +2320,12 @@ cache_entries(
 	int		return_val = 0;
 	Entry		*e;
 	struct berval	crp_uuid;
-	char		uuidbuf[ LDAP_LUTIL_UUIDSTR_BUFSIZE ];
 	Operation	*op_tmp;
 	Connection	conn = {0};
 	OperationBuffer opbuf;
 	void		*thrctx = ldap_pvt_thread_pool_context();
 
-	query_uuid->bv_len = lutil_uuidstr(uuidbuf, sizeof(uuidbuf));
-	ber_str2bv(uuidbuf, query_uuid->bv_len, 1, query_uuid);
-
+	assign_uuid( query_uuid );
 	connection_fake_init2( &conn, &opbuf, thrctx, 0 );
 	op_tmp = &opbuf.ob_op;
 	op_tmp->o_bd = &cm->db;
@@ -2328,7 +2333,7 @@ cache_entries(
 	op_tmp->o_ndn = cm->db.be_rootndn;
 
 	Debug( pcache_debug, "UUID for query being added = %s\n",
-			uuidbuf );
+			query_uuid->bv_val );
 
 	for ( e=si->head; e; e=si->head ) {
 		si->head = e->e_private;
@@ -3307,7 +3312,10 @@ refresh_merge( Operation *op, SlapReply *rs )
 			/* No local entry, just add it. FIXME: we are not checking
 			 * the cache entry limit here
 			 */
-			 merge_entry( op, rs->sr_entry, 1, &ri->ri_q->q_uuid );
+			if ( BER_BVISNULL( &ri->ri_q->q_uuid )) {
+				assign_uuid( &ri->ri_q->q_uuid );
+			}
+			merge_entry( op, rs->sr_entry, 1, &ri->ri_q->q_uuid );
 		} else {
 			/* Entry exists, update it */
 			Entry ne;
@@ -3446,6 +3454,10 @@ refresh_query( Operation *op, CachedQuery *query, slap_overinst *on )
 
 	op->o_bd = on->on_info->oi_origdb;
 	rc = op->o_bd->be_search( op, &rs );
+	if (!ri.ri_dns && !BER_BVISNULL( &query->q_uuid )) {
+		ber_memfree( query->q_uuid.bv_val );
+		BER_BVZERO( &query->q_uuid );
+	}
 	if ( rc ) {
 		op->o_bd = ri.ri_be;
 		goto leave;
