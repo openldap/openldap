@@ -900,6 +900,8 @@ merge_entry(
 		rc = 1;
 	}
 
+	BER_BVZERO(&op->o_req_dn);
+	BER_BVZERO(&op->o_req_ndn);
 	return rc;
 }
 
