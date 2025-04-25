@@ -425,27 +425,42 @@ slap_tool_init(
 			rc = ldap_url_parse_ext( optarg, &ludp,
 				LDAP_PVT_URL_PARSE_NOEMPTY_HOST | LDAP_PVT_URL_PARSE_NOEMPTY_DN );
 			if ( rc != LDAP_URL_SUCCESS ) {
+				fprintf( stderr, "Cannot parse '%s' as LDAP URI.\n", optarg );
 				usage( tool, progname );
 			}
 
 			/* don't accept host, port, attrs, extensions */
 			if ( ldap_pvt_url_scheme2proto( ludp->lud_scheme ) != LDAP_PROTO_TCP ) {
+				fprintf( stderr, "%s URIs need to use ldap:// scheme.\n",
+						progname );
 				usage( tool, progname );
 			}
 
 			if ( ludp->lud_host != NULL ) {
+				fprintf( stderr, "%s URIs cannot carry a host. "
+						"Only base, scope and filter are accepted\n",
+						progname );
 				usage( tool, progname );
 			}
 
 			if ( ludp->lud_port != 0 ) {
+				fprintf( stderr, "%s URIs cannot carry a port. "
+						"Only base, scope and filter are accepted\n",
+						progname );
 				usage( tool, progname );
 			}
 
 			if ( ludp->lud_attrs != NULL ) {
+				fprintf( stderr, "%s URIs cannot carry an attribute specification. "
+						"Only base, scope and filter are accepted\n",
+						progname );
 				usage( tool, progname );
 			}
 
 			if ( ludp->lud_exts != NULL ) {
+				fprintf( stderr, "%s URIs cannot carry an extension specification. "
+						"Only base, scope and filter are accepted\n",
+						progname );
 				usage( tool, progname );
 			}
 
@@ -467,6 +482,7 @@ slap_tool_init(
 
 		case 'j':	/* jump to linenumber */
 			if ( lutil_atoul( &jumpline, optarg ) ) {
+				fprintf( stderr, "Invalid line number '%s'\n", optarg );
 				usage( tool, progname );
 			}
 			break;
@@ -481,6 +497,7 @@ slap_tool_init(
 
 		case 'N':
 			if ( dn_mode && dn_mode != SLAP_TOOL_LDAPDN_NORMAL ) {
+				fputs( "Invalid combination of -N/-P provided\n", stderr );
 				usage( tool, progname );
 			}
 			dn_mode = SLAP_TOOL_LDAPDN_NORMAL;
@@ -488,6 +505,7 @@ slap_tool_init(
 
 		case 'n':	/* which config file db to index */
 			if ( lutil_atoi( &dbnum, optarg ) || dbnum < 0 ) {
+				fputs( "Invalid database index provided\n", stderr );
 				usage( tool, progname );
 			}
 			break;
@@ -500,6 +518,7 @@ slap_tool_init(
 
 		case 'P':
 			if ( dn_mode && dn_mode != SLAP_TOOL_LDAPDN_PRETTY ) {
+				fputs( "Invalid combination of -N/-P provided\n", stderr );
 				usage( tool, progname );
 			}
 			dn_mode = SLAP_TOOL_LDAPDN_PRETTY;
@@ -522,6 +541,7 @@ slap_tool_init(
 			if ( lutil_atou( &csnsid, optarg )
 				|| csnsid > SLAP_SYNC_SID_MAX )
 			{
+				fputs( "Invalid serverid provided\n", stderr );
 				usage( tool, progname );
 			}
 			break;
