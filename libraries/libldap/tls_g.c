@@ -597,6 +597,9 @@ tlsg_session_chkhost( LDAP *ld, tls_session *session, const char *name_in )
 	int len1 = 0, len2 = 0;
 	int ntype = IS_DNS;
 
+	if ( !ldap_int_hostname )
+		ldap_int_resolve_hostname();
+
 	if( ldap_int_hostname &&
 		( !name_in || !strcasecmp( name_in, "localhost" ) ) )
 	{

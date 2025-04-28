@@ -890,6 +890,8 @@ ldap_host_connected_to( Sockbuf *sb, const char *host )
 	 * this is necessary for kerberos to work right, since the official
 	 * hostname is used as the kerberos instance.
 	 */
+	if ( !ldap_int_hostname )
+		ldap_int_resolve_hostname();
 
 	switch (sa->sa_family) {
 #ifdef LDAP_PF_LOCAL

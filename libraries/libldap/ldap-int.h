@@ -743,6 +743,7 @@ LDAP_F (int) ldap_int_poll( LDAP *ld, ber_socket_t s,
 
 #if defined(HAVE_TLS) || defined(HAVE_CYRUS_SASL)
 LDAP_V (char *) ldap_int_hostname;
+LDAP_F (void) ldap_int_resolve_hostname(void);
 LDAP_F (char *) ldap_host_connected_to( Sockbuf *sb,
 	const char *host );
 #endif

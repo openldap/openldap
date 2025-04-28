@@ -463,6 +463,9 @@ tlsmt_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 	struct in_addr addr;
 #endif
 
+	if ( !ldap_int_hostname )
+		ldap_int_resolve_hostname();
+
 	if( ldap_int_hostname &&
 		( !name_in || !strcasecmp( name_in, "localhost" ) ) )
 	{

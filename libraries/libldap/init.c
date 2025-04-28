@@ -631,6 +631,25 @@ void ldap_int_initialize_global_options( struct ldapoptions *gopts, int *dbglvl 
 
 #if defined(HAVE_TLS) || defined(HAVE_CYRUS_SASL)
 char * ldap_int_hostname = NULL;
+
+void
+ldap_int_resolve_hostname(void)
+{
+	static int resolved = 0;
+
+	LDAP_MUTEX_LOCK( &ldap_int_hostname_mutex );
+	if ( !resolved ) {
+		char	*name = ldap_int_hostname;
+
+		ldap_int_hostname = ldap_pvt_get_fqdn( name );
+
+		if ( name != NULL && name != ldap_int_hostname ) {
+			LDAP_FREE( name );
+		}
+		resolved = 1;
+	}
+	LDAP_MUTEX_UNLOCK( &ldap_int_hostname_mutex );
+}
 #endif
 
 #ifdef LDAP_R_COMPILE
@@ -686,20 +705,6 @@ void ldap_int_initialize( struct ldapoptions *gopts, int *dbglvl )
 	    goto done;
 	}
 }
-#endif
-
-#if defined(HAVE_TLS) || defined(HAVE_CYRUS_SASL)
-	LDAP_MUTEX_LOCK( &ldap_int_hostname_mutex );
-	{
-		char	*name = ldap_int_hostname;
-
-		ldap_int_hostname = ldap_pvt_get_fqdn( name );
-
-		if ( name != NULL && name != ldap_int_hostname ) {
-			LDAP_FREE( name );
-		}
-	}
-	LDAP_MUTEX_UNLOCK( &ldap_int_hostname_mutex );
 #endif
 
 #ifndef HAVE_POLL
