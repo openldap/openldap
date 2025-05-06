@@ -21,6 +21,7 @@ OpenLDAP 2.6.10 Engineering
 		ITS#10312
 		ITS#10320
 		ITS#10325
+		ITS#10327
 
 OpenLDAP 2.6.9 Release (2024/11/26)
 	Fixed libldap TLS connection timeout handling (ITS#8047)
