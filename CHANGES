@@ -5,6 +5,7 @@ OpenLDAP 2.6.10 Engineering
 	Fixed slapd syncrepl when used with slapo-rwm (ITS#10290)
 	Fixed slapd regression with certain searches (ITS#10307)
 	Fixed slapo-autoca olcAutoCAserverClass object (ITS#10288)
+	Fixed slapo-pcache caching behaviors (ITS#10270)
 	Minor Cleanup
 		ITS#7080
 		ITS#7249
