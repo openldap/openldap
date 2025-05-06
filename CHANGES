@@ -1,6 +1,7 @@
 OpenLDAP 2.5 Change Log
 
 OpenLDAP 2.5.20 Engineering
+	Fixed lloadd handling of starttls critical (ITS#10323)
 	Fixed slapd regression with certain searches (ITS#10307)
 	Fixed slapo-pcache caching behaviors (ITS#10270)
 	Minor Cleanup
