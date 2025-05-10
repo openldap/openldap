@@ -2061,10 +2061,12 @@ static void print_reference(
 	}
 
 	if( refs ) {
-		int i;
-		for( i=0; refs[i] != NULL; i++ ) {
-			tool_write_ldif( ldif ? LDIF_PUT_COMMENT : LDIF_PUT_VALUE,
-				"ref", refs[i], strlen(refs[i]) );
+		if( ldif < 2 ) {
+			int i;
+			for( i=0; refs[i] != NULL; i++ ) {
+				tool_write_ldif( ldif ? LDIF_PUT_COMMENT : LDIF_PUT_VALUE,
+					"ref", refs[i], strlen(refs[i]) );
+			}
 		}
 		ber_memvfree( (void **) refs );
 	}
