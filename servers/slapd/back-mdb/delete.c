@@ -148,17 +148,18 @@ mdb_delete( Operation *op, SlapReply *rs )
 			"<=- " LDAP_XSTRING(mdb_delete) ": no such object %s\n",
 			op->o_req_dn.bv_val );
 
-		rs->sr_matched = ch_strdup( e->e_dn );
-		if ( is_entry_referral( e )) {
-			BerVarray ref = get_entry_referrals( op, e );
-			rs->sr_ref = referral_rewrite( ref, &e->e_name,
-				&op->o_req_dn, LDAP_SCOPE_DEFAULT );
-			ber_bvarray_free( ref );
-		} else {
-			rs->sr_ref = NULL;
+		rs->sr_ref = NULL;
+		if ( e ) {
+			rs->sr_matched = ch_strdup( e->e_dn );
+			if ( is_entry_referral( e )) {
+				BerVarray ref = get_entry_referrals( op, e );
+				rs->sr_ref = referral_rewrite( ref, &e->e_name,
+					&op->o_req_dn, LDAP_SCOPE_DEFAULT );
+				ber_bvarray_free( ref );
+			}
+			mdb_entry_return( op, e );
+			e = NULL;
 		}
-		mdb_entry_return( op, e );
-		e = NULL;
 
 		rs->sr_err = LDAP_REFERRAL;
 		rs->sr_flags = REP_MATCHED_MUSTBEFREED | REP_REF_MUSTBEFREED;
