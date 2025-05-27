@@ -5593,7 +5593,7 @@ ok:
 				snprintf( ca->cr_msg, sizeof( ca->cr_msg ), "<%s> failed startup", ca->argv[0] );
 
 			Debug(LDAP_DEBUG_ANY, "%s: %s (%s)!\n",
-				ca->log, ca->cr_msg, ca->argv[1] );
+				ca->log, ca->cr_msg, e->e_name.bv_val );
 			rc = LDAP_OTHER;
 			goto done;
 		}
