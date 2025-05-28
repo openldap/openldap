@@ -6159,7 +6159,7 @@ firstComponentNormalize(
 	struct berval comp;
 	ber_len_t len;
 
-	if( SLAP_MR_IS_VALUE_OF_ASSERTION_SYNTAX( usage )) {
+	if( normalized && SLAP_MR_IS_VALUE_OF_ASSERTION_SYNTAX( usage )) {
 		ber_dupbv_x( normalized, val, ctx );
 		return LDAP_SUCCESS;
 	}

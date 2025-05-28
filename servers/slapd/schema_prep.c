@@ -91,6 +91,7 @@ static int objectClassPretty(
 	void *ctx )
 {
 	ObjectClass *oc;
+	assert( out != NULL );
 
 	if( oidValidate( NULL, in )) return LDAP_INVALID_SYNTAX;
 
