@@ -3309,9 +3309,8 @@ renew:
 	}
 	if (rc) {
 		if (txn != env->me_txn0) {
-#ifdef MDB_VL32
-			free(txn->mt_rpages);
-#endif
+			/* mt_rpages is owned by parent */
+			free(txn->mt_u.dirty_list);
 			free(txn);
 		}
 	} else {
