@@ -6169,7 +6169,7 @@ slap_uuidstr_from_normalized(
 	new->bv_len = 36;
 
 	if ( ( new->bv_val = slap_sl_malloc( new->bv_len + 1, ctx ) ) == NULL ) {
-		rc = 1;
+		rc = -1;
 		goto done;
 	}
 
