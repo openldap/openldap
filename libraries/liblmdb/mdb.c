@@ -2974,8 +2974,10 @@ renew:
 		rc = mdb_txn_renew0(txn);
 	}
 	if (rc) {
-		if (txn != env->me_txn0)
+		if (txn != env->me_txn0) {
+			free(txn->mt_u.dirty_list);
 			free(txn);
+		}
 	} else {
 		txn->mt_flags |= flags;	/* could not change txn=me_txn0 earlier */
 		*ret = txn;
