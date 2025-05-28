@@ -9176,8 +9176,8 @@ typedef struct mdb_copy {
 	pthread_cond_t mc_cond;	/**< Condition variable for #mc_new */
 	char *mc_wbuf[2];
 	char *mc_over[2];
-	int mc_wlen[2];
-	int mc_olen[2];
+	size_t mc_wlen[2];
+	size_t mc_olen[2];
 	pgno_t mc_next_pgno;
 	HANDLE mc_fd;
 	int mc_toggle;			/**< Buffer number in provider */
@@ -9194,7 +9194,8 @@ mdb_env_copythr(void *arg)
 {
 	mdb_copy *my = arg;
 	char *ptr;
-	int toggle = 0, wsize, rc;
+	int toggle = 0, rc;
+	size_t wsize;
 #ifdef _WIN32
 	DWORD len;
 #define DO_WRITE(rc, fd, ptr, w2, len)	rc = WriteFile(fd, ptr, w2, &len, NULL)
