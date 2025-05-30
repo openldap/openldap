@@ -1227,6 +1227,9 @@ ldap_int_tls_start ( LDAP *ld, LDAPConn *conn, LDAPURLDesc *srv )
 				ld->ld_errno = LDAP_TIMEOUT;
 				break;
 			}
+			/* ldap_int_poll switches the socket back to blocking, but we want
+			 * it non-blocking before calling ldap_int_tls_connect */
+			ber_sockbuf_ctrl( sb, LBER_SB_OPT_SET_NONBLOCK, (void*)1 );
 		}
 		ret = ldap_int_tls_connect( ld, conn, host );
 	}
