@@ -1172,7 +1172,7 @@ ldap_int_tls_start ( LDAP *ld, LDAPConn *conn, LDAPURLDesc *srv )
 		if ( async ) {
 			ld->ld_errno = LDAP_X_CONNECTING;
 			return (ld->ld_errno);
-		} else {
+		} else if ( ld->ld_options.ldo_tm_net.tv_sec >= 0 ) {
 			struct timeval curr_time_tv, delta_tv;
 			int wr=0;
 
