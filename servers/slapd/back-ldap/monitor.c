@@ -824,6 +824,7 @@ ldap_back_monitor_ops_init(
 				"ldap_back_monitor_ops_init: "
 				"unable to register entry \"%s\" for monitoring\n",
 				e->e_name.bv_val );
+			ch_free( counter );
 			ch_free( cb );
 			break;
 		}

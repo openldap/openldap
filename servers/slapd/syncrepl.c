@@ -3677,6 +3677,7 @@ syncrepl_dirsync_message(
 			Debug( LDAP_DEBUG_ANY,
 				"syncrepl_dirsync_message: %s unknown attributeType %s\n",
 				si->si_ridtxt, tmp.sml_type.bv_val );
+			ch_free( mod );
 			return rc;
 		}
 		mod->sml_desc = ad;
