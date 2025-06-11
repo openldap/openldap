@@ -25,10 +25,9 @@ No constraints are applied for operations performed with the
 .I relax
 control set.
 .SH CONFIGURATION
-This
+These
 .B slapd.conf
-option applies to the constraint overlay.
-It should appear after the
+options apply to the constraint overlay. They should appear after the
 .B overlay
 directive.
 .TP
@@ -99,6 +98,18 @@ is present; it defaults to
 .BR base .
 The other parameters of the URI are not allowed.
 .RE
+
+.TP
+.B constraint_allowempty FALSE | TRUE
+Historically,
+.B slapo-constraint
+rejected Modify/Add requests with an empty sequence of modifications. This was
+not intentional and if this option is
+.BR TRUE ,
+such modifications will be allowed so long as they are otherwise valid.
+The default is
+.B FALSE
+to maintain backwards compatibility.
 
 .LP
 Any attempt to add or modify an attribute named as part of the

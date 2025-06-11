@@ -77,6 +77,11 @@ typedef struct constraint {
 	struct berval filter;
 } constraint;
 
+typedef struct constraint_info {
+	struct constraint *constraint;
+	int allow_empty;
+} constraint_info;
+
 enum {
 	CONSTRAINT_ATTRIBUTE = 1,
 	CONSTRAINT_COUNT,
@@ -87,6 +92,7 @@ enum {
 	CONSTRAINT_NEG_SET,
 	CONSTRAINT_URI,
 	CONSTRAINT_NEG_URI,
+	CONSTRAINT_ALLOWEMPTY,
 };
 
 static ConfigDriver constraint_cf_gen;
@@ -98,6 +104,13 @@ static ConfigTable constraintcfg[] = {
 	  "DESC 'constraint for list of attributes' "
 	  "EQUALITY caseIgnoreMatch "
 	  "SYNTAX OMsDirectoryString )", NULL, NULL },
+	{ "constraint_allowempty", "on|off", 1, 2, 0,
+	  ARG_ON_OFF | ARG_OFFSET | CONSTRAINT_ALLOWEMPTY,
+	  (void *)offsetof(constraint_info,allow_empty),
+	  "( OLcfgOvAt:13.2 NAME 'olcConstraintAllowEmpty' "
+	  "DESC 'are empty modify requests allowed?' "
+	  "EQUALITY booleanMatch "
+	  "SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
 };
 
@@ -106,7 +119,7 @@ static ConfigOCs constraintocs[] = {
 	  "NAME 'olcConstraintConfig' "
 	  "DESC 'Constraint overlay configuration' "
 	  "SUP olcOverlayConfig "
-	  "MAY ( olcConstraintAttribute ) )",
+	  "MAY ( olcConstraintAttribute $ olcConstraintAllowEmpty ) )",
 	  Cft_Overlay, constraintcfg },
 	{ NULL, 0, NULL }
 };
@@ -142,7 +155,8 @@ static int
 constraint_cf_gen( ConfigArgs *c )
 {
 	slap_overinst *on = (slap_overinst *)(c->bi);
-	constraint *cn = on->on_bi.bi_private, *cp;
+	constraint_info *ov = on->on_bi.bi_private;
+	constraint *cn = ov->constraint, *cp;
 	struct berval bv;
 	int i, rc = 0;
 	constraint ap = { NULL };
@@ -271,8 +285,8 @@ constraint_cf_gen( ConfigArgs *c )
 					constraint_free( cn, 1 );
 					cn = cp;
 				}
-						
-				on->on_bi.bi_private = NULL;
+
+				ov->constraint = NULL;
 			} else {
 				constraint **cpp;
 						
@@ -286,7 +300,7 @@ constraint_cf_gen( ConfigArgs *c )
 					*cpp = cp->ap_next;
 					constraint_free( cp, 1 );
 				}
-				on->on_bi.bi_private = cn;
+				ov->constraint = cn;
 			}
 			break;
 
@@ -575,7 +589,7 @@ done:;
 				a2->restrict_filter = ap.restrict_filter;
 				a2->restrict_val = ap.restrict_val;
 
-				for ( app = (constraint **)&on->on_bi.bi_private; *app; app = &(*app)->ap_next )
+				for ( app = &ov->constraint; *app; app = &(*app)->ap_next )
 					/* Get to the end */ ;
 
 				a2->ap_next = *app;
@@ -828,8 +842,9 @@ static int
 constraint_add( Operation *op, SlapReply *rs )
 {
 	slap_overinst *on = (slap_overinst *) op->o_bd->bd_info;
+	constraint_info *ov = on->on_bi.bi_private;
+	constraint *c = ov->constraint, *cp;
 	Attribute *a;
-	constraint *c = on->on_bi.bi_private, *cp;
 	BerVarray b = NULL;
 	int i;
 	struct berval rsv = BER_BVC("add breaks constraint");
@@ -841,6 +856,13 @@ constraint_add( Operation *op, SlapReply *rs )
 	}
 
 	if ((a = op->ora_e->e_attrs) == NULL) {
+		if ( ov->allow_empty ) {
+			/*
+			 * Probably results in an error later on as an empty add makes no
+			 * sense.
+			 */
+			return SLAP_CB_CONTINUE;
+		}
 		op->o_bd->bd_info = (BackendInfo *)(on->on_info);
 		send_ldap_error(op, rs, LDAP_INVALID_SYNTAX,
 			"constraint_add: no attrs");
@@ -972,7 +994,8 @@ constraint_update( Operation *op, SlapReply *rs )
 {
 	slap_overinst *on = (slap_overinst *) op->o_bd->bd_info;
 	Backend *be = op->o_bd;
-	constraint *c = on->on_bi.bi_private, *cp;
+	constraint_info *ov = on->on_bi.bi_private;
+	constraint *c = ov->constraint, *cp;
 	Entry *target_entry = NULL, *target_entry_copy = NULL;
 	Modifications *modlist, *m;
 	BerVarray b = NULL;
@@ -1002,6 +1025,9 @@ constraint_update( Operation *op, SlapReply *rs )
 	
 	Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE, "constraint_update()\n" );
 	if ((m = modlist) == NULL) {
+		if ( ov->allow_empty ) {
+			return SLAP_CB_CONTINUE;
+		}
 		op->o_bd->bd_info = (BackendInfo *)(on->on_info);
 		send_ldap_error(op, rs, LDAP_INVALID_SYNTAX,
 						"constraint_update() got null modlist");
@@ -1210,17 +1236,31 @@ mod_violation:
 }
 
 static int
+constraint_init(
+	BackendDB *be,
+	ConfigReply *cr )
+{
+	slap_overinst *on = (slap_overinst *) be->bd_info;
+
+	on->on_bi.bi_private = ch_calloc( sizeof(constraint_info), 1 );
+
+	return 0;
+}
+
+static int
 constraint_destroy(
 	BackendDB *be,
 	ConfigReply *cr )
 {
 	slap_overinst *on = (slap_overinst *) be->bd_info;
+	constraint_info *ov = on->on_bi.bi_private;
 	constraint *ap, *a2;
 
-	for ( ap = on->on_bi.bi_private; ap; ap = a2 ) {
+	for ( ap = ov->constraint; ap; ap = a2 ) {
 		a2 = ap->ap_next;
 		constraint_free( ap, 1 );
 	}
+	ch_free( ov );
 
 	return 0;
 }
@@ -1236,6 +1276,7 @@ constraint_initialize( void ) {
 
 	constraint_ovl.on_bi.bi_type = "constraint";
 	constraint_ovl.on_bi.bi_flags = SLAPO_BFLAG_SINGLE;
+	constraint_ovl.on_bi.bi_db_init = constraint_init;
 	constraint_ovl.on_bi.bi_db_destroy = constraint_destroy;
 	constraint_ovl.on_bi.bi_op_add = constraint_add;
 	constraint_ovl.on_bi.bi_op_modify = constraint_update;
