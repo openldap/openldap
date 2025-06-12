@@ -481,12 +481,10 @@ static pidpair *addpid(int tpid)
 	pipe(fdin);
 	if ((pid = fork()) == 0) {
 		/* child */
-		fclose(stdin);
-		fclose(stdout);
+		fflush(stdin);
+		fflush(stdout);
 		dup2(fdout[0], 0);
 		dup2(fdin[1], 1);
-		stdin = fdopen(0, "r");
-		stdout = fdopen(1, "w");
 		child();
 		return 0;	/* NOTREACHED */
 	} else {
