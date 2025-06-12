@@ -295,10 +295,17 @@ or
 .BR outvalue
 must be
 .BR "int *" .
-.\".TP
-.\".B LDAP_OPT_REFHOPLIMIT
-.\"This option is OpenLDAP specific.
-.\"It is not currently implemented.
+.TP
+.B LDAP_OPT_REFHOPLIMIT
+Set the maximum number of referrals to chase for a request.
+.BR invalue
+must be
+.BR "const int *" ;
+.BR outvalue
+must be a
+.BR "int *" .
+They cannot be NULL.
+This option is OpenLDAP specific.
 .TP
 .B LDAP_OPT_RESTART
 Determines whether the library should implicitly restart connections (FIXME).

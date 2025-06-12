@@ -82,6 +82,8 @@ static const struct ol_attribute {
 	{0, ATTR_OPT_INT,	"VERSION",		NULL,	LDAP_OPT_PROTOCOL_VERSION},
 	{0, ATTR_KV,		"DEREF",	deref_kv, /* or &deref_kv[0] */
 		offsetof(struct ldapoptions, ldo_deref)},
+	{0, ATTR_INT,		"REFHOPLIMIT",	NULL,
+		offsetof(struct ldapoptions, ldo_refhoplimit)},
 	{0, ATTR_INT,		"SIZELIMIT",	NULL,
 		offsetof(struct ldapoptions, ldo_sizelimit)},
 	{0, ATTR_INT,		"TIMELIMIT",	NULL,

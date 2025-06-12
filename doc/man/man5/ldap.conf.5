@@ -208,6 +208,10 @@ Note that the command line tools
 .\".B RESTART <on/true/yes/off/false/no>
 .\"Determines whether the library should implicitly restart connections (FIXME).
 .TP
+.B REFHOPLIMIT <integer>
+Specified the maximum number of referrals to follow when performing a
+request. The number should be a positive integer. The default is 5.
+.TP
 .B SIZELIMIT <integer>
 Specifies a size limit (number of entries) to use when performing searches.
 The number should be a non-negative integer.  \fISIZELIMIT\fP of zero (0)

@@ -216,6 +216,11 @@ ldap_get_option(
 		rc = LDAP_OPT_SUCCESS;
 		break;
 
+	case LDAP_OPT_REFHOPLIMIT:
+		* (int *) outvalue = lo->ldo_refhoplimit;
+		rc = LDAP_OPT_SUCCESS;
+		break;
+
 	case LDAP_OPT_SIZELIMIT:
 		* (int *) outvalue = lo->ldo_sizelimit;
 		rc = LDAP_OPT_SUCCESS;
@@ -836,6 +841,7 @@ ldap_set_option(
 
 	/* options which cannot withstand invalue == NULL */
 	case LDAP_OPT_DEREF:
+	case LDAP_OPT_REFHOPLIMIT:
 	case LDAP_OPT_SIZELIMIT:
 	case LDAP_OPT_TIMELIMIT:
 	case LDAP_OPT_PROTOCOL_VERSION:
@@ -878,6 +884,11 @@ ldap_set_option(
 	case LDAP_OPT_DEREF:
 		/* FIXME: check value for protocol compliance? */
 		lo->ldo_deref = * (const int *) invalue;
+		rc = LDAP_OPT_SUCCESS;
+		break;
+
+	case LDAP_OPT_REFHOPLIMIT:
+		lo->ldo_refhoplimit = * (const int *) invalue;
 		rc = LDAP_OPT_SUCCESS;
 		break;
 
