@@ -917,7 +917,6 @@ rbac_create_session( Operation *op, SlapReply *rs )
 		rs->sr_text = "internal error";
 	} else {
 		(void)ber_flatten( ber, &rs->sr_rspdata );
-		rs->sr_rspoid = ch_strdup( slap_EXOP_CREATE_SESSION.bv_val );
 		rs->sr_err = LDAP_SUCCESS;
 	}
 
