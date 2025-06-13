@@ -1681,11 +1681,6 @@ memberof_db_init(
 	const char		*text = NULL;
 	int rc;
 
-	mo = (memberof_t *)ch_calloc( 1, sizeof( memberof_t ) );
-
-	/* safe default */
-	mo->mo_dangling_err = LDAP_CONSTRAINT_VIOLATION;
-
 	if ( !ad_memberOf ) {
 		rc = slap_str2ad( SLAPD_MEMBEROF_ATTR, &ad_memberOf, &text );
 		if ( rc != LDAP_SUCCESS ) {
@@ -1716,6 +1711,11 @@ memberof_db_init(
 			return 1;
 		}
 	}
+
+	mo = (memberof_t *)ch_calloc( 1, sizeof( memberof_t ) );
+
+	/* safe default */
+	mo->mo_dangling_err = LDAP_CONSTRAINT_VIOLATION;
 
 	on->on_bi.bi_private = (void *)mo;
 
