@@ -322,6 +322,7 @@ comp_convert_asn_to_ldap ( MatchingRule* mr, ComponentSyntaxInfo* csi, struct be
 	else 
 		csi->csi_syntax = NULL;
 
+        BER_BVZERO( bv );
 
         switch ( csi->csi_comp_desc->cd_type_id ) {
           case BASICTYPE_BOOLEAN :
@@ -428,9 +429,9 @@ comp_convert_asn_to_ldap ( MatchingRule* mr, ComponentSyntaxInfo* csi, struct be
 			rc = csi->csi_syntax->ssyn_pretty(csi->csi_syntax, bv, &prettied , NULL );
 			if ( rc != LDAP_SUCCESS )
 				return LDAP_INVALID_SYNTAX;
-#if 0
-			free ( bv->bv_val );/*potential memory leak?*/
-#endif
+			if ( bv->bv_val )
+				free( bv->bv_val );
+			*allocated = 1;
 			bv->bv_val = prettied.bv_val;
 			bv->bv_len = prettied.bv_len;
 		}
@@ -555,8 +556,12 @@ comp_test_one_component (
 		struct berval* assert_bv = &ca->ca_ma_value;
 		int allocated = 0;
 		/*Attribute is converted to compatible LDAP encodings*/
-		if ( comp_convert_asn_to_ldap( mr, csi_attr, &attr_bv, &allocated ) != LDAP_SUCCESS )
+		if ( comp_convert_asn_to_ldap( mr, csi_attr, &attr_bv,
+					&allocated ) != LDAP_SUCCESS ) {
+			if ( allocated )
+				free( attr_bv.bv_val );
 			return LDAP_INAPPROPRIATE_MATCHING;
+		}
 		/* extracted component value is not normalized */
 		if ( ca->ca_ma_rule->smr_normalize ) {
 			rc = ca->ca_ma_rule->smr_normalize (
