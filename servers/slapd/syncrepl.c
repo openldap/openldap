@@ -2978,6 +2978,8 @@ syncrepl_op_modify( Operation *op, SlapReply *rs )
 
 		op2.o_callback = &cb;
 		op2.o_bd = select_backend( &op2.o_req_ndn, 1 );
+		op2.o_dn = op2.o_bd->be_rootdn;
+		op2.o_ndn = op2.o_bd->be_rootndn;
 		op2.o_bd->be_search( &op2, &rs1 );
 		newlist = rx.rx_mods;
 	}
