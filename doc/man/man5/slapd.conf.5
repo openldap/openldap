@@ -2071,7 +2071,8 @@ log format, or "changelog" if the log conforms
 to the obsolete \fIchangelog\fP format. If the
 .B syncdata
 parameter is omitted or set to "default" then the log parameters are
-ignored.
+ignored. If \fBmultiprovider\fP is being used, the same \fBlogbase\fP
+database must be configured on all of the providers.
 
 The
 .B lazycommit
