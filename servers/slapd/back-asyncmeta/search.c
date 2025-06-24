@@ -710,7 +710,7 @@ asyncmeta_back_search( Operation *op, SlapReply *rs )
 	}
 
 	candidates = bc->candidates;
-	mc = asyncmeta_getconn( op, rs, candidates, NULL, LDAP_BACK_DONTSEND, 0);
+	mc = asyncmeta_getconn( op, rs, candidates, NULL, 0);
 	if ( !mc || rs->sr_err != LDAP_SUCCESS) {
 		send_ldap_result(op, rs);
 		return rs->sr_err;

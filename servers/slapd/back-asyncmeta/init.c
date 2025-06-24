@@ -318,7 +318,7 @@ asyncmeta_back_clear_miconns( a_metainfo_t *mi )
 		for (i = 0; i < mi->mi_num_conns; i++) {
 			mc = &mi->mi_conns[i];
 			for (j = 0; j < mi->mi_ntargets; j ++) {
-				asyncmeta_clear_one_msc(NULL, mc, j, 1, __FUNCTION__);
+				asyncmeta_clear_one_msc(NULL, &mc->mc_conns[j], __FUNCTION__);
 			}
 
 			if ( mc->mc_conns )

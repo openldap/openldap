@@ -482,7 +482,6 @@ asyncmeta_getconn(
 	SlapReply		*rs,
 	SlapReply               *candidates,
 	int			*candidate,
-	ldap_back_send_t	sendok,
 	int                     alloc_new);
 
 
@@ -493,7 +492,6 @@ asyncmeta_init_one_conn(
 	a_metaconn_t		*mc,
 	int			candidate,
 	int			ispriv,
-	ldap_back_send_t	sendok,
 	int			dolock );
 
 extern void
@@ -633,11 +631,9 @@ int asyncmeta_back_cleanup( Operation *op, SlapReply *rs, bm_context_t *bm );
 
 int
 asyncmeta_clear_one_msc(
-	Operation	*op,
-	a_metaconn_t	*msc,
-	int		candidate,
-	int             unbind,
-	const char *          caller);
+	a_metatarget_t	*mt,
+	a_metasingleconn_t	*msc,
+	const char *caller);
 
 a_metaconn_t *
 asyncmeta_get_next_mc( a_metainfo_t *mi );

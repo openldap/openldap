@@ -1393,7 +1393,8 @@ asyncmeta_op_read_error(a_metaconn_t *mc, int candidate, int error, void* ctx)
 	ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
 	/*someone may be trying to write */
 	if (mc->mc_conns[candidate].msc_active <= 1) {
-		asyncmeta_clear_one_msc(NULL, mc, candidate, 0, __FUNCTION__);
+		asyncmeta_clear_one_msc( mc->mc_info->mi_targets[candidate],
+			&mc->mc_conns[candidate], __FUNCTION__);
 	} else {
 		META_BACK_CONN_INVALID_SET(&mc->mc_conns[candidate]);
 	}
@@ -1822,7 +1823,7 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 				}
 				current_time = slap_get_time();
 				if (msc->msc_ld && msc->msc_time > 0 && msc->msc_time + mi->mi_idle_timeout < current_time) {
-					asyncmeta_clear_one_msc(NULL, mc, j, 1, __FUNCTION__);
+					asyncmeta_clear_one_msc(mi->mi_targets[j], msc,  __FUNCTION__);
 				}
 			}
 		}

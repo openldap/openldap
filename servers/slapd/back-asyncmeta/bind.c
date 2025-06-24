@@ -104,7 +104,7 @@ asyncmeta_back_bind( Operation *op, SlapReply *rs )
 	/* we need asyncmeta_getconn() not send result even on error,
 	 * because we want to intercept the error and make it
 	 * invalidCredentials */
-	mc = asyncmeta_getconn( op, rs, candidates, NULL, LDAP_BACK_BIND_DONTSEND, 1 );
+	mc = asyncmeta_getconn( op, rs, candidates, NULL, 1 );
 	if ( !mc ) {
 		Debug(LDAP_DEBUG_ANY,
 		      "%s asyncmeta_back_bind: no target " "for dn \"%s\" (%d%s%s).\n",
@@ -1489,7 +1489,7 @@ asyncmeta_dobind_init(Operation *op, SlapReply *rs, bm_context_t *bc, a_metaconn
 				op->o_log_prefix, candidate, (void *)mc );
 
 			rc = asyncmeta_init_one_conn( op, rs, mc, candidate,
-						      LDAP_BACK_CONN_ISPRIV( mc ), LDAP_BACK_DONTSEND, 0 );
+						      LDAP_BACK_CONN_ISPRIV( mc ), 0 );
 
 			switch ( rc ) {
 			case LDAP_SUCCESS:
@@ -1698,7 +1698,7 @@ asyncmeta_dobind_init_with_retry(Operation *op, SlapReply *rs, bm_context_t *bc,
 		asyncmeta_reset_msc(NULL, mc, candidate, 0, buf);
 
 		rc = asyncmeta_init_one_conn( op, rs, mc, candidate,
-					      LDAP_BACK_CONN_ISPRIV( mc ), LDAP_BACK_DONTSEND, 0 );
+					      LDAP_BACK_CONN_ISPRIV( mc ), 0 );
 		ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
 	}
 
@@ -1740,7 +1740,7 @@ retry_dobind:
 
 	asyncmeta_reset_msc(NULL, mc, candidate, 0,  __FUNCTION__);
 	rc = asyncmeta_init_one_conn( op, rs, mc, candidate,
-				      LDAP_BACK_CONN_ISPRIV( mc ), LDAP_BACK_DONTSEND, 0 );
+				      LDAP_BACK_CONN_ISPRIV( mc ), 0 );
 
 	if (rs->sr_err != LDAP_SUCCESS) {
 		asyncmeta_reset_msc(NULL, mc, candidate, 0,  __FUNCTION__);
