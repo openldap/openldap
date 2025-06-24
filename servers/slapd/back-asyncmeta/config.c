@@ -68,6 +68,7 @@ enum {
 	LDAP_BACK_CFG_CANCEL,
 	LDAP_BACK_CFG_CHASE,
 	LDAP_BACK_CFG_CLIENT_PR,
+	LDAP_BACK_CFG_CONN_TTL,
 	LDAP_BACK_CFG_DEFAULT_T,
 	LDAP_BACK_CFG_NETWORK_TIMEOUT,
 	LDAP_BACK_CFG_NOREFS,
@@ -168,6 +169,15 @@ static ConfigTable a_metacfg[] = {
 		asyncmeta_back_cf_gen, "( OLcfgDbAt:3.15 "
 			"NAME 'olcDbIdleTimeout' "
 			"DESC 'connection idle timeout' "
+			"SYNTAX OMsDirectoryString "
+			"SINGLE-VALUE )",
+		NULL, NULL },
+	{ "conn-ttl", "ttl", 2, 3, 0,
+		ARG_MAGIC|LDAP_BACK_CFG_CONN_TTL,
+		asyncmeta_back_cf_gen, "( OLcfgDbAt:3.16 "
+			"NAME 'olcDbConnTtl' "
+			"DESC 'connection ttl' "
+			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString "
 			"SINGLE-VALUE )",
 		NULL, NULL },
@@ -412,7 +422,8 @@ static ConfigTable a_metacfg[] = {
 			"$ olcDbRebindAsUser " \
 			ST_ATTR \
 			"$ olcDbStartTLS " \
-			"$ olcDbTFSupport "
+			"$ olcDbTFSupport " \
+			"$ olcDbConnTtl "
 
 static ConfigOCs a_metaocs[] = {
 	{ "( OLcfgDbOc:3.4 "
@@ -518,6 +529,7 @@ asyncmeta_back_new_target(
 		a_metaconn_t *mc = &mi->mi_conns[i];
 		mc->mc_conns = ch_realloc( mc->mc_conns, sizeof( a_metasingleconn_t ) * mi->mi_ntargets);
 		memset( &(mc->mc_conns[mi->mi_ntargets-1]), 0, sizeof( a_metasingleconn_t ) );
+		mc->mc_conns[mi->mi_ntargets-1].mc = mc;
 	}
 	/* If this is the first target, start the timeout loop */
 	if ( mi->mi_ntargets == 1 ) {
@@ -1149,7 +1161,22 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			value_add_one( &c->rvalue_vals, &bv );
 			break;
 #endif /* SLAPD_META_CLIENT_PR */
-
+		case LDAP_BACK_CFG_CONN_TTL:
+			if ( mc->mc_conn_ttl == 0 && mc->mc_conn_reset_interval == 0) {
+				return 1;
+			} else {
+				char	buf[ SLAP_TEXT_BUFLEN ];
+				char    *p = buf;
+				lutil_unparse_time( p, sizeof( p ), mc->mc_conn_ttl );
+				if (mc->mc_conn_reset_interval != 0) {
+					p += strlen( buf );
+					*p = ' ';
+					lutil_unparse_time( p, sizeof( p ), mc->mc_conn_reset_interval );
+				}
+					ber_str2bv( buf, 0, 0, &bv );
+			value_add_one( &c->rvalue_vals, &bv );
+			}
+			break;
 		case LDAP_BACK_CFG_DEFAULT_T:
 			if ( mt || mi->mi_defaulttarget == META_DEFAULT_TARGET_NONE )
 				return 1;
@@ -1598,7 +1625,10 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			mc->mc_ps = META_CLIENT_PR_DISABLE;
 			break;
 #endif /* SLAPD_META_CLIENT_PR */
-
+		case LDAP_BACK_CFG_CONN_TTL:
+			mc->mc_conn_ttl = 0;
+			mc->mc_conn_reset_interval = 0;
+			break;
 		case LDAP_BACK_CFG_DEFAULT_T:
 			mi->mi_defaulttarget = META_DEFAULT_TARGET_NONE;
 			break;
@@ -2390,7 +2420,28 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			}
 		}
 		break;
+	case LDAP_BACK_CFG_CONN_TTL: {
+		unsigned long	t;
 
+		if ( lutil_parse_time( c->argv[ 1 ], &t ) ) {
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"unable to parse conn ttl \"%s\"",
+				c->argv[ 1 ] );
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			return 1;
+
+		}
+		mc->mc_conn_ttl = (time_t)t;
+		if ( ( c->argv[ 2 ] != NULL ) && lutil_parse_time( c->argv[ 2 ], &t ) ) {
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"unable to parse conn ttl reset interval \"%s\"",
+				c->argv[ 2 ] );
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			return 1;
+
+		}
+		mc->mc_conn_reset_interval = (time_t)t;
+	} break;
 	case LDAP_BACK_CFG_IDASSERT_BIND:
 	/* idassert-bind */
 		rc = mi->mi_ldap_extra->idassert_parse( c, &mt->mt_idassert );

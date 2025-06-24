@@ -1656,15 +1656,44 @@ void asyncmeta_set_msc_time(a_metasingleconn_t *msc)
 	msc->msc_time = slap_get_time();
 }
 
+static void
+asyncmeta_update_msc_pending_ops( a_metaconn_t *mc,
+									   bm_context_t *bc)
+{
+	int i;
+	a_metainfo_t *mi = mc->mc_info;
+	for (i=0; i<mi->mi_ntargets; i++) {
+		if ( !META_IS_CANDIDATE( &bc->candidates[ i ] ) ||
+			bc->candidates[i].sr_msgid == META_MSGID_IGNORE ||
+			bc->candidates[i].sr_type == REP_RESULT) {
+			continue;
+		}
+		mc->mc_conns[i].msc_pending_ops++;
+	}
+}
+
+static void
+asyncmeta_reset_msc_pending_ops( a_metaconn_t *mc )
+{
+	int i;
+	a_metainfo_t *mi = mc->mc_info;
+	for (i=0; i<mi->mi_ntargets; i++) {
+		mc->mc_conns[i].msc_pending_ops = 0;
+	}
+}
+
 void* asyncmeta_timeout_loop(void *ctx, void *arg)
 {
 	struct re_s* rtask = arg;
 	a_metainfo_t *mi = rtask->arg;
 	bm_context_t *bc, *onext;
 	time_t current_time = slap_get_time();
+	time_t conn_ttl;
+	time_t conn_reset_interval;
 	int i, j;
 	LDAP_STAILQ_HEAD(BCList, bm_context_t) timeout_list;
 	LDAP_STAILQ_INIT( &timeout_list );
+	a_metasingleconn_t* oldest[mi->mi_ntargets];
 
 	Debug( asyncmeta_debug, "asyncmeta_timeout_loop[%p] start at [%ld] \n", rtask, current_time );
 	if ( mi->mi_disabled > 0 && asyncmeta_db_has_pending_ops( mi ) == 0 ) {
@@ -1676,12 +1705,18 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 		return NULL;
 	}
 	void *oldctx = slap_sl_mem_create(SLAP_SLAB_SIZE, SLAP_SLAB_STACK, ctx, 0);
+
+	for (i=0; i<mi->mi_ntargets; i++ ) {
+		oldest[i] = NULL;
+	}
 	for (i=0; i<mi->mi_num_conns; i++) {
 		a_metaconn_t * mc= &mi->mi_conns[i];
 		ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
+		asyncmeta_reset_msc_pending_ops(mc);
 		for (bc = LDAP_STAILQ_FIRST(&mc->mc_om_list); bc; bc = onext) {
 			onext = LDAP_STAILQ_NEXT(bc, bc_next);
 			if (bc->bc_active > 0) {
+				asyncmeta_update_msc_pending_ops( mc, bc);
 				continue;
 			}
 
@@ -1703,7 +1738,8 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 				for (j=0; j<mi->mi_ntargets; j++) {
 					if (bc->candidates[j].sr_msgid >= 0) {
 						a_metasingleconn_t *msc = &mc->mc_conns[j];
-						if ( op->o_tag == LDAP_REQ_SEARCH ) {
+						if ( op->o_tag == LDAP_REQ_SEARCH &&
+							 !META_BACK_CONN_CLOSING(msc) ) {
 							msc->msc_active++;
 							asyncmeta_back_cancel( mc, op,
 									       bc->candidates[ j ].sr_msgid, j );
@@ -1730,7 +1766,8 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 					if (bc->candidates[j].sr_msgid >= 0) {
 						a_metasingleconn_t *msc = &mc->mc_conns[j];
 						asyncmeta_set_msc_time(msc);
-						if ( op->o_tag == LDAP_REQ_SEARCH ) {
+						if ( op->o_tag == LDAP_REQ_SEARCH &&
+							 !META_BACK_CONN_CLOSING(msc) ) {
 							msc->msc_active++;
 							asyncmeta_back_cancel( mc, op,
 									       bc->candidates[ j ].sr_msgid, j );
@@ -1739,7 +1776,17 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 					}
 				}
 			}
+			asyncmeta_update_msc_pending_ops( mc, bc);
 		}
+		for (j=0; j<mi->mi_ntargets; j++) {
+			a_metasingleconn_t *msc = &mc->mc_conns[j];
+			if ( META_BACK_CONN_CLOSING(msc) &&
+				 msc->msc_pending_ops == 0 &&
+				 msc->msc_active <= 0 ) {
+				asyncmeta_clear_one_msc (mi->mi_targets[j], msc, __FUNCTION__ );
+			}
+		}
+
 		ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
 
 		for (bc = LDAP_STAILQ_FIRST(&timeout_list); bc; bc = onext) {
@@ -1827,9 +1874,36 @@ void* asyncmeta_timeout_loop(void *ctx, void *arg)
 				}
 			}
 		}
+		/* find the oldest connection to reset */
+		for (j=0; j<mi->mi_ntargets; j++) {
+			a_metasingleconn_t *msc = &mc->mc_conns[j];
+			if ( msc->msc_established_time > 0 &&
+				 ( oldest[j] == NULL || oldest[j]->msc_established_time > msc->msc_established_time ) ) {
+				oldest[j] = msc;
+			}
+		}
 		ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
 	}
 
+	current_time = slap_get_time();
+	for (j=0; j<mi->mi_ntargets; j++) {
+		a_metasingleconn_t *msc = oldest[j];
+		a_metatarget_t *mt = mi->mi_targets[j];
+		conn_ttl = (mt->mt_conn_ttl > 0)?mt->mt_conn_ttl:mi->mi_conn_ttl;
+		conn_reset_interval = (mt->mt_conn_reset_interval > 0) ?
+			mt->mt_conn_reset_interval:mi->mi_conn_reset_interval;
+
+		if ( conn_ttl || conn_reset_interval ) {
+			if ( (current_time - mt->msc_reset_time) <= conn_reset_interval )
+				continue;
+			if ( msc != NULL && msc->msc_established_time
+				 && (msc->msc_established_time + conn_ttl <= current_time) ) {
+				ldap_pvt_thread_mutex_lock( &msc->mc->mc_om_mutex );
+				META_BACK_CONN_CLOSING_SET( msc );
+				ldap_pvt_thread_mutex_unlock( &msc->mc->mc_om_mutex );
+			}
+		}
+	}
 	slap_sl_mem_setctx(ctx, oldctx);
 	current_time = slap_get_time();
 	Debug( asyncmeta_debug, "asyncmeta_timeout_loop[%p] stop at [%ld] \n", rtask, current_time );

@@ -43,7 +43,7 @@ asyncmeta_conn_alloc(
 {
 	a_metaconn_t	*mc;
 	int		ntargets = mi->mi_ntargets;
-
+	int j;
 	assert( ntargets > 0 );
 
 	/* malloc all in one */
@@ -56,6 +56,10 @@ asyncmeta_conn_alloc(
 	ldap_pvt_thread_mutex_init( &mc->mc_om_mutex);
 	mc->mc_authz_target = META_BOUND_NONE;
 	mc->mc_conns = (a_metasingleconn_t *)(mc+1);
+
+	for (j = 0; j < mi->mi_ntargets; j++) {
+		mc->mc_conns[j].mc = mc;
+	}
 	return mc;
 }
 
@@ -120,13 +124,17 @@ asyncmeta_init_one_conn(
 			return rs->sr_err;
 		}
 	}
-		msc = &mc->mc_conns[candidate];
-	/*
-	 * Already init'ed
-	 */
-	if ( LDAP_BACK_CONN_ISBOUND( msc )
-		|| LDAP_BACK_CONN_ISANON( msc ) )
-	{
+	msc = &mc->mc_conns[candidate];
+
+	if ( META_BACK_CONN_CLOSING( msc ) ) {
+		rs->sr_err = -1;
+		return rs->sr_err;
+
+	} else if ( LDAP_BACK_CONN_ISBOUND( msc )
+		 || LDAP_BACK_CONN_ISANON( msc ) ) {
+		/*
+		 * Already init'ed
+		 */
 		assert( msc->msc_ld != NULL );
 		rs->sr_err = LDAP_SUCCESS;
 		return rs->sr_err;
@@ -175,6 +183,8 @@ asyncmeta_init_one_conn(
 		rs->sr_err = LDAP_NO_MEMORY;
 		goto error_return;
 	}
+
+	msc->msc_established_time = slap_get_time();
 
 	/*
 	 * Set LDAP version. This will always succeed: If the client
@@ -506,7 +516,8 @@ asyncmeta_getconn(
 			i = META_TARGET_NONE,
 			err = LDAP_SUCCESS,
 			new_conn = 0,
-			ncandidates = 0;
+		    ncandidates = 0,
+	        num_conns = mi->mi_num_conns;
 
 
 	meta_op_type	op_type = META_OP_REQUIRE_SINGLE;
@@ -518,6 +529,11 @@ asyncmeta_getconn(
 	struct berval	ndn = op->o_req_ndn,
 			pndn;
 
+choose_again:
+	/* in case we are sent here because the connection is set to closing */
+	if ( mc != NULL && alloc_new > 0 ) {
+		asyncmeta_back_conn_free( mc );
+	}
 	if (alloc_new > 0) {
 		mc = asyncmeta_conn_alloc(mi);
 		new_conn = 0;
@@ -613,6 +629,19 @@ asyncmeta_getconn(
 			candidates[ i ].sr_err = asyncmeta_init_one_conn( op,
 				rs, mc, i, LDAP_BACK_CONN_ISPRIV( &mc_curr ),
 				!new_conn );
+			if ( candidates[ i ].sr_err == -1 ) {
+				if ( num_conns -1 > 0 ) {
+					num_conns--;
+					ldap_pvt_thread_mutex_unlock(&mc->mc_om_mutex);
+					goto choose_again;
+				} else {
+					rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+					rs->sr_text = "Unable to find a valid connection";
+					ldap_pvt_thread_mutex_unlock(&mc->mc_om_mutex);
+					return NULL;
+				}
+			}
+
 			if ( candidates[ i ].sr_err == LDAP_SUCCESS ) {
 				if ( new_conn ) {
 					LDAP_BACK_CONN_BINDING_SET( &mc->mc_conns[ i ] );
@@ -714,6 +743,18 @@ asyncmeta_getconn(
 		 */
 		err = asyncmeta_init_one_conn( op, rs, mc, i,
 			LDAP_BACK_CONN_ISPRIV( &mc_curr ), !new_conn );
+		if ( err == -1 ) {
+			if ( num_conns-1 > 0 ) {
+				num_conns--;
+				ldap_pvt_thread_mutex_unlock(&mc->mc_om_mutex);
+				goto choose_again;
+			} else {
+				rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+				rs->sr_text = "Unable to find a valid connection";
+				ldap_pvt_thread_mutex_unlock(&mc->mc_om_mutex);
+				return NULL;
+			}
+		}
 		if ( err != LDAP_SUCCESS ) {
 			/*
 			 * FIXME: in case one target cannot
@@ -764,6 +805,19 @@ asyncmeta_getconn(
 				int lerr = asyncmeta_init_one_conn( op, rs, mc, i,
 					LDAP_BACK_CONN_ISPRIV( &mc_curr ),
 					!new_conn );
+				/* the chosen connection is closing */
+				if ( lerr == -1 ) {
+					if ( num_conns-1 > 0 ) {
+						num_conns--;
+						ldap_pvt_thread_mutex_unlock(&mc->mc_om_mutex);
+						goto choose_again;
+					} else {
+						rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+						rs->sr_text = "Unable to find a valid connection";
+						ldap_pvt_thread_mutex_unlock(&mc->mc_om_mutex);
+						return NULL;
+					}
+				}
 				candidates[ i ].sr_err = lerr;
 				if ( lerr == LDAP_SUCCESS ) {
 					META_CANDIDATE_SET( &candidates[ i ] );
@@ -1055,6 +1109,10 @@ asyncmeta_clear_one_msc(
 	msc->msc_time = 0;
 	msc->msc_binding_time = 0;
 	msc->msc_result_time = 0;
+	msc->msc_established_time = 0;
+	msc->msc_reset_time = slap_get_time();
+	if ( mt )
+		mt->msc_reset_time = msc->msc_reset_time;
 	return 0;
 }
 

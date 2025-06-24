@@ -47,6 +47,7 @@ static AttributeDescription	*ad_olmDbNextConnectionGroup; /*mi_next_conn*/
 /* Target Attributes */
 static AttributeDescription	*ad_olmTgtURIList; /* mt_uri */
 static AttributeDescription	*ad_olmTgtQuarantined; /*mt_isquarantined*/
+static AttributeDescription	*ad_olmTgtConnLastReset; /*msc_reset_time*/
 static AttributeDescription	*ad_olmTgtTimeoutOps; /*mt_timeout_ops*/
 /* Connection Group (a_metaconn_t) attributes */
 static AttributeDescription	*ad_olmCGID;
@@ -55,6 +56,8 @@ static AttributeDescription	*ad_olmCGPendingOps;
 static AttributeDescription	*ad_olmTargetConnLastUseTime; /* msc_time */
 static AttributeDescription	*ad_olmTargetConnBoundTime; /* msc_binding_time */
 static AttributeDescription	*ad_olmTargetConnResultTime; /* msc_result_time */
+static AttributeDescription *ad_olmTargetConnEstablishedTime; /* msc_established_time */
+static AttributeDescription	*ad_olmTargetConnResetTime; /* msc_reset_time */
 static AttributeDescription	*ad_olmTargetConnFlags; /* msc_mscflags */
 static AttributeDescription	*ad_olmTargetConnURI;
 static AttributeDescription	*ad_olmTargetConnPeerAddress;
@@ -77,6 +80,7 @@ static struct {
 	{ META_BACK_FCONN_INITED,	BER_BVC( "initialized" ) },
 	{ META_BACK_FCONN_CREATING,	BER_BVC( "creating" ) },
 	{ META_BACK_FCONN_INVALID,	BER_BVC( "invalid" ) },
+	{ META_BACK_FCONN_CLOSING,	BER_BVC( "closing" ) },
 	{ 0 }
 };
 
@@ -204,6 +208,33 @@ static struct {
 	  "NO-USER-MODIFICATION "
 	  "USAGE dSAOperation )",
 	  &ad_olmTargetConnPeerAddress },
+	{ "( olmAsyncmetaAttributes:13 "
+	  "NAME ( 'olmTargetConnEstablishedTime' ) "
+	  "DESC 'Time the connection was established' "
+	  "EQUALITY integerMatch "
+	  "SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 "
+	  "SINGLE-VALUE "
+	  "NO-USER-MODIFICATION "
+	  "USAGE dSAOperation )",
+	  &ad_olmTargetConnEstablishedTime },
+	{ "( olmAsyncmetaAttributes:14 "
+	  "NAME ( 'olmTargetConnResetTime' ) "
+	  "DESC 'Last time the connection was reset' "
+	  "EQUALITY integerMatch "
+	  "SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 "
+	  "SINGLE-VALUE "
+	  "NO-USER-MODIFICATION "
+	  "USAGE dSAOperation )",
+	  &ad_olmTargetConnResetTime },
+	{ "( olmAsyncmetaAttributes:15 "
+	  "NAME ( 'olmTgtConnLastReset' ) "
+	  "DESC 'Last time a connection to this target was reset' "
+	  "EQUALITY integerMatch "
+	  "SYNTAX 1.3.6.1.4.1.1466.115.121.1.27 "
+	  "SINGLE-VALUE "
+	  "NO-USER-MODIFICATION "
+	  "USAGE dSAOperation )",
+	  &ad_olmTgtConnLastReset },
 	{ NULL }
 };
 
@@ -235,6 +266,7 @@ static struct {
 		"MAY ( "
 	         "olmTgtURIList "
 	         "$ olmTgtQuarantined "
+	         "$ olmTgtConnLastReset "
 	         "$ olmTgtTimeoutOps "
 			") )",
 		&oc_olmAsyncmetaTarget },
@@ -253,9 +285,11 @@ static struct {
 	         "olmTargetConnLastUseTime "
 	         "$ olmTargetConnBoundTime "
 	         "$ olmTargetConnResultTime "
-			 "$ olmTargetConnFlags "
-			 "$ olmTargetConnURI "
-			 "$ olmTargetConnPeerAddress"
+	         "$ olmTargetConnResetTime "
+	         "$ olmTargetConnEstablishedTime "
+	         "$ olmTargetConnFlags "
+	         "$ olmTargetConnURI "
+	         "$ olmTargetConnPeerAddress"
 			") )",
 		&oc_olmAsyncmetaTargetConnection },
 
@@ -431,6 +465,18 @@ asyncmeta_back_monitor_target_conn_update(
 	bv.bv_len = snprintf( buf, sizeof( buf ), "%lu", msc->msc_result_time );
 	ber_bvreplace( &a->a_vals[ 0 ], &bv );
 
+	a = attr_find( e->e_attrs, ad_olmTargetConnResetTime );
+	assert( a != NULL );
+	bv.bv_val = buf;
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%lu", msc->msc_reset_time );
+	ber_bvreplace( &a->a_vals[ 0 ], &bv );
+
+	a = attr_find( e->e_attrs, ad_olmTargetConnEstablishedTime );
+	assert( a != NULL );
+	bv.bv_val = buf;
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%lu", msc->msc_established_time );
+	ber_bvreplace( &a->a_vals[ 0 ], &bv );
+
 	a = attr_find( e->e_attrs, ad_olmTargetConnFlags );
 	assert( a != NULL );
 	bv.bv_val = buf;
@@ -531,7 +577,7 @@ asyncmeta_back_monitor_target_conn_init(
 		cb->mc_free = asyncmeta_back_monitor_target_conn_free;
 		cb->mc_private = (void *)&mc->mc_conns[i];
 
-		a = attrs_alloc( 1 + 6 );
+		a = attrs_alloc( 1 + 8 );
 
 		a->a_desc = slap_schema.si_ad_objectClass;
 		attr_valadd( a, &oc_olmAsyncmetaTargetConnection->soc_cname, NULL, 1 );
@@ -558,6 +604,14 @@ asyncmeta_back_monitor_target_conn_init(
 		next = next->a_next;
 
 		next->a_desc = ad_olmTargetConnPeerAddress;
+		attr_valadd( next, &bv, NULL, 1 );
+		next = next->a_next;
+
+		next->a_desc = ad_olmTargetConnResetTime;
+		attr_valadd( next, &bv, NULL, 1 );
+		next = next->a_next;
+
+		next->a_desc = ad_olmTargetConnEstablishedTime;
 		attr_valadd( next, &bv, NULL, 1 );
 
 		rc = mbe->register_entry( e, NULL, ms, MONITOR_F_PERSISTENT_CH );
@@ -791,6 +845,12 @@ asyncmeta_back_monitor_targets_update(
 	bv.bv_len = snprintf( buf, sizeof( buf ), "%i", mt->mt_timeout_ops );
 	ber_bvreplace( &a->a_vals[ 0 ], &bv );
 
+	a = attr_find( e->e_attrs, ad_olmTgtConnLastReset );
+	assert( a != NULL );
+	bv.bv_val = buf;
+	bv.bv_len = snprintf( buf, sizeof( buf ), "%lu", mt->msc_reset_time );
+	ber_bvreplace( &a->a_vals[ 0 ], &bv );
+
 	return SLAP_CB_CONTINUE;
 }
 
@@ -866,7 +926,7 @@ asyncmeta_back_monitor_targets_init(
 		cb->mc_free = asyncmeta_back_monitor_targets_free;
 		cb->mc_private = (void *)&mi->mi_targets[i];
 
-		a = attrs_alloc( 1 + 3 );
+		a = attrs_alloc( 1 + 4 );
 
 		a->a_desc = slap_schema.si_ad_objectClass;
 		attr_valadd( a, &oc_olmAsyncmetaTarget->soc_cname, NULL, 1 );
@@ -877,6 +937,10 @@ asyncmeta_back_monitor_targets_init(
 		next = next->a_next;
 
 		next->a_desc = ad_olmTgtQuarantined;
+		attr_valadd( next, &bv, NULL, 1 );
+		next = next->a_next;
+
+		next->a_desc = ad_olmTgtConnLastReset;
 		attr_valadd( next, &bv, NULL, 1 );
 		next = next->a_next;
 

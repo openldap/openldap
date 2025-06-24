@@ -269,6 +269,47 @@ irrespective of the client's request. See
 for details.
 
 .TP
+.B conn\-ttl <time> [<interval>]
+This directive causes a persistent connection  to  be  dropped after
+it  has been established for the specified
+.I time,
+no more often that one connection per
+.I interval
+per target. The connection will be re-created the next time it is selected for use.
+If there are pending requests in its queue, the connection will be
+marked as closing and no new requests will be proxied through it.
+It will be dropped after the last request one has either received a result or has timed out.
+To avoid too many connections being dropped at the same time, the \fBinterval\fP
+directive is introduced, to specify the minimum time interval between resetting a connection
+to the same target.
+The default value is 1 second. If
+.I time
+is set to 0, the oldest connection will be chosen for reset at every interval period. If
+.I interval
+is set to 0, all connections exceeding their ttl will be dropped as soon as there are no more
+pending operations.
+
+[<d>d][<h>h][<m>m][<s>[s]]
+
+where <d>, <h>, <m> and <s> are respectively treated as days, hours,
+minutes and seconds.
+
+.B EXAMPLES
+
+.B conn\-ttl 60s 5s
+ - Connections older that 60 seconds will be reset, no more often that one connection per
+target every 5 seconds.
+
+.B conn\-ttl 0 5s
+ - Every 5 seconds, the oldest connection of each target will be reset.
+
+.B conn\-ttl 1h
+ - Connection older than 1h will be reset, no more often than once a second per target.
+
+If set before any target specification, it affects all targets, unless
+overridden by any per-target directive. It is disabled by default.
+
+.TP
 .B default\-target [<target>]
 The "default\-target" directive can also be used during target specification.
 With no arguments it marks the current target as the default.
@@ -331,7 +372,7 @@ for details.
 
 .TP
 .B idle\-timeout <time>
-This directive causes a a persistent connection  to  be  dropped after
+This directive causes a persistent connection  to  be  dropped after
 it  has been idle for the specified time. The connection will be re-created
 the next time it is selected for use. A connection is considered idle if no
 attempts have been made by the backend to use it to send a request to

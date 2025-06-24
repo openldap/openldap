@@ -231,6 +231,7 @@ asyncmeta_target_finish(
 		mi->mi_flags &= ~META_BACK_F_PROXYAUTHZ_NOANON;
 	}
 
+	mt->msc_reset_time = slap_get_time();
 	return 0;
 }
 
@@ -241,7 +242,7 @@ asyncmeta_back_db_open(
 {
 	a_metainfo_t	*mi = (a_metainfo_t *)be->be_private;
 	char msg[SLAP_TEXT_BUFLEN];
-	int		i;
+	int		i,j;
 
 	mi->mi_disabled = 0;
 	if ( mi->mi_ntargets == 0 ) {
@@ -270,6 +271,9 @@ asyncmeta_back_db_open(
 
 			if ( mi->mi_ntargets > 0 ) {
 				mc->mc_conns = ch_calloc( mi->mi_ntargets, sizeof( a_metasingleconn_t ));
+				for (j = 0; j < mi->mi_ntargets; j++) {
+					mc->mc_conns[j].mc = mc;
+				}
 			} else {
 				mc->mc_conns = NULL;
 			}
@@ -277,7 +281,6 @@ asyncmeta_back_db_open(
 			mc->mc_info = mi;
 			LDAP_STAILQ_INIT( &mc->mc_om_list );
 		}
-	
 
 		ber_dupbv ( &mi->mi_suffix, &be->be_suffix[0] );
 

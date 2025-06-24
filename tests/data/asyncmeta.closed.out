@@ -1,0 +1,23 @@
+dn: cn=Target Connection 1,cn=Connection Group 1,cn=Connections,cn=database 1,
+ cn=databases,cn=monitor
+olmTargetConnFlags: closed
+
+dn: cn=Target Connection 2,cn=Connection Group 1,cn=Connections,cn=database 1,
+ cn=databases,cn=monitor
+olmTargetConnFlags: closed
+
+dn: cn=Target Connection 1,cn=Connection Group 2,cn=Connections,cn=database 1,
+ cn=databases,cn=monitor
+olmTargetConnFlags: closed
+
+dn: cn=Target Connection 2,cn=Connection Group 2,cn=Connections,cn=database 1,
+ cn=databases,cn=monitor
+olmTargetConnFlags: closed
+
+dn: cn=Target Connection 1,cn=Connection Group 3,cn=Connections,cn=database 1,
+ cn=databases,cn=monitor
+olmTargetConnFlags: closed
+
+dn: cn=Target Connection 2,cn=Connection Group 3,cn=Connections,cn=database 1,
+ cn=databases,cn=monitor
+olmTargetConnFlags: closed
