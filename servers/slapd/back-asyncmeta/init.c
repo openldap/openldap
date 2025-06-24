@@ -160,12 +160,15 @@ asyncmeta_back_db_init(
 	mi->mi_conn_priv_max = LDAP_BACK_CONN_PRIV_DEFAULT;
 
 	mi->mi_ldap_extra = (ldap_extra_t *)bi->bi_extra;
+	/* only so that the first chosen connection is the first in the
+	   array, for test purposes */
+	mi->mi_next_conn = -1;
 	ldap_pvt_thread_mutex_init( &mi->mi_mc_mutex);
 
 	be->be_private = mi;
 	be->be_cf_ocs = be->bd_info->bi_cf_ocs;
 
-	return 0;
+	return asyncmeta_back_monitor_db_init( be );
 }
 
 int
@@ -262,6 +265,7 @@ asyncmeta_back_db_open(
 		for (i = 0; i < mi->mi_num_conns; i++) {
 			a_metaconn_t *mc = &mi->mi_conns[i];
 			ldap_pvt_thread_mutex_init( &mc->mc_om_mutex);
+			mc->mc_id = i+1;
 			mc->mc_authz_target = META_BOUND_NONE;
 
 			if ( mi->mi_ntargets > 0 ) {
@@ -284,7 +288,8 @@ asyncmeta_back_db_open(
 			ldap_pvt_thread_mutex_unlock( &slapd_rq.rq_mutex );
 		}
 	}
-	return 0;
+
+	return asyncmeta_back_monitor_db_open( be );
 }
 
 /*
@@ -410,7 +415,7 @@ asyncmeta_back_db_close(
 				}
 		}
 	}
-	return 0;
+	return asyncmeta_back_monitor_db_close( be );
 }
 
 int
@@ -419,7 +424,7 @@ asyncmeta_back_db_destroy(
 	ConfigReply	*cr )
 {
 	a_metainfo_t	*mi;
-
+	int rc = 0;
 	if ( be->be_private ) {
 		int i;
 
@@ -467,10 +472,10 @@ asyncmeta_back_db_destroy(
 		asyncmeta_back_clear_miconns(mi);
 		ldap_pvt_thread_mutex_unlock( &mi->mi_mc_mutex );
 		ldap_pvt_thread_mutex_destroy( &mi->mi_mc_mutex );
-
+		rc = asyncmeta_back_monitor_db_destroy( be );
 		free( be->be_private );
 	}
-	return 0;
+	return rc;
 }
 
 #if SLAPD_ASYNCMETA == SLAPD_MOD_DYNAMIC

@@ -168,6 +168,8 @@ typedef struct a_metaconn_t {
 	struct a_metainfo_t	*mc_info;
 
 	int pending_ops;
+	/* numeric id for logging and testing purposes */
+	int mc_id;
 	ldap_pvt_thread_mutex_t	mc_om_mutex;
 	/* queue for pending operations */
 	LDAP_STAILQ_HEAD(BCList, bm_context_t) mc_om_list;
@@ -358,6 +360,15 @@ typedef int (*asyncmeta_quarantine_f)( struct a_metainfo_t *, int target, void *
 
 struct meta_out_message_t;
 
+/* data for cn=monitor */
+typedef struct asyncmeta_monitor_info_t {
+	monitor_subsys_t	*mi_conn_mss;
+	monitor_subsys_t    *mi_targets_mss;
+	struct berval		mi_ndn;
+	struct berval		mi_conn_rdn;
+	struct berval		mi_targets_rdn;
+} asycnmeta_monitor_info_t;
+
 typedef struct a_metainfo_t {
 	int			mi_ntargets;
 	int			mi_defaulttarget;
@@ -420,6 +431,8 @@ typedef struct a_metainfo_t {
 	int                    mi_max_timeout_ops;
 	int                    mi_max_pending_ops;
 	int                    mi_max_target_conns;
+
+	asycnmeta_monitor_info_t mi_monitor_info;
 	/* mutex for access to the connection structures */
 	ldap_pvt_thread_mutex_t	mi_mc_mutex;
 	int                    mi_num_conns;
@@ -783,6 +796,19 @@ asyncmeta_target_free(a_metatarget_t *mt);
 
 void
 asyncmeta_back_clear_miconns(a_metainfo_t *mi);
+
+/* cn=monitor */
+int
+asyncmeta_back_monitor_db_init( BackendDB *be );
+
+int
+asyncmeta_back_monitor_db_open( BackendDB *be );
+
+int
+asyncmeta_back_monitor_db_close( BackendDB *be );
+
+int
+asyncmeta_back_monitor_db_destroy( BackendDB *be );
 
 /* The the maximum time in seconds after a result has been received on a connection,
  * after which it can be reset if a sender error occurs. Should this be configurable? */

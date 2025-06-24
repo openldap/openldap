@@ -21,10 +21,10 @@
 
 SRCS	= init.c config.c search.c message_queue.c bind.c add.c compare.c \
 		delete.c modify.c modrdn.c map.c \
-		conn.c candidates.c dncache.c meta_result.c
+		conn.c candidates.c dncache.c meta_result.c monitor.c
 OBJS	= init.lo config.lo search.lo message_queue.lo bind.lo add.lo compare.lo \
 		delete.lo modify.lo modrdn.lo map.lo \
-		conn.lo candidates.lo dncache.lo meta_result.lo
+		conn.lo candidates.lo dncache.lo meta_result.lo monitor.lo
 
 LDAP_INCDIR= ../../../include
 LDAP_LIBDIR= ../../../libraries
