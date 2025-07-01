@@ -1172,6 +1172,7 @@ whitespace
 seeAlso
 monitorRuntimeConfig
 olcAuditlogFile
+olcAuditlogNonBlocking
 namingContexts
 referralAttrDN
 moddn

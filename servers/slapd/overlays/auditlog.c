@@ -24,6 +24,7 @@
 #ifdef SLAPD_OVER_AUDITLOG
 
 #include <stdio.h>
+#include <fcntl.h>
 
 #include <ac/string.h>
 #include <ac/ctype.h>
@@ -35,6 +36,7 @@
 typedef struct auditlog_data {
 	ldap_pvt_thread_mutex_t ad_mutex;
 	char *ad_logfile;
+	int ad_nonblocking;
 } auditlog_data;
 
 static ConfigTable auditlogcfg[] = {
@@ -45,6 +47,13 @@ static ConfigTable auditlogcfg[] = {
 	  "DESC 'Filename for auditlogging' "
 	  "EQUALITY caseExactMatch "
 	  "SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "auditlognonblocking", "on|off", 1, 2, 0,
+	  ARG_ON_OFF|ARG_OFFSET,
+	  (void *)offsetof(auditlog_data, ad_nonblocking),
+	  "( OLcfgOvAt:15.2 NAME 'olcAuditlogNonBlocking' "
+	  "DESC 'Set audit log file descriptor to non-blocking mode' "
+	  "EQUALITY booleanMatch "
+	  "SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
 };
 
@@ -53,7 +62,7 @@ static ConfigOCs auditlogocs[] = {
 	  "NAME 'olcAuditlogConfig' "
 	  "DESC 'Auditlog configuration' "
 	  "SUP olcOverlayConfig "
-	  "MAY ( olcAuditlogFile ) )",
+	  "MAY ( olcAuditlogFile $ olcAuditlogNonBlocking ) )",
 	  Cft_Overlay, auditlogcfg },
 	{ NULL, 0, NULL }
 };
@@ -76,7 +85,7 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 	struct berval *b, *who = NULL, peername;
 	char *what, *whatm, *suffix;
 	time_t stamp;
-	int i;
+	int i, flags, fd;
 
 	if ( rs->sr_err != LDAP_SUCCESS ) return SLAP_CB_CONTINUE;
 
@@ -122,9 +131,20 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 
 	peername = op->o_conn->c_peer_name;
 	ldap_pvt_thread_mutex_lock(&ad->ad_mutex);
-	if((f = fopen(ad->ad_logfile, "a")) == NULL) {
-		ldap_pvt_thread_mutex_unlock(&ad->ad_mutex);
-		return SLAP_CB_CONTINUE;
+
+	/* Open file with optional non-blocking mode */
+	flags = O_WRONLY | O_CREAT | O_APPEND;
+	if ( ad->ad_nonblocking ) {
+		flags |= O_NONBLOCK;
+	}
+
+	fd = open(ad->ad_logfile, flags, 0666);
+	if ( fd == -1 ) goto done;
+
+	f = fdopen(fd, "a");
+	if ( f == NULL ) {
+		close(fd);
+		goto done;
 	}
 
 	stamp = slap_get_time();
@@ -180,6 +200,7 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 	fprintf(f, "# end %s %ld\n\n", what, (long)stamp);
 
 	fclose(f);
+done:
 	ldap_pvt_thread_mutex_unlock(&ad->ad_mutex);
 	return SLAP_CB_CONTINUE;
 }

@@ -19,19 +19,21 @@ For Add and Modify operations the identity comes from the modifiersName
 associated with the operation. This is usually the same as the requestor's
 identity, but may be set by other overlays to reflect other values.
 .SH CONFIGURATION
-This
-.B slapd.conf
-option applies to the Audit Logging overlay.
-It should appear after the
-.B overlay
-directive.
+Both slapd.conf and back-config style configuration are supported.
+.TP
+.B overlay auditlog
+This directive loads the auditlog overlay.
 .TP
 .B auditlog <filename>
+.TP
+.B olcAuditlogFile: <filename>
 Specify the fully qualified path for the log file.
 .TP
-.B olcAuditlogFile <filename>
-For use with 
-.B cn=config
+.B auditlognonblocking {on|off}
+.TP
+.B olcAuditlogNonBlocking: {on|off}
+Open <filename> in non-blocking mode.  Useful if <filename> is a named pipe
+and slapd should not block if no reader is available.
 .SH COMMENT FIELD INFORMATION
 The first field is the operation type.
 .br
@@ -47,7 +49,7 @@ The sixth field is the connection number. A connection number of -1
 indicates an internal slapd operation.
 .SH EXAMPLE
 The following LDIF could be used to add this overlay to
-.B cn=config 
+.B cn=config
 (adjust to suit)
 .LP
 .RS
