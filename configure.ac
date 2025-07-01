@@ -703,10 +703,23 @@ OL_MSVC
 dnl ----------------------------------------------------------------
 dnl Checks for Windows NT
 case $host_os in
-  *mingw32* ) ac_cv_mingw32=yes ;;
-  *cygwin* ) ac_cv_cygwin=yes ;;
-  *interix* ) ac_cv_interix=yes ;;
+  *mingw32* )
+    ac_cv_mingw32=yes
+    OS_WINDOWS=yes
+    ;;
+  *cygwin* )
+    ac_cv_cygwin=yes
+    OS_WINDOWS=yes
+    ;;
+  *interix* )
+    ac_cv_interix=yes
+    OS_WINDOWS=yes
+    ;;
+  * )
+    OS_WINDOWS=no
+    ;;
 esac
+AC_SUBST([OS_WINDOWS])
 
 AC_CHECK_TOOL(RC, windres, )
 
