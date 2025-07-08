@@ -47,7 +47,7 @@ The general format of slapd.conf is as follows:
 >	database <typeB>
 >	<database-specific directives>
 >
->	# second database definition & config directives
+>	# third database definition & config directives
 >	database <typeA>
 >	<database-specific directives>
 >
