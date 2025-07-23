@@ -1004,13 +1004,12 @@ nextresp2:
 			static struct berval	bv_nod = BER_BVC( LDAP_NOTICE_OF_DISCONNECTION );
 			struct berval		resoid = BER_BVNULL;
 
-			if ( ber_scanf( &tmpber, "m", &resoid ) == LBER_ERROR ) {
+			if (( ber_scanf( &tmpber, "m", &resoid ) == LBER_ERROR ) ||
+				BER_BVISEMPTY( &resoid )) {
 				ld->ld_errno = LDAP_DECODING_ERROR;
 				ber_free( ber, 1 );
 				return -1;
 			}
-
-			assert( !BER_BVISEMPTY( &resoid ) );
 
 			is_nod = ber_bvcmp( &resoid, &bv_nod ) == 0;
 
