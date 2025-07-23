@@ -677,8 +677,7 @@ static int process_response(
 		}
 
 		if ( rc == -1 ) {
-			ldap_get_option( ld, LDAP_OPT_RESULT_CODE, &rc );
-			tool_perror( "ldap_result", rc, NULL, NULL, NULL, NULL );
+			rc = tool_perror2( ld, "ldap_result" );
 			return rc;
 		}
 

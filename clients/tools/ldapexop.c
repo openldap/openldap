@@ -101,7 +101,7 @@ main( int argc, char *argv[] )
 
 		rc = ldap_whoami( ld, NULL, NULL, &id ); 
 		if ( rc != LDAP_SUCCESS ) {
-			tool_perror( "ldap_extended_operation", rc, NULL, NULL, NULL, NULL );
+			tool_perror( "ldap_whoami", rc, NULL, NULL, NULL, NULL );
 			rc = EXIT_FAILURE;
 			goto skip;
 		}
@@ -156,7 +156,7 @@ main( int argc, char *argv[] )
 
 		rc = ldap_refresh( ld, &dn, ttl, NULL, NULL, &id ); 
 		if ( rc != LDAP_SUCCESS ) {
-			tool_perror( "ldap_extended_operation", rc, NULL, NULL, NULL, NULL );
+			tool_perror( "ldap_refresh", rc, NULL, NULL, NULL, NULL );
 			rc = EXIT_FAILURE;
 			goto skip;
 		}
@@ -221,7 +221,7 @@ main( int argc, char *argv[] )
 
 		rc = ldap_result( ld, LDAP_RES_ANY, LDAP_MSG_ALL, &tv, &res );
 		if ( rc < 0 ) {
-			tool_perror( "ldap_result", rc, NULL, NULL, NULL, NULL );
+			tool_perror2( ld, "ldap_result" );
 			rc = EXIT_FAILURE;
 			goto skip;
 		}

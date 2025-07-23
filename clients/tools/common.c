@@ -410,6 +410,19 @@ void tool_perror(
 	}
 }
 
+int tool_perror2(
+	LDAP *ld, 
+	const char *func )
+{
+	int err;
+	char *msg = NULL;
+
+	ldap_get_option( ld, LDAP_OPT_RESULT_CODE, (void*)&err );
+	ldap_get_option( ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, (void*)&msg );
+	tool_perror( func, err, NULL, NULL, msg, NULL );
+	ldap_memfree( msg );
+	return err;
+}
 
 void
 tool_args( int argc, char **argv )
@@ -1529,11 +1542,7 @@ tool_bind( LDAP *ld )
 			ldap_msgfree( result );
 
 			if ( ldap_result( ld, msgid, LDAP_MSG_ALL, NULL, &result ) == -1 || !result ) {
-				ldap_get_option( ld, LDAP_OPT_RESULT_CODE, (void*)&err );
-				ldap_get_option( ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, (void*)&info );
-				tool_perror( "ldap_sasl_interactive_bind",
-					err, NULL, NULL, info, NULL );
-				ldap_memfree( info );
+				err = tool_perror2( ld, "ldap_sasl_interactive_bind" );
 				tool_exit( ld, err );
 			}
 		} while ( rc == LDAP_SASL_BIND_IN_PROGRESS );
@@ -1555,15 +1564,14 @@ tool_bind( LDAP *ld )
 		/* simple bind */
 		rc = ldap_sasl_bind( ld, binddn, LDAP_SASL_SIMPLE, &passwd,
 			sctrlsp, NULL, &msgid );
-		if ( msgid == -1 ) {
-			tool_perror( "ldap_sasl_bind(SIMPLE)", rc,
-				NULL, NULL, NULL, NULL );
+		if ( rc == -1 ) {
+			rc = tool_perror2( ld, "ldap_sasl_bind(SIMPLE)" );
 			tool_exit( ld, rc );
 		}
 
 		rc = ldap_result( ld, msgid, LDAP_MSG_ALL, NULL, &result );
 		if ( rc == -1 ) {
-			tool_perror( "ldap_result", -1, NULL, NULL, NULL, NULL );
+			tool_perror2( ld, "ldap_result" );
 			tool_exit( ld, LDAP_LOCAL_ERROR );
 		}
 
