@@ -130,6 +130,9 @@ void tool_perror LDAP_P((
 	const char *matched,
 	const char *info,
 	char **refs ));
+int tool_perror2 LDAP_P((
+	LDAP *ld, 
+	const char *func ));
 void tool_print_ctrls LDAP_P(( LDAP *ld, LDAPControl **ctrls ));
 int tool_write_ldif LDAP_P(( int type, char *name, char *value, ber_len_t vallen ));
 int tool_is_oid LDAP_P(( const char *s ));

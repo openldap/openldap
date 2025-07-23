@@ -396,10 +396,7 @@ main( int argc, char *argv[] )
 			ldap_msgfree(res);
 
 			if (ldap_result(ld, msgid, LDAP_MSG_ALL, NULL, &res) == -1 || !res) {
-				ldap_get_option(ld, LDAP_OPT_RESULT_CODE, (void*) &rc);
-				ldap_get_option(ld, LDAP_OPT_DIAGNOSTIC_MESSAGE, (void*) &text);
-				tool_perror( "ldap_verify_credentials_interactive", rc, NULL, NULL, text, NULL);
-				ldap_memfree(text);
+				rc = tool_perror2( ld, "ldap_verify_credentials_interactive" );
 				tool_exit(ld, rc);
 			}
 		} while (rc == LDAP_SASL_BIND_IN_PROGRESS);
@@ -441,7 +438,7 @@ main( int argc, char *argv[] )
 
 		    rc = ldap_result( ld, LDAP_RES_ANY, LDAP_MSG_ALL, &tv, &res );
 		    if ( rc < 0 ) {
-			    tool_perror( "ldap_result", rc, NULL, NULL, NULL, NULL );
+			    rc = tool_perror2( ld, "ldap_result" );
 			    tool_exit( ld, rc );
 		    }
 

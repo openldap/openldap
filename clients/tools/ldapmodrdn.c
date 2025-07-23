@@ -278,7 +278,7 @@ static int domodrdn(
 
 		rc = ldap_result( ld, LDAP_RES_ANY, LDAP_MSG_ALL, &tv, &res );
 		if ( rc < 0 ) {
-			tool_perror( "ldap_result", rc, NULL, NULL, NULL, NULL );
+			rc = tool_perror2( ld, "ldap_result" );
 			return rc;
 		}
 

@@ -269,7 +269,7 @@ retry:;
 
 		rc = ldap_result( ld, LDAP_RES_ANY, LDAP_MSG_ALL, &tv, &res );
 		if ( rc < 0 ) {
-			tool_perror( "ldap_result", rc, NULL, NULL, NULL, NULL );
+			rc = tool_perror2( ld, "ldap_result" );
 			return rc;
 		}
 
@@ -405,8 +405,7 @@ more:;
 			char *dn = ldap_get_dn( ld, e );
 
 			if( dn == NULL ) {
-				ldap_get_option( ld, LDAP_OPT_RESULT_CODE, &rc );
-				tool_perror( "ldap_prune", rc, NULL, NULL, NULL, NULL );
+				rc = tool_perror2( ld, "ldap_prune" );
 				goto leave;
 			}
 
