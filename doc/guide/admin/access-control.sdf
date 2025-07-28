@@ -1021,7 +1021,7 @@ Let's say, you have it like this:
 >                    ou=users
 >                        uid=<someuserid>
 >                        uid=<someotheruserid>
->                    ou=addressbooks
+>                    ou=addressbook
 >                        uid=<someuserid>
 >                            cn=<someone>
 >                            cn=<someoneelse>
@@ -1034,7 +1034,7 @@ and, for another domain <someotherdomain>:
 >                    ou=users
 >                        uid=<someuserid>
 >                        uid=<someotheruserid>
->                    ou=addressbooks
+>                    ou=addressbook
 >                        uid=<someotheruserid>
 >                            cn=<someone>
 >                            cn=<someoneelse>
@@ -1114,8 +1114,8 @@ to exclude {{dc=example,dc=com}} from the matching patterns, or
 to allow exactly one sublevel matches only.
 
 Always use {{^}} and {{$}} in regexes, whenever appropriate, because
-{{ou=(.+),ou=(.+),ou=addressbooks,o=basedn}} will match
-{{something=bla,ou=xxx,ou=yyy,ou=addressbooks,o=basedn,ou=addressbooks,o=basedn,dc=some,dc=org}}
+{{ou=(.+),ou=(.+),ou=addressbook,o=basedn}} will match
+{{something=bla,ou=xxx,ou=yyy,ou=addressbook,o=basedn,ou=addressbook,o=basedn,dc=some,dc=org}}
 
 Always use {{([^,]+)}} to indicate exactly one RDN, because {{(.+)}} can
 include any number of RDNs; e.g. {{ou=(.+),dc=example,dc=com}} will match
