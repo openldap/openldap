@@ -913,7 +913,7 @@ and the following group object (in LDIF format):
 >    member: cn=fred blogs,dc=example,dc=com
 >    member: cn=somebody else,dc=example,dc=com
 
-One can then grant access to the members of this this group by adding appropriate
+One can then grant access to the members of this group by adding appropriate
 {{by group}} clause to an access directive in {{slapd.conf}}(5). For instance,
 
 >    access to dn.children="dc=example,dc=com"
