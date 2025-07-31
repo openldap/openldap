@@ -225,7 +225,7 @@ behaves as if the following rule was the first rule in
 .RE
 
 
-.SH OBJECT CLASS
+.SH OBJECT CLASSES
 The 
 .B ppolicy
 overlay depends on the
@@ -260,10 +260,9 @@ requires a
 .B cn
 attribute, suitable as the policy entry's rDN.
 
-This implementation also provides an additional
+This implementation also provides two additional objectclasses:
 .B pwdPolicyChecker
-objectclass, used for password quality checking (see specific attributes
-below for usage).
+objectclass
 .LP
 .RS 4
 (  1.3.6.1.4.1.4754.2.99.1
@@ -273,6 +272,21 @@ below for usage).
     MAY ( pwdCheckModule $ pwdCheckModuleArg $ pwdUseCheckModule ) )
 .RE
 .P
+used for password quality checking and
+.B pwdHashingPolicy
+objectclass
+.LP
+.RS 4
+(  1.3.6.1.4.1.4754.2.99.2
+    NAME 'pwdHashingPolicy'
+    SUP pwdPolicy
+    AUXILIARY
+    MAY ( pwdDefaultHash $ pwdRehashOnBind ) )
+.RE
+.P
+for more fine-grained control over password hashing. See specific attributes
+below for usage.
+
 Every account that should be subject to password policy control should
 have a
 .B
@@ -835,6 +849,40 @@ attribute is now obsolete and is ignored.
    NAME 'pwdUseCheckModule'
    EQUALITY booleanMatch
    SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
+   SINGLE\-VALUE )
+.RE
+
+.B pwdDefaultHash
+.P
+If specified, this attribute overrides the configured default password hash for
+objects that are governed by this policy.
+.LP
+.RS 4
+(  1.3.6.1.4.1.4754.1.99.4
+   NAME 'pwdDefaultHash'
+   EQUALITY caseIgnoreMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.15
+   DESC 'Per policy default hash setting'
+   SINGLE\-VALUE )
+.RE
+
+.B pwdRehashOnBind
+.P
+This attribute denotes whether the user's existing password should be
+rehashed. If
+.B pwdReset
+is set to "TRUE",
+.B pwdDefaultHash
+is set to a known password hash and a Simple Bind succeeds, the entry's
+userPassword is replaced with a version using that hash.
+.LP
+.RS 4
+(  1.3.6.1.4.1.4754.1.99.5
+   NAME 'pwdRehashOnBind'
+   EQUALITY booleanMatch
+   SYNTAX 1.3.6.1.4.1.1466.115.121.1.7
+   DESC 'On successful Simple Bind, rehash password
+        with default hash if different'
    SINGLE\-VALUE )
 .RE
 
