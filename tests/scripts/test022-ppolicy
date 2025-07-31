@@ -546,6 +546,63 @@ if test $RC != 49 ; then
 	exit 1
 fi
 
+echo "Listing a password hashed with a custom default, then rehashing..."
+
+# {SHA} is good that it doesn't use salt, we don't expect the base64 binary on
+# all systems we support, so we precomputed the expected value:
+# passwd -h '{SHA}' -s hashed -n | base64
+$LDAPSEARCH -o ldif-wrap=no -H $URI1 -D "$MANAGERDN" -w $PASSWD \
+    -b "uid=hashed, ou=People, dc=example, dc=com" userPassword | \
+    grep -q "userPassword:: e1NIQX1ZeGhWT0puYXJpbEJjWXdDVUlydTZUaXZHaHc9"
+RC=$?
+if test $RC != 0 ; then
+	echo "Unexpected password hash returned!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
+	$TESTOUT 2>&1 << EOMODS
+dn: cn=Hashing Policy, ou=Policies, dc=example, dc=com
+changetype: modify
+replace: pwdDefaultHash
+pwdDefaultHash: {SSHA}
+
+EOMODS
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+# '{SSHA}' fits nicely onto base64 chunk length, we don't have to work too hard
+# to check it as a prefix
+$LDAPSEARCH -H $URI1 -D "uid=hashed, ou=People, dc=example, dc=com" -w hashed \
+    -b "uid=hashed, ou=People, dc=example, dc=com" | \
+    grep -q '^userPassword:: e1NTSEF9'
+RC=$?
+if test $RC != 0 ; then
+	echo "Password not rehashed as configured!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPCOMPARE -D "$MANAGERDN" -H $URI1 -w $PASSWD \
+	"uid=hashed, ou=People, dc=example, dc=com" "pwdReset:FALSE" \
+	>> $TESTOUT 2>&1
+RC=$?
+case $RC in
+6)
+	;;
+16)
+	;;
+*)
+	echo "ldapcompare failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+esac
+
 echo "Reverting to Standard policy..."
 $LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
 	$TESTOUT 2>&1 << EOMODS

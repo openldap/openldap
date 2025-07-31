@@ -99,6 +99,16 @@ objectClass: pwdPolicy
 cn: Test Policy
 pwdAttribute: 2.5.4.35
 
+dn: cn=Hashing Policy, ou=Policies, dc=example, dc=com
+objectClass: top
+objectClass: device
+objectClass: pwdPolicy
+objectClass: pwdHashingPolicy
+cn: Hashing Policy
+pwdAttribute: 2.5.4.35
+pwdDefaultHash: {SHA}
+pwdRehashOnBind: TRUE
+
 dn: uid=nd, ou=People, dc=example, dc=com
 objectClass: top
 objectClass: person
@@ -129,6 +139,17 @@ sn: Test
 givenName:  Test
 userPassword: kfhgkjhfdgkfd
 pwdPolicySubEntry: cn=No Policy, ou=Policies, dc=example, dc=com
+
+dn: uid=hashed, ou=People, dc=example, dc=com
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+cn: password gets rehashed
+uid: hashed
+sn: Hashed
+givenName: hashed
+userPassword: hashed
+pwdPolicySubEntry: cn=Hashing Policy, ou=Policies, dc=example, dc=com
 
 dn: uid=another, ou=People, dc=example, dc=com
 objectClass: top
