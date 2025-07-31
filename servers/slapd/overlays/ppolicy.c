@@ -3111,6 +3111,25 @@ ppolicy_bind_response( Operation *op, SlapReply *rs )
 							"rehashing password for user %s failed: %s\n",
 							op->o_req_dn.bv_val, txt );
 				} else {
+					/*
+					 * Rehashing is a password change by an administrator, but
+					 * we don't want it to change pwdReset state.
+					 */
+					if ( ppb->pp.pwdMustChange ) {
+						/*
+						 * Earlier we chose this branch because the reset state
+						 * is not TRUE.
+						 */
+						m = ch_calloc( sizeof(Modifications), 1 );
+						m->sml_op = LDAP_MOD_REPLACE;
+						m->sml_flags = SLAP_MOD_INTERNAL;
+						m->sml_type = ad_pwdReset->ad_cname;
+						m->sml_desc = ad_pwdReset;
+						m->sml_next = mod;
+						m->sml_numvals = 0;
+						mod = m;
+					}
+
 					m = ch_calloc( sizeof(Modifications), 1 );
 					m->sml_op = LDAP_MOD_ADD;
 					m->sml_flags = SLAP_MOD_INTERNAL;

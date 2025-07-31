@@ -106,6 +106,7 @@ objectClass: pwdPolicy
 objectClass: pwdHashingPolicy
 cn: Hashing Policy
 pwdAttribute: 2.5.4.35
+pwdMustChange: TRUE
 pwdDefaultHash: {SHA}
 pwdRehashOnBind: TRUE
 
