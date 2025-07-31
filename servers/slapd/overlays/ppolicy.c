@@ -607,7 +607,7 @@ static ConfigTable ppolicycfg[] = {
 	  "SINGLE-VALUE )", NULL, NULL },
 
 	/* slapd.conf compatibility */
-	{ "ppolicy_rules", "rule", 3, 0, 0,
+	{ "ppolicy_rules", "rule", 2, 0, 0,
 	  ARG_MAGIC|PPOLICY_DEFAULT_RULES,
 	  ppolicy_cf_rule,
 	  NULL, NULL, NULL },
