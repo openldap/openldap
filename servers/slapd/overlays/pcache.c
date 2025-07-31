@@ -3880,32 +3880,41 @@ pc_cf_gen( ConfigArgs *c )
 			break;
 		case PC_ATTR:
 			for (i=0; i<cm->numattrsets; i++) {
-				if ( !qm->attr_sets[i].count ) continue;
+				if ( !(qm->attr_sets[i].flags & PC_CONFIGURED) ) continue;
 
 				bv.bv_len = snprintf( c->cr_msg, sizeof( c->cr_msg ), "%d", i );
-
-				/* count the attr length */
-				for ( attr_name = qm->attr_sets[i].attrs;
-					attr_name->an_name.bv_val; attr_name++ )
-				{
-					bv.bv_len += attr_name->an_name.bv_len + 1;
-					if ( attr_name->an_desc &&
-							( attr_name->an_desc->ad_flags & SLAP_DESC_TEMPORARY ) ) {
-						bv.bv_len += STRLENOF("undef:");
-					}
-				}
-
-				bv.bv_val = ch_malloc( bv.bv_len+1 );
-				ptr = lutil_strcopy( bv.bv_val, c->cr_msg );
-				for ( attr_name = qm->attr_sets[i].attrs;
-					attr_name->an_name.bv_val; attr_name++ ) {
+				if ( !qm->attr_sets[i].count ) {
+					bv.bv_len += sizeof( LDAP_NO_ATTRS );
+					bv.bv_val = ch_malloc( bv.bv_len+1 );
+					ptr = lutil_strcopy( bv.bv_val, c->cr_msg );
 					*ptr++ = ' ';
-					if ( attr_name->an_desc &&
-							( attr_name->an_desc->ad_flags & SLAP_DESC_TEMPORARY ) ) {
-						ptr = lutil_strcopy( ptr, "undef:" );
+					lutil_strcopy( ptr, LDAP_NO_ATTRS );
+				} else {
+
+					/* count the attr length */
+					for ( attr_name = qm->attr_sets[i].attrs;
+						attr_name->an_name.bv_val; attr_name++ )
+					{
+						bv.bv_len += attr_name->an_name.bv_len + 1;
+						if ( attr_name->an_desc &&
+								( attr_name->an_desc->ad_flags & SLAP_DESC_TEMPORARY ) ) {
+							bv.bv_len += STRLENOF("undef:");
+						}
 					}
-					ptr = lutil_strcopy( ptr, attr_name->an_name.bv_val );
+
+					bv.bv_val = ch_malloc( bv.bv_len+1 );
+					ptr = lutil_strcopy( bv.bv_val, c->cr_msg );
+					for ( attr_name = qm->attr_sets[i].attrs;
+						attr_name->an_name.bv_val; attr_name++ ) {
+						*ptr++ = ' ';
+						if ( attr_name->an_desc &&
+								( attr_name->an_desc->ad_flags & SLAP_DESC_TEMPORARY ) ) {
+							ptr = lutil_strcopy( ptr, "undef:" );
+						}
+						ptr = lutil_strcopy( ptr, attr_name->an_name.bv_val );
+					}
 				}
+
 				ber_bvarray_add( &c->rvalue_vals, &bv );
 			}
 			if ( !c->rvalue_vals )
