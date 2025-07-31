@@ -477,6 +477,13 @@ fe_op_lastbind( Operation *op )
 	op2.o_ndn = op->o_bd->be_rootndn;
 
 	/*
+	 * Other bind response logic (e.g. ppolicy) could have triggered a write
+	 * with this operation - use a fresh timestamp.
+	 */
+	slap_op_time( &op2.o_time, &op2.o_tincr );
+	BER_BVZERO( &op2.o_csn );
+
+	/*
 	 * Code for forwarding of updates adapted from ppolicy.c of slapo-ppolicy
 	 *
 	 * If this server is a shadow and forward_updates is true,
