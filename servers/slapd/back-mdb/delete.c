@@ -357,6 +357,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 			}
 			parent_is_leaf = 1;
 		}
+		rs->sr_err = LDAP_SUCCESS;
 		mdb_entry_return( op, p );
 		p = NULL;
 	}
