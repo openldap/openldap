@@ -821,6 +821,11 @@ reset:
 					c->log, c->cr_msg, c->argv[1]);
 				return( 1 );
 			}
+#ifdef HAVE_MKVERSION
+			else {
+				Debug( LDAP_DEBUG_ANY, "%s\n", Versionstr );
+			}
+#endif
 			ch_free( c->value_string );
 			break;
 
