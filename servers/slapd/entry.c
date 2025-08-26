@@ -365,6 +365,7 @@ fail:
 		free( nvals[i].bv_val );
 	}
 	free( type );
+	attrs_free( ahead.a_next );
 	entry_free( e );
 	return NULL;
 }
