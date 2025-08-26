@@ -114,7 +114,7 @@ str2entry2( char *s, int checkvals )
 	char	*next;
 	int		attr_cnt;
 	int		i, lines;
-	Attribute	ahead, *atail;
+	Attribute	ahead, *atail, *a;
 
 	/*
 	 * LDIF is used as the string format.
@@ -277,46 +277,65 @@ str2entry2( char *s, int checkvals )
 	
 			if (( ad_prev && ad != ad_prev ) || ( i == lines )) {
 				int j, k;
-				atail->a_next = attr_alloc( NULL );
-				atail = atail->a_next;
-				atail->a_flags = 0;
-				atail->a_numvals = attr_cnt;
-				atail->a_desc = ad_prev;
-				atail->a_vals = ch_malloc( (attr_cnt + 1) * sizeof(struct berval));
-				if( ad_prev->ad_type->sat_equality &&
-					ad_prev->ad_type->sat_equality->smr_normalize )
-					atail->a_nvals = ch_malloc( (attr_cnt + 1) * sizeof(struct berval));
-				else
-					atail->a_nvals = NULL;
+
+				a = attr_find( ahead.a_next, ad );
+				if ( a == NULL ) {
+					a = atail->a_next = attr_alloc( NULL );
+					atail = atail->a_next;
+					a->a_flags = 0;
+					a->a_numvals = attr_cnt;
+					a->a_desc = ad_prev;
+					a->a_vals = ch_malloc( (a->a_numvals + 1) * sizeof(struct berval) );
+					a->a_nvals = NULL;
+				} else {
+					/* Duplicate attribute detected */
+					if ( checkvals && is_at_single_value( ad->ad_type ) ) {
+						Debug( LDAP_DEBUG_ANY,
+							"str2entry: single-value attributeType %s "
+							"presented under multiple names\n",
+							ad->ad_cname.bv_val );
+						goto fail;
+					}
+					a->a_numvals += attr_cnt;
+					a->a_vals = ch_realloc( a->a_vals,
+							(a->a_numvals + 1) * sizeof(struct berval) );
+				}
+				if ( a->a_nvals ) {
+					a->a_nvals = ch_realloc( a->a_nvals,
+							(a->a_numvals + 1) * sizeof(struct berval) );
+				} else if ( ad_prev->ad_type->sat_equality &&
+					ad_prev->ad_type->sat_equality->smr_normalize ) {
+					a->a_nvals = ch_malloc( (a->a_numvals + 1) * sizeof(struct berval) );
+				}
 				k = i - attr_cnt;
-				for ( j=0; j<attr_cnt; j++ ) {
+				for ( j = a->a_numvals - attr_cnt; j < a->a_numvals; j++ ) {
 					if ( freeval[k] )
-						atail->a_vals[j] = vals[k];
+						a->a_vals[j] = vals[k];
 					else
-						ber_dupbv( atail->a_vals+j, &vals[k] );
+						ber_dupbv( a->a_vals+j, &vals[k] );
 					vals[k].bv_val = NULL;
-					if ( atail->a_nvals ) {
-						atail->a_nvals[j] = nvals[k];
+					if ( a->a_nvals ) {
+						a->a_nvals[j] = nvals[k];
 						nvals[k].bv_val = NULL;
 					}
 					k++;
 				}
-				BER_BVZERO( &atail->a_vals[j] );
-				if ( atail->a_nvals ) {
-					BER_BVZERO( &atail->a_nvals[j] );
+				BER_BVZERO( &a->a_vals[j] );
+				if ( a->a_nvals ) {
+					BER_BVZERO( &a->a_nvals[j] );
 				} else {
-					atail->a_nvals = atail->a_vals;
+					a->a_nvals = a->a_vals;
 				}
 				attr_cnt = 0;
 				/* FIXME: we only need this when migrating from an unsorted DB */
-				if ( atail->a_desc->ad_type->sat_flags & SLAP_AT_SORTED_VAL ) {
-					rc = slap_sort_vals( (Modifications *)atail, &text, &j, NULL );
+				if ( a->a_desc->ad_type->sat_flags & SLAP_AT_SORTED_VAL ) {
+					rc = slap_sort_vals( (Modifications *)a, &text, &j, NULL );
 					if ( rc == LDAP_SUCCESS ) {
-						atail->a_flags |= SLAP_ATTR_SORTED_VALS;
+						a->a_flags |= SLAP_ATTR_SORTED_VALS;
 					} else if ( rc == LDAP_TYPE_OR_VALUE_EXISTS ) {
 						Debug( LDAP_DEBUG_ANY,
 							"str2entry: attributeType %s value #%d provided more than once\n",
-							atail->a_desc->ad_cname.bv_val, j );
+							a->a_desc->ad_cname.bv_val, j );
 						goto fail;
 					}
 				}
