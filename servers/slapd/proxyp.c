@@ -58,7 +58,7 @@ static const uint8_t proxyp_sig[12] = {
 };
 
 int
-proxyp( ber_socket_t sfd, Sockaddr *from ) {
+proxyp( ber_socket_t sfd, Sockaddr *from, ber_socklen_t *salen ) {
 	proxyp_header pph;
 	proxyp_addr ppa;
 	char peername[LDAP_IPADDRLEN];
@@ -170,6 +170,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from ) {
 			memcpy( &from->sa_in6_addr.sin6_addr, ppa.ip6.src_addr,
 					sizeof(ppa.ip6.src_addr) );
 			from->sa_in6_addr.sin6_port = ppa.ip6.src_port;
+			*salen = sizeof(struct sockaddr_in6);
 #else
 			Debug( LDAP_DEBUG_ANY, "proxyp(%ld): "
 					"IPv6 proxied addresses disabled\n",
