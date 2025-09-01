@@ -781,7 +781,8 @@ lload_listener(
 #endif /* SO_KEEPALIVE || TCP_NODELAY */
 
     if ( l->sl_is_proxied ) {
-        if ( !proxyp( s, from ) ) {
+		ber_socklen_t dummy;
+        if ( !proxyp( s, from, &dummy ) ) {
             Debug( LDAP_DEBUG_ANY, "lload_listener: "
                     "proxyp(%ld) failed\n",
                     (long)s );
