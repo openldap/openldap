@@ -2275,7 +2275,7 @@ slap_listener(
 #  endif /* LDAP_PF_INET6 */
 	case AF_INET:
 		if ( sl->sl_is_proxied ) {
-			if ( !proxyp( sfd, &from ) ) {
+			if ( !proxyp( sfd, &from, &len ) ) {
 				Debug( LDAP_DEBUG_ANY, "slapd(%ld): proxyp failed\n", (long)sfd );
 				slapd_close( sfd );
 				return 0;

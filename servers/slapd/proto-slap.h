@@ -1569,7 +1569,7 @@ LDAP_SLAPD_F (char *) phonetic LDAP_P(( char *s ));
 /*
  * proxyp.c
  */
-LDAP_SLAPD_F (int) proxyp LDAP_P((ber_socket_t sfd, Sockaddr *from));
+LDAP_SLAPD_F (int) proxyp LDAP_P((ber_socket_t sfd, Sockaddr *from, ber_socklen_t *salen));
 
 /*
  * referral.c
