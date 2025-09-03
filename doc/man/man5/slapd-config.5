@@ -1515,7 +1515,10 @@ by the syncrepl provider. By default, olcLastMod is TRUE.
 Controls whether
 .B slapd
 will automatically maintain the pwdLastSuccess attribute for
-entries. By default, olcLastBind is FALSE.
+entries. By default, olcLastBind is FALSE. On a replication 
+consumer the pwdLastSuccess attribute will be forwarded to 
+the provider assuming updateref setting and chain overlay 
+are appropriately configured.
 .TP
 .B olcLastBindPrecision: <integer>
 If olcLastBind is enabled, specifies how frequently pwdLastSuccess

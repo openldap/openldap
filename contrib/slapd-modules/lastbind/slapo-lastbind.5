@@ -19,10 +19,9 @@ older than a given value, thus avoiding large numbers of write
 operations penalizing performance.
 One sample use for this overlay would be to detect unused accounts.
 
-Now that OpenLDAP has native support for most of this functionality,
-storing the value in pwdLastSuccess to better interact with the Behera
-Password Policy draft 10. Unless you require lastbind_forward_updates,
-you should consider using that instead.
+Now that OpenLDAP has native support for most of this functionality, you 
+should consider storing the value in pwdLastSuccess to better interact 
+with the Behera Password Policy draft 10.
 
 .SH CONFIGURATION
 The config directives that are specific to the
