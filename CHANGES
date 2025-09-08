@@ -1,6 +1,7 @@
 OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.10 Engineering
+	Fixed slapd to use fresh timestamp for lastbind (ITS#10379)
 	Fixed slapd-mdb error when deleting last child of a branch (ITS#10304)
 	Minor Cleanup
 		ITS#10335
