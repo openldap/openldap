@@ -15,6 +15,7 @@ OpenLDAP 2.6.10 Engineering
 		ITS#10367
 		ITS#10370
 		ITS#10376
+		ITS#10377
 
 OpenLDAP 2.6.10 Release (2025/05/22)
 	Added slapd microsecond timestamp format for local logging (ITS#10140)
