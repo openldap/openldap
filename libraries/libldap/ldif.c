@@ -149,9 +149,17 @@ ldif_parse_line2(
 		b64 = 1;
 	}
 
-	/* skip space between : and value */
-	while ( isspace( (unsigned char) *s ) ) {
-		s++;
+	/* if value is b64, skip any white-space characters between : and value,
+	   they are obviously not part of the value.
+	   Otherwise skip any spaces (0x20) */
+	if ( b64 || url ) {
+		while ( isspace( (unsigned char) *s ) ) {
+			s++;
+		}
+	} else {
+		while ( *s == ' ' ) {
+			s++;
+		}
 	}
 
 	/* check for continued line markers that should be deleted */
