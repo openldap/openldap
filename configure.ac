@@ -1338,7 +1338,7 @@ case $ol_with_threads in auto | yes | posix)
 		dnl 	pthread_create() in $LIBS
 		dnl
 		dnl Check special pthread (final) flags
-		dnl 	[skipped] pthread_create() with -mt (Solaris) [disabled]
+		dnl 	pthread_create() with -mt (Solaris/HP-UX)
 		dnl 	pthread_create() with -kthread (FreeBSD)
 		dnl 	pthread_create() with -pthread (FreeBSD/Digital Unix)
 		dnl 	pthread_create() with -pthreads (?)
@@ -1376,7 +1376,7 @@ case $ol_with_threads in auto | yes | posix)
 			ol_link_pthreads=""
 		fi
 
-dnl		OL_PTHREAD_TRY([-mt],		[ol_cv_pthread_mt])
+		OL_PTHREAD_TRY([-mt],		[ol_cv_pthread_mt])
 		OL_PTHREAD_TRY([-kthread],	[ol_cv_pthread_kthread])
 		OL_PTHREAD_TRY([-pthread],	[ol_cv_pthread_pthread])
 		OL_PTHREAD_TRY([-pthreads],	[ol_cv_pthread_pthreads])
