@@ -128,7 +128,11 @@ typedef SSIZE_T	ssize_t;
 # define MDB_USE_ROBUST	1
 #elif defined(__APPLE__) || defined (BSD) || defined(__FreeBSD_kernel__)
 # define MDB_USE_POSIX_SEM	1
-# define MDB_FDATASYNC		fsync
+# if defined(__APPLE__)
+#  define MDB_FDATASYNC		fcntl(fd, F_FULLFSYNC)
+# else
+#  define MDB_FDATASYNC		fsync
+# endif
 #elif defined(ANDROID)
 # define MDB_FDATASYNC		fsync
 #endif
@@ -2573,7 +2577,7 @@ mdb_env_sync(MDB_env *env, int force)
 				? MS_ASYNC : MS_SYNC;
 			if (MDB_MSYNC(env->me_map, env->me_mapsize, flags))
 				rc = ErrCode();
-#ifdef _WIN32
+#if defined(_WIN32) || defined(__APPLE__)
 			else if (flags == MS_SYNC && MDB_FDATASYNC(env->me_fd))
 				rc = ErrCode();
 #endif
@@ -2970,8 +2974,10 @@ renew:
 		rc = mdb_txn_renew0(txn);
 	}
 	if (rc) {
-		if (txn != env->me_txn0)
+		if (txn != env->me_txn0) {
+			free(txn->mt_u.dirty_list);
 			free(txn);
+		}
 	} else {
 		txn->mt_flags |= flags;	/* could not change txn=me_txn0 earlier */
 		*ret = txn;
@@ -9170,8 +9176,8 @@ typedef struct mdb_copy {
 	pthread_cond_t mc_cond;	/**< Condition variable for #mc_new */
 	char *mc_wbuf[2];
 	char *mc_over[2];
-	int mc_wlen[2];
-	int mc_olen[2];
+	size_t mc_wlen[2];
+	size_t mc_olen[2];
 	pgno_t mc_next_pgno;
 	HANDLE mc_fd;
 	int mc_toggle;			/**< Buffer number in provider */
@@ -9188,7 +9194,8 @@ mdb_env_copythr(void *arg)
 {
 	mdb_copy *my = arg;
 	char *ptr;
-	int toggle = 0, wsize, rc;
+	int toggle = 0, rc;
+	size_t wsize;
 #ifdef _WIN32
 	DWORD len;
 #define DO_WRITE(rc, fd, ptr, w2, len)	rc = WriteFile(fd, ptr, w2, &len, NULL)
