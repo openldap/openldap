@@ -134,7 +134,7 @@ ldif_parse_line2(
 		*p = '\0';
 	}
 	*s++ = '\0';
-	type->bv_len = s - type->bv_val - 1;
+	type->bv_len = p - type->bv_val + 1;
 
 	url = 0;
 	b64 = 0;
