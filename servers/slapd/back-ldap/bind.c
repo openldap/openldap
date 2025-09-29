@@ -1408,6 +1408,11 @@ retry_lock:;
 				Debug( LDAP_DEBUG_ANY, "Error: ldap_set_option "
 					"(SECPROPS,\"%s\") failed!\n",
 					sb->sb_secprops );
+				rs->sr_err = LDAP_OTHER;
+				if ( sendok & LDAP_BACK_SENDERR ) {
+					send_ldap_result( op, rs );
+				}
+				LDAP_BACK_CONN_ISBOUND_CLEAR( lc );
 				goto done;
 			}
 		}
