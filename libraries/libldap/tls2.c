@@ -601,6 +601,7 @@ ldap_pvt_tls_config( LDAP *ld, int option, const char *arg )
 	case LDAP_OPT_X_TLS_PEERKEY_HASH:
 	case LDAP_OPT_X_TLS_ECNAME:
 	case LDAP_OPT_X_TLS_CRLFILE:	/* GnuTLS only */
+	case LDAP_OPT_X_TLS_OPENSSL_CONF:	/* OpenSSL only */
 		return ldap_pvt_tls_set_option( ld, option, (void *) arg );
 
 	case LDAP_OPT_X_TLS_REQUIRE_CERT:
@@ -742,6 +743,10 @@ ldap_pvt_tls_get_option( LDAP *ld, int option, void *arg )
 #ifdef HAVE_OPENSSL
 	case LDAP_OPT_X_TLS_CRLCHECK:	/* OpenSSL only */
 		*(int *)arg = lo->ldo_tls_crlcheck;
+		break;
+	case LDAP_OPT_X_TLS_OPENSSL_CONF:	/* OpenSSL only */
+		*(char **)arg = lo->ldo_tls_openssl_conf ?
+			LDAP_STRDUP( lo->ldo_tls_openssl_conf ) : NULL;
 		break;
 #endif
 	case LDAP_OPT_X_TLS_CIPHER_SUITE:
@@ -971,6 +976,30 @@ ldap_pvt_tls_set_option( LDAP *ld, int option, void *arg )
 			return 0;
 		}
 		return -1;
+	case LDAP_OPT_X_TLS_OPENSSL_CONF:	/* OpenSSL only */
+		// If new value is empty, clear old value.
+		// Else, add new value to end of old value with a ';'
+		// This lets TLSOpenSSLConf be used multiple times to
+		// configure many OpenSSL options.
+		if ( lo->ldo_tls_openssl_conf ) {
+		    while ( arg != NULL && *(char *)arg != '\0' && isspace( *(char *)arg ) ) ++arg;
+		    if ( !arg || !*(char *)arg ) {
+			LDAP_FREE( lo->ldo_tls_openssl_conf );
+			lo->ldo_tls_openssl_conf = NULL;
+		    } else {
+			char *new = LDAP_REALLOC( lo->ldo_tls_openssl_conf,
+						  strlen(lo->ldo_tls_openssl_conf) + strlen(arg) + 2 );
+			if ( !new ) {
+			    return -1;
+			}
+			strcat( new, ";" );
+			strcat( new, arg );
+			lo->ldo_tls_openssl_conf = new;
+		    }
+		} else {
+		    lo->ldo_tls_openssl_conf = (arg && *(char *)arg) ? LDAP_STRDUP( (char *) arg ) : NULL;
+		}
+		return 0;
 #endif
 	case LDAP_OPT_X_TLS_CIPHER_SUITE:
 		if ( lo->ldo_tls_ciphersuite ) LDAP_FREE( lo->ldo_tls_ciphersuite );

@@ -182,6 +182,7 @@ struct ldaptls {
 	char		*lt_crlfile;
 	char		*lt_randfile;	/* OpenSSL only */
 	char		*lt_ecname;		/* OpenSSL only */
+	char		*lt_openssl_conf;	/* OpenSSL only */
 	int		lt_protocol_min;
 	int		lt_protocol_max;
 	struct berval	lt_cacert;
@@ -299,14 +300,15 @@ struct ldapoptions {
 #define ldo_tls_certfile	ldo_tls_info.lt_certfile
 #define ldo_tls_keyfile	ldo_tls_info.lt_keyfile
 #define ldo_tls_dhfile	ldo_tls_info.lt_dhfile
-#define ldo_tls_ecname	ldo_tls_info.lt_ecname
 #define ldo_tls_cacertfile	ldo_tls_info.lt_cacertfile
 #define ldo_tls_cacertdir	ldo_tls_info.lt_cacertdir
 #define ldo_tls_ciphersuite	ldo_tls_info.lt_ciphersuite
-#define ldo_tls_protocol_min	ldo_tls_info.lt_protocol_min
-#define ldo_tls_protocol_max	ldo_tls_info.lt_protocol_max
 #define ldo_tls_crlfile	ldo_tls_info.lt_crlfile
 #define ldo_tls_randfile	ldo_tls_info.lt_randfile
+#define ldo_tls_ecname	ldo_tls_info.lt_ecname
+#define ldo_tls_openssl_conf	ldo_tls_info.lt_openssl_conf
+#define ldo_tls_protocol_min	ldo_tls_info.lt_protocol_min
+#define ldo_tls_protocol_max	ldo_tls_info.lt_protocol_max
 #define ldo_tls_cacert	ldo_tls_info.lt_cacert
 #define ldo_tls_cert	ldo_tls_info.lt_cert
 #define ldo_tls_key	ldo_tls_info.lt_key
@@ -317,7 +319,7 @@ struct ldapoptions {
 	int			ldo_tls_require_san;
 	char		*ldo_tls_pin_hashalg;
 	struct berval	ldo_tls_pin;
-#define LDAP_LDO_TLS_NULLARG ,0,0,0,{0,0,0,0,0,0,0,0,0},0,0,0,0,0,0,{0,0}
+#define LDAP_LDO_TLS_NULLARG ,0,0,0,{0,0,0,0,0,0,0,0,0,0,0,0,{0,0},{0,0},{0,0}},0,0,0,0,0,0,{0,0}
 #else
 #define LDAP_LDO_TLS_NULLARG
 #endif

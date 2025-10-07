@@ -666,6 +666,76 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 	}
 	/* Explicitly honor the server side cipher suite preference */
 	SSL_CTX_set_options( ctx, SSL_OP_CIPHER_SERVER_PREFERENCE );
+	if ( lo->ldo_tls_openssl_conf ) {
+		char *oc = LDAP_STRDUP(lo->ldo_tls_openssl_conf);
+		char *ocptr = oc;
+		char *strtok_buf;
+
+		SSL_CONF_CTX *cctx = SSL_CONF_CTX_new();
+		if ( cctx == NULL ) {
+			Debug0( LDAP_DEBUG_ANY, "TLS: SSL_CONF_CTX_new failed" );
+			tlso_report_error( errmsg );
+			return -1;
+		}
+
+		SSL_CONF_CTX_set_ssl_ctx( cctx, ctx);
+		SSL_CONF_CTX_set_flags( cctx, SSL_CONF_FLAG_FILE );
+		if ( is_server ) {
+			SSL_CONF_CTX_set_flags( cctx, SSL_CONF_FLAG_SERVER );
+		} else {
+			SSL_CONF_CTX_set_flags( cctx, SSL_CONF_FLAG_CLIENT );
+		}
+		SSL_CONF_CTX_set_flags( cctx, SSL_CONF_FLAG_CERTIFICATE );
+		SSL_CONF_CTX_set_flags( cctx, SSL_CONF_FLAG_SHOW_ERRORS );
+
+		while ( (oc = strtok_r( oc, ";", &strtok_buf )) != NULL ) {
+
+			/* Skip leading whitespace */
+			char *cmd = oc;
+			while ( *cmd && isspace( *cmd ) ) {
+				cmd++;
+			}
+
+			/* move to next whitespace (end of command) */
+			char *param = cmd;
+			while ( *param && !isspace( *param ) ) {
+				param++;
+			}
+			if ( *param ) {
+				*param = '\0';
+				param++;
+			}
+
+			/* Skip all separating whitespace */
+			while ( *param && isspace( *param ) ) {
+				param++;
+			}
+			/* Trim trailing whitespace */
+			char *end = param + strlen( param ) - 1;
+			while ( end > param && isspace( *param ) ) {
+				*end-- = '\0';
+			}
+			if ( SSL_CONF_cmd( cctx, cmd, param ) <= 0 ) {
+				Debug2( LDAP_DEBUG_ANY,
+					"TLS: SSL_CONF_cmd: failed on \'%s %s'\n",
+					cmd,param);
+				tlso_report_error( errmsg );
+				SSL_CONF_CTX_free( cctx );
+				LDAP_FREE( ocptr );
+				return -1;
+			}
+			oc = NULL;
+		}
+		if ( SSL_CONF_CTX_finish( cctx ) == 0 ) {
+			Debug0( LDAP_DEBUG_ANY, "TLS: SSL_CONF_CTX_finish failed\n" );
+			tlso_report_error( errmsg );
+			SSL_CONF_CTX_free( cctx );
+			LDAP_FREE( ocptr );
+			return -1;
+		}
+		SSL_CONF_CTX_free( cctx );
+		LDAP_FREE( ocptr );
+	}
 	return 0;
 }
 
@@ -1630,7 +1700,7 @@ tlso_report_error( char *errmsg )
 
 	while ( ( l = ERR_get_error_line( &file, &line ) ) != 0 ) {
 		ERR_error_string_n( l, buf, ERRBUFSIZE );
-		if ( !*errmsg )
+		if ( errmsg && !*errmsg )
 			strcpy(errmsg, buf );
 #ifdef HAVE_EBCDIC
 		if ( file ) {

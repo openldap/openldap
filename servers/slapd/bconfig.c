@@ -157,6 +157,7 @@ enum {
 	CFG_TLS_VERIFY,
 	CFG_TLS_CRLCHECK,
 	CFG_TLS_CRL_FILE,
+	CFG_TLS_OPENSSL_CONF,
 	CFG_CONCUR,
 	CFG_THREADS,
 	CFG_SALT,
@@ -927,6 +928,14 @@ static ConfigTable config_back_cf_table[] = {
 		"( OLcfgGlAt:87 NAME 'olcTLSProtocolMin' "
 			"EQUALITY caseExactMatch "
 			"SYNTAX OMsDirectoryString SINGLE-VALUE )", NULL, NULL },
+	{ "TLSOpenSSLConf", NULL, 2, 2, 0,
+#if defined(HAVE_TLS) && defined(HAVE_OPENSSL)
+		CFG_TLS_OPENSSL_CONF|ARG_STRING|ARG_MAGIC, &config_tls_option,
+#else
+		ARG_IGNORED, NULL,
+#endif
+		"( OLcfgGlAt:105 NAME 'olcTLSOpenSSLConf' "
+			"SYNTAX OMsDirectoryString )", NULL, NULL },
 	{ "tool-threads", "count", 2, 2, 0, ARG_INT|ARG_MAGIC|CFG_TTHREADS,
 		&config_generic, "( OLcfgGlAt:80 NAME 'olcToolThreads' "
 			"EQUALITY integerMatch "
@@ -4130,6 +4139,9 @@ config_tls_option(ConfigArgs *c) {
 	case CFG_TLS_ECNAME:	flag = LDAP_OPT_X_TLS_ECNAME;	break;
 #ifdef HAVE_GNUTLS
 	case CFG_TLS_CRL_FILE:	flag = LDAP_OPT_X_TLS_CRLFILE;	break;
+#endif
+#ifdef HAVE_OPENSSL
+	case CFG_TLS_OPENSSL_CONF: flag = LDAP_OPT_X_TLS_OPENSSL_CONF; break;
 #endif
 	case CFG_TLS_CACERT:	flag = LDAP_OPT_X_TLS_CACERT;	berval = 1;	break;
 	case CFG_TLS_CERT:		flag = LDAP_OPT_X_TLS_CERT;	berval = 1;	break;

@@ -1088,6 +1088,16 @@ Check the CRL for a whole certificate chain
 Specifies a file containing a Certificate Revocation List to be used
 for verifying that certificates have not been revoked. This parameter is
 only valid when using GnuTLS.
+.RE
+.TP
+.B olcTLSOpenSSLConf <command>
+Execute any configuration command supported via the OpenSSL CONF API.
+Supported commands are described in the
+.BR SSL_CONF_cmd (3ssl)
+manual page.
+This command can be specified many times to execute different OpenSSL
+configuration commands.
+This directive is only valid when using OpenSSL.
 .SH DYNAMIC MODULE OPTIONS
 If
 .B slapd
