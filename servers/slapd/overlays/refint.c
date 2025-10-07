@@ -596,6 +596,7 @@ refint_repair(
 	unsigned long	opid;
 	int		rc;
 	int	cache;
+	OpExtra oex;
 
 	op->o_callback->sc_response = refint_search_cb;
 	op->o_req_dn = op->o_bd->be_suffix[ 0 ];
@@ -638,6 +639,11 @@ refint_repair(
 
 	opid = op->o_opid;
 	op2 = *op;
+
+	/* mark this mod as one of ours */
+	oex.oe_key = (void *)&refint;
+	LDAP_SLIST_INSERT_HEAD( &op2.o_extra, &oex, oe_next );
+
 	for ( dp = rq->attrs; dp; dp = dp->next ) {
 		SlapReply	rs2 = {REP_RESULT};
 		refint_attrs	*ra;
