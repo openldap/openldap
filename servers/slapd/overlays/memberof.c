@@ -903,6 +903,9 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 	memberof_cbinfo_t *mci, mcis;
 	OpExtra		*oex;
 
+	if ( get_manageDSAit( op ))
+		return SLAP_CB_CONTINUE;
+
 	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
 		if ( oex->oe_key == (void *)&memberof )
 			return SLAP_CB_CONTINUE;
@@ -2154,8 +2157,7 @@ mo_cf_gen( ConfigArgs *c )
 				if ( SLAP_ISGLOBALOVERLAY( c->be ) ) {
 					snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"addcheck functionality not supported "
-						"when memberof is a global overlay",
-						c->argv[ 1 ] );
+						"when memberof is a global overlay" );
 					Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
 						c->log, c->cr_msg );
 					return 1;
