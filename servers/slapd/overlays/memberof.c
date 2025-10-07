@@ -136,6 +136,7 @@ static AttributeDescription	*ad_memberOf;
 static ObjectClass			*oc_group;
 
 static slap_overinst		memberof;
+static slap_overinst		*oi_refint;
 
 typedef struct memberof_t {
 	struct berval		mo_dn;
@@ -905,6 +906,8 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 
 	LDAP_SLIST_FOREACH( oex, &op->o_extra, oe_next ) {
 		if ( oex->oe_key == (void *)&memberof )
+			return SLAP_CB_CONTINUE;
+		if ( oi_refint && oex->oe_key == oi_refint )
 			return SLAP_CB_CONTINUE;
 	}
 
@@ -2154,8 +2157,7 @@ mo_cf_gen( ConfigArgs *c )
 				if ( SLAP_ISGLOBALOVERLAY( c->be ) ) {
 					snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"addcheck functionality not supported "
-						"when memberof is a global overlay",
-						c->argv[ 1 ] );
+						"when memberof is a global overlay" );
 					Debug( LDAP_DEBUG_ANY, "%s: %s.\n",
 						c->log, c->cr_msg );
 					return 1;
@@ -2210,6 +2212,8 @@ memberof_db_open(
 	if ( BER_BVISNULL( &mo->mo_memberFilterstr ) ) {
 		memberof_make_member_filter( mo );
 	}
+
+	oi_refint = overlay_find( "refint" );
 
 	return 0;
 }
