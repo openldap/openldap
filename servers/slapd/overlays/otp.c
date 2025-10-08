@@ -959,6 +959,7 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 
 		op2.o_tag = LDAP_REQ_MODIFY;
 		op2.orm_modlist = mod;
+		op2.orm_no_opattrs = 0;
 		op2.o_dn = op->o_bd->be_rootdn;
 		op2.o_ndn = op->o_bd->be_rootndn;
 		op2.o_req_dn = ndn;
@@ -968,6 +969,9 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 		rc = op2.o_bd->be_modify( &op2, &rs2 );
 		if ( rs2.sr_err != LDAP_SUCCESS ) {
 			rc = LDAP_OTHER;
+		}
+		if ( m->sml_next ) {
+			slap_mods_free( m->sml_next, 1 );
 		}
 	}
 
