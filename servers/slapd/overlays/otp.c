@@ -649,7 +649,7 @@ otp_bind_response( Operation *op, SlapReply *rs )
 }
 
 static long
-otp_hotp( Operation *op, Entry *token )
+otp_hotp( Operation *op, Entry *token, BerValue *old_value )
 {
 	char outbuf[MAX_DIGITS + 1];
 	Entry *params = NULL;
@@ -668,6 +668,9 @@ otp_hotp( Operation *op, Entry *token )
 				"could not parse oathHOTPCounter value %s\n",
 				a->a_vals[0].bv_val );
 		goto done;
+	}
+	if ( a ) {
+		ber_bvreplace( old_value, &a->a_vals[0] );
 	}
 
 	a = attr_find( token->e_attrs, ad_oathHOTPParams );
@@ -753,7 +756,7 @@ done:
 }
 
 static long
-otp_totp( Operation *op, Entry *token, long *drift )
+otp_totp( Operation *op, Entry *token, BerValue *old_value, long *drift )
 {
 	char outbuf[MAX_DIGITS + 1];
 	Entry *params = NULL;
@@ -772,6 +775,9 @@ otp_totp( Operation *op, Entry *token, long *drift )
 				"could not parse oathTOTPLastTimeStep value %s\n",
 				a->a_vals[0].bv_val );
 		goto done;
+	}
+	if ( a ) {
+		ber_bvreplace( old_value, &a->a_vals[0] );
 	}
 
 	a = attr_find( token->e_attrs, ad_oathTOTPParams );
@@ -885,7 +891,7 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 		Entry *token )
 {
 	AttributeDescription *ad = NULL, *drift_ad = NULL;
-	BerValue ndn;
+	BerValue ndn, old_value[2] = { BER_BVNULL, BER_BVNULL };
 	long t = -1, drift = 0;
 	int rc = LDAP_INVALID_CREDENTIALS;
 
@@ -895,7 +901,7 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 			ndn = *totpdn;
 			ad = ad_oathTOTPLastTimeStep;
 			drift_ad = ad_oathTOTPTimeStepDrift;
-			t = otp_totp( op, token, &drift );
+			t = otp_totp( op, token, &old_value[0], &drift );
 			be_entry_release_r( op, token );
 			token = NULL;
 		}
@@ -905,7 +911,7 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 					0, &token ) == LDAP_SUCCESS ) {
 			ndn = *hotpdn;
 			ad = ad_oathHOTPCounter;
-			t = otp_hotp( op, token );
+			t = otp_hotp( op, token, &old_value[0] );
 			be_entry_release_r( op, token );
 			token = NULL;
 		}
@@ -917,7 +923,7 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 		char outbuf[32], drift_buf[32];
 		Operation op2;
 		Opheader oh;
-		Modifications mod[2], *m = mod;
+		Modifications mod[3], *m = mod;
 		SlapReply rs2 = { REP_RESULT };
 		slap_callback cb = { .sc_response = &slap_null_cb };
 		BerValue bv[2], bv_drift[2];
@@ -926,15 +932,27 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 		bv[0].bv_len = snprintf( bv[0].bv_val, sizeof(outbuf), "%ld", t );
 		BER_BVZERO( &bv[1] );
 
+		/* Limit races by removing old counter by value */
+		if ( !BER_BVISNULL( &old_value[0] ) ) {
+			m->sml_numvals = 1;
+			m->sml_values = old_value;
+			m->sml_nvalues = NULL;
+			m->sml_desc = ad;
+			m->sml_op = LDAP_MOD_DELETE;
+			m->sml_flags = SLAP_MOD_INTERNAL;
+			m->sml_next = (m+1);
+			m++;
+		}
+
 		m->sml_numvals = 1;
 		m->sml_values = bv;
 		m->sml_nvalues = NULL;
 		m->sml_desc = ad;
-		m->sml_op = LDAP_MOD_REPLACE;
+		m->sml_op = LDAP_MOD_ADD;
 		m->sml_flags = SLAP_MOD_INTERNAL;
 
 		if ( drift_ad ) {
-			m->sml_next = &mod[1];
+			m->sml_next = (m+1);
 
 			bv_drift[0].bv_val = drift_buf;
 			bv_drift[0].bv_len = snprintf(
@@ -971,11 +989,18 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 
 		rc = op2.o_bd->be_modify( &op2, &rs2 );
 		if ( rs2.sr_err != LDAP_SUCCESS ) {
-			rc = LDAP_OTHER;
+			Debug( LDAP_DEBUG_ANY, "%s otp_check_and_update: "
+				"failed to invalidate provided token rc=%d: %s\n",
+				op->o_log_prefix, rc, rs2.sr_text ? rs2.sr_text : "" );
+			rc = LDAP_INVALID_CREDENTIALS;
 		}
 		if ( m->sml_next ) {
 			slap_mods_free( m->sml_next, 1 );
 		}
+	}
+
+	if ( !BER_BVISNULL( &old_value[0] ) ) {
+		ch_free( old_value[0].bv_val );
 	}
 
 	return rc;
