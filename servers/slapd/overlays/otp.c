@@ -987,6 +987,9 @@ otp_check_and_update( Operation *op, BerValue *totpdn, BerValue *hotpdn,
 		slap_op_time( &op2.o_time, &op2.o_tincr );
 		BER_BVZERO( &op2.o_csn );
 
+		if ( SLAP_SHADOW( op->o_bd ) ) {
+			op2.o_bd = frontendDB;
+		}
 		rc = op2.o_bd->be_modify( &op2, &rs2 );
 		if ( rs2.sr_err != LDAP_SUCCESS ) {
 			Debug( LDAP_DEBUG_ANY, "%s otp_check_and_update: "
