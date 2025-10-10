@@ -15,7 +15,7 @@ slapd now supports logging directly to a file, bypassing syslog.
 
 H3: New features in lloadd
 
-lloadd now supports additional balancing mechansims
+lloadd now supports additional balancing mechanisms
 
 H2: Obsolete Features Removed From 2.6
 
