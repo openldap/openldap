@@ -5,6 +5,7 @@ OpenLDAP 2.6.11 Engineering
 	Fixed slapd delta-syncrepl to always use logDB rootdn (ITS#10360)
 	Fixed slapd reverse lookup of proxied IPv6 addresses (ITS#10387)
 	Fixed slapd-mdb error when deleting last child of a branch (ITS#10304)
+	Fixed slapd-mdb check for pool pause in search (ITS#10191)
 	Fixed slapo-syncprov use correct rootDN for accesslog replay (ITS#10385)
 	Minor Cleanup
 		ITS#10335
