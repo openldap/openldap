@@ -1,6 +1,6 @@
 OpenLDAP 2.6 Change Log
 
-OpenLDAP 2.6.10 Engineering
+OpenLDAP 2.6.11 Engineering
 	Fixed slapd to use fresh timestamp for lastbind (ITS#10379)
 	Fixed slapd delta-syncrepl to always use logDB rootdn (ITS#10360)
 	Fixed slapd reverse lookup of proxied IPv6 addresses (ITS#10387)
@@ -21,6 +21,7 @@ OpenLDAP 2.6.10 Engineering
 		ITS#10369
 		ITS#10370
 		ITS#10371
+		ITS#10372
 		ITS#10374
 		ITS#10375
 		ITS#10376
