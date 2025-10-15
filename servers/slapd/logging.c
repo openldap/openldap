@@ -124,7 +124,6 @@ slap_debug_print( const char *data )
 	datalen = len - prefixlen;
 	if ( !logfile_only )
 		(void)!write( 2, msgbuf+poffset, len );
-	ptr = msgbuf;
 #else
 	iov[0].iov_base = prefix;
 	iov[0].iov_len = sprintf( prefix, "%lx." TS " %p ",
@@ -214,6 +213,7 @@ slap_debug_print( const char *data )
 		}
 
 #ifdef _WIN32
+		ptr = msgbuf;
 		if ( logfile_format <= LFMT_DEBUG )
 			ptr += poffset;	/* only nonzero if logfile-format was explicitly set */
 		len = write( logfile_fd, ptr, len );
