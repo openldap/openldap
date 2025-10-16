@@ -429,13 +429,26 @@ static int pbkdf2_check(
 int init_module(int argc, char *argv[]) {
 	int rc;
 
-	if (argc == 2) {
-		int iter = atoi(argv[1]);
+	if (argc > 0) {
+		char *endptr = NULL;
+		int iter = strtol(argv[0], &endptr, 0);
+		if (strlen(argv[0]) == 0 || *endptr != '\0') {
+			perror("pw-pbkdf2 rounds argument invalid\n");
+			return -1;
+		}
+
 		if (iter > 0)
 			pbkdf2_iteration = iter;
-		else
+		else {
+			fprintf(stderr, "pw-pbkdf2 rounds must be >= 1");
 			return -1;
+		}
 	}
+	if (argc > 1) {
+		fprintf(stderr, "unknown arguments given to pw-pbkdf2\n");
+		return -1;
+	}
+
 	rc = lutil_passwd_add((struct berval *)&pbkdf2_scheme,
 						  pbkdf2_check, pbkdf2_encrypt);
 	if(rc) return rc;
