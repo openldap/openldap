@@ -1,3 +1,5 @@
+#include "liblber-config.h"
+
 OPENLDAP_2.200
 {
   global:
@@ -102,6 +104,9 @@ OPENLDAP_2.200
     ber_pvt_sb_do_write;
     ber_pvt_sb_grow_buffer;
     ber_pvt_socket_set_nonblock;
+#ifdef _WIN32
+    ber_pvt_wsa_err2string;
+#endif /* _WIN32 */
     ber_read;
     ber_realloc;
     ber_remaining;
@@ -121,6 +126,9 @@ OPENLDAP_2.200
     ber_sockbuf_io_fd;
     ber_sockbuf_io_readahead;
     ber_sockbuf_io_tcp;
+#ifdef LDAP_CONNECTIONLESS
+    ber_sockbuf_io_udp;
+#endif
     ber_sockbuf_remove_io;
     ber_sos_dump;
     ber_start;

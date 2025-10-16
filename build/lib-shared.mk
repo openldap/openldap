@@ -23,7 +23,7 @@ MKDEPFLAG = -l
 .c.lo:
 	$(LTCOMPILE_LIB) $<
 
-$(LIBRARY): version.lo
+$(LIBRARY): version.lo $(SYMBOL_VERSION_SCRIPT)
 	$(LTLINK_LIB) -o $@ $(OBJS) version.lo $(LINK_LIBS)
 
 Makefile: $(top_srcdir)/build/lib-shared.mk

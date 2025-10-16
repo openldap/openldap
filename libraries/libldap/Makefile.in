@@ -49,7 +49,7 @@ OBJS	= bind.lo open.lo result.lo error.lo compare.lo search.lo \
 	thr_posix.lo thr_thr.lo thr_nt.lo thr_pth.lo thr_debug.lo \
 	account_usability.lo avl.lo tavl.lo
 
-LDAP_INCDIR= ../../include       
+LDAP_INCDIR= ../../include
 LDAP_LIBDIR= ../../libraries
 
 LIB_DEFS = -DLDAP_LIBRARY
@@ -58,7 +58,12 @@ XLIBS = $(LIBRARY) $(LDAP_LIBLBER_LA) $(LDAP_LIBLUTIL_A)
 XXLIBS = $(SECURITY_LIBS) $(LUTIL_LIBS)
 NT_LINK_LIBS = $(LDAP_LIBLBER_LA) $(AC_LIBS) $(SECURITY_LIBS)
 UNIX_LINK_LIBS = $(LDAP_LIBLBER_LA) $(AC_LIBS) $(SECURITY_LIBS) $(LTHREAD_LIBS)
-@DO_VERSIONED_SYMBOLS@SYMBOL_VERSION_FLAGS=$(OL_VERSIONED_SYMBOLS)$(srcdir)/ldap.map
+
+SYMBOL_VERSION_SCRIPT=ldap.map
+@DO_VERSIONED_SYMBOLS@SYMBOL_VERSION_FLAGS=$(OL_VERSIONED_SYMBOLS)$(SYMBOL_VERSION_SCRIPT)
+
+$(SYMBOL_VERSION_SCRIPT): $(srcdir)/$(SYMBOL_VERSION_SCRIPT).in $(LDAP_INCDIR)/libldap-config.h
+	$(CPP) -x c -o $@ $(LT_CPPFLAGS) $(srcdir)/$(SYMBOL_VERSION_SCRIPT).in
 
 apitest:	$(XLIBS) apitest.o
 	$(LTLINK) -o $@ apitest.o $(LIBS)

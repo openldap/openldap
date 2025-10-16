@@ -20,10 +20,7 @@
 #ifndef	_LDAP_INT_H
 #define	_LDAP_INT_H 1
 
-#ifndef NO_THREADS
-#define LDAP_R_COMPILE 1
-#endif
-
+#include "libldap-config.h"
 #include "../liblber/lber-int.h"
 #include "lutil.h"
 #include "ldap_avl.h"
@@ -113,7 +110,6 @@
 
 #endif /* LDAP_DEBUG */
 
-#define LDAP_DEPRECATED 1
 #include "ldap.h"
 
 #include "ldap_pvt.h"

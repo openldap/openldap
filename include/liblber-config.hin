@@ -1,0 +1,26 @@
+/* $OpenLDAP$ */
+/* This work is part of OpenLDAP Software <http://www.openldap.org/>.
+ *
+ * Copyright 1998-2025 The OpenLDAP Foundation.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted only as authorized by the OpenLDAP
+ * Public License.
+ *
+ * A copy of this license is available in file LICENSE in the
+ * top-level directory of the distribution or, alternatively, at
+ * <http://www.OpenLDAP.org/license.html>.
+ */
+
+/*
+ * liblber optional components
+ */
+
+#ifndef _LBER_LIBCONFIG_H
+#define _LBER_LIBCONFIG_H 1
+
+/* ldapc:// support */
+#undef LDAP_CONNECTIONLESS
+
+#endif /* LBER_LIBCONFIG */

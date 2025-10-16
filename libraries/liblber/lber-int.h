@@ -26,6 +26,7 @@
 #ifndef _LBER_INT_H
 #define _LBER_INT_H
 
+#include "liblber-config.h"
 #include "lber.h"
 #define LDAP_INT_DEBUG
 #include "ldap_log.h"

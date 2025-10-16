@@ -193,6 +193,8 @@ AH_BOTTOM([
 AC_CONFIG_HEADERS([include/portable.h:include/portable.hin:include/slapd-modules.hin])
 AC_CONFIG_HEADERS([include/ldap_features.h:include/ldap_features.hin])
 AC_CONFIG_HEADERS([include/lber_types.h:include/lber_types.hin])
+AC_CONFIG_HEADERS([include/liblber-config.h:include/liblber-config.hin])
+AC_CONFIG_HEADERS([include/libldap-config.h:include/libldap-config.hin])
 
 dnl ================================================================
 dnl Start Args
