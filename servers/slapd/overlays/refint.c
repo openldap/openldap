@@ -660,7 +660,6 @@ refint_repair(
 		op2.orm_no_opattrs = 1;
 		op2.o_dont_replicate = 1;
 		op2.o_opid = 0;
-		op2.o_managedsait = SLAP_CONTROL_CRITICAL;
 
 		/* Set our ModifiersName */
 		if ( SLAP_LASTMOD( op->o_bd ) ) {
