@@ -261,7 +261,7 @@ ldap_parse_result(
 	LDAP_MUTEX_LOCK( &ld->ld_res_mutex );
 	/* Find the result, last msg in chain... */
 	lm = r->lm_chain_tail;
-	if ( r->lm_msgid != lm->lm_msgid ) {
+	if ( lm != NULL && r->lm_msgid != lm->lm_msgid ) {
 		/*
 		 * ITS#10229: Returned with LDAP_MSG_ALL+LDAP_MSG_RECEIVED. People who
 		 * do that aren't expected to call ldap_parse_result not least because
