@@ -313,7 +313,7 @@ ber_decode_int( const struct berval *bv, ber_int_t *num )
 
 		/* shift in the bytes */
 		for( i = 1; i < len; i++ ) {
-			netnum = (netnum << 8 ) | buf[i];
+			netnum = ((unsigned)netnum << 8 ) | buf[i];
 		}
 
 		*num = netnum;
