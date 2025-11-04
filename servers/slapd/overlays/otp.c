@@ -919,6 +919,9 @@ otp_op_bind( Operation *op, SlapReply *rs )
 		op2.o_req_ndn = ndn;
 		op2.o_opid = -1;
 
+		slap_op_time( &op2.o_time, &op2.o_tincr );
+		BER_BVZERO( &op2.o_csn );
+
 		op2.o_bd->be_modify( &op2, &rs2 );
 		if ( rs2.sr_err != LDAP_SUCCESS ) {
 			rc = LDAP_OTHER;
