@@ -847,6 +847,7 @@ merge_entry(
 	Attribute		*attr;
 	char			textbuf[SLAP_TEXT_BUFLEN];
 	size_t			textlen = sizeof(textbuf);
+	struct berval	odn, ondn;
 
 	SlapReply sreply = {REP_RESULT};
 
@@ -868,6 +869,9 @@ merge_entry(
 	op->o_callback = &cb;
 	op->o_time = slap_get_time();
 	op->o_do_not_cache = 1;
+
+	odn = op->o_req_dn;
+	ondn = op->o_req_ndn;
 
 	op->ora_e = e;
 	op->o_req_dn = e->e_name;
@@ -900,8 +904,8 @@ merge_entry(
 		rc = 1;
 	}
 
-	BER_BVZERO(&op->o_req_dn);
-	BER_BVZERO(&op->o_req_ndn);
+	op->o_req_dn = odn;
+	op->o_req_ndn = ondn;
 	return rc;
 }
 
