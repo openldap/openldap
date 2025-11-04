@@ -1,6 +1,7 @@
 LMDB 0.9 Change Log
 
 LMDB 0.9.34 Engineering
+	ITS#9564 - fix race condition freeing spilled pages at end of transaction
 	ITS#10222 - Update mdb_dump(1) and mdb_load(1) man pages for append (-a) option
 	ITS#10275 - mdb_load: add -Q option to use NOSYNC
 	ITS#10296 - fix fdatasync on MacOS
