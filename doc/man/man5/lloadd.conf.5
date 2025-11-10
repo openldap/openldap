@@ -27,15 +27,21 @@ The general format of
 is as follows:
 .LP
 .nf
+    # The following two lines should only be present if configured as a
+    # slapd module:
+    backend lload
+    listen <URIs to be managed by lloadd>
     # comment - these options apply to the server as a whole
     <global configuration options>
+    # first tier definition
+    tier <strategy>
     # first backend definition
     backend-server <backend 1 definition>
-    # subsequent backend definitions
+    # subsequent backend/tier definitions
     ...
 .fi
 .LP
-As many backend servers may be configured as desired.
+As many tiers and backend servers may be configured as desired.
 .LP
 If a line begins with white space, it is considered a continuation
 of the previous line.  No physical line should be over 2000 bytes
