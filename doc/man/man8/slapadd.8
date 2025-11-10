@@ -178,9 +178,9 @@ enable dry-run (don't write to backend) mode.
 enable verbose mode.
 .TP
 .BI \-w
-write syncrepl context information.
-After all entries are added, the contextCSN
-will be updated with the greatest CSN in the database.
+(over)write syncrepl context information. After all entries are added, the
+contextCSN will be updated with the greatest CSN in the database. Only use to
+load a fresh seed provider.
 .SH LIMITATIONS
 Your
 .BR slapd (8)
