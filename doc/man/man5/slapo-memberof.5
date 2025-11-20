@@ -103,7 +103,11 @@ referential integrity or not.
 If set to
 .IR TRUE ,
 when an entry containing values of the "is member of" attribute is modified,
-the corresponding groups are modified as well.
+the corresponding groups are modified as well. Note that while this overlay
+handles renames of individual groups and members, it doesn't handle changes
+due to subtree renames. For referential integrity on subtree renames the
+.BR slapo\-refint (5)
+overlay should also be used.
 
 .TP
 .BI "memberof\-addcheck {" true "|" FALSE "}"
@@ -146,6 +150,7 @@ a future release:
 is replaced with olcMemberOfConfig
 .SH SEE ALSO
 .BR slapo-dynlist (5),
+.BR slapo-refint (5),
 .BR slapd.conf (5),
 .BR slapd\-config (5),
 .BR slapd (8).
