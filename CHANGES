@@ -10,6 +10,7 @@ OpenLDAP 2.6.11 Engineering
 	Fixed slapo-syncprov use correct rootDN for accesslog replay (ITS#10385)
 	Minor Cleanup
 		ITS#7901
+		ITS#10329
 		ITS#10335
 		ITS#10339
 		ITS#10343
