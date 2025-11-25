@@ -98,6 +98,9 @@
 #		define tcp_close( s )		closesocket( s )
 #	endif
 
+#undef EWOULDBLOCK
+#undef EINPROGRESS
+#undef ETIMEDOUT
 #define EWOULDBLOCK WSAEWOULDBLOCK
 #define ENOTCONN WSAENOTCONN
 #define EINPROGRESS WSAEINPROGRESS
