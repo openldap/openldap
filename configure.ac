@@ -1149,21 +1149,21 @@ elif test $ol_enable_ipv6 != no ; then
 
 	AC_CACHE_CHECK([struct sockaddr_storage],ol_cv_struct_sockaddr_storage,[
 		AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#ifdef HAVE_WINSOCK2_H
+#include <winsock2.h>
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
+#endif
 ]], [[
 			struct sockaddr_storage ss;
 ]])],[ol_cv_struct_sockaddr_storage=yes],[ol_cv_struct_sockaddr_storage=no])])
 
-	if test $ol_cv_inet6_addrstrlen = yes &&
-	   test $ol_cv_struct_sockaddr_storage = yes ; then
-		ol_link_ipv6=yes
-	elif test $ol_enable_ipv6 = yes &&
-	     test $ol_cv_inet6_addrstrlen = no ; then
-		AC_MSG_ERROR([IPv6 support requires INET6_ADDRSTRLEN])
-	elif test $ol_enable_ipv6 = yes &&
+	if test $ol_enable_ipv6 = yes &&
 	     test $ol_cv_struct_sockaddr_storage = no ; then
 		AC_MSG_ERROR([IPv6 support requires struct sockaddr_storage])
+	else
+		ol_link_ipv6=yes
 	fi
 fi
 
