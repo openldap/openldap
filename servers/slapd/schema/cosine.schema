@@ -1,4 +1,4 @@
-# RFC1274: Cosine and Internet X.500 schema
+# RFC4524: Cosine and Internet X.500 schema with items from RFC1274
 # $OpenLDAP$
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
@@ -14,6 +14,7 @@
 ## <http://www.OpenLDAP.org/license.html>.
 #
 # RFC1274: Cosine and Internet X.500 schema
+# RFC4524: COSINE LDAP/X.500 Schema
 #
 # This file contains LDAPv3 schema derived from X.500 COSINE "pilot"
 # schema.  As this schema was defined for X.500(89), some
@@ -21,9 +22,9 @@
 # mappings were based upon: draft-ietf-asid-ldapv3-attributes-03.txt
 # (a work in progress)
 #
-# Note: It seems that the pilot schema evolved beyond what was
-# described in RFC1274.  However, this document attempts to describes
-# RFC1274 as published.
+# Note: parts of the schema defined in RFC1274 were removed from cosine in
+# RFC4524 (pilot schema, DSA quality schema, photo/audio, ...), they are kept
+# here for backwards compatibility with existing OpenLDAP configurations.
 #
 # Depends on core.schema
 
@@ -124,6 +125,7 @@
 #        (SIZE (1 .. ub-text-encoded-or-address))
 #    ::= {pilotAttributeType 2}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.2 NAME 'textEncodedORAddress'
 	EQUALITY caseIgnoreMatch
 	SUBSTR caseIgnoreSubstringsMatch
@@ -222,6 +224,7 @@ attributetype ( 0.9.2342.19200300.100.1.6 NAME 'roomNumber'
 #        (SIZE (1 .. ub-photo))
 #    ::= {pilotAttributeType 7}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.7 NAME 'photo'
 	DESC 'RFC1274: photo (G3 fax)'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.23{25000} )
@@ -407,6 +410,7 @@ attributetype ( 0.9.2342.19200300.100.1.21 NAME 'secretary'
 #            }
 #    ::= {pilotAttributeType 22}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.22 NAME 'otherMailbox'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.39 )
 
@@ -474,6 +478,7 @@ attributetype ( 0.9.2342.19200300.100.1.22 NAME 'otherMailbox'
 #            DNSRecordSyntax
 #    ::= {pilotAttributeType 26}
 #
+## No longer referenced by RFC4524
 ## incorrect syntax?
 attributetype ( 0.9.2342.19200300.100.1.26 NAME 'aRecord'
 	EQUALITY caseIgnoreIA5Match
@@ -495,6 +500,7 @@ attributetype ( 0.9.2342.19200300.100.1.27 NAME 'mDRecord'
 #            DNSRecordSyntax
 #    ::= {pilotAttributeType 28}
 #
+## No longer referenced by RFC4524
 ## incorrect syntax!!
 attributetype ( 0.9.2342.19200300.100.1.28 NAME 'mXRecord'
 	EQUALITY caseIgnoreIA5Match
@@ -510,6 +516,7 @@ attributetype ( 0.9.2342.19200300.100.1.28 NAME 'mXRecord'
 #            DNSRecordSyntax
 #    ::= {pilotAttributeType 29}
 #
+## No longer referenced by RFC4524
 ## incorrect syntax!!
 attributetype ( 0.9.2342.19200300.100.1.29 NAME 'nSRecord'
 	EQUALITY caseIgnoreIA5Match
@@ -525,6 +532,7 @@ attributetype ( 0.9.2342.19200300.100.1.29 NAME 'nSRecord'
 #            DNSRecordSyntax
 #    ::= {pilotAttributeType 30}
 #
+## No longer referenced by RFC4524
 ## incorrect syntax!!
 attributetype ( 0.9.2342.19200300.100.1.30 NAME 'sOARecord'
 	EQUALITY caseIgnoreIA5Match
@@ -540,6 +548,7 @@ attributetype ( 0.9.2342.19200300.100.1.30 NAME 'sOARecord'
 #            iA5StringSyntax
 #    ::= {pilotAttributeType 31}
 #
+## No longer referenced by RFC4524
 ## incorrect syntax!!
 attributetype ( 0.9.2342.19200300.100.1.31 NAME 'cNAMERecord'
 	EQUALITY caseIgnoreIA5Match
@@ -663,6 +672,7 @@ attributetype ( 0.9.2342.19200300.100.1.42
 #            caseIgnoreStringSyntax
 #    ::= {pilotAttributeType 43}
 #
+## RFC4524 only allows 'co'
 attributetype ( 0.9.2342.19200300.100.1.43
 	NAME ( 'co' 'friendlyCountryName' )
 	DESC 'RFC1274: friendly country name'
@@ -688,6 +698,7 @@ attributetype ( 0.9.2342.19200300.100.1.43
 attributetype ( 0.9.2342.19200300.100.1.44 NAME 'uniqueIdentifier'
 	DESC 'RFC1274: unique identifer'
 	EQUALITY caseIgnoreMatch
+	SUBSTR caseIgnoreSubstringsMatch
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} )
 
 # 9.3.35.  Organisational Status
@@ -727,6 +738,7 @@ attributetype ( 0.9.2342.19200300.100.1.45 NAME 'organizationalStatus'
 #            (SIZE (1 .. ub-janet-mailbox))
 #    ::= {pilotAttributeType 46}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.46 NAME 'janetMailbox'
 	DESC 'RFC1274: Janet mailbox'
 	EQUALITY caseIgnoreIA5Match
@@ -758,6 +770,7 @@ attributetype ( 0.9.2342.19200300.100.1.46 NAME 'janetMailbox'
 #                }
 #    ::= {pilotAttributeType 47}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.47
 	NAME 'mailPreferenceOption'
 	DESC 'RFC1274: mail preference option'
@@ -791,6 +804,7 @@ attributetype ( 0.9.2342.19200300.100.1.48 NAME 'buildingName'
 #            SINGLE VALUE
 #    ::= {pilotAttributeType 49}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.49 NAME 'dSAQuality'
 	DESC 'RFC1274: DSA Quality'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.19 SINGLE-VALUE )
@@ -806,6 +820,7 @@ attributetype ( 0.9.2342.19200300.100.1.49 NAME 'dSAQuality'
 #            SINGLE VALUE
 #    ::= {pilotAttributeType 50}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.50 NAME 'singleLevelQuality'
 	DESC 'RFC1274: Single Level Quality'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.13 SINGLE-VALUE )
@@ -822,6 +837,7 @@ attributetype ( 0.9.2342.19200300.100.1.50 NAME 'singleLevelQuality'
 #               -- Defaults to singleLevelQuality
 #    ::= {pilotAttributeType 51}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.51 NAME 'subtreeMinimumQuality'
 	DESC 'RFC1274: Subtree Minimum Quality'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.13 SINGLE-VALUE )
@@ -838,6 +854,7 @@ attributetype ( 0.9.2342.19200300.100.1.51 NAME 'subtreeMinimumQuality'
 #               -- Defaults to singleLevelQuality
 #    ::= {pilotAttributeType 52}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.52 NAME 'subtreeMaximumQuality'
 	DESC 'RFC1274: Subtree Maximum Quality'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.13 SINGLE-VALUE )
@@ -860,6 +877,7 @@ attributetype ( 0.9.2342.19200300.100.1.52 NAME 'subtreeMaximumQuality'
 #        (SIZE (1 .. ub-personal-signature))
 #    ::= {pilotAttributeType 53}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.53 NAME 'personalSignature'
 	DESC 'RFC1274: Personal Signature (G3 fax)'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.23 )
@@ -878,6 +896,7 @@ attributetype ( 0.9.2342.19200300.100.1.53 NAME 'personalSignature'
 #            distinguishedNameSyntax
 #    ::= {pilotAttributeType 54}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.54 NAME 'dITRedirect'
 	DESC 'RFC1274: DIT Redirect'
 	EQUALITY distinguishedNameMatch
@@ -895,6 +914,7 @@ attributetype ( 0.9.2342.19200300.100.1.54 NAME 'dITRedirect'
 #        (SIZE (1 .. ub-audio))
 #    ::= {pilotAttributeType 55}
 #
+## No longer referenced by RFC4524
 attributetype ( 0.9.2342.19200300.100.1.55 NAME 'audio'
 	DESC 'RFC1274: audio (u-law)'
 	SYNTAX 1.3.6.1.4.1.1466.115.121.1.4{25000} )
@@ -1071,15 +1091,16 @@ attributetype ( 0.9.2342.19200300.100.1.56 NAME 'documentPublisher'
 #                    personalSignature}
 #    ::= {pilotObjectClass 4}
 #
+## No longer referenced by RFC4524
 objectclass ( 0.9.2342.19200300.100.4.4
 	NAME ( 'pilotPerson' 'newPilotPerson' )
 	SUP person STRUCTURAL
-	MAY ( userid $ textEncodedORAddress $ rfc822Mailbox $
-		favouriteDrink $ roomNumber $ userClass $
+	MAY ( uid $ textEncodedORAddress $ rfc822Mailbox $
+		drink $ roomNumber $ userClass $
 		homeTelephoneNumber $ homePostalAddress $ secretary $
 		personalTitle $ preferredDeliveryMethod $ businessCategory $
-		janetMailbox $ otherMailbox $ mobileTelephoneNumber $
-		pagerTelephoneNumber $ organizationalStatus $
+		janetMailbox $ otherMailbox $ mobile $
+		pager $ organizationalStatus $
 		mailPreferenceOption $ personalSignature )
 	)
 
@@ -1104,9 +1125,8 @@ objectclass ( 0.9.2342.19200300.100.4.4
 #
 objectclass ( 0.9.2342.19200300.100.4.5 NAME 'account'
 	SUP top STRUCTURAL
-	MUST userid
-	MAY ( description $ seeAlso $ localityName $
-		organizationName $ organizationalUnitName $ host )
+	MUST uid
+	MAY ( description $ seeAlso $ l $ o $ ou $ host )
 	)
 
 # 8.3.4.  Document
@@ -1135,8 +1155,7 @@ objectclass ( 0.9.2342.19200300.100.4.5 NAME 'account'
 objectclass ( 0.9.2342.19200300.100.4.6 NAME 'document'
 	SUP top STRUCTURAL
 	MUST documentIdentifier
-	MAY ( commonName $ description $ seeAlso $ localityName $
-		organizationName $ organizationalUnitName $
+	MAY ( cn $ description $ seeAlso $ l $ o $ ou $
 		documentTitle $ documentVersion $ documentAuthor $
 		documentLocation $ documentPublisher )
 	)
@@ -1160,7 +1179,7 @@ objectclass ( 0.9.2342.19200300.100.4.6 NAME 'document'
 #
 objectclass ( 0.9.2342.19200300.100.4.7 NAME 'room'
 	SUP top STRUCTURAL
-	MUST commonName
+	MUST cn
 	MAY ( roomNumber $ description $ seeAlso $ telephoneNumber )
 	)
 
@@ -1185,9 +1204,8 @@ objectclass ( 0.9.2342.19200300.100.4.7 NAME 'room'
 #
 objectclass ( 0.9.2342.19200300.100.4.9 NAME 'documentSeries'
 	SUP top STRUCTURAL
-	MUST commonName
-	MAY ( description $ seeAlso $ telephonenumber $
-		localityName $ organizationName $ organizationalUnitName )
+	MUST cn
+	MAY ( description $ seeAlso $ telephonenumber $ l $ o $ ou )
 	)
 
 # 8.3.7.  Domain
@@ -1209,12 +1227,11 @@ objectclass ( 0.9.2342.19200300.100.4.9 NAME 'documentSeries'
 #
 objectclass ( 0.9.2342.19200300.100.4.13 NAME 'domain'
 	SUP top STRUCTURAL
-	MUST domainComponent
-	MAY ( associatedName $ organizationName $ description $
+	MUST dc
+	MAY ( associatedName $ o $ description $
 		businessCategory $ seeAlso $ searchGuide $ userPassword $
-		localityName $ stateOrProvinceName $ streetAddress $
 		physicalDeliveryOfficeName $ postalAddress $ postalCode $
-		postOfficeBox $ streetAddress $
+		postOfficeBox $ l $ st $ street $
 		facsimileTelephoneNumber $ internationalISDNNumber $
 		telephoneNumber $ teletexTerminalIdentifier $ telexNumber $
 		preferredDeliveryMethod $ destinationIndicator $
@@ -1242,9 +1259,9 @@ objectclass ( 0.9.2342.19200300.100.4.13 NAME 'domain'
 #
 objectclass ( 0.9.2342.19200300.100.4.14 NAME 'RFC822localPart'
 	SUP domain STRUCTURAL
-	MAY ( commonName $ surname $ description $ seeAlso $ telephoneNumber $
+	MAY ( cn $ sn $ description $ seeAlso $ telephoneNumber $
 		physicalDeliveryOfficeName $ postalAddress $ postalCode $
-		postOfficeBox $ streetAddress $
+		postOfficeBox $ street $
 		facsimileTelephoneNumber $ internationalISDNNumber $
 		telephoneNumber $ teletexTerminalIdentifier $
 		telexNumber $ preferredDeliveryMethod $ destinationIndicator $
@@ -1268,6 +1285,7 @@ objectclass ( 0.9.2342.19200300.100.4.14 NAME 'RFC822localPart'
 #            CNAMERecord}
 #    ::= {pilotObjectClass 15}
 #
+## No longer referenced by RFC4524
 objectclass ( 0.9.2342.19200300.100.4.15 NAME 'dNSDomain'
 	SUP domain STRUCTURAL
 	MAY ( ARecord $ MDRecord $ MXRecord $ NSRecord $
@@ -1308,7 +1326,7 @@ objectclass ( 0.9.2342.19200300.100.4.17 NAME 'domainRelatedObject'
 #
 objectclass ( 0.9.2342.19200300.100.4.18 NAME 'friendlyCountry'
 	SUP country STRUCTURAL
-	MUST friendlyCountryName )
+	MUST co )
 
 # 8.3.12.  Simple Security Object
 #
@@ -1340,6 +1358,7 @@ objectclass ( 0.9.2342.19200300.100.4.18 NAME 'friendlyCountry'
 #                    buildingName}
 #    ::= {pilotObjectClass 20}
 #
+## No longer referenced by RFC4524
 objectclass ( 0.9.2342.19200300.100.4.20 NAME 'pilotOrganization'
 	SUP ( organization $ organizationalUnit ) STRUCTURAL
 	MAY buildingName )
@@ -1356,6 +1375,7 @@ objectclass ( 0.9.2342.19200300.100.4.20 NAME 'pilotOrganization'
 #            dSAQuality}
 #    ::= {pilotObjectClass 21}
 #
+## No longer referenced by RFC4524
 objectclass ( 0.9.2342.19200300.100.4.21 NAME 'pilotDSA'
 	SUP dsa STRUCTURAL
 	MAY dSAQuality )
@@ -1375,6 +1395,7 @@ objectclass ( 0.9.2342.19200300.100.4.21 NAME 'pilotDSA'
 #            subtreeMinimumQuality,
 #            subtreeMaximumQuality}
 #    ::= {pilotObjectClass 22}
+## No longer referenced by RFC4524
 objectclass ( 0.9.2342.19200300.100.4.22 NAME 'qualityLabelledData'
 	SUP top AUXILIARY
 	MUST dsaQuality
