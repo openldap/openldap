@@ -3340,12 +3340,15 @@ aband:
 					ctxcsn[j].bv_val);
 bailout:
 				if ( sop ) {
-					syncops **sp = &si->si_ops;
+					syncops **sp;
 
 					ldap_pvt_thread_mutex_lock( &si->si_ops_mutex );
-					while ( *sp != sop )
-						sp = &(*sp)->s_next;
-					*sp = sop->s_next;
+					for ( sp = &si->si_ops; *sp; sp = &(*sp)->s_next ) {
+						if ( *sp == sop ) {
+							*sp = sop->s_next;
+							break;
+						}
+					}
 					ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
 					ch_free( sop->s_base.bv_val );
 					ch_free( sop );
