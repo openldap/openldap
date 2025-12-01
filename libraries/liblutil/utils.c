@@ -399,7 +399,7 @@ lutil_strncopy(
 	if (!a || !b || n == 0)
 		return a;
 	
-	while ((*a++ = *b++) && n-- > 0) ;
+	while ((*a++ = *b++) && --n > 0) ;
 	return a-1;
 }
 
