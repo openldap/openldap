@@ -277,7 +277,7 @@ fi
 echo "Cleaning up audit log"
 rm -f "$AUDITLOGFILE"
 
-if test "$OS_WINDOWS" == "yes"; then
+if test "$OS_WINDOWS" = "yes"; then
 	echo "Skipping non-blocking tests on Windows..."
 else
 	echo "Creating named pipe for blocking/non-blocking test"
