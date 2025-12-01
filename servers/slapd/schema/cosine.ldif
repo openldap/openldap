@@ -1,4 +1,4 @@
-# RFC1274: Cosine and Internet X.500 schema
+# RFC4524: Cosine and Internet X.500 schema with items from RFC1274
 # $OpenLDAP$
 ## This work is part of OpenLDAP Software <http://www.openldap.org/>.
 ##
@@ -14,6 +14,7 @@
 ## <http://www.OpenLDAP.org/license.html>.
 #
 # RFC1274: Cosine and Internet X.500 schema
+# RFC4524: COSINE LDAP/X.500 Schema
 #
 # This file contains LDAPv3 schema derived from X.500 COSINE "pilot"
 # schema.  As this schema was defined for X.500(89), some
@@ -21,9 +22,9 @@
 # mappings were based upon: draft-ietf-asid-ldapv3-attributes-03.txt
 # (a work in progress)
 #
-# Note: It seems that the pilot schema evolved beyond what was
-# described in RFC1274.  However, this document attempts to describes
-# RFC1274 as published.
+# Note: parts of the schema defined in RFC1274 were removed from cosine in
+# RFC4524 (pilot schema, DSA quality schema, photo/audio, ...), they are kept
+# here for backwards compatibility with existing OpenLDAP configurations.
 #
 # Depends on core.ldif
 #
@@ -113,8 +114,8 @@ olcAttributeTypes: ( 0.9.2342.19200300.100.1.43 NAME ( 'co' 'friendlyCount
  ryName' ) DESC 'RFC1274: friendly country name' EQUALITY caseIgnoreMatch SUBS
  TR caseIgnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
 olcAttributeTypes: ( 0.9.2342.19200300.100.1.44 NAME 'uniqueIdentifier' DE
- SC 'RFC1274: unique identifer' EQUALITY caseIgnoreMatch SYNTAX 1.3.6.1.4.1.14
- 66.115.121.1.15{256} )
+ SC 'RFC1274: unique identifer' EQUALITY caseIgnoreMatch SUBSTR caseIgnoreSubs
+ tringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} )
 olcAttributeTypes: ( 0.9.2342.19200300.100.1.45 NAME 'organizationalStatus
  ' DESC 'RFC1274: organizational status' EQUALITY caseIgnoreMatch SUBSTR caseI
  gnoreSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15{256} )
@@ -150,39 +151,35 @@ olcAttributeTypes: ( 0.9.2342.19200300.100.1.56 NAME 'documentPublisher' D
  ESC 'RFC1274: publisher of document' EQUALITY caseIgnoreMatch SUBSTR caseIgno
  reSubstringsMatch SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.4 NAME ( 'pilotPerson' 'newPilo
- tPerson' ) SUP person STRUCTURAL MAY ( userid $ textEncodedORAddress $ rfc822
- Mailbox $ favouriteDrink $ roomNumber $ userClass $ homeTelephoneNumber $ hom
- ePostalAddress $ secretary $ personalTitle $ preferredDeliveryMethod $ busine
- ssCategory $ janetMailbox $ otherMailbox $ mobileTelephoneNumber $ pagerTelep
- honeNumber $ organizationalStatus $ mailPreferenceOption $ personalSignature 
- ) )
+ tPerson' ) SUP person STRUCTURAL MAY ( uid $ textEncodedORAddress $ rfc822Mai
+ lbox $ drink $ roomNumber $ userClass $ homeTelephoneNumber $ homePostalAddre
+ ss $ secretary $ personalTitle $ preferredDeliveryMethod $ businessCategory $
+  janetMailbox $ otherMailbox $ mobile $ pager $ organizationalStatus $ mailPr
+ eferenceOption $ personalSignature ) )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.5 NAME 'account' SUP top STRUCT
- URAL MUST userid MAY ( description $ seeAlso $ localityName $ organizationNam
- e $ organizationalUnitName $ host ) )
+ URAL MUST uid MAY ( description $ seeAlso $ l $ o $ ou $ host ) )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.6 NAME 'document' SUP top STRUC
- TURAL MUST documentIdentifier MAY ( commonName $ description $ seeAlso $ loca
- lityName $ organizationName $ organizationalUnitName $ documentTitle $ docume
- ntVersion $ documentAuthor $ documentLocation $ documentPublisher ) )
+ TURAL MUST documentIdentifier MAY ( cn $ description $ seeAlso $ l $ o $ ou $
+  documentTitle $ documentVersion $ documentAuthor $ documentLocation $ docume
+ ntPublisher ) )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.7 NAME 'room' SUP top STRUCTURA
- L MUST commonName MAY ( roomNumber $ description $ seeAlso $ telephoneNumber 
- ) )
+ L MUST cn MAY ( roomNumber $ description $ seeAlso $ telephoneNumber ) )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.9 NAME 'documentSeries' SUP top
-  STRUCTURAL MUST commonName MAY ( description $ seeAlso $ telephonenumber $ l
- ocalityName $ organizationName $ organizationalUnitName ) )
+  STRUCTURAL MUST cn MAY ( description $ seeAlso $ telephonenumber $ l $ o $ o
+ u ) )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.13 NAME 'domain' SUP top STRUCT
- URAL MUST domainComponent MAY ( associatedName $ organizationName $ descripti
- on $ businessCategory $ seeAlso $ searchGuide $ userPassword $ localityName $
-  stateOrProvinceName $ streetAddress $ physicalDeliveryOfficeName $ postalAdd
- ress $ postalCode $ postOfficeBox $ streetAddress $ facsimileTelephoneNumber 
- $ internationalISDNNumber $ telephoneNumber $ teletexTerminalIdentifier $ tel
- exNumber $ preferredDeliveryMethod $ destinationIndicator $ registeredAddress
-  $ x121Address ) )
+ URAL MUST dc MAY ( associatedName $ o $ description $ businessCategory $ seeA
+ lso $ searchGuide $ userPassword $ physicalDeliveryOfficeName $ postalAddress
+  $ postalCode $ postOfficeBox $ l $ st $ street $ facsimileTelephoneNumber $ 
+ internationalISDNNumber $ telephoneNumber $ teletexTerminalIdentifier $ telex
+ Number $ preferredDeliveryMethod $ destinationIndicator $ registeredAddress $
+  x121Address ) )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.14 NAME 'RFC822localPart' SUP d
- omain STRUCTURAL MAY ( commonName $ surname $ description $ seeAlso $ telepho
- neNumber $ physicalDeliveryOfficeName $ postalAddress $ postalCode $ postOffi
- ceBox $ streetAddress $ facsimileTelephoneNumber $ internationalISDNNumber $ 
- telephoneNumber $ teletexTerminalIdentifier $ telexNumber $ preferredDelivery
- Method $ destinationIndicator $ registeredAddress $ x121Address ) )
+ omain STRUCTURAL MAY ( cn $ sn $ description $ seeAlso $ telephoneNumber $ ph
+ ysicalDeliveryOfficeName $ postalAddress $ postalCode $ postOfficeBox $ stree
+ t $ facsimileTelephoneNumber $ internationalISDNNumber $ telephoneNumber $ te
+ letexTerminalIdentifier $ telexNumber $ preferredDeliveryMethod $ destination
+ Indicator $ registeredAddress $ x121Address ) )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.15 NAME 'dNSDomain' SUP domain 
  STRUCTURAL MAY ( ARecord $ MDRecord $ MXRecord $ NSRecord $ SOARecord $ CNAME
  Record ) )
@@ -190,7 +187,7 @@ olcObjectClasses: ( 0.9.2342.19200300.100.4.17 NAME 'domainRelatedObject' D
  ESC 'RFC1274: an object related to an domain' SUP top AUXILIARY MUST associat
  edDomain )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.18 NAME 'friendlyCountry' SUP c
- ountry STRUCTURAL MUST friendlyCountryName )
+ ountry STRUCTURAL MUST co )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.20 NAME 'pilotOrganization' SU
  P ( organization $ organizationalUnit ) STRUCTURAL MAY buildingName )
 olcObjectClasses: ( 0.9.2342.19200300.100.4.21 NAME 'pilotDSA' SUP dsa STR
