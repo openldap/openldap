@@ -82,7 +82,7 @@ esac
 AUDITLOGFILE="$TESTDIR/audit.log"
 
 echo "Running ldapadd to build slapd config database..."
-$LDAPADD -H $URI1 -D 'cn=config' -w `cat $CONFIGPWF` \
+$LDAPADD -H $URI1 -D 'cn=config' -y $CONFIGPWF \
 	>> $TESTOUT 2>&1 <<EOF
 dn: olcDatabase={1}$BACKEND,cn=config
 objectClass: olcDatabaseConfig
@@ -285,7 +285,7 @@ else
 	mknod "$PIPEFILE" p
 
 	echo "Testing non-blocking mode configuration..."
-	$LDAPMODIFY -H $URI1 -D 'cn=config' -w `cat $CONFIGPWF` \
+	$LDAPMODIFY -H $URI1 -D 'cn=config' -y $CONFIGPWF \
 		>> $TESTOUT 2>&1 <<EOF
 dn: olcOverlay={0}auditlog,olcDatabase={1}$BACKEND,cn=config
 changetype: modify
@@ -366,7 +366,7 @@ EOF
 	fi
 
 	echo "Testing blocking mode and no pipe reader (should timeout)..."
-	$LDAPMODIFY -H $URI1 -D 'cn=config' -w `cat $CONFIGPWF` \
+	$LDAPMODIFY -H $URI1 -D 'cn=config' -y $CONFIGPWF \
 		>> $TESTOUT 2>&1 <<EOF
 dn: olcOverlay={0}auditlog,olcDatabase={1}$BACKEND,cn=config
 changetype: modify
