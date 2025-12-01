@@ -400,6 +400,8 @@ lutil_strncopy(
 		return a;
 	
 	while ((*a++ = *b++) && --n > 0) ;
+	if (n)
+		a--;
 	return a;
 }
 
