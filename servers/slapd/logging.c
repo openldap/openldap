@@ -118,8 +118,9 @@ slap_debug_print( const char *data )
 		poffset = splen - prefixlen;
 		AC_MEMCPY( ptr+poffset, ptr, prefixlen );
 	}
+	ptr += poffset+prefixlen;
 
-	ptr = lutil_strncopy( ptr+poffset+prefixlen, data, sizeof(msgbuf) - prefixlen);
+	ptr = lutil_strncopy( ptr, data, sizeof(msgbuf) - (ptr-msgbuf) );
 	len = ptr - msgbuf - poffset;
 	datalen = len - prefixlen;
 	if ( !logfile_only )
