@@ -400,7 +400,7 @@ lutil_strncopy(
 		return a;
 	
 	while ((*a++ = *b++) && --n > 0) ;
-	return a-1;
+	return a;
 }
 
 /* memcopy is like memcpy except it returns a pointer to the byte past
