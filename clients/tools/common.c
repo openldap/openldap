@@ -1416,8 +1416,8 @@ dnssrv_free:;
 		rc = ldap_connect( ld );
 		if( rc != LDAP_SUCCESS ) {
 			fprintf( stderr,
-				"Could not connect to URI=%s (%d): %s\n",
-				ldapuri, rc, ldap_err2string(rc) );
+				"Could not connect to URI=%s ", ldapuri );
+			tool_perror2( ld, "" );
 			tool_exit( ld, EXIT_FAILURE );
 		}
 
