@@ -43,7 +43,8 @@ int ldap_open_defconn( LDAP *ld )
 		&ld->ld_options.ldo_defludp, 1, 1, NULL, 0, 0 );
 
 	if( ld->ld_defconn == NULL ) {
-		ld->ld_errno = LDAP_SERVER_DOWN;
+		if ( !ld->ld_errno )
+			ld->ld_errno = LDAP_SERVER_DOWN;
 		return -1;
 	}
 

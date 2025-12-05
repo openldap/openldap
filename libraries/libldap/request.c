@@ -509,7 +509,8 @@ ldap_new_connection( LDAP *ld, LDAPURLDesc **srvlist, int use_ldsb,
 				ber_sockbuf_free( lc->lconn_sb );
 			}
 			LDAP_FREE( (char *)lc );
-			ld->ld_errno = LDAP_SERVER_DOWN;
+			if ( !ld->ld_errno )
+				ld->ld_errno = LDAP_SERVER_DOWN;
 			return( NULL );
 		}
 
