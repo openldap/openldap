@@ -751,6 +751,7 @@ typedef struct ldapcontrol {
 #define LDAP_CLIENT_LOOP				(-16)
 #define LDAP_REFERRAL_LIMIT_EXCEEDED	(-17)
 #define	LDAP_X_CONNECTING			(-18)
+#define	LDAP_X_SERVER_UNKNOWN			(-19)
 
 
 /*

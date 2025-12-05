@@ -632,6 +632,7 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 		Debug1(LDAP_DEBUG_TRACE,
 			"ldap_connect_to_host: unknown proto: %d\n",
 			proto );
+		ld->ld_errno = LDAP_X_SERVER_UNKNOWN;
 		return -1;
 	}
 
@@ -653,9 +654,14 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 	LDAP_MUTEX_UNLOCK(&ldap_int_resolv_mutex);
 
 	if ( err != 0 ) {
+		if ( ld->ld_error )
+			LDAP_FREE( ld->ld_error );
+		ld->ld_error = LDAP_STRDUP( AC_GAI_STRERROR( err ));
 		Debug1(LDAP_DEBUG_TRACE,
 			"ldap_connect_to_host: getaddrinfo failed: %s\n",
-			AC_GAI_STRERROR(err) );
+			ld->ld_error );
+		ld->ld_errno = LDAP_X_SERVER_UNKNOWN;
+
 		return -1;
 	}
 	rc = -1;
@@ -768,10 +774,16 @@ ldap_connect_to_host(LDAP *ld, Sockbuf *sb,
 #ifdef HAVE_WINSOCK
 			ldap_pvt_set_errno( WSAGetLastError() );
 #else
+#ifdef HAVE_HSTRERROR
+			if ( ld->ld_error )
+				LDAP_FREE( ld->ld_error );
+			ld->ld_error = LDAP_STRDUP( h_strerror( local_h_errno ));
+#endif
 			/* not exactly right, but... */
 			ldap_pvt_set_errno( EHOSTUNREACH );
 #endif
 			if (ha_buf) LDAP_FREE(ha_buf);
+			ld->ld_errno = LDAP_X_SERVER_UNKNOWN;
 			return -1;
 		}
 
