@@ -524,8 +524,12 @@ typedef enum MDB_cursor_op {
 #define MDB_CRYPTO_FAIL		(-30777)
 	/** Environment encryption mismatch */
 #define MDB_ENV_ENCRYPTION	(-30776)
+	/** Transaction was already prepared */
+#define MDB_TXN_PENDING		(-30775)
+	/** Environment can't rollback the last transaction */
+#define MDB_CANT_ROLLBACK	(-30774)
 	/** The last defined error code */
-#define MDB_LAST_ERRCODE	MDB_ENV_ENCRYPTION
+#define MDB_LAST_ERRCODE	MDB_CANT_ROLLBACK
 /** @} */
 
 /** @brief Statistics for a database in the environment */
@@ -1127,6 +1131,55 @@ mdb_size_t mdb_txn_id(MDB_txn *txn);
 	 * </ul>
 	 */
 int  mdb_txn_commit(MDB_txn *txn);
+
+	/** @brief Prepare to commit all the operations of a transaction into the database.
+	 *
+	 * This function exists to support two-phase commit protocols.
+	 * All writes in the transaction are persisted to storage, but the final
+	 * metapage update is not performed. All cursors on the transaction will be
+	 * closed. Only #mdb_txn_abort() or #mdb_txn_commit() are valid after this
+	 * call. It is assumed that once the regular data pages are successfully written
+	 * by this call, the metapage update from a subsequent commit cannot fail, but
+	 * hardware-level media failures could still break this assumption.
+	 * @param[in] txn A transaction handle returned by #mdb_txn_begin()
+	 * @return A non-zero error value on failure and 0 on success. Some possible
+	 * errors are:
+	 * <ul>
+	 *	<li>EINVAL - an invalid parameter was specified.
+	 *	<li>ENOSPC - no more disk space.
+	 *	<li>EIO - a low-level I/O error occurred while writing.
+	 *	<li>ENOMEM - out of memory.
+	 *	<li>#MDB_TXN_PENDING - the transaction has already been prepared.
+	 *		It can only be aborted or committed.
+	 * </ul>
+	 */
+int  mdb_txn_prepare(MDB_txn *txn);
+
+	/** @brief Rollback the last committed transaction in the environment.
+	 *
+	 * This function exists to support two-phase commit protocols.
+	 * The metapage update for the last committed transaction will be zeroed,
+	 * so its changes will be ignored. It should only be used when the local
+	 * phase of a multi-phase transaction has fully committed, but some other
+	 * remote phase which successfully prepared has failed to commit.
+	 * This function may not be called twice in a row. No other operations
+	 * may be performed on the environment, by any processes, between the
+	 * preceding #mdb_txn_commit() and this call.
+	 * @param[in] env An environment handle returned by #mdb_env_create().
+	 * @param[in] txnid The ID of the transaction to rollback, obtained from
+	 * #mdb_txnid() on the previous transaction.
+	 * @return A non-zero error value on failure and 0 on success. Some possible
+	 * errors are:
+	 * <ul>
+	 *	<li>EINVAL - an invalid parameter was specified.
+	 *	<li>ENOSPC - no more disk space.
+	 *	<li>EIO - a low-level I/O error occurred while writing.
+	 *	<li>#MDB_CANT_ROLLBACK - a rollback has already been done, there is
+	 *		no other valid metapage to roll back to, or another transaction
+	 *		has already been committed over the specified txnid.
+	 * </ul>
+	 */
+int  mdb_env_rollback(MDB_env *env, mdb_size_t txnid);
 
 	/** @brief Abandon all the operations of the transaction instead of saving them.
 	 *

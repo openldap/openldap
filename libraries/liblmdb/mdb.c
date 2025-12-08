@@ -1500,8 +1500,9 @@ struct MDB_txn {
 #define MDB_TXN_SPILLS		0x08		/**< txn or a parent has spilled pages */
 #define MDB_TXN_HAS_CHILD	0x10		/**< txn has an #MDB_txn.%mt_child */
 #define MDB_TXN_DIRTYNUM	0x20		/**< dirty list uses nump list */
+#define MDB_TXN_PREPARE		0x40		/**< prepare txn, don't fully commit */
 	/** most operations on the txn are currently illegal */
-#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD)
+#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE)
 /** @} */
 	unsigned int	mt_flags;		/**< @ref mdb_txn */
 	/** #dirty_list room: Array size - \#dirty pages visible to this txn.
@@ -1888,6 +1889,8 @@ static char *const mdb_errstr[] = {
 	"MDB_BAD_CHECKSUM: Page checksum mismatch",
 	"MDB_CRYPTO_FAIL: Page encryption or decryption failed",
 	"MDB_ENV_ENCRYPTION: Environment encryption mismatch",
+	"MDB_TXN_PENDING: Transaction already prepared, must abort or commit",
+	"MDB_CANT_ROLLBACK: Environment can't rollback last transaction",
 };
 
 char *
@@ -4263,7 +4266,7 @@ done:
 static int ESECT mdb_env_share_locks(MDB_env *env, int *excl);
 
 static int
-_mdb_txn_commit(MDB_txn *txn)
+_mdb_txn_commit(MDB_txn *txn, int flag)
 {
 	int		rc;
 	unsigned int i, end_mode;
@@ -4276,7 +4279,7 @@ _mdb_txn_commit(MDB_txn *txn)
 	end_mode = MDB_END_EMPTY_COMMIT|MDB_END_UPDATE|MDB_END_SLOT|MDB_END_FREE;
 
 	if (txn->mt_child) {
-		rc = _mdb_txn_commit(txn->mt_child);
+		rc = _mdb_txn_commit(txn->mt_child, 0);
 		if (rc)
 			goto fail;
 	}
@@ -4285,6 +4288,10 @@ _mdb_txn_commit(MDB_txn *txn)
 
 	if (F_ISSET(txn->mt_flags, MDB_TXN_RDONLY)) {
 		goto done;
+	}
+
+	if (F_ISSET(txn->mt_flags, MDB_TXN_PREPARE)) {
+		goto prepared;
 	}
 
 	if (txn->mt_flags & (MDB_TXN_FINISHED|MDB_TXN_ERROR)) {
@@ -4486,6 +4493,12 @@ _mdb_txn_commit(MDB_txn *txn)
 	if (!F_ISSET(txn->mt_flags, MDB_TXN_NOSYNC) &&
 		(rc = mdb_env_sync0(env, 0, txn->mt_next_pgno)))
 		goto fail;
+	if (F_ISSET(flag, MDB_TXN_PREPARE)) {
+		txn->mt_flags |= MDB_TXN_PREPARE;
+		return MDB_SUCCESS;
+	}
+
+prepared:
 	if ((rc = mdb_env_write_meta(txn)))
 		goto fail;
 	end_mode = MDB_END_COMMITTED|MDB_END_UPDATE;
@@ -4512,7 +4525,43 @@ int
 mdb_txn_commit(MDB_txn *txn)
 {
 	MDB_TRACE(("%p", txn));
-	return _mdb_txn_commit(txn);
+	return _mdb_txn_commit(txn, 0);
+}
+
+int
+mdb_txn_prepare(MDB_txn *txn)
+{
+	MDB_TRACE(("%p", txn));
+	if (F_ISSET(txn->mt_flags, MDB_TXN_PREPARE))
+		return MDB_TXN_PENDING;
+	return _mdb_txn_commit(txn, MDB_TXN_PREPARE);
+}
+
+int
+mdb_env_rollback(MDB_env *env, mdb_size_t txnid)
+{
+	MDB_meta **metas = env->me_metas;
+	int newest, previous, rc = 0;
+
+	if (env->me_txns && LOCK_MUTEX(rc, env, env->me_wmutex))
+		return rc;
+	newest = metas[0]->mm_txnid < metas[1]->mm_txnid;
+	previous = newest ^ 1;
+	if (!metas[previous]->mm_txnid || metas[newest]->mm_txnid != txnid)
+		rc = MDB_CANT_ROLLBACK;
+	else {
+		MDB_txn txn = {0};
+		MDB_db dbs[2] = {0};
+		txn.mt_env = env;
+		txn.mt_dbs = dbs;
+		rc = mdb_env_write_meta(&txn);
+	}
+	if (env->me_txns) {
+		if (rc == MDB_SUCCESS)
+			env->me_txns->mti_txnid = metas[previous]->mm_txnid;
+		UNLOCK_MUTEX(env->me_wmutex);
+	}
+	return rc;
 }
 
 static int ESECT mdb_env_map(MDB_env *env, void *addr);
