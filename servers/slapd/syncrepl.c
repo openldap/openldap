@@ -3998,6 +3998,7 @@ typedef struct dninfo {
 	int oldNcount;		/* #values of old naming attr */
 	AttributeDescription *oldDesc;	/* for renames */
 	AttributeDescription *newDesc;	/* for renames */
+	char oldcsn[LDAP_PVT_CSNSTR_BUFSIZE];
 } dninfo;
 
 #define HASHUUID	1
@@ -4114,15 +4115,24 @@ syncrepl_entry(
 	slap_callback	cb = { NULL, NULL, NULL, NULL };
 	int syncuuid_inserted = 0;
 
+	BerElementBuffer berbuf;
+	BerElement *ber = (BerElement *)&berbuf;
+	LDAPControl c = { .ldctl_oid = LDAP_CONTROL_ASSERT, .ldctl_iscritical = 0 },
+				*ca[2] = { &c, NULL };
+
 	SlapReply	rs_search = {REP_RESULT};
-	Filter f = {0};
-	AttributeAssertion ava = ATTRIBUTEASSERTION_INIT;
+	Filter f = {0}, csn_assertion = { .f_choice = LDAP_FILTER_EQUALITY };
+	AttributeAssertion ava = ATTRIBUTEASSERTION_INIT,
+					   csnava = ATTRIBUTEASSERTION_INIT;
 	int rc = LDAP_SUCCESS;
 
-	struct berval pdn = BER_BVNULL;
+	struct berval filterstr, pdn = BER_BVNULL;
 	dninfo dni = {0};
 	int	retry = 1;
-	int	freecsn = 1;
+	int	freecsn = 1, csn_queued = 0;
+
+	ber_init2( ber, NULL, LBER_USE_DER );
+	ber_set_option( ber, LBER_OPT_BER_MEMCTX, &op->o_tmpmemctx );
 
 	Debug( LDAP_DEBUG_SYNC,
 		"syncrepl_entry: %s LDAP_RES_SEARCH_ENTRY(LDAP_SYNC_%s) csn=%s tid %p\n",
@@ -4161,25 +4171,64 @@ syncrepl_entry(
 		}
 	}
 
+	if ( syncuuid_inserted ) {
+		Debug( LDAP_DEBUG_SYNC, "syncrepl_entry: %s inserted UUID %s\n",
+			si->si_ridtxt, syncUUID[1].bv_val );
+	}
+
+	filterstr.bv_len = STRLENOF( "(entryUUID=)" ) + syncUUID[1].bv_len;
+	filterstr.bv_val = (char *)slap_sl_malloc( filterstr.bv_len + 1,
+			op->o_tmpmemctx );
+
+	AC_MEMCPY( filterstr.bv_val, "(entryUUID=", STRLENOF( "(entryUUID=" ) );
+	AC_MEMCPY( &filterstr.bv_val[STRLENOF( "(entryUUID=" )],
+		syncUUID[1].bv_val, syncUUID[1].bv_len );
+	filterstr.bv_val[filterstr.bv_len - 1] = ')';
+	filterstr.bv_val[filterstr.bv_len] = '\0';
+
+	csnava.aa_desc = slap_schema.si_ad_entryCSN;
+	csn_assertion.f_ava = &csnava;
+
+retry_diff:
+	/*
+	 * ITS#10358: Another thread edited this entry changing its entryCSN, could
+	 * have been another serverID with a CSN that's still older than ourselves
+	 * so we looped back here: we have to reset our state and try again.
+	 *
+	 * Since ITS#9584, an entry can only be in process of being change by one
+	 * consumer task, this leaves a race with actual clients. Luckily those can
+	 * only generate a CSN that's newer than what we just received so we only
+	 * retry once. We still accept this pending CSN, it's a modification that's
+	 * been eclipsed, not rejected.
+	 */
+	if ( !freecsn ) {
+		BER_BVZERO( &op->o_csn );
+		freecsn = 1;
+	}
+	if ( !BER_BVISNULL( &dni.ndn ) ) {
+		op->o_tmpfree( dni.ndn.bv_val, op->o_tmpmemctx );
+		BER_BVZERO( &dni.ndn );
+	}
+	if ( !BER_BVISNULL( &dni.dn ) ) {
+		op->o_tmpfree( dni.dn.bv_val, op->o_tmpmemctx );
+		BER_BVZERO( &dni.dn );
+	}
+	dni.mods = NULL;
+
+	if ( *dni.oldcsn ) {
+		ber_reset( ber, 1 );
+		dni.oldcsn[0] = '\0';
+		op->o_ctrls = NULL;
+		op->o_assert = SLAP_CONTROL_NONE;
+	}
+
 	f.f_choice = LDAP_FILTER_EQUALITY;
 	f.f_ava = &ava;
 	ava.aa_desc = slap_schema.si_ad_entryUUID;
 	ava.aa_value = *syncUUID;
 
-	if ( syncuuid_inserted ) {
-		Debug( LDAP_DEBUG_SYNC, "syncrepl_entry: %s inserted UUID %s\n",
-			si->si_ridtxt, syncUUID[1].bv_val );
-	}
 	op->ors_filter = &f;
-
-	op->ors_filterstr.bv_len = STRLENOF( "(entryUUID=)" ) + syncUUID[1].bv_len;
-	op->ors_filterstr.bv_val = (char *) slap_sl_malloc(
-		op->ors_filterstr.bv_len + 1, op->o_tmpmemctx ); 
-	AC_MEMCPY( op->ors_filterstr.bv_val, "(entryUUID=", STRLENOF( "(entryUUID=" ) );
-	AC_MEMCPY( &op->ors_filterstr.bv_val[STRLENOF( "(entryUUID=" )],
-		syncUUID[1].bv_val, syncUUID[1].bv_len );
-	op->ors_filterstr.bv_val[op->ors_filterstr.bv_len - 1] = ')';
-	op->ors_filterstr.bv_val[op->ors_filterstr.bv_len] = '\0';
+	op->ors_filterstr = filterstr;
 
 	op->o_tag = LDAP_REQ_SEARCH;
 	op->ors_scope = LDAP_SCOPE_SUBTREE;
@@ -4217,8 +4266,22 @@ syncrepl_entry(
 			"syncrepl_entry: %s be_search (%d)\n", 
 			si->si_ridtxt, rc );
 
-	if ( !BER_BVISNULL( &op->ors_filterstr ) ) {
-		slap_sl_free( op->ors_filterstr.bv_val, op->o_tmpmemctx );
+	BER_BVZERO( &op->ors_filterstr );
+
+	if ( *dni.oldcsn ) {
+		/*
+		 * ITS#10358: We synthesize an assert control, have to create both
+		 * versions in case this is push replication where the issue is
+		 * also more likely to happen.
+		 */
+		ber_str2bv( dni.oldcsn, 0, 0, &csnava.aa_value );
+		ber_printf( ber, "t{OO}", LDAP_FILTER_EQUALITY,
+				&slap_schema.si_ad_entryCSN->ad_cname,
+				&csnava.aa_value );
+		ber_flatten2( ber, &c.ldctl_value, 0 );
+		op->o_ctrls = ca;
+		op->o_assertion = &csn_assertion;
+		op->o_assert = SLAP_CONTROL_NONCRITICAL;
 	}
 
 	cb.sc_response = syncrepl_null_callback;
@@ -4234,9 +4297,10 @@ syncrepl_entry(
 				si->si_ridtxt, dni.dn.bv_val ? dni.dn.bv_val : "(null)" );
 	}
 
-	assert( BER_BVISNULL( &op->o_csn ) );
-	if ( syncCSN ) {
+	assert( csn_queued || BER_BVISNULL( &op->o_csn ) );
+	if ( !csn_queued && syncCSN ) {
 		slap_queue_csn( op, syncCSN );
+		csn_queued = 1;
 	}
 
 #ifdef SLAP_CONTROL_X_LAZY_COMMIT
@@ -4290,6 +4354,8 @@ retry_add:;
 			op->o_tag = LDAP_REQ_ADD;
 			op->ora_e = entry;
 			op->o_bd = si->si_wbe;
+			op->o_ctrls = NULL;
+			op->o_assert = SLAP_CONTROL_NONE;
 
 			rc = op->o_bd->be_add( op, &rs_add );
 			Debug( LDAP_DEBUG_SYNC,
@@ -4584,10 +4650,15 @@ retry_modrdn:;
 			 * has not been added yet (ITS#6472) */
 			if ( rc == LDAP_NO_SUCH_OBJECT && op->orr_nnewSup != NULL ) {
 				Operation op2 = *op;
+				op2.o_ctrls = NULL;
+				op2.o_assert = SLAP_CONTROL_NONE;
 				rc = syncrepl_add_glue_ancestors( &op2, entry );
 				if ( rc == LDAP_SUCCESS ) {
 					goto retry_modrdn;
 				}
+			}
+			if ( rc == LDAP_ASSERTION_FAILED ) {
+				goto retry_diff;
 			}
 		
 			op->o_tmpfree( op->orr_nnewrdn.bv_val, op->o_tmpmemctx );
@@ -4604,8 +4675,10 @@ retry_modrdn:;
 			/* Use CSN on the modify */
 			if ( just_rename )
 				syncCSN = NULL;
-			else if ( syncCSN )
+			else if ( syncCSN ) {
 				slap_queue_csn( op, syncCSN );
+				csn_queued = 1;
+			}
 		}
 		if ( dni.mods ) {
 			SlapReply rs_modify = {REP_RESULT};
@@ -4621,7 +4694,9 @@ retry_modrdn:;
 			Debug( LDAP_DEBUG_SYNC,
 					"syncrepl_entry: %s be_modify %s (%d)\n", 
 					si->si_ridtxt, op->o_req_dn.bv_val, rc );
-			if ( rs_modify.sr_err != LDAP_SUCCESS ) {
+			if ( rs_modify.sr_err == LDAP_ASSERTION_FAILED ) {
+				goto retry_diff;
+			} else if ( rs_modify.sr_err != LDAP_SUCCESS ) {
 				Debug( LDAP_DEBUG_ANY,
 					"syncrepl_entry: %s be_modify failed (%d)\n",
 					si->si_ridtxt, rs_modify.sr_err );
@@ -4647,6 +4722,7 @@ retry_modrdn:;
 			op->o_bd = si->si_wbe;
 			if ( !syncCSN && si->si_syncCookie.ctxcsn ) {
 				slap_queue_csn( op, si->si_syncCookie.ctxcsn );
+				csn_queued = 1;
 			}
 			rc = op->o_bd->be_delete( op, &rs_delete );
 			Debug( LDAP_DEBUG_SYNC,
@@ -4683,6 +4759,9 @@ retry_modrdn:;
 	}
 
 done:
+	op->o_ctrls = NULL;
+	op->o_assert = SLAP_CONTROL_NONE;
+	op->o_assertion = NULL;
 	slap_sl_free( syncUUID[1].bv_val, op->o_tmpmemctx );
 	BER_BVZERO( &syncUUID[1] );
 	if ( !BER_BVISNULL( &dni.ndn ) ) {
@@ -4699,6 +4778,9 @@ done:
 	}
 	if ( !BER_BVISNULL( &op->o_csn ) && freecsn ) {
 		op->o_tmpfree( op->o_csn.bv_val, op->o_tmpmemctx );
+	}
+	if ( !BER_BVISNULL( &filterstr ) ) {
+		slap_sl_free( filterstr.bv_val, op->o_tmpmemctx );
 	}
 	BER_BVZERO( &op->o_csn );
 	return rc;
@@ -5725,6 +5807,8 @@ dn_callback(
 									old->a_vals[0].bv_val );
 								return LDAP_SUCCESS;
 							}
+							memcpy( dni->oldcsn, old->a_vals[0].bv_val,
+									old->a_vals[0].bv_len+1 );
 						}
 					}
 
