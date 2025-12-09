@@ -968,7 +968,8 @@ fi
 dnl ----------------------------------------------------------------
 AC_CHECK_HEADERS( sys/epoll.h )
 if test "${ac_cv_header_sys_epoll_h}" = yes; then
-	AC_MSG_CHECKING(for epoll system call)
+	AC_CACHE_CHECK([AC_LANG_SOURCE([for epoll system call])],
+		ol_cv_have_epoll,[
 	AC_RUN_IFELSE([AC_LANG_SOURCE([[#include <stdlib.h>
 #ifdef HAVE_SYS_POLL_H
 #include <sys/epoll.h>
@@ -977,14 +978,20 @@ int main(int argc, char **argv)
 {
 	int epfd = epoll_create(256);
 	exit (epfd == -1 ? 1 : 0);
-}]])],[AC_MSG_RESULT(yes)
-	AC_DEFINE(HAVE_EPOLL,1, [define if your system supports epoll])],[AC_MSG_RESULT(no)],[AC_MSG_RESULT(no)])
+}]])],
+	[ol_cv_have_epoll=yes],
+	[ol_cv_have_epoll=no],
+	[ol_cv_have_epoll=no])])
+	if test $ol_cv_have_epoll = yes ; then
+		AC_DEFINE(HAVE_EPOLL,1, [define if your system supports epoll])
+	fi
 fi
 
 dnl ----------------------------------------------------------------
 AC_CHECK_HEADERS( sys/event.h )
 if test "${ac_cv_header_sys_event_h}" = yes; then
-AC_MSG_CHECKING(for kqueue system call)
+	AC_CACHE_CHECK([AC_LANG_SOURCE([for kqueue system call])],
+		ol_cv_have_kqueue,[
 AC_RUN_IFELSE([AC_LANG_SOURCE([[$ac_includes_default
 #ifdef HAVE_SYS_EVENT_H
 #include <sys/event.h>
@@ -996,8 +1003,13 @@ int main(int argc, char **argv)
 {
 	int kqfd = kqueue();
 	exit (kqfd == -1 ? 1 : 0);
-}]])],[AC_MSG_RESULT(yes)
-AC_DEFINE(HAVE_KQUEUE,1, [define if your system supports kqueue])],[AC_MSG_RESULT(no)],[AC_MSG_RESULT(no)])
+}]])],
+	[ol_cv_have_kqueue=yes],
+	[ol_cv_have_kqueue=no],
+	[ol_cv_have_kqueue=no])])
+	if test $ol_cv_have_kqueue = yes ; then
+		AC_DEFINE(HAVE_KQUEUE,1, [define if your system supports kqueue])
+	fi
 fi
 
 dnl ----------------------------------------------------------------
@@ -1006,13 +1018,19 @@ dnl "/dev/poll" needs <sys/poll.h> as well...
 if test "${ac_cv_header_sys_devpoll_h}" = yes \
 		-a "${ac_cv_header_poll_h}" = yes ; \
 then
-	AC_MSG_CHECKING(for /dev/poll)
+	AC_CACHE_CHECK([AC_LANG_SOURCE([for /dev/poll])],
+		ol_cv_have_devpoll,[
 	AC_RUN_IFELSE([AC_LANG_SOURCE([[int main(int argc, char **argv)
 {
 	int devpollfd = open("/dev/poll", /* O_RDWR */ 2);
 	exit (devpollfd == -1 ? 1 : 0);
-}]])],[AC_MSG_RESULT(yes)
-	AC_DEFINE(HAVE_DEVPOLL,1, [define if your system supports /dev/poll])],[AC_MSG_RESULT(no)],[AC_MSG_RESULT(no)])
+}]])],
+	[ol_cv_have_devpoll=yes],
+	[ol_cv_have_devpoll=no],
+	[ol_cv_have_devpoll=no])])
+	if test $ol_cv_have_devpoll = yes ; then
+		AC_DEFINE(HAVE_DEVPOLL,1, [define if your system supports /dev/poll])
+	fi
 fi
 
 dnl ----------------------------------------------------------------
