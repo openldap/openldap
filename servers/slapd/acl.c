@@ -1860,6 +1860,11 @@ slap_acl_mask(
 			ACL_PRIV_CLR( *mask, modmask );
 
 			/* cleanup */
+			if ( (modmask & ACL_PRIV_WRITE) && (*mask & ACL_PRIV_WRITE) ) {
+				/* ITS#7347 Allow subtractive -a/z/i to keep the other counterpart (so
+				 * that "=w" then "-a" -> "zi" etc.) */
+				ACL_PRIV_SET( *mask, ACL_ACCESS2PRIV(ACL_WRITE_) );
+			}
 			ACL_PRIV_CLR( *mask, ~ACL_PRIV_MASK );
 
 		} else {
