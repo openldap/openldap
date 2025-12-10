@@ -1961,6 +1961,9 @@ accessmask2str( slap_mask_t mask, char *buf, int debug )
 		} else if ( ACL_LVL_IS_WDEL(mask) ) {
 			ptr = lutil_strcopy( ptr, "delete" );
 
+		} else if ( ACL_LVL_IS_WINCR(mask) ) {
+			ptr = lutil_strcopy( ptr, "increment" );
+
 		} else if ( ACL_LVL_IS_MANAGE(mask) ) {
 			ptr = lutil_strcopy( ptr, "manage" );
 
@@ -2001,6 +2004,10 @@ accessmask2str( slap_mask_t mask, char *buf, int debug )
 	} else if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WDEL) ) {
 		none = 0;
 		*ptr++ = 'z';
+
+	} else if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WINCR) ) {
+		none = 0;
+		*ptr++ = 'i';
 	}
 
 	if ( ACL_PRIV_ISSET(mask, ACL_PRIV_READ) ) {
@@ -2081,6 +2088,9 @@ str2accessmask( const char *str )
 			} else if( TOLOWER((unsigned char) str[i]) == 'z' ) {
 				ACL_PRIV_SET(mask, ACL_PRIV_WDEL);
 
+			} else if( TOLOWER((unsigned char) str[i]) == 'i' ) {
+				ACL_PRIV_SET(mask, ACL_PRIV_WINCR);
+
 			} else if( TOLOWER((unsigned char) str[i]) == 'r' ) {
 				ACL_PRIV_SET(mask, ACL_PRIV_READ);
 
@@ -2132,6 +2142,9 @@ str2accessmask( const char *str )
 	} else if ( strcasecmp( str, "delete" ) == 0 ) {
 		ACL_LVL_ASSIGN_WDEL(mask);
 
+	} else if ( strcasecmp( str, "increment" ) == 0 ) {
+		ACL_LVL_ASSIGN_WINCR(mask);
+
 	} else if ( strcasecmp( str, "write" ) == 0 ) {
 		ACL_LVL_ASSIGN_WRITE(mask);
 
@@ -2177,8 +2190,8 @@ acl_usage(void)
 		"<peernamestyle> ::= exact | regex | ip | ipv6 | path\n"
 		"<domainstyle> ::= exact | regex | base(Object) | sub(tree)\n"
 		"<access> ::= [[real]self]{<level>|<priv>}\n"
-		"<level> ::= none|disclose|auth|compare|search|read|{write|add|delete}|manage\n"
-		"<priv> ::= {=|+|-}{0|d|x|c|s|r|{w|a|z}|m}+\n"
+		"<level> ::= none|disclose|auth|compare|search|read|{write|add|delete|increment}|manage\n"
+		"<priv> ::= {=|+|-}{0|d|x|c|s|r|{w|a|z|i}|m}+\n"
 		"<control> ::= [ stop | continue | break ]\n"
 #ifdef SLAP_DYNACL
 #ifdef SLAPD_ACI_ENABLED
@@ -2404,6 +2417,9 @@ access2str( slap_access_t access )
 	} else if ( access == ACL_WDEL ) {
 		return "delete";
 
+	} else if ( access == ACL_WDEL ) {
+		return "increment";
+
 	} else if ( access == ACL_MANAGE ) {
 		return "manage";
 
@@ -2440,6 +2456,9 @@ str2access( const char *str )
 		return ACL_WADD;
 
 	} else if ( strcasecmp( str, "delete" ) == 0 ) {
+		return ACL_WDEL;
+
+	} else if ( strcasecmp( str, "increment" ) == 0 ) {
 		return ACL_WDEL;
 
 	} else if ( strcasecmp( str, "manage" ) == 0 ) {

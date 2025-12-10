@@ -760,8 +760,8 @@ field will have.
 Its component are defined as
 .LP
 .nf
-	<level> ::= none|disclose|auth|compare|search|read|{write|add|delete}|manage
-	<priv> ::= {=|+|\-}{0|d|x|c|s|r|{w|a|z}|m}+
+	<level> ::= none|disclose|auth|compare|search|read|{write|add|delete|increment}|manage
+	<priv> ::= {=|+|\-}{0|d|x|c|s|r|{w|a|z|i}|m}+
 .fi
 .LP
 The modifier
@@ -805,11 +805,12 @@ attribute that is defined as not user modifiable.
 The 
 .BR write
 access is actually the combination of
-.BR add
-and
+.BR add ,
 .BR delete ,
-which respectively restrict the write privilege to add or delete
-the specified
+and
+.BR increment ,
+which respectively restrict the write privilege to add, delete or
+increment the specified
 .BR <what> .
 
 .LP
@@ -852,6 +853,8 @@ for write,
 for add,
 .B z
 for delete,
+.B i
+for increment,
 .B r
 for read,
 .B s 
@@ -866,7 +869,7 @@ More than one of the above privileges can be added in one statement.
 .B 0
 indicates no privileges and is used only by itself (e.g., +0).
 Note that
-.B +az
+.B +azi
 is equivalent to
 .BR +w .
 .LP
@@ -1013,6 +1016,8 @@ In detail,
 is required to add new values,
 .B delete (=z)
 is required to delete existing values,
+.B increment (=i)
+is required to increment values,
 and both
 .B delete
 and

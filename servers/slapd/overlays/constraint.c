@@ -1069,7 +1069,8 @@ constraint_update( Operation *op, SlapReply *rs )
 
 		if ((( m->sml_op & LDAP_MOD_OP ) != LDAP_MOD_ADD) &&
 			(( m->sml_op & LDAP_MOD_OP ) != LDAP_MOD_REPLACE) &&
-			(( m->sml_op & LDAP_MOD_OP ) != LDAP_MOD_DELETE))
+			(( m->sml_op & LDAP_MOD_OP ) != LDAP_MOD_DELETE) &&
+			(( m->sml_op & LDAP_MOD_OP ) != LDAP_MOD_INCREMENT))
 			continue;
 		/* we only care about ADD and REPLACE modifications */
 		/* and DELETE are used to track attribute count */
