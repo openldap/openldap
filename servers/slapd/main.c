@@ -205,7 +205,7 @@ usage( char *name )
 #if defined(HAVE_SETUID) && defined(HAVE_SETGID)
 		"\t-u user\t\tUser (id or name) to run as\n"
 #endif
-		"\t-V\t\tprint version info (-VV exit afterwards, -VVV print\n"
+		"\t-V/-VV\t\tprint version info and exit, -VVV also print\n"
 		"\t\t\tinfo about static overlays and backends)\n"
     );
 }
@@ -587,7 +587,7 @@ unhandled_option:;
 			}
 		}
 
-		if ( version > 1 ) goto stop;
+		goto stop;
 	}
 
 #if defined(LDAP_DEBUG) && defined(LDAP_SYSLOG)
