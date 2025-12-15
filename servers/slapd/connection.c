@@ -1482,7 +1482,8 @@ connection_read( ber_socket_t s, conn_readinfo *cri )
 		slapd_set_write( s, 0 );
 	}
 
-	slapd_set_read( s, 1 );
+	if ( !cri->op || cri->op->o_tag != LDAP_REQ_UNBIND )
+		slapd_set_read( s, 1 );
 	connection_return( c );
 
 	return 0;
