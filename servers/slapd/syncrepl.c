@@ -5653,6 +5653,10 @@ attr_cmp( Operation *op, Attribute *old, Attribute *new,
 
 	modtail = *mret;
 
+	if ( old && (old->a_flags & SLAP_ATTR_SORTED_VALS) ) {
+		return sorted_attr_cmp( op, old, new, mret, mcur );
+	}
+
 	if ( old ) {
 		int n, o, nn, no;
 		struct berval **adds, **dels;
@@ -5856,18 +5860,7 @@ void syncrepl_diff_entry( Operation *op, Attribute *old, Attribute *new,
 			old = old->a_next;
 			continue;
 		}
-		/* kludge - always update modifiersName so that it
-		 * stays co-located with the other mod opattrs. But only
-		 * if we know there are other valid mods.
-		 */
-		if ( *mods && ( old->a_desc == slap_schema.si_ad_modifiersName ||
-			old->a_desc == slap_schema.si_ad_modifyTimestamp )) {
-			attr_cmp( op, NULL, new, &modtail, &ml );
-		} else if ( old->a_flags & SLAP_ATTR_SORTED_VALS ) {
-			sorted_attr_cmp( op, old, new, &modtail, &ml );
-		} else {
-			attr_cmp( op, old, new, &modtail, &ml );
-		}
+		attr_cmp( op, old, new, &modtail, &ml );
 
 		new = new->a_next;
 		old = old->a_next;
