@@ -255,17 +255,19 @@ upstream_name_cb( int result, struct evutil_addrinfo *res, void *arg )
         }
 
         conn = ch_calloc( 1, sizeof(LloadPendingConnection) +
-                peerbv.bv_len + localbv.bv_len );
+                peerbv.bv_len + 1 + localbv.bv_len + 1 );
         LDAP_LIST_ENTRY_INIT( conn, next );
         conn->backend = b;
         conn->fd = s;
 
         conn->localbv.bv_val = (char *)(conn + 1);
         memcpy( conn->localbv.bv_val, localbv.bv_val, localbv.bv_len );
+        conn->localbv.bv_val[localbv.bv_len] = '\0';
         conn->localbv.bv_len = localbv.bv_len;
 
-        conn->peerbv.bv_val = conn->localbv.bv_val + localbv.bv_len;
+        conn->peerbv.bv_val = conn->localbv.bv_val + localbv.bv_len + 1;
         memcpy( conn->peerbv.bv_val, peerbv.bv_val, peerbv.bv_len );
+        conn->peerbv.bv_val[peerbv.bv_len] = '\0';
         conn->peerbv.bv_len = peerbv.bv_len;
 
         conn->event = event_new( lload_get_base( s ), s, EV_WRITE|EV_PERSIST,
