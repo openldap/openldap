@@ -411,9 +411,9 @@ if test $RC != 0 ; then
 fi
 
 #echo "Filtering provider results..."
-$LDIFFILTER < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
+$LDIFFILTER -s a < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
 #echo "Filtering consumer results..."
-$LDIFFILTER < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
+$LDIFFILTER -s a < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
 
 echo "$CHECK < Comparing retrieved entries from provider and consumer..."
 $CMP $PROVIDERFLT $CONSUMERFLT > $CMPOUT
@@ -518,9 +518,9 @@ if test $RC != 0 ; then
 fi
 
 #echo "Filtering provider results..."
-$LDIFFILTER < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
+$LDIFFILTER -s a < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
 #echo "Filtering consumer results..."
-$LDIFFILTER < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
+$LDIFFILTER -s a < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
 
 echo "$CHECK < Comparing retrieved entries from provider and consumer..."
 $CMP $PROVIDERFLT $CONSUMERFLT > $CMPOUT
@@ -607,9 +607,9 @@ if test $RC != 0 ; then
 fi
 
 #echo "Filtering provider results..."
-$LDIFFILTER < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
+$LDIFFILTER -s a < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
 #echo "Filtering consumer results..."
-$LDIFFILTER < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
+$LDIFFILTER -s a < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
 
 echo "$CHECK < Comparing retrieved entries from provider and consumer..."
 $CMP $PROVIDERFLT $CONSUMERFLT > $CMPOUT
@@ -704,9 +704,9 @@ if test $RC != 0 ; then
 fi
 
 #echo "Filtering provider results..."
-$LDIFFILTER < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
+$LDIFFILTER -s a < "${PROVIDEROUT}.$CHECK" > $PROVIDERFLT
 #echo "Filtering consumer results..."
-$LDIFFILTER < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
+$LDIFFILTER -s a < "${CONSUMEROUT}.$CHECK" > $CONSUMERFLT
 
 echo "$CHECK < Comparing retrieved entries from provider and consumer..."
 $CMP $PROVIDERFLT $CONSUMERFLT > $CMPOUT

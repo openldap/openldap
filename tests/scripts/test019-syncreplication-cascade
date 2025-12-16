@@ -428,17 +428,17 @@ fi
 test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo "Filtering provider ldapsearch results..."
-$LDIFFILTER < $PROVIDEROUT > $PROVIDERFLT
+$LDIFFILTER -s a < $PROVIDEROUT > $PROVIDERFLT
 echo "Filtering R1 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER2OUT > $SERVER2FLT
+$LDIFFILTER -s a < $SERVER2OUT > $SERVER2FLT
 echo "Filtering R2 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER3OUT > $SERVER3FLT
+$LDIFFILTER -s a < $SERVER3OUT > $SERVER3FLT
 echo "Filtering P1 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER4OUT > $SERVER4FLT
+$LDIFFILTER -s a < $SERVER4OUT > $SERVER4FLT
 echo "Filtering P2 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER5OUT > $SERVER5FLT
+$LDIFFILTER -s a < $SERVER5OUT > $SERVER5FLT
 echo "Filtering P3 consumer ldapsearch results..."
-$LDIFFILTER < $SERVER6OUT > $SERVER6FLT
+$LDIFFILTER -s a < $SERVER6OUT > $SERVER6FLT
 
 echo "Comparing retrieved entries from provider and R1 consumer..."
 $CMP $PROVIDERFLT $SERVER2FLT > $CMPOUT
