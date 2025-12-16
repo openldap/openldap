@@ -236,6 +236,7 @@ LDAP_SLAPD_F (void) upstream_destroy( LloadConnection *c );
 
 LDAP_SLAPD_V (ber_len_t) sockbuf_max_incoming_client;
 LDAP_SLAPD_V (ber_len_t) sockbuf_max_incoming_upstream;
+LDAP_SLAPD_V (ber_len_t) sockbuf_max_pending_client;
 LDAP_SLAPD_V (int) lload_conn_max_pdus_per_cycle;
 
 LDAP_SLAPD_V (int) lload_write_coherence;

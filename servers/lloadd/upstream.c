@@ -22,6 +22,7 @@
 #include <ac/unistd.h>
 
 #include "lload.h"
+#include "../../libraries/liblber/lber-int.h" /* get ber_ptrlen() */
 
 #include "lutil.h"
 #include "lutil_ldap.h"
@@ -90,6 +91,12 @@ forward_response( LloadConnection *client, LloadOperation *op, BerElement *ber )
 
     checked_lock( &client->c_io_mutex );
     output = client->c_pendingber;
+    if ( sockbuf_max_pending_client && output &&
+            ber_ptrlen( output ) >= sockbuf_max_pending_client ) {
+        ber_free( ber, 1 );
+        checked_unlock( &client->c_io_mutex );
+        return -1;
+    }
     if ( output == NULL && (output = ber_alloc()) == NULL ) {
         ber_free( ber, 1 );
         checked_unlock( &client->c_io_mutex );

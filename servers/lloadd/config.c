@@ -82,6 +82,7 @@ int lload_write_coherence = 0;
 
 ber_len_t sockbuf_max_incoming_client = LLOAD_SB_MAX_INCOMING_CLIENT;
 ber_len_t sockbuf_max_incoming_upstream = LLOAD_SB_MAX_INCOMING_UPSTREAM;
+ber_len_t sockbuf_max_pending_client = 0;
 
 int lload_conn_max_pdus_per_cycle = LLOAD_CONN_MAX_PDUS_PER_CYCLE_DEFAULT;
 
@@ -155,6 +156,7 @@ enum {
     CFG_IOTHREADS,
     CFG_MAXBUF_CLIENT,
     CFG_MAXBUF_UPSTREAM,
+    CFG_MAXBUF_PENDING,
     CFG_FEATURE,
     CFG_THREADQS,
     CFG_TLS_ECNAME,
@@ -339,6 +341,18 @@ static ConfigTable config_back_cf_table[] = {
             "SINGLE-VALUE )",
         NULL,
         { .v_ber_t = LLOAD_SB_MAX_INCOMING_UPSTREAM }
+    },
+    { "sockbuf_max_pending_client", "max", 2, 2, 0,
+        ARG_BER_LEN_T|ARG_MAGIC|CFG_MAXBUF_PENDING,
+        &config_generic,
+        "( OLcfgBkAt:41.1 "
+            "NAME 'olcBkLloadSockbufMaxPendingClient' "
+            "DESC 'The maximum amount of buffer space available per connection' "
+            "EQUALITY integerMatch "
+            "SYNTAX OMsInteger "
+            "SINGLE-VALUE )",
+        NULL,
+        { .v_ber_t = 0 }
     },
     { "tcp-buffer", "[listener=<listener>] [{read|write}=]size", 0, 0, 0,
 #ifdef LDAP_TCP_BUFFER
@@ -824,6 +838,7 @@ static ConfigOCs lloadocs[] = {
             "$ olcBkLloadRestrictExop "
             "$ olcBkLloadRestrictControl "
             "$ olcBkLloadListen "
+            "$ olcBkLloadSockbufMaxPendingClient "
         ") )",
         Cft_Backend, config_back_cf_table,
         NULL,
@@ -893,6 +908,9 @@ config_generic( ConfigArgs *c )
                 break;
             case CFG_MAXBUF_UPSTREAM:
                 c->value_uint = sockbuf_max_incoming_upstream;
+                break;
+            case CFG_MAXBUF_PENDING:
+                c->value_uint = sockbuf_max_pending_client;
                 break;
             case CFG_RESCOUNT:
                 c->value_uint = lload_conn_max_pdus_per_cycle;
@@ -1096,6 +1114,9 @@ config_generic( ConfigArgs *c )
             break;
         case CFG_MAXBUF_UPSTREAM:
             sockbuf_max_incoming_upstream = c->value_uint;
+            break;
+        case CFG_MAXBUF_PENDING:
+            sockbuf_max_pending_client = c->value_uint;
             break;
         case CFG_CLIENT_PENDING:
             lload_client_max_pending = c->value_uint;
