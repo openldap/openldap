@@ -242,7 +242,7 @@ union semun {
 #define BIG_ENDIAN	__BIG_ENDIAN
 #endif
 
-#if defined(__i386) || defined(__x86_64) || defined(_M_IX86)
+#if (defined(__i386) || defined(__x86_64) || defined(_M_IX86)) && !defined(MISALIGNED_OK)
 #define MISALIGNED_OK	1
 #endif
 
@@ -654,7 +654,7 @@ static txnid_t mdb_debug_start;
 #define MDB_MAGIC	 0xBEEFC0DE
 
 	/**	The version number for a database's datafile format. */
-#define MDB_DATA_VERSION	 ((MDB_DEVEL) ? 999 : 2)
+#define MDB_DATA_VERSION	 ((MDB_DEVEL) ? 999 : 3)
 	/**	The version number for a database's lockfile format. */
 #define MDB_LOCK_VERSION	 ((MDB_DEVEL) ? 999 : 2)
 	/** Number of bits representing #MDB_LOCK_VERSION in #MDB_LOCK_FORMAT.
@@ -1224,7 +1224,7 @@ typedef struct MDB_node {
 	/** Size of a node in a leaf page with a given key and data.
 	 *	This is node header plus key plus data size.
 	 */
-#define LEAFSIZE(k, d)	 (NODESIZE + (k)->mv_size + (d)->mv_size)
+#define LEAFSIZE(k, d)	 (NODESIZE + EVEN((k)->mv_size) + EVEN((d)->mv_size))
 
 	/** Address of node \b i in page \b p */
 #define NODEPTR(p, i)	 ((MDB_node *)((char *)(p) + MP_PTRS(p)[i] + PAGEBASE))
@@ -1233,7 +1233,7 @@ typedef struct MDB_node {
 #define NODEKEY(node)	 (void *)((node)->mn_data)
 
 	/** Address of the data for a node */
-#define NODEDATA(node)	 (void *)((char *)(node)->mn_data + (node)->mn_ksize)
+#define NODEDATA(node)	 (void *)((char *)(node)->mn_data + EVEN((node)->mn_ksize))
 
 	/** Get the page number pointed to by a branch node */
 #define NODEPGNO(node) \
@@ -1253,7 +1253,7 @@ typedef struct MDB_node {
 #define NODEKSZ(node)	 ((node)->mn_ksize)
 
 	/** Copy a page number from src to dst */
-#ifdef MISALIGNED_OK
+#if MISALIGNED_OK
 #define COPY_PGNO(dst,src)	dst = src
 #undef MP_PGNO
 #define MP_PGNO(p)	((p)->mp_pgno)
@@ -9112,7 +9112,7 @@ mdb_node_add(MDB_cursor *mc, indx_t indx,
 
 	room = (ssize_t)SIZELEFT(mp) - (ssize_t)sizeof(indx_t);
 	if (key != NULL)
-		node_size += key->mv_size;
+		node_size += EVEN(key->mv_size);
 	if (IS_LEAF(mp)) {
 		mdb_cassert(mc, key && data);
 		if (F_ISSET(flags, F_BIGDATA)) {
@@ -9133,10 +9133,9 @@ mdb_node_add(MDB_cursor *mc, indx_t indx,
 			flags |= F_BIGDATA;
 			goto update;
 		} else {
-			node_size += data->mv_size;
+			node_size += EVEN(data->mv_size);
 		}
 	}
-	node_size = EVEN(node_size);
 	if ((ssize_t)node_size > room)
 		goto full;
 
@@ -9229,14 +9228,13 @@ mdb_node_del(MDB_cursor *mc, int ksize)
 	}
 
 	node = NODEPTR(mp, indx);
-	sz = NODESIZE + node->mn_ksize;
+	sz = NODESIZE + EVEN(node->mn_ksize);
 	if (IS_LEAF(mp)) {
 		if (F_ISSET(node->mn_flags, F_BIGDATA))
 			sz += sizeof(MDB_ovpage);
 		else
-			sz += NODEDSZ(node);
+			sz += EVEN(NODEDSZ(node));
 	}
-	sz = EVEN(sz);
 
 	ptr = MP_PTRS(mp)[indx];
 	for (i = j = 0; i < numkeys; i++) {
