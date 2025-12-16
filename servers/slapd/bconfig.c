@@ -7941,6 +7941,8 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 					strncmp( e->e_nname.bv_val + 
 					STRLENOF( "olcDatabase" ), "=frontend",
 					STRLENOF( "=frontend" ))) {
+				struct berval message = BER_BVC("autocreation of \"olcDatabase={-1}frontend\" failed");
+
 				memset( &ca, 0, sizeof(ConfigArgs));
 				ca.be = frontendDB;
 				ca.bi = frontendDB->bd_info;
@@ -7962,8 +7964,7 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 				op->o_ndn = be->be_rootndn;
 				rc = slap_add_opattrs(op, NULL, NULL, 0, 0);
 				if ( rc != LDAP_SUCCESS ) {
-					text->bv_val = "autocreation of \"olcDatabase={-1}frontend\" failed";
-					text->bv_len = STRLENOF("autocreation of \"olcDatabase={-1}frontend\" failed");
+					ber_bvreplace( text, &message );
 					return NOID;
 				}
 
@@ -7971,8 +7972,7 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 						bi->bi_tool_entry_put( &cfb->cb_db, ce, text ) != NOID ) {
 					cfb->cb_got_ldif |= BCONFIG_GOT_FRONTEND;
 				} else {
-					text->bv_val = "autocreation of \"olcDatabase={-1}frontend\" failed";
-					text->bv_len = STRLENOF("autocreation of \"olcDatabase={-1}frontend\" failed");
+					ber_bvreplace( text, &message );
 					return NOID;
 				}
 			} else {
@@ -8018,6 +8018,8 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 					strncmp( e->e_nname.bv_val +
 					STRLENOF( "olcDatabase" ), "=config",
 					STRLENOF( "=config" )) ) {
+				struct berval message = BER_BVC("autocreation of \"olcDatabase={0}config\" failed");
+
 				memset( &ca, 0, sizeof(ConfigArgs));
 				ca.be = LDAP_STAILQ_FIRST( &backendDB );
 				ca.bi = ca.be->bd_info;
@@ -8040,16 +8042,14 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 				op->ora_e = ce;
 				rc = slap_add_opattrs(op, NULL, NULL, 0, 0);
 				if ( rc != LDAP_SUCCESS ) {
-					text->bv_val = "autocreation of \"olcDatabase={0}config\" failed";
-					text->bv_len = STRLENOF("autocreation of \"olcDatabase={0}config\" failed");
+					ber_bvreplace( text, &message );
 					return NOID;
 				}
 				if (ce && bi && bi->bi_tool_entry_put &&
 						bi->bi_tool_entry_put( &cfb->cb_db, ce, text ) != NOID ) {
 					cfb->cb_got_ldif |= BCONFIG_GOT_CONFIG;
 				} else {
-					text->bv_val = "autocreation of \"olcDatabase={0}config\" failed";
-					text->bv_len = STRLENOF("autocreation of \"olcDatabase={0}config\" failed");
+					ber_bvreplace( text, &message );
 					return NOID;
 				}
 			} else {
@@ -8061,7 +8061,9 @@ config_tool_entry_put( BackendDB *be, Entry *e, struct berval *text )
 		config_add_internal( cfb, e, &ca, NULL, NULL, NULL ) == 0 )
 		return bi->bi_tool_entry_put( &cfb->cb_db, e, text );
 	else {
-		ber_str2bv( ca.cr_msg, 0, 0, text );
+		struct berval bv;
+		ber_str2bv( ca.cr_msg, 0, 0, &bv );
+		ber_bvreplace( text, &bv );
 		return NOID;
 	}
 }
