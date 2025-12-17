@@ -3492,6 +3492,10 @@ slap_pause_server( void )
 	BackendInfo *bi;
 	int rc = LDAP_SUCCESS;
 
+#ifdef HAVE_SYSTEMD
+	sd_notify( 1, "RELOADING=1" );
+#endif /* HAVE_SYSTEMD */
+
 	rc = ldap_pvt_thread_pool_pause( &connection_pool );
 
 	LDAP_STAILQ_FOREACH(bi, &backendInfo, bi_next) {
@@ -3528,6 +3532,11 @@ slap_unpause_server( void )
 	}
 
 	rc = ldap_pvt_thread_pool_resume( &connection_pool );
+
+#ifdef HAVE_SYSTEMD
+	sd_notify( 1, "READY=1" );
+#endif /* HAVE_SYSTEMD */
+
 	return rc;
 }
 
