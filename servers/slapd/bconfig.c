@@ -7595,6 +7595,8 @@ config_back_db_open( BackendDB *be, ConfigReply *cr )
 	c.lineno = 0;
 	c.argc = 6;
 	c.argv = (char **)defacl;
+	snprintf( c.log, sizeof(c.log), "%s", c.fname );
+
 	parse_acl( &c, 0 );
 	defacl_parsed = be->bd_self->be_acl;
 	if ( save_access ) {
