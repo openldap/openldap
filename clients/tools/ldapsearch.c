@@ -2279,6 +2279,7 @@ static void print_syncinfo(
 			} break;
 		case LBER_DEFAULT:
 			printf(_("empty SyncInfoValue\n"));
+			break;
 		default:
 			printf(_("SyncInfoValue unknown\n"));
 			break;
