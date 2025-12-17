@@ -72,11 +72,13 @@ cat << __EOF__
  * <http://www.OpenLDAP.org/license.html>.
  */
 
-static const char copyright[] =
+#include <ldap_cdefs.h>
+
+static const char copyright[] LDAP_GCCATTR((unused)) =
 "Copyright 1998-2026 The OpenLDAP Foundation.  All rights reserved.\n"
 "COPYING RESTRICTIONS APPLY\n";
 
-$static $const char $SYMBOL[] =
+$static $const char $SYMBOL[] LDAP_GCCATTR((unused)) =
 "@(#) \$$PACKAGE: $APPLICATION $VERSION (" __DATE__ " " __TIME__ ") \$\n"
 "\t$WHOWHERE\n";
 
