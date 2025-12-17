@@ -141,7 +141,7 @@ static ConfigTable log_cfats[] = {
 			"DESC 'Log old values of these attributes even if unmodified' "
 			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString )", NULL, NULL },
-	{ "logbase", "op|writes|reads|session|all< <baseDN", 3, 3, 0,
+	{ "logbase", "op|writes|reads|session|all> <baseDN", 3, 3, 0,
 		ARG_MAGIC|LOG_BASE,
 		log_cf_gen, "( OLcfgOvAt:4.7 NAME 'olcAccessLogBase' "
 			"DESC 'Operation types to log under a specific branch' "
