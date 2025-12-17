@@ -3385,13 +3385,13 @@ struct zone_heap {
 #endif
 
 #define SLAP_BACKEND_INIT_MODULE(b) \
-	static BackendInfo bi;	\
+	static BackendInfo b ## _bi;	\
 	int \
 	init_module( int argc, char *argv[] ) \
 	{ \
-		bi.bi_type = #b ; \
-		bi.bi_init = b ## _back_initialize; \
-		backend_add( &bi ); \
+		b ## _bi.bi_type = #b ; \
+		b ## _bi.bi_init = b ## _back_initialize; \
+		backend_add( &b ## _bi ); \
 		return 0; \
 	}
 
