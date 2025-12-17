@@ -311,12 +311,14 @@ ldap_pvt_gettime( struct lutil_tm *ltm )
 	time_t t;
 #ifdef HAVE_CLOCK_GETTIME
 #define	FRAC	tv_nsec
+#define	USECS(x)	x / 1000
 #define	NSECS(x)	x
 	struct timespec tv;
 
 	clock_gettime( CLOCK_REALTIME, &tv );
 #else
 #define	FRAC	tv_usec
+#define	USECS(x)	x
 #define	NSECS(x)	x * 1000
 	struct timeval tv;
 
@@ -327,7 +329,7 @@ ldap_pvt_gettime( struct lutil_tm *ltm )
 	LDAP_MUTEX_LOCK( &ldap_int_gettime_mutex );
 	if ( tv.tv_sec < _ldap_pvt_gt_prevTv.tv_sec
 		|| ( tv.tv_sec == _ldap_pvt_gt_prevTv.tv_sec
-		&& tv.FRAC <= _ldap_pvt_gt_prevTv.FRAC )) {
+		&& USECS(tv.FRAC) <= USECS(_ldap_pvt_gt_prevTv.FRAC) )) {
 		_ldap_pvt_gt_subs++;
 	} else {
 		_ldap_pvt_gt_subs = 0;
