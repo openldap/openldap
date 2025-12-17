@@ -752,7 +752,7 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 				return rc; /* unexpected error */
 			}
 
-			if (found ^ c->type == CONSTRAINT_URI)
+			if (found ^ (c->type == CONSTRAINT_URI) )
 				return LDAP_CONSTRAINT_VIOLATION; /* constraint violation */
 			break;
 		}
