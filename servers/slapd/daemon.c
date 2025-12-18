@@ -3116,9 +3116,11 @@ loop:
 #ifdef HAVE_EPOLL
 					/* Don't keep reporting the hangup
 					 */
+					ldap_pvt_thread_mutex_lock( &slap_daemon[tid].sd_mutex );
 					if ( SLAP_SOCK_IS_ACTIVE( tid, fd )) {
 						SLAP_EPOLL_SOCK_SET( tid, fd, EPOLLET );
 					}
+					ldap_pvt_thread_mutex_unlock( &slap_daemon[tid].sd_mutex );
 #endif
 				}
 			}
