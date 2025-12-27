@@ -179,6 +179,11 @@ typedef SSIZE_T	ssize_t;
 # define MDB_FDATASYNC		fsync
 #endif
 
+/* NetBSD does not define union semun in sys/sem.h */
+#if defined(__NetBSD__) && !defined(_SEM_SEMUN_UNDEFINED)
+# define _SEM_SEMUN_UNDEFINED  1
+#endif
+
 #ifndef _WIN32
 #include <pthread.h>
 #include <signal.h>
