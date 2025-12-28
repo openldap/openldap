@@ -177,6 +177,9 @@ typedef SSIZE_T	ssize_t;
 # endif
 #elif defined(__ANDROID__)
 # define MDB_FDATASYNC		fsync
+#elif defined(__HAIKU__)
+# define MDB_USE_POSIX_SEM	1
+# define MDB_FDATASYNC		fsync
 #endif
 
 /* NetBSD does not define union semun in sys/sem.h */
