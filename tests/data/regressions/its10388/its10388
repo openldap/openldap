@@ -47,9 +47,10 @@ carLicense: \01365768
 #ldapsearch will return thes value non-encoded, as it does not have any non-printable chars
 carLicense::    \011\013MzI5NDc4OQ=="
 
+mkdir -p $TESTDIR $DBDIR1
+
 printf "$MODLDIF" > $TESTDIR/mod_ldif.ldif
 
-mkdir -p $TESTDIR $DBDIR1
 echo "Running slapadd to build slapd database..."
 . $CONFFILTER $BACKEND < $CONF > $CONF1
 $SLAPADD -f $CONF1 -l $LDIFORDERED
