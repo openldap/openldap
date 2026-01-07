@@ -255,6 +255,32 @@ parse_slapopt( int tool, int *mode )
 			break;
 		}
 
+	} else if ( ( strncasecmp( optarg, "remove-sids", len ) == 0 ) ) {
+		switch ( tool ) {
+		case SLAPADD:
+			{
+				char *arg = strtok( p, "," );
+				if ( !arg ) {
+					Debug( LDAP_DEBUG_ANY, "remove-sids needs an argument.\n" );
+					return -1;
+				}
+				do {
+					unsigned int u;
+					if ( lutil_atou( &u, arg ) || u > SLAP_SYNC_SID_MAX ) {
+						Debug( LDAP_DEBUG_ANY, "unable to parse remove-sids=\"%s\".\n", arg );
+						return -1;
+					}
+					sids_to_remove[u] = 1;
+					update_ctxcsn = 1;
+				} while ( (arg = strtok( NULL, "," )) );
+			}
+			break;
+
+		default:
+			Debug( LDAP_DEBUG_ANY, "remove-sids meaningless for tool.\n" );
+			break;
+		}
+
 	} else {
 		return -1;
 	}
@@ -994,7 +1020,7 @@ slap_tool_update_ctxcsn(
 		if ( SLAP_SYNC_SUBENTRY( be )) {
 			ctxcsn_e = slap_create_context_csn_entry( be, NULL );
 			for ( sid = 0; sid <= SLAP_SYNC_SID_MAX; sid++ ) {
-				if ( maxcsn[ sid ].bv_len ) {
+				if ( maxcsn[ sid ].bv_len && !sids_to_remove[sid] ) {
 					attr_merge_one( ctxcsn_e, slap_schema.si_ad_contextCSN,
 						&maxcsn[ sid ], NULL );
 				}
@@ -1044,7 +1070,9 @@ slap_tool_update_ctxcsn(
 
 					sid = (unsigned)rc_sid;
 
-					if ( maxcsn[ sid ].bv_len == 0 ) {
+					if ( sids_to_remove[sid] ) {
+						match = 1;
+					} else if ( maxcsn[ sid ].bv_len == 0 ) {
 						match = -1;
 
 					} else {

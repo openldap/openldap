@@ -54,6 +54,7 @@ typedef struct tool_vars {
 	ber_len_t tv_ldif_wrap;
 	char tv_maxcsnbuf[ LDAP_PVT_CSNSTR_BUFSIZE * ( SLAP_SYNC_SID_MAX + 1 ) ];
 	struct berval tv_maxcsn[ SLAP_SYNC_SID_MAX + 1 ];
+	char tv_sids_to_remove[ SLAP_SYNC_SID_MAX + 1 ];
 } tool_vars;
 
 extern tool_vars tool_globals;
@@ -91,6 +92,7 @@ extern tool_vars tool_globals;
 #define ldif_wrap tool_globals.tv_ldif_wrap
 #define maxcsn tool_globals.tv_maxcsn
 #define maxcsnbuf tool_globals.tv_maxcsnbuf
+#define sids_to_remove tool_globals.tv_sids_to_remove
 
 #define SLAP_TOOL_LDAPDN_PRETTY		SLAP_LDAPDN_PRETTY
 #define SLAP_TOOL_LDAPDN_NORMAL		(SLAP_LDAPDN_PRETTY << 1)

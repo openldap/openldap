@@ -147,13 +147,20 @@ Possible generic options/values are:
               syslog\-level=<level> (see `\-S' in slapd(8))
               syslog\-user=<user>   (see `\-l' in slapd(8))
 
-              schema-check={yes|no}
-              value-check={yes|no}
+              schema\-check={yes|no}
+              value\-check={yes|no}
+              remove\-sids={<sid>[,<sid>,...]}
 
 .in
 The \fIschema\-check\fR option toggles schema checking (default on);
 the \fIvalue\-check\fR option toggles value checking (default off).
 The latter is incompatible with \fB-q\fR.
+
+The \fIremove\-sids\fR option accepts a list of sids to ignore from the file,
+corresponding CSNs in \fBentryCSN\fR and \fBcontextCSN\fR attributes will be
+replaced with freshly generated CSNs using the server ID configured by
+\fB-S\fR. Using it also implies \fB-w\fR: overwrite syncrepl context
+information.
 .TP
 .B \-q
 enable quick (fewer integrity checks) mode.  Does fewer consistency checks

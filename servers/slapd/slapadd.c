@@ -214,6 +214,9 @@ again:
 			struct berval nname;
 			char timebuf[ LDAP_LUTIL_GENTIME_BUFSIZE ];
 
+			Attribute *a;
+			int entrysid = -1;
+
 			enum {
 				GOT_NONE = 0x0,
 				GOT_CSN = 0x1,
@@ -267,12 +270,21 @@ again:
 				attr_merge( e, slap_schema.si_ad_createTimestamp, vals, NULL );
 			}
 
-			if( attr_find( e->e_attrs, slap_schema.si_ad_entryCSN )
+			if( (a = attr_find( e->e_attrs, slap_schema.si_ad_entryCSN ))
 				== NULL )
 			{
 				got &= ~GOT_CSN;
 				vals[0] = csn;
 				attr_merge( e, slap_schema.si_ad_entryCSN, vals, NULL );
+			} else if ( a->a_numvals != 1 ||
+					(entrysid = slap_parse_csn_sid( &a->a_vals[0] )) < 0 ) {
+				Debug( LDAP_DEBUG_ANY, "%s: warning, "
+						"%s values not valid in entry dn=\"%s\"\n",
+						progname, slap_schema.si_ad_entryCSN->ad_cname.bv_val,
+						e->e_name.bv_val );
+			} else if ( sids_to_remove[entrysid] ) {
+				ber_bvreplace( &a->a_vals[0], &csn );
+				ber_bvreplace( &a->a_nvals[0], &csn );
 			}
 
 			if( attr_find( e->e_attrs, slap_schema.si_ad_modifiersName )
@@ -367,6 +379,11 @@ slapadd( int argc, char **argv )
 
 	if ( isatty (2) ) enable_meter = 1;
 	slap_tool_init( progname, SLAPADD, argc, argv );
+	if ( sids_to_remove[csnsid] ) {
+		fprintf( stderr, "%s: remove-sids contains configured serverID %u.\n",
+			progname, csnsid );
+		exit( EXIT_FAILURE );
+	}
 
 	if( !be->be_entry_open ||
 		!be->be_entry_close ||
