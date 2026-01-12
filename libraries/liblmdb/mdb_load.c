@@ -208,6 +208,12 @@ badend:
 
 	c1 = buf->mv_data;
 	len = strlen((char *)c1);
+	if (!len) {
+		/* This can only happen with an intentionally invalid input
+		 * with a NUL byte after the leading SPACE
+		 */
+		goto badend;
+	}
 	l2 = len;
 
 	/* Is buffer too short? */
