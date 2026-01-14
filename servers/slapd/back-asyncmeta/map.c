@@ -205,7 +205,7 @@ ignore:
 		goto ignore;
 
 	/* if remote suffix is empty, remove or add the dn separator*/
-	if ( nsuff->bv_len == 0 ) {
+	if ( nsuff->bv_len == 0 && diff > 0) {
 		diff--;
 	} else if ( osuff->bv_len == 0 ) {
 		diff++;
@@ -214,8 +214,10 @@ ignore:
 
 	res->bv_len = diff + nsuff->bv_len;
 	res->bv_val = dc->op->o_tmpalloc( res->bv_len + 1, dc->memctx );
-	strncpy( res->bv_val, dn->bv_val, diff );
-	if ( osuff->bv_len == 0 )
+	if ( diff > 0 ) {
+               strncpy( res->bv_val, dn->bv_val, diff );
+       }
+	if ( osuff->bv_len == 0 && diff > 0 )
 		res->bv_val[diff-1] = ',';
 	strcpy( &res->bv_val[diff], nsuff->bv_val );
 
