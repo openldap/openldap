@@ -136,6 +136,14 @@ ldif_parse_line2(
 	*s++ = '\0';
 	type->bv_len = p - type->bv_val + 1;
 
+	if ( BER_BVISEMPTY( type ) ) {
+		/* no type is present, error out */
+		ber_pvt_log_printf( LDAP_DEBUG_PARSE, ldif_debug,
+			_("ldif_parse_line: empty type is invalid\n") );
+		if ( !freeval ) ber_memfree( line );
+		return( -1 );
+	}
+
 	url = 0;
 	b64 = 0;
 
