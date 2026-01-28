@@ -83,7 +83,7 @@ $ ldapsearch -b "dc=example,dc=com" -D "uid=jturner,ou=People,dc=example,dc=com"
 
 This work is part of OpenLDAP Software <http://www.openldap.org/>.
 
-Copyright 2017-2024 The OpenLDAP Foundation.
+Copyright 2017-2026 The OpenLDAP Foundation.
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
