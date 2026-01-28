@@ -1087,7 +1087,7 @@ get_token( const char ** sp, char ** token_val )
 static void
 parse_whsp(const char **sp)
 {
-	while (LDAP_SPACE(**sp))
+	while ( **sp && LDAP_SPACE(**sp))
 		(*sp)++;
 }
 
