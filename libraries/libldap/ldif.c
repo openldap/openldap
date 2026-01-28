@@ -830,10 +830,12 @@ pop:
 					/* ITS#9811 Reached the end looking for an entry, try again */
 					goto pop;
 				}
-				stop = 1;
 				len = 0;
 			} else {
 				len = strlen( line );
+			}
+			if ( !len ) {
+				stop = 1;
 			}
 		}
 
