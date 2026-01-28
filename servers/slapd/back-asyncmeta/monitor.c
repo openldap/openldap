@@ -1,7 +1,7 @@
 /* monitor.c - monitor asyncmeta backend */
 /* $OpenLDAP$ */
 /* This work is part of OpenLDAP Software <http://www.openldap.org/>.
- * * Copyright 2016-2025 The OpenLDAP Foundation.
+ * * Copyright 2016-2026 The OpenLDAP Foundation.
  * Portions Copyright 2016 Symas Corporation.
  * All rights reserved.
  *
