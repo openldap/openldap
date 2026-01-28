@@ -230,8 +230,23 @@ ldap_int_conf_option(
 			char *next;
 			tv.tv_usec = 0;
 			tv.tv_sec = strtol( opt, &next, 10 );
-			if ( next != opt && next[ 0 ] == '\0' && tv.tv_sec > 0 ) {
-				(void)ldap_set_option( NULL, attrs[i].offset, (const void *)&tv );
+			if ( next != opt ) {
+				if ( next[ 0 ] == '.' ) {
+					int digits;
+					opt = next+1;
+					tv.tv_usec = strtol( opt, &next, 10 ) ;
+					digits = next - opt;
+					while ( digits > 6 ) {
+						tv.tv_usec /= 10;
+						digits--;
+					}
+					while ( digits < 6 ) {
+						tv.tv_usec *= 10;
+						digits++;
+					}
+				}
+				if ( next[ 0 ] == '\0' && ( tv.tv_sec > 0 || tv.tv_usec > 0 ))
+					(void)ldap_set_option( NULL, attrs[i].offset, (const void *)&tv );
 			}
 			} break;
 		case ATTR_OPT_INT: {
