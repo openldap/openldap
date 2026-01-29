@@ -1,6 +1,6 @@
 OpenLDAP 2.6 Change Log
 
-OpenLDAP 2.6.12 Engineering
+OpenLDAP 2.6.12 Release (2026/01/29)
 	Fixed libldap to reject empty types in LDIF (ITS#10429)
 	Fixed libldap to not scroll past nul bytes (ITS#10430)
 	Fixed libldap to enforce stop when encountering nul-leading line (ITS#10431)
