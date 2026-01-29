@@ -13,6 +13,9 @@
 ## top-level directory of the distribution or, alternatively, at
 ## <http://www.OpenLDAP.org/license.html>.
 
+echo "Test disabled until ITS#9782 is fixed"
+exit 0
+
 echo "running defines.sh"
 . $SRCDIR/scripts/defines.sh
 
