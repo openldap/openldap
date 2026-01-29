@@ -1,6 +1,7 @@
 OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.12 Engineering
+	Fixed libldap to reject empty types in LDIF (ITS#10429)
 
 OpenLDAP 2.6.11 Release (2026/01/28)
 	Fixed slapd to use fresh timestamp for lastbind (ITS#10379)
