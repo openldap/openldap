@@ -1,5 +1,8 @@
 LMDB 0.9 Change Log
 
+LMDB 0.9.35 Release (2026/01/27)
+    ITS#10434 - Fix typo affecting Mac OSX
+
 LMDB 0.9.34 Release (2026/01/26)
 	ITS#9564 - fix race condition freeing spilled pages at end of transaction
 	ITS#10222 - Update mdb_dump(1) and mdb_load(1) man pages for append (-a) option
