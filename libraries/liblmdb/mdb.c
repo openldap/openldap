@@ -129,7 +129,7 @@ typedef SSIZE_T	ssize_t;
 #elif defined(__APPLE__) || defined (BSD) || defined(__FreeBSD_kernel__)
 # define MDB_USE_POSIX_SEM	1
 # if defined(__APPLE__)
-#  define MDB_FDATASYNC		fcntl(fd, F_FULLFSYNC)
+#  define MDB_FDATASYNC(fd)		fcntl(fd, F_FULLFSYNC)
 # else
 #  define MDB_FDATASYNC		fsync
 # endif
