@@ -3622,8 +3622,6 @@ consistency_check(
 
 			if (query->expiry_time < op->o_time) {
 				int rem = 0;
-				if ( query != templ->query_last )
-					continue;
 				ldap_pvt_thread_mutex_lock(&qm->lru_mutex);
 				if (query->in_lru) {
 					remove_query(qm, query);
