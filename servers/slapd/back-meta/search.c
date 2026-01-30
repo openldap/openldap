@@ -2016,7 +2016,7 @@ meta_send_entry(
 	Entry 			ent = { 0 };
 	BerElement 		ber = *ldap_get_message_ber( e );
 	Attribute 		*attr, **attrp;
-	LDAPControl **res_ctrls;
+	LDAPControl **res_ctrls = NULL;
 	struct berval 		bdn,
 				dn = BER_BVNULL;
 	const char 		*text;

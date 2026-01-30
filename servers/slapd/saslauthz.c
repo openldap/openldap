@@ -1504,7 +1504,6 @@ out:
 int slap_sasl_regexp_config( const char *match, const char *replace, int valx )
 {
 	int i, rc;
-	SaslRegexp_t sr;
 	struct rewrite_info *rw = NULL;
 
 	if ( valx < 0 || valx > nSaslRegexp )
@@ -1529,7 +1528,6 @@ int slap_sasl_regexp_config( const char *match, const char *replace, int valx )
 			SaslRegexp[i] = SaslRegexp[i - 1];
 		}
 
-		SaslRegexp[i] = sr;
 		SaslRegexp[i].sr_match = ch_strdup( match );
 		SaslRegexp[i].sr_replace = ch_strdup( replace );
 
