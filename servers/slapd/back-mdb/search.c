@@ -435,7 +435,7 @@ mdb_search( Operation *op, SlapReply *rs )
 	int		manageDSAit;
 	int		tentries = 0;
 	int		admincheck = 0;
-	int		pausepoll;
+	int		pausepoll = 0;
 	IdScopes	isc;
 	MDB_cursor	*mci, *mcd;
 	ww_ctx wwctx;
@@ -809,7 +809,6 @@ adminlimit:
 		id = mdb_idl_first( candidates, &cursor );
 	}
 
-	pausepoll = 0;
 	while (id != NOID)
 	{
 		int scopeok;
