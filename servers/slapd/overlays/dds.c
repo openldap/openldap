@@ -1644,7 +1644,6 @@ dds_db_init(
 	on->on_bi.bi_private = di;
 
 	di->di_max_ttl = DDS_RF2589_DEFAULT_TTL;
-	di->di_max_ttl = DDS_RF2589_DEFAULT_TTL;
 
 	ldap_pvt_thread_mutex_init( &di->di_mutex );
 
