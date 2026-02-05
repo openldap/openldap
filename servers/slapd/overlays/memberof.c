@@ -292,6 +292,8 @@ memberof_isGroupOrMember( Operation *op, memberof_cbinfo_t *mci )
 	op2.ors_slimit = 1;
 	op2.ors_tlimit = SLAP_NO_LIMIT;
 
+	memset( op2.o_ctrlflag, 0, sizeof(op2.o_ctrlflag) );
+
 	if ( mci->what & MEMBEROF_IS_GROUP ) {
 		SlapReply	rs2 = { REP_RESULT };
 
@@ -388,6 +390,8 @@ memberof_value_modify(
 	op2.o_opid = 0;		/* shared with op, saved above */
 	op2.orm_no_opattrs = 1;
 	op2.o_dont_replicate = 1;
+
+	memset( op2.o_ctrlflag, 0, sizeof(op2.o_ctrlflag) );
 
 	/* main op has already completed if we got here, so even
 	 * if its abandon flag was set we must complete as well. */
@@ -567,6 +571,8 @@ memberof_addcheck( Operation *op )
 	slap_callback sc = {0};
 	mo_addcheck_t ma;
 	SlapReply rs = {REP_SEARCH};
+
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
 
 	o.o_dn = op->o_bd->be_rootdn;
 	o.o_ndn = op->o_bd->be_rootndn;
