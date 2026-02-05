@@ -399,6 +399,7 @@ nestgroup_memberFilter( Operation *op, int mbr_nf, nestgroup_filterinst_t *mbr_f
 	Operation o = *op;
 	int i;
 
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
 	o.o_managedsait = SLAP_CONTROL_CRITICAL;
 	sc = op->o_tmpcalloc( 1, sizeof(slap_callback) + sizeof(gdn_info), op->o_tmpmemctx);
 	gi = (gdn_info *)(sc+1);
@@ -580,6 +581,7 @@ nestgroup_memberOfVals( Operation *op, slap_overinst *on, Attribute *a )
 	AttributeAssertion mava;
 	int i;
 
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
 	o.o_managedsait = SLAP_CONTROL_CRITICAL;
 	sc = op->o_tmpcalloc( 1, sizeof(slap_callback) + sizeof(gdn_info), op->o_tmpmemctx);
 	gi = (gdn_info *)(sc+1);
