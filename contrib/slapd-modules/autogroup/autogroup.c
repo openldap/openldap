@@ -137,6 +137,8 @@ autogroup_add_member_to_group( Operation *op, BerValue *dn, BerValue *ndn, autog
 	modlist->sml_flags = SLAP_MOD_INTERNAL;
 	modlist->sml_next = NULL;
 
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
+
 	o.o_opid = 0;	/* shared with op, saved above */
 	o.o_tag = LDAP_REQ_MODIFY;
 	o.o_callback = &cb;
@@ -193,6 +195,8 @@ autogroup_add_member_values_to_group( Operation *op, struct berval *dn, autogrou
 	modlist.sml_numvals = attr->a_numvals;
 	modlist.sml_flags = SLAP_MOD_INTERNAL;
 	modlist.sml_next = NULL;
+
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
 
 	o.o_opid = 0;
 	o.o_tag = LDAP_REQ_MODIFY;
@@ -268,6 +272,8 @@ autogroup_delete_member_from_group( Operation *op, BerValue *dn, BerValue *ndn, 
 	modlist->sml_flags = SLAP_MOD_INTERNAL;
 	modlist->sml_next = NULL;
 
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
+
 	o.o_opid = 0;
 	o.o_callback = &cb;
 	o.o_tag = LDAP_REQ_MODIFY;
@@ -324,6 +330,8 @@ autogroup_delete_member_values_from_group( Operation *op, struct berval *dn, aut
         modlist.sml_numvals = attr->a_numvals;
         modlist.sml_flags = SLAP_MOD_INTERNAL;
         modlist.sml_next = NULL;
+
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
 
 	o.o_opid = 0;
         o.o_tag = LDAP_REQ_MODIFY;
@@ -510,6 +518,8 @@ autogroup_add_members_from_filter( Operation *op, Entry *e, autogroup_entry_t *a
 	if ( op->o_abandon && !modify )
 		return 0;
 
+	memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
+
 	o.ors_attrsonly = 0;
 	o.o_tag = LDAP_REQ_SEARCH;
 
@@ -559,6 +569,7 @@ autogroup_add_members_from_filter( Operation *op, Entry *e, autogroup_entry_t *a
 		rs_reinit( &rs, REP_RESULT );
 
 		o = *op;
+
 		o.o_opid = 0;
 		o.o_callback = &null_cb;
 		o.o_tag = LDAP_REQ_MODIFY;
@@ -567,6 +578,8 @@ autogroup_add_members_from_filter( Operation *op, Entry *e, autogroup_entry_t *a
 		o.o_ndn = op->o_bd->be_rootndn;
 		o.o_req_dn = age->age_dn;
 		o.o_req_ndn = age->age_ndn;
+
+		memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
 		o.o_relax = SLAP_CONTROL_CRITICAL;
 		o.o_managedsait = SLAP_CONTROL_NONCRITICAL;
 		o.o_permissive_modify = 1;
