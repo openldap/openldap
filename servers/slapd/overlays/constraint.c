@@ -686,6 +686,7 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 			}
 			nop.o_do_not_cache = 1;
 			nop.o_callback = &cb;
+			memset( nop.o_ctrlflag, 0, sizeof(nop.o_ctrlflag) );
 
 			nop.ors_scope = c->lud->lud_scope;
 			nop.ors_deref = LDAP_DEREF_NEVER;
