@@ -1415,7 +1415,7 @@ dds_cfgen( ConfigArgs *c )
 			break;
 
 		case DDS_MAXTTL:
-			di->di_min_ttl = DDS_RF2589_DEFAULT_TTL;
+			di->di_max_ttl = DDS_RF2589_DEFAULT_TTL;
 			break;
 
 		case DDS_MINTTL:
@@ -1803,8 +1803,17 @@ dds_db_open(
 		di->di_max_ttl = DDS_RF2589_DEFAULT_TTL;
 	}
 
-	if ( di->di_min_ttl == 0 ) {
-		di->di_max_ttl = DDS_RF2589_DEFAULT_TTL;
+	/* sanity checks */
+	if ( di->di_default_ttl > di->di_max_ttl ) {
+		Log( LDAP_DEBUG_ANY, LDAP_LEVEL_ERR,
+			"DDS default ttl is greater than max ttl\n" );
+		return 1;
+	}
+	if (( di->di_min_ttl > di->di_max_ttl ) ||
+		( di->di_default_ttl && ( di->di_min_ttl > di->di_default_ttl ))) {
+		Log( LDAP_DEBUG_ANY, LDAP_LEVEL_ERR,
+			"DDS min_ttl is greater than default or max ttl\n" );
+		return 1;
 	}
 
 	di->di_suffix = be->be_suffix;
