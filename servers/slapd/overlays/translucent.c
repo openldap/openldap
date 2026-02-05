@@ -291,6 +291,8 @@ void glue_parent(Operation *op) {
 	nop.o_req_ndn = ndn;
 	nop.ora_e = e;
 
+	memset( nop.o_ctrlflag, 0, sizeof(nop.o_ctrlflag) );
+
 	nop.o_bd->bd_info = (BackendInfo *) on->on_info->oi_orig;
 	syncrepl_add_glue(&nop, e);
 	nop.o_bd->bd_info = (BackendInfo *) on;
