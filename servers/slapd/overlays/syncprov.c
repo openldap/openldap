@@ -2294,6 +2294,9 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 	fop.o_bd = db;
 	fop.o_dn = db->be_rootdn;
 	fop.o_ndn = db->be_rootndn;
+
+	memset( fop.o_ctrlflag, 0, sizeof(fop.o_ctrlflag) );
+
 	rc = be_entry_get_rw( &fop, &si->si_logbase, NULL, ad_minCSN, 0, &e );
 	if ( rc ) {
 		return rc;
