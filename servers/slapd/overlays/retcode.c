@@ -253,6 +253,7 @@ retcode_op_internal( Operation *op, SlapReply *rs )
 	op2.ors_limit = NULL;
 	op2.ors_attrsonly = 0;
 	op2.ors_attrs = slap_anlist_all_attributes;
+	memset( op2.o_ctrlflag, 0, sizeof(op2.o_ctrlflag) );
 
 	ber_str2bv_x( "(objectClass=errAbsObject)",
 		STRLENOF( "(objectClass=errAbsObject)" ),
