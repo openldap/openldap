@@ -71,6 +71,7 @@ done:
 
     LDAP_LIST_REMOVE( conn, next );
     if ( rc ) {
+        event_del( conn->event );
         evutil_closesocket( conn->fd );
         b->b_opening--;
         b->b_failed++;
