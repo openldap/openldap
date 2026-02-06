@@ -1409,7 +1409,6 @@ static int parseAssert (
 	LDAPControl *ctrl )
 {
 	BerElement	*ber;
-	struct berval	fstr = BER_BVNULL;
 
 	if ( op->o_assert != SLAP_CONTROL_NONE ) {
 		rs->sr_text = "assert control specified multiple times";
@@ -1436,26 +1435,18 @@ static int parseAssert (
 		&rs->sr_text);
 	(void) ber_free( ber, 1 );
 	if( rs->sr_err != LDAP_SUCCESS ) {
-		if( rs->sr_err == SLAPD_DISCONNECT ) {
-			rs->sr_err = LDAP_PROTOCOL_ERROR;
-			send_ldap_disconnect( op, rs );
-			rs->sr_err = SLAPD_DISCONNECT;
-		} else {
-			send_ldap_result( op, rs );
-		}
-		if( op->o_assertion != NULL ) {
-			filter_free_x( op, op->o_assertion, 1 );
-			op->o_assertion = NULL;
-		}
 		return rs->sr_err;
 	}
 
 #ifdef LDAP_DEBUG
-	filter2bv_x( op, op->o_assertion, &fstr );
+	if ( LogTest( LDAP_DEBUG_ARGS )) {
+		struct berval	fstr = BER_BVNULL;
+		filter2bv_x( op, op->o_assertion, &fstr );
 
-	Debug( LDAP_DEBUG_ARGS, "parseAssert: conn %ld assert: %s\n",
-		op->o_connid, fstr.bv_len ? fstr.bv_val : "empty" );
-	op->o_tmpfree( fstr.bv_val, op->o_tmpmemctx );
+		Debug( LDAP_DEBUG_ARGS, "parseAssert: conn %ld assert: %s\n",
+			op->o_connid, fstr.bv_len ? fstr.bv_val : "empty" );
+		op->o_tmpfree( fstr.bv_val, op->o_tmpmemctx );
+	}
 #endif
 
 	op->o_assert = ctrl->ldctl_iscritical
@@ -1593,7 +1584,6 @@ static int parseValuesReturnFilter (
 	LDAPControl *ctrl )
 {
 	BerElement	*ber;
-	struct berval	fstr = BER_BVNULL;
 
 	if ( op->o_valuesreturnfilter != SLAP_CONTROL_NONE ) {
 		rs->sr_text = "valuesReturnFilter control specified multiple times";
@@ -1622,26 +1612,18 @@ static int parseValuesReturnFilter (
 	(void) ber_free( ber, 1 );
 
 	if( rs->sr_err != LDAP_SUCCESS ) {
-		if( rs->sr_err == SLAPD_DISCONNECT ) {
-			rs->sr_err = LDAP_PROTOCOL_ERROR;
-			send_ldap_disconnect( op, rs );
-			rs->sr_err = SLAPD_DISCONNECT;
-		} else {
-			send_ldap_result( op, rs );
-		}
-		if( op->o_vrFilter != NULL) {
-			vrFilter_free( op, op->o_vrFilter );
-			op->o_vrFilter = NULL;
-		}
-	}
-#ifdef LDAP_DEBUG
-	else {
-		vrFilter2bv( op, op->o_vrFilter, &fstr );
+		return rs->sr_err;
 	}
 
-	Debug( LDAP_DEBUG_ARGS, "	vrFilter: %s\n",
-		fstr.bv_len ? fstr.bv_val : "empty" );
-	op->o_tmpfree( fstr.bv_val, op->o_tmpmemctx );
+#ifdef LDAP_DEBUG
+	if ( LogTest( LDAP_DEBUG_ARGS )) {
+		struct berval	fstr = BER_BVNULL;
+		vrFilter2bv( op, op->o_vrFilter, &fstr );
+
+		Debug( LDAP_DEBUG_ARGS, "	vrFilter: %s\n",
+			fstr.bv_len ? fstr.bv_val : "empty" );
+		op->o_tmpfree( fstr.bv_val, op->o_tmpmemctx );
+	}
 #endif
 
 	op->o_valuesreturnfilter = ctrl->ldctl_iscritical
