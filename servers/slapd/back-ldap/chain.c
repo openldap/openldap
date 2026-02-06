@@ -2230,6 +2230,8 @@ ldap_chain_parse_ctrl(
 		 * should we accept no enumerations at all? */
 		if ( tag != LBER_ENUMERATED ) {
 			rs->sr_text = "Chaining behavior control: resolveBehavior decoding error";
+fail:
+			ber_free( ber, 1 );
 			return LDAP_PROTOCOL_ERROR;
 		}
 
@@ -2252,7 +2254,7 @@ ldap_chain_parse_ctrl(
 
 		default:
 			rs->sr_text = "Chaining behavior control: unknown resolveBehavior";
-			return LDAP_PROTOCOL_ERROR;
+			goto fail;
 		}
 
 		tag = ber_peek_tag( ber, &len );
@@ -2260,7 +2262,7 @@ ldap_chain_parse_ctrl(
 			tag = ber_scanf( ber, "e", &behavior );
 			if ( tag == LBER_ERROR ) {
 				rs->sr_text = "Chaining behavior control: continuationBehavior decoding error";
-				return LDAP_PROTOCOL_ERROR;
+				goto fail;
 			}
 		}
 
@@ -2287,13 +2289,13 @@ ldap_chain_parse_ctrl(
 
 			default:
 				rs->sr_text = "Chaining behavior control: unknown continuationBehavior";
-				return LDAP_PROTOCOL_ERROR;
+				goto fail;
 			}
 		}
 
 		if ( ( ber_scanf( ber, /* { */ "}") ) == LBER_ERROR ) {
 			rs->sr_text = "Chaining behavior control: decoding error";
-			return LDAP_PROTOCOL_ERROR;
+			goto fail;
 		}
 
 		(void) ber_free( ber, 1 );
