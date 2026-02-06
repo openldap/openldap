@@ -840,12 +840,16 @@ is_dn:		bv.bv_len = val->bv_len - ( bv.bv_val - val->bv_val );
 	}
 
 	ludp->lud_port = 0;
-	normalized->bv_val = ldap_url_desc2str( ludp );
-	if ( normalized->bv_val ) {
-		normalized->bv_len = strlen( normalized->bv_val );
-
-	} else {
-		rc = LDAP_INVALID_SYNTAX;
+	{
+		char *tmpstr = ldap_url_desc2str( ludp );
+		if ( tmpstr ) {
+			normalized->bv_len = strlen( tmpstr );
+			normalized->bv_val = slap_sl_malloc( normalized->bv_len+1, ctx );
+			strcpy( normalized->bv_val, tmpstr );
+			ber_memfree( tmpstr );
+		} else {
+			rc = LDAP_INVALID_SYNTAX;
+		}
 	}
 
 done:
