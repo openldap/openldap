@@ -1556,9 +1556,12 @@ parseReadAttrs(
 			? SLAP_CONTROL_CRITICAL
 			: SLAP_CONTROL_NONCRITICAL;
 	}
+	an = NULL;
 
 done:
 	(void) ber_free( ber, 1 );
+	if ( an )
+		ber_memfree( an );
 	return rs->sr_err;
 }
 
