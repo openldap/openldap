@@ -1548,11 +1548,13 @@ char ** slap_sasl_mechs( Connection *conn )
 		int sc;
 		SASL_CONST char *mechstr;
 
+		ldap_pvt_thread_mutex_lock( &conn->c_mutex );
 		sc = sasl_listmech( ctx,
 			NULL, NULL, ",", NULL,
 			&mechstr, NULL, NULL );
 
 		if( sc != SASL_OK ) {
+			ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
 			Debug( LDAP_DEBUG_ANY, "slap_sasl_listmech failed: %d\n",
 				sc );
 
@@ -1560,6 +1562,7 @@ char ** slap_sasl_mechs( Connection *conn )
 		}
 
 		mechs = ldap_str2charray( mechstr, "," );
+		ldap_pvt_thread_mutex_unlock( &conn->c_mutex );
 	}
 #elif defined(SLAP_BUILTIN_SASL)
 	/* builtin SASL implementation */
