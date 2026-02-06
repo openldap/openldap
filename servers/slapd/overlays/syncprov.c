@@ -4250,26 +4250,6 @@ syncprov_db_destroy(
 	return 0;
 }
 
-static int
-syncprov_ctrl_cleanup( Operation *op, SlapReply *rs )
-{
-	if ( op->o_controls[slap_cids.sc_LDAPsync] ) {
-		sync_control *sr = op->o_controls[slap_cids.sc_LDAPsync];
-		op->o_controls[slap_cids.sc_LDAPsync] = NULL;
-		if ( sr->sr_state.ctxcsn ) {
-			 ber_bvarray_free_x( sr->sr_state.ctxcsn, op->o_tmpmemctx );
-		}
-		if ( sr->sr_state.sids ) {
-			 op->o_tmpfree( sr->sr_state.sids, op->o_tmpmemctx );
-		}
-		if ( sr->sr_state.octet_str.bv_val ) {
-			 op->o_tmpfree( sr->sr_state.octet_str.bv_val, op->o_tmpmemctx );
-		}
-		op->o_tmpfree( sr, op->o_tmpmemctx );
-	}
-	return slap_freeself_cb( op, rs );
-}
-
 static int syncprov_parseCtrl (
 	Operation *op,
 	SlapReply *rs,
@@ -4376,13 +4356,6 @@ static int syncprov_parseCtrl (
 		: SLAP_CONTROL_NONCRITICAL;
 
 	op->o_sync_mode |= mode;	/* o_sync_mode shares o_sync */
-
-	{
-		slap_callback *cb = op->o_tmpcalloc( 1, sizeof(slap_callback), op->o_tmpmemctx );
-		cb->sc_cleanup = syncprov_ctrl_cleanup;
-		cb->sc_next = op->o_callback;
-		op->o_callback = cb;
-	}
 
 	return LDAP_SUCCESS;
 }
