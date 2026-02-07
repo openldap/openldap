@@ -230,6 +230,7 @@ get_filter0(
 		Debug( LDAP_DEBUG_FILTER, "AND\n" );
 		err = get_filter_list( op, ber, &f.f_and, text, depth+1 );
 		if ( err != LDAP_SUCCESS ) {
+			filter_free_x( op, &f, 0 );
 			break;
 		}
 		if ( f.f_and == NULL ) {
@@ -243,6 +244,7 @@ get_filter0(
 		Debug( LDAP_DEBUG_FILTER, "OR\n" );
 		err = get_filter_list( op, ber, &f.f_or, text, depth+1 );
 		if ( err != LDAP_SUCCESS ) {
+			filter_free_x( op, &f, 0 );
 			break;
 		}
 		if ( f.f_or == NULL ) {
@@ -342,6 +344,7 @@ get_filter_list( Operation *op, BerElement *ber,
 	char		*last;
 
 	Debug( LDAP_DEBUG_FILTER, "begin get_filter_list\n" );
+	*f = NULL;
 	new = f;
 	for ( tag = ber_first_element( ber, &len, &last );
 		tag != LBER_DEFAULT;
