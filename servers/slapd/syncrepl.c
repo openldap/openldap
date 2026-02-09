@@ -1465,7 +1465,6 @@ do_syncrep2(
 					Debug( LDAP_DEBUG_ANY, "do_syncrep2: %s "
 						"got search entry with multiple "
 						"Sync State control (%s)\n", si->si_ridtxt, bdn.bv_val );
-					ldap_controls_free( rctrls );
 					rc = -1;
 					goto entry_done;
 				}
@@ -1476,8 +1475,6 @@ do_syncrep2(
 					"got search entry without "
 					"Sync State control (%s)\n", si->si_ridtxt, bdn.bv_val );
 				rc = -1;
-				if ( rctrls )
-					ldap_controls_free( rctrls );
 				goto entry_done;
 			}
 			ber_init2( ber, &rctrlp->ldctl_value, LBER_USE_DER );
@@ -1486,7 +1483,6 @@ do_syncrep2(
 				bdn.bv_val[bdn.bv_len] = '\0';
 				Debug( LDAP_DEBUG_ANY, "do_syncrep2: %s malformed message (%s)\n",
 					si->si_ridtxt, bdn.bv_val );
-				ldap_controls_free( rctrls );
 				rc = -1;
 				goto entry_done;
 			}
@@ -1498,7 +1494,6 @@ do_syncrep2(
 					"got empty or invalid syncUUID with LDAP_SYNC_%s (%s)\n",
 					si->si_ridtxt,
 					syncrepl_state2str( syncstate ), bdn.bv_val );
-				ldap_controls_free( rctrls );
 				rc = -1;
 				goto entry_done;
 			}
@@ -1528,7 +1523,6 @@ do_syncrep2(
 						ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_mutex );
 						if ( i == CV_CSN_OLD ) {
 							si->si_too_old = 1;
-							ldap_controls_free( rctrls );
 							rc = 0;
 							/* Should we loop instead? */
 							goto entry_done;
@@ -1537,7 +1531,6 @@ do_syncrep2(
 
 						/* check pending CSNs too */
 						if (( rc = get_pmutex( si ))) {
-							ldap_controls_free( rctrls );
 							goto entry_done;
 						}
 
@@ -1547,7 +1540,6 @@ do_syncrep2(
 								syncCookie.ctxcsn );
 						} else if ( i == CV_CSN_OLD ) {
 							ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_pmutex );
-							ldap_controls_free( rctrls );
 							rc = 0;
 							/* Should we loop instead? */
 							goto entry_done;
@@ -1563,7 +1555,6 @@ do_syncrep2(
 						bdn.bv_val[bdn.bv_len] = '\0';
 						Debug( LDAP_DEBUG_SYNC, "do_syncrep2: %s CSN too old, ignoring (%s)\n",
 							si->si_ridtxt, bdn.bv_val );
-						ldap_controls_free( rctrls );
 						rc = 0;
 						/* Should we loop instead? */
 						goto entry_done;
@@ -1606,7 +1597,6 @@ logerr:
 			{
 				if ( punlock < 0 ) {
 					if (( rc = get_pmutex( si ))) {
-						ldap_controls_free( rctrls );
 						slap_mods_free( modlist, 1 );
 						entry_free( entry );
 						goto entry_done;
@@ -1639,7 +1629,6 @@ logerr:
 				}
 				ldap_pvt_thread_mutex_unlock( &si->si_cookieState->cs_pmutex );
 			}
-			ldap_controls_free( rctrls );
 			if ( modlist ) {
 				slap_mods_free( modlist, 1 );
 			}
@@ -1660,6 +1649,8 @@ entry_done:
 					(int)now.tv_sec, (int)now.tv_usec,
 					rc ? "failed" : "processed" );
 			}
+			if ( rctrls )
+				ldap_controls_free( rctrls );
 			if ( rc )
 				goto done;
 			break;
