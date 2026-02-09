@@ -158,7 +158,8 @@ get_mra(
 		ma.ma_rule = mr_bvfind( &rule_text );
 		if( ma.ma_rule == NULL ) {
 			*text = "matching rule not recognized";
-			return LDAP_INAPPROPRIATE_MATCHING;
+			rc = LDAP_INAPPROPRIATE_MATCHING;
+			goto done;
 		}
 	}
 
@@ -168,7 +169,8 @@ get_mra(
 		 */
 		if ( ma.ma_desc == NULL ) {
 			*text = "no matching rule or type";
-			return LDAP_INAPPROPRIATE_MATCHING;
+			rc = LDAP_INAPPROPRIATE_MATCHING;
+			goto done;
 		}
 
 		if ( ma.ma_desc->ad_type->sat_equality != NULL &&
@@ -180,14 +182,16 @@ get_mra(
 
 		} else {
 			*text = "no appropriate rule to use for type";
-			return LDAP_INAPPROPRIATE_MATCHING;
+			rc = LDAP_INAPPROPRIATE_MATCHING;
+			goto done;
 		}
 	}
 
 	if ( ma.ma_desc != NULL ) {
 		if( !mr_usable_with_at( ma.ma_rule, ma.ma_desc->ad_type ) ) {
 			*text = "matching rule use with this attribute not appropriate";
-			return LDAP_INAPPROPRIATE_MATCHING;
+			rc = LDAP_INAPPROPRIATE_MATCHING;
+			goto done;
 		}
 
 	}
@@ -200,18 +204,18 @@ get_mra(
 		SLAP_MR_EXT|SLAP_MR_VALUE_OF_ASSERTION_SYNTAX,
 		&value, &ma.ma_value, text, op->o_tmpmemctx );
 
-	if( rc != LDAP_SUCCESS ) return rc;
+	if ( rc != LDAP_SUCCESS ) goto done;
 
 #ifdef LDAP_COMP_MATCH
 	/* Check If this attribute is aliased */
 	if ( is_aliased_attribute && ma.ma_desc && ( aa = is_aliased_attribute ( ma.ma_desc ) ) ) {
 		rc = get_aliased_filter ( op, &ma, aa, text );
-		if ( rc != LDAP_SUCCESS ) return rc;
+		if ( rc != LDAP_SUCCESS ) goto done;
 	}
 	else if ( ma.ma_rule && ma.ma_rule->smr_usage & SLAP_MR_COMPONENT ) {
 		/* Matching Rule for Component Matching */
 		rc = get_comp_filter( op, &ma.ma_value, &ma.ma_cf, text );
-		if ( rc != LDAP_SUCCESS ) return rc;
+		if ( rc != LDAP_SUCCESS ) goto done;
 	}
 #endif
 
@@ -227,5 +231,9 @@ get_mra(
 			rule_text.bv_len+1);
 	}
 
-	return LDAP_SUCCESS;
+done:
+	if ( rc != LDAP_SUCCESS ) {
+		mra_free( op, &ma, 0 );
+	}
+	return rc;
 }
