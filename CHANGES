@@ -10,6 +10,7 @@ OpenLDAP 2.6.13 Engineering
 	Fixed slapd unbind/close race condition (ITS#10258)
 	Fixed slapd-ldap memory leak in ldap_chain_parse_ctrl function (ITS#10447)
 	Fixed slapo-dds minttl incorrectly set in certain scenarios (ITS#10442)
+	Fixed slapo-syncprov memory leak in syncprov_parseCtrl (ITS#10448)
 	Minor Cleanup
 		ITS#10314
 
