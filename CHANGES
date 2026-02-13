@@ -3,8 +3,9 @@ OpenLDAP 2.6 Change Log
 OpenLDAP 2.6.13 Engineering
 	Fixed liblber ber_bvreplace_x potential NULL dereference (ITS#10438)
 	Fixed slap(add|modify) to not recreate config frontend (ITS#10414)
-	Fixed slapd slapd_sasl_mechs race condition (ITS#10443)
 	Fixed slapd authzPrettyNormal function memory leak (ITS#10446)
+	Fixed slapd memory leak in parseAssert and parseReturnFilter functions (ITS#10450)
+	Fixed slapd slapd_sasl_mechs race condition (ITS#10443)
 	Fixed slapd syncrepl to be more efficient with refresh task (ITS#10413)
 	Fixed slapd unbind/close race condition (ITS#10258)
 	Fixed slapd-ldap memory leak in ldap_chain_parse_ctrl function (ITS#10447)
