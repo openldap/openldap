@@ -2,6 +2,7 @@ OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.13 Engineering
 	Fixed liblber ber_bvreplace_x potential NULL dereference (ITS#10438)
+	Fixed libldap heap buffer overflow in parse_whsp (ITS#10430)
 	Fixed slap(add|modify) to not recreate config frontend (ITS#10414)
 	Fixed slapd authzPrettyNormal function memory leak (ITS#10446)
 	Fixed slapd memory leak in parseAssert and parseReturnFilter functions (ITS#10450)
