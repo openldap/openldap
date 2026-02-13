@@ -10,8 +10,16 @@ OpenLDAP 2.6.13 Engineering
 	Fixed slapd unbind/close race condition (ITS#10258)
 	Fixed slapd-ldap memory leak in ldap_chain_parse_ctrl function (ITS#10447)
 	Fixed slapd-mdb always initialize pausepoll (ITS#10191)
+	Fixed slapo-constraint to not propagate request controls to internal ops (ITS#10440)
 	Fixed slapo-dds minttl incorrectly set in certain scenarios (ITS#10442)
+	Fixed slapo-memberof to not propagate request controls to internal ops (ITS#10440)
+	Fixed slapo-nestgroup to not propagate request controls to internal ops (ITS#10440)
+	Fixed slapo-retcode to not propagate request controls to internal ops (ITS#10440)
+	Fixed slapo-syncprov to not propagate request controls to internal ops (ITS#10440)
 	Fixed slapo-syncprov memory leak in syncprov_parseCtrl (ITS#10448)
+	Fixed slapo-translucent to not propagate request controls to internal ops (ITS#10440)
+	Contrib
+		Fixed slapo-autogroup to not propagate request controls to internal ops (ITS#10440)
 	Minor Cleanup
 		ITS#10427
 		ITS#10314
