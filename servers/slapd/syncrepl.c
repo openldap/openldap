@@ -1392,7 +1392,7 @@ do_syncrep2(
 				if ( modlist )
 					slap_mods_free( modlist, 1);
 
-				if ( LogTest( LDAP_DEBUG_STATS ) ) {
+				if ( LogTest( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC ) ) {
 					struct timeval now;
 					gettimeofday( &now, NULL );
 					now.tv_sec -= si->si_lastcontact.tv_sec;
@@ -1401,7 +1401,7 @@ do_syncrep2(
 						--now.tv_sec; now.tv_usec += 1000000;
 					}
 
-					Debug( LDAP_DEBUG_STATS, "%s DIRSYNC ENTRY "
+					Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s DIRSYNC ENTRY "
 						"dn=\"%s\" state=%d etime=%d.%06d result=%s\n",
 						si->si_ridtxt, entry ? entry->e_name.bv_val : "NULL",
 						syncstate, (int)now.tv_sec, (int)now.tv_usec,
@@ -1633,7 +1633,7 @@ logerr:
 				slap_mods_free( modlist, 1 );
 			}
 entry_done:
-			if ( LogTest( LDAP_DEBUG_STATS ) ) {
+			if ( LogTest( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC ) ) {
 				struct timeval now;
 				gettimeofday( &now, NULL );
 				now.tv_sec -= si->si_lastcontact.tv_sec;
@@ -1642,7 +1642,7 @@ entry_done:
 					--now.tv_sec; now.tv_usec += 1000000;
 				}
 
-				Debug( LDAP_DEBUG_STATS, "%s SYNC ENTRY "
+				Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s SYNC ENTRY "
 					"dn=\"%s\" state=%d cookie=%s etime=%d.%06d result=%s\n",
 					si->si_ridtxt, bdn.bv_val, syncstate,
 					BER_BVISNULL( &cookie ) ? "" : cookie.bv_val,
@@ -1659,7 +1659,7 @@ entry_done:
 			Debug( LDAP_DEBUG_ANY,
 				"do_syncrep2: %s reference received error\n",
 				si->si_ridtxt );
-			if ( LogTest( LDAP_DEBUG_STATS ) ) {
+			if ( LogTest( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC ) ) {
 				struct timeval now;
 				gettimeofday( &now, NULL );
 				now.tv_sec -= si->si_lastcontact.tv_sec;
@@ -1668,7 +1668,7 @@ entry_done:
 					--now.tv_sec; now.tv_usec += 1000000;
 				}
 
-				Debug( LDAP_DEBUG_STATS, "%s SYNC REFERENCE "
+				Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s SYNC REFERENCE "
 					"etime=%d.%06d result=failed\n",
 					si->si_ridtxt, (int)now.tv_sec, (int)now.tv_usec );
 			}
@@ -1824,7 +1824,7 @@ entry_done:
 					rc = SYNC_REPOLL;
 			}
 result_done:
-			if ( LogTest( LDAP_DEBUG_STATS ) ) {
+			if ( LogTest( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC ) ) {
 				struct timeval now;
 				gettimeofday( &now, NULL );
 				now.tv_sec -= si->si_lastcontact.tv_sec;
@@ -1834,7 +1834,7 @@ result_done:
 				}
 				/* Space pointed to by cookie.bv_val is freed but the pointer
 				 * can still work as a discriminator */
-				Debug( LDAP_DEBUG_STATS, "%s SYNC RESULT "
+				Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s SYNC RESULT "
 					"err=%d delete=%d cookie=%s etime=%d.%06d result=%s\n",
 					si->si_ridtxt, err, refreshDeletes != 0,
 					BER_BVISNULL(&cookie) ? "" : syncCookie.octet_str.bv_val,
@@ -1895,7 +1895,7 @@ result_done:
 								si->si_ridtxt );
 						rc = LDAP_PROTOCOL_ERROR;
 
-						if ( LogTest( LDAP_DEBUG_STATS ) ) {
+						if ( LogTest( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC ) ) {
 							struct timeval now;
 							gettimeofday( &now, NULL );
 							now.tv_sec -= si->si_lastcontact.tv_sec;
@@ -1903,7 +1903,7 @@ result_done:
 							if ( now.tv_usec < 0 ) {
 								--now.tv_sec; now.tv_usec += 1000000;
 							}
-							Debug( LDAP_DEBUG_STATS, "%s SYNC %s "
+							Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s SYNC %s "
 								"refreshDone=%d cookie=%s etime=%d.%06d result=failed\n",
 								si->si_ridtxt, name, si->si_refreshDone != 0,
 								BER_BVISNULL(&cookie) ? "" : cookie.bv_val,
@@ -2056,7 +2056,7 @@ result_done:
 				ldap_memfree( retoid );
 				ber_bvfree( retdata );
 
-				if ( LogTest( LDAP_DEBUG_STATS ) ) {
+				if ( LogTest( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC ) ) {
 					struct timeval now;
 					const char *cookiestr = "";
 
@@ -2073,7 +2073,7 @@ result_done:
 
 					switch ( si_tag ) {
 					case LDAP_TAG_SYNC_NEW_COOKIE:
-						Debug( LDAP_DEBUG_STATS, "%s SYNC %s "
+						Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s SYNC %s "
 							"cookie=%s etime=%d.%06d result=%s\n",
 							si->si_ridtxt, name, cookiestr,
 							(int)now.tv_sec, (int)now.tv_usec,
@@ -2081,14 +2081,14 @@ result_done:
 						break;
 					case LDAP_TAG_SYNC_REFRESH_DELETE:
 					case LDAP_TAG_SYNC_REFRESH_PRESENT:
-						Debug( LDAP_DEBUG_STATS, "%s SYNC %s refreshDone=%d "
+						Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s SYNC %s refreshDone=%d "
 							"cookie=%s etime=%d.%06d result=%s\n",
 							si->si_ridtxt, name, si->si_refreshDone != 0,
 							cookiestr, (int)now.tv_sec, (int)now.tv_usec,
 							rc ? "failed" : "processed" );
 						break;
 					case LDAP_TAG_SYNC_ID_SET:
-						Debug( LDAP_DEBUG_STATS, "%s SYNC %s refreshDeletes=%d "
+						Debug( LDAP_DEBUG_SYNCSTATS | LDAP_DEBUG_SYNC, "%s SYNC %s refreshDeletes=%d "
 							"cookie=%s etime=%d.%06d result=%s\n",
 							si->si_ridtxt, name, refreshDeletes != 0,
 							cookiestr, (int)now.tv_sec, (int)now.tv_usec,
