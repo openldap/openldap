@@ -673,8 +673,16 @@ ldap_int_check_async_open( LDAP *ld, ber_socket_t sd )
 		return -1;
 
 	case -2:
-		/* connect not completed yet */
-		ld->ld_errno = LDAP_X_CONNECTING;
+		/* connect not completed yet, timed out? */
+		LDAP_MUTEX_LOCK( &ld->ld_options.ldo_mutex );
+		if ( time( NULL ) - ld->ld_defconn->lconn_created <= ld->ld_options.ldo_tm_net.tv_sec )
+		{
+			ld->ld_errno = LDAP_X_CONNECTING;
+		} else {
+			ld->ld_errno = LDAP_TIMEOUT;
+			rc = -1;
+		}
+		LDAP_MUTEX_UNLOCK( &ld->ld_options.ldo_mutex );
 		return rc;
 	}
 
