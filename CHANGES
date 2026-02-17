@@ -25,7 +25,6 @@ OpenLDAP 2.6.13 Engineering
 		Fixed slapo-autogroup to not propagate request controls to internal ops (ITS#10440)
 	Minor Cleanup
 		ITS#10427
-		ITS#10314
 		ITS#10425
 		ITS#10451
 
