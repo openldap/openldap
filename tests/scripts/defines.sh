@@ -167,6 +167,7 @@ METACONF1=$DATADIR/slapd-meta-target1.conf
 METACONF2=$DATADIR/slapd-meta-target2.conf
 ASYNCMETACONF=$DATADIR/slapd-asyncmeta.conf
 ASYNCMETACONF2=$DATADIR/slapd-asyncmeta-conttl.conf
+ASYNCMETACONF3=$DATADIR/slapd-asyncmeta-nod.conf
 GLUELDAPCONF=$DATADIR/slapd-glue-ldap.conf
 ACICONF=$DATADIR/slapd-aci.conf
 VALSORTCONF=$DATADIR/slapd-valsort.conf

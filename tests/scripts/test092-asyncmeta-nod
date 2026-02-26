@@ -1,0 +1,299 @@
+#! /bin/sh
+# $OpenLDAP$
+## This work is part of OpenLDAP Software <http://www.openldap.org/>.
+##
+## Copyright 1998-2026 The OpenLDAP Foundation.
+## All rights reserved.
+##
+## Redistribution and use in source and binary forms, with or without
+## modification, are permitted only as authorized by the OpenLDAP
+## Public License.
+##
+## A copy of this license is available in the file LICENSE in the
+## top-level directory of the distribution or, alternatively, at
+## <http://www.OpenLDAP.org/license.html>.
+
+
+## This test works as follows:
+## the asyncmeta backend is configured with just one target and one
+## connection, for simplicity, which does not have an idle timeout.
+## the timeout for search operations is set to 5 seconds
+## The target servers had a populated database, but it also has overlay
+## retcon configured, which would return a Notice of Disconnect
+
+## We start the test by performing a regular search request, which
+## should return success and cause the target connection to open
+
+## Then we verify that the target connection is open and bound
+## via cn=monitor
+
+## we send a search request for the "Notice of Disconnect" retcode item,
+## (in a forked process, as this will send an NOD, but it will not send a search
+## result, causing that client to wait until the request times out)
+
+## we verify via cn=monitor that the target connection is in closing state
+
+## Then we send a third request, but since the only available connection is
+## in closing state, the server will return UNWILLING_TO_PERFORM
+
+## Wait for the background search to complete, which should happen when
+## the search operation times out.
+## Then verify via cn=monitor that the target connection is closed
+
+## Note that by design reasons resetting the connection could take 1 to 2
+## seconds, so reducing the sleep timers could cause the test to fail
+
+echo "running defines.sh"
+. $SRCDIR/scripts/defines.sh
+
+echo ""
+
+if test $BACKASYNCMETA = asyncmetano ; then
+	echo "asyncmeta backend not available, test skipped"
+	exit 0
+fi
+
+if test $BACKLDAP = ldapno ; then
+	echo "ldap backend not available, test skipped"
+	exit 0
+fi
+
+rm -rf $TESTDIR
+
+mkdir -p $TESTDIR $DBDIR1 $DBDIR2
+
+$SLAPPASSWD -g -n >$CONFIGPWF
+echo "rootpw `$SLAPPASSWD -T $CONFIGPWF`" >$TESTDIR/configpw.conf
+
+echo "Starting slapd on TCP/IP port $PORT1..."
+. $CONFFILTER $BACKEND < $RETCODECONF > $CONF1
+$SLAPD -f $CONF1 -h $URI1 -d $LVL > $LOG1 2>&1 &
+PID=$!
+if test $WAIT != 0 ; then
+    echo PID $PID
+    read foo
+fi
+KILLPIDS="$PID"
+
+sleep $SLEEP0
+
+echo "Using ldapsearch to check that slapd is running..."
+for i in 0 1 2 3 4 5; do
+	$LDAPSEARCH -s base -b "$MONITOR" -H $URI1 \
+		'objectclass=*' > /dev/null 2>&1
+	RC=$?
+	if test $RC = 0 ; then
+		break
+	fi
+	echo "Waiting $SLEEP1 seconds for slapd to start..."
+	sleep $SLEEP1
+done
+if test $RC != 0 ; then
+	echo "ldapsearch failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Using ldapadd to populate the database..."
+$LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD < \
+	$LDIFORDERED > $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+KILLPIDS="$KILLPIDS $PID"
+
+echo "Starting slapd on TCP/IP port $PORT3..."
+. $CONFFILTER $BACKEND < $ASYNCMETACONF3 > $CONF3
+$SLAPD -f $CONF3 -h $URI3 -d $LVL > $LOG3 2>&1 &
+PID=$!
+if test $WAIT != 0 ; then
+    echo PID $PID
+    read foo
+fi
+KILLPIDS="$KILLPIDS $PID"
+
+sleep $SLEEP0
+
+echo "Using ldapsearch to check that slapd is running..."
+for i in 0 1 2 3 4 5; do
+	$LDAPSEARCH -s base -b "$MONITOR" -H $URI3 \
+		'objectclass=*' > /dev/null 2>&1
+	RC=$?
+	if test $RC = 0 ; then
+		break
+	fi
+	echo "Waiting $SLEEP1 seconds for slapd to start..."
+	sleep $SLEEP1
+done
+if test $RC != 0 ; then
+	echo "ldapsearch failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+cat /dev/null > $SEARCHOUT
+SEARCHDN="cn=Target Connection 1,cn=Connection Group 1,cn=Connections,cn=database 1,cn=databases,cn=monitor"
+#search cn=monitor, the target connection is closed
+echo "Verifying that the target connection is closed..."
+cat /dev/null > $SEARCHOUT
+
+echo "	base=\"$SEARCHDN\"..."
+$LDAPSEARCH  -H $URI3 \
+			 -b "$SEARCHDN" \
+			 "olmTargetConnFlags=closed" 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < $DATADIR/asyncmeta.1closed.out > $LDIFFLT
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+if test $? != 0 ; then
+	echo "Comparison failed - the connection is not closed"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+cat /dev/null > $SEARCHOUT
+#run 1 search
+echo "Searching base=\"$BASEDN\"..."
+echo "# 	base=\"$BASEDN\"..." >> $SEARCHOUT
+$LDAPSEARCH -S "" -H $URI3 -b "$BASEDN" >> $SEARCHOUT 2>&1
+RC=$?
+case $RC in
+	0)
+	;;
+	51)
+		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit 0
+		;;
+	*)
+		echo "Search failed ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+		;;
+esac
+sleep $SLEEP0
+
+# search cn=monitor - the connection should be bound and open
+echo "Verifying that the target connection is open..."
+cat /dev/null > $SEARCHOUT
+
+echo "	base=\"$SEARCHDN\"..."
+$LDAPSEARCH  -H $URI3 \
+			 -b "$SEARCHDN" \
+			 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < $DATADIR/asyncmeta.1open.out > $LDIFFLT
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+if test $? != 0 ; then
+	echo "Comparison failed - connection is not open"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+cat /dev/null > $SEARCHOUT
+#search that will return Notice of Disconnect
+echo "Triggering Notice of Disconnect"
+NODBASE="cn=Notice of Disconnect,ou=RetCodes,$BASEDN"
+(
+  $LDAPSEARCH -H $URI3 -b "$NODBASE" >> $SEARCHOUT 2>&1
+  RC=$?
+  exit $RC
+) &
+
+SEARCHPID=$!
+
+# search cn=monitor - connection should be in closing state
+sleep $SLEEP0
+echo "Verifying that the connection is closing..."
+cat /dev/null > $SEARCHOUT
+
+echo "	base=\"$SEARCHDN\"..."
+$LDAPSEARCH  -H $URI3 \
+			 -b "$SEARCHDN" \
+			 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < $DATADIR/asyncmeta.1closing.out > $LDIFFLT
+
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+if test $? != 0 ; then
+	echo "Comparison failed - connection is not closing"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+#perform a regular search, expecting error 53
+echo "Searching base=\"$BASEDN\"..."
+$LDAPSEARCH -S "" -H $URI3 -b "$BASEDN" >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 53 ; then
+	echo "Error - asyncmeta returns the wrong code $RC"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+#wait for the operation to timeout
+echo "Waiting for the NOD search to timeout..."
+wait $SEARCHPID
+# 1 second maximum should be enough, but just in case
+SLEEP_NOD=$((SLEEP0+1))
+echo "Giving asyncmeta $SLEEP_NOD seconds to close the connection..."
+sleep $SLEEP_NOD
+#verify that the connection is closed
+cat /dev/null > $SEARCHOUT
+echo "Verifying the connection is closed..."
+echo "	base=\"$SEARCHDN\"..."
+$LDAPSEARCH  -H $URI3 \
+			 -b "$SEARCHDN" \
+			 "olmTargetConnFlags=closed" 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "Unable to read monitor ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+echo "Filtering ldapsearch results..."
+$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+$LDIFFILTER < $DATADIR/asyncmeta.1closed.out > $LDIFFLT
+echo "Comparing filter output..."
+$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+
+if test $? != 0 ; then
+	echo "Comparison failed - the connection is not closed"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+cat /dev/null > $SEARCHOUT
+
+test $KILLSERVERS != no && kill -HUP $KILLPIDS
+
+echo ">>>>> Test succeeded"
+
+test $KILLSERVERS != no && wait
+
+exit 0

@@ -746,6 +746,7 @@ asyncmeta_handle_search_msg(LDAPMessage *msg, a_metaconn_t *mc, bm_context_t *bc
 	char		**references = NULL;
 	LDAPControl	**ctrls = NULL;
 	a_dncookie dc;
+	ber_int_t id;
 
 	rs = &bc->rs;
 	mi = mc->mc_info;
@@ -754,6 +755,7 @@ asyncmeta_handle_search_msg(LDAPMessage *msg, a_metaconn_t *mc, bm_context_t *bc
 	dc.op = op;
 	dc.target = mt;
 	dc.to_from = MASSAGE_REP;
+	id = ldap_msgid(msg);
 
 	candidates = bc->candidates;
 	i = candidate;
@@ -1538,6 +1540,42 @@ again:
 
 			continue;
 		}
+		/* unsolicited msg */
+		if ( ldap_msgid(msg) == 0 && rc == LDAP_RES_EXTENDED ) {
+			char		*retoid = NULL;
+			struct berval	*retdata = NULL;
+			if ( LogTest( asyncmeta_debug ) ) {
+				char	time_buf[ SLAP_TEXT_BUFLEN ];
+				asyncmeta_get_timestamp(time_buf);
+				Debug( asyncmeta_debug, "[%s] asyncmeta_op_handle_result received exop msc: %p\n",
+				      time_buf, msc );
+			}
+			rc = ldap_parse_extended_result( msc->msc_ldr, msg, &retoid, &retdata, 0 );
+
+			if ( rc == LDAP_SUCCESS ) {
+				if ( retoid && strcmp( LDAP_NOTICE_OF_DISCONNECTION, retoid ) == 0) {
+					if ( LogTest( asyncmeta_debug ) ) {
+						char	time_buf[ SLAP_TEXT_BUFLEN ];
+						asyncmeta_get_timestamp(time_buf);
+						Debug( asyncmeta_debug, "[%s] asyncmeta_op_handle_result received NOD msc: %p\n",
+							   time_buf, msc );
+					}
+					ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
+					META_BACK_CONN_CLOSING_SET( msc );
+					msc->msc_active--;
+					ldap_pvt_thread_mutex_unlock( &mc->mc_om_mutex );
+				}
+			}
+
+			if ( retoid )
+				ber_memfree( retoid );
+			if ( retdata )
+				ber_memfree( retdata );
+			if ( msg )
+				ldap_msgfree(msg);
+			continue;
+		}
+
 retry_bc:
 		ldap_pvt_thread_mutex_lock( &mc->mc_om_mutex );
 		bc = asyncmeta_find_message(ldap_msgid(msg), mc, i);
