@@ -5,3 +5,4 @@ olmTargetConnFlags: closed
 dn: cn=Target Connection 2,cn=Connection Group 2,cn=Connections,cn=database 1,
  cn=databases,cn=monitor
 olmTargetConnFlags: closed
+

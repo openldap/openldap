@@ -29,3 +29,4 @@ olmTargetConnFlags: anonymous,initialized
 dn: cn=Target Connection 2,cn=Connection Group 3,cn=Connections,cn=database 1,
  cn=databases,cn=monitor
 olmTargetConnFlags: anonymous,initialized
+
