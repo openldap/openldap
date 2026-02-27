@@ -703,7 +703,7 @@ accesslog_purge( void *ctx, void *arg )
 	purge_data pd = { .li = li };
 	char timebuf[LDAP_LUTIL_GENTIME_BUFSIZE];
 	char csnbuf[LDAP_PVT_CSNSTR_BUFSIZE];
-	time_t old = slap_get_time();
+	time_t old;
 
 	connection_fake_init( &conn, &opbuf, ctx );
 	op = &opbuf.ob_op;
@@ -716,7 +716,8 @@ accesslog_purge( void *ctx, void *arg )
 	ava.aa_value.bv_val = timebuf;
 	ava.aa_value.bv_len = sizeof(timebuf);
 
-	old -= li->li_age;
+	gettimeofday( &op->o_qtime, NULL );
+	old = op->o_qtime.tv_sec - li->li_age;
 	slap_timestamp( &old, &ava.aa_value );
 
 	op->o_tag = LDAP_REQ_SEARCH;
@@ -790,6 +791,20 @@ accesslog_purge( void *ctx, void *arg )
 		}
 		ch_free( pd.ndn );
 		ch_free( pd.dn );
+	}
+
+	if ( LogTest( LDAP_DEBUG_SYNC ) ) {
+		struct timeval now;
+		gettimeofday( &now, NULL );
+		now.tv_sec -= op->o_qtime.tv_sec;
+		now.tv_usec -= op->o_qtime.tv_usec;
+		if ( now.tv_usec < 0 ) {
+			--now.tv_sec; now.tv_usec += 1000000;
+		}
+		Debug( LDAP_DEBUG_SYNC, "accesslog_purge: "
+				"dn=\"%s\" etime=%d.%06d nentries=%d\n",
+				li->li_db->be_suffix[0].bv_val,
+				(int)now.tv_sec, (int)now.tv_usec, pd.used );
 	}
 
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
