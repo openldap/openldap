@@ -94,7 +94,7 @@ int wt_modify_internal(
 
 	/* save_attrs will be disposed of by caller */
 	save_attrs = e->e_attrs;
-	e->e_attrs = attrs_dup( e->e_attrs );
+	e->e_attrs = attrs_dup2( e->e_attrs, SLAP_ATTR_DONT_FREE_DATA );
 
 	for ( ml = modlist; ml != NULL; ml = ml->sml_next ) {
 		int match;
