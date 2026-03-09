@@ -1,5 +1,7 @@
 OpenLDAP 2.6 Change Log
 
+OpenLDAP 2.6.14 Engineering
+
 OpenLDAP 2.6.13 Release (2026/03/09)
 	Fixed liblber ber_bvreplace_x potential NULL dereference (ITS#10438)
 	Fixed libldap heap buffer overflow in parse_whsp (ITS#10430)
