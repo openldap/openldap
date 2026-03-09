@@ -311,11 +311,16 @@ modify_delete_vindex(
 		/* Skip duplicate delete specs */
 		if ( a->a_vals[idx[i]].bv_val == &dummy )
 			continue;
+
 		/* delete value and mark it as gone */
-		free( a->a_vals[idx[i]].bv_val );
+		if ( !(a->a_flags & SLAP_ATTR_DONT_FREE_DATA) ) {
+			free( a->a_vals[idx[i]].bv_val );
+		}
 		a->a_vals[idx[i]].bv_val = &dummy;
 		if( a->a_nvals != a->a_vals ) {
-			free( a->a_nvals[idx[i]].bv_val );
+			if ( !(a->a_flags & SLAP_ATTR_DONT_FREE_DATA) ) {
+				free( a->a_nvals[idx[i]].bv_val );
+			}
 			a->a_nvals[idx[i]].bv_val = &dummy;
 		}
 		a->a_numvals--;
@@ -424,7 +429,7 @@ modify_increment_values(
 		}
 
 		for( i = 0; !BER_BVISNULL( &a->a_nvals[i] ); i++ ) {
-			char *tmp;
+			char *tmp = a->a_nvals[i].bv_val;
 			long value;
 			size_t strln;
 			if ( lutil_atol( &value, a->a_nvals[i].bv_val ) != 0 ) {
@@ -433,7 +438,10 @@ modify_increment_values(
 			}
 			strln = snprintf( str, sizeof(str), "%ld", value+incr );
 
-			tmp = SLAP_REALLOC( a->a_nvals[i].bv_val, strln+1 );
+			if ( a->a_flags & SLAP_ATTR_DONT_FREE_DATA ) {
+				tmp = NULL;
+			}
+			tmp = SLAP_REALLOC( tmp, strln+1 );
 			if( tmp == NULL ) {
 				*text = "modify/increment: reallocation error";
 				return LDAP_OTHER;
@@ -443,6 +451,7 @@ modify_increment_values(
 
 			AC_MEMCPY( a->a_nvals[i].bv_val, str, strln+1 );
 		}
+		a->a_flags &= ~SLAP_ATTR_DONT_FREE_DATA;
 
 	} else {
 		snprintf( textbuf, textlen,

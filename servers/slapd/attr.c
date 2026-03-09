@@ -211,18 +211,31 @@ attrs_free( Attribute *a )
 }
 
 static void
-attr_dup2( Attribute *tmp, Attribute *a )
+attr_dup3( Attribute *tmp, Attribute *a, unsigned flags )
 {
 	tmp->a_flags = a->a_flags & SLAP_ATTR_PERSISTENT_FLAGS;
+	if ( a->a_desc->ad_type->sat_flags & SLAP_AT_ORDERED_VAL ) {
+		/* Ordered vals get modified inplace, we have to refuse
+		 * SLAP_ATTR_DONT_FREE_DATA requests here */
+		flags &= ~SLAP_ATTR_DONT_FREE_DATA;
+	}
+	tmp->a_flags |= flags;
+
 	if ( a->a_vals != NULL ) {
 		unsigned	i, j;
 
 		tmp->a_numvals = a->a_numvals;
 		tmp->a_vals = ch_malloc( (tmp->a_numvals + 1) * sizeof(struct berval) );
-		for ( i = 0; i < tmp->a_numvals; i++ ) {
-			ber_dupbv( &tmp->a_vals[i], &a->a_vals[i] );
-			if ( BER_BVISNULL( &tmp->a_vals[i] ) ) break;
-			/* FIXME: error? */
+		if ( flags & SLAP_ATTR_DONT_FREE_DATA ) {
+			for ( i = 0; i < tmp->a_numvals; i++ ) {
+				tmp->a_vals[i] = a->a_vals[i];
+			}
+		} else {
+			for ( i = 0; i < tmp->a_numvals; i++ ) {
+				ber_dupbv( &tmp->a_vals[i], &a->a_vals[i] );
+				if ( BER_BVISNULL( &tmp->a_vals[i] ) ) break;
+				/* FIXME: error? */
+			}
 		}
 		BER_BVZERO( &tmp->a_vals[i] );
 
@@ -234,11 +247,18 @@ attr_dup2( Attribute *tmp, Attribute *a )
 			tmp->a_nvals = ch_malloc( (tmp->a_numvals + 1) * sizeof(struct berval) );
 			j = 0;
 			if ( i ) {
-				for ( ; !BER_BVISNULL( &a->a_nvals[j] ); j++ ) {
-					assert( j < i );
-					ber_dupbv( &tmp->a_nvals[j], &a->a_nvals[j] );
-					if ( BER_BVISNULL( &tmp->a_nvals[j] ) ) break;
-					/* FIXME: error? */
+				if ( flags & SLAP_ATTR_DONT_FREE_DATA ) {
+					for ( ; !BER_BVISNULL( &a->a_nvals[j] ); j++ ) {
+						assert( j < i );
+						tmp->a_nvals[j] = a->a_nvals[j];
+					}
+				} else {
+					for ( ; !BER_BVISNULL( &a->a_nvals[j] ); j++ ) {
+						assert( j < i );
+						ber_dupbv( &tmp->a_nvals[j], &a->a_nvals[j] );
+						if ( BER_BVISNULL( &tmp->a_nvals[j] ) ) break;
+						/* FIXME: error? */
+					}
 				}
 				assert( j == i );
 			}
@@ -251,19 +271,19 @@ attr_dup2( Attribute *tmp, Attribute *a )
 }
 
 Attribute *
-attr_dup( Attribute *a )
+attr_dup2( Attribute *a, unsigned flags )
 {
 	Attribute *tmp;
 
 	if ( a == NULL) return NULL;
 
 	tmp = attr_alloc( a->a_desc );
-	attr_dup2( tmp, a );
+	attr_dup3( tmp, a, flags );
 	return tmp;
 }
 
 Attribute *
-attrs_dup( Attribute *a )
+attrs_dup2( Attribute *a, unsigned flags )
 {
 	int i;
 	Attribute *tmp, *anew;
@@ -279,7 +299,7 @@ attrs_dup( Attribute *a )
 
 	for( tmp=anew; a; a=a->a_next ) {
 		tmp->a_desc = a->a_desc;
-		attr_dup2( tmp, a );
+		attr_dup3( tmp, a, flags );
 		tmp=tmp->a_next;
 	}
 
@@ -370,7 +390,7 @@ attr_valadd(
 	BerVarray nvals,
 	int nn )
 {
-	int		i;
+	int		i, dont_dup = (a->a_flags & SLAP_ATTR_DONT_FREE_DATA);
 	BerVarray	v2;
 
 	v2 = (BerVarray) SLAP_REALLOC( (char *) a->a_vals,
@@ -414,9 +434,15 @@ attr_valadd(
 				if ( nvals )
 					a->a_nvals[j+1] = a->a_nvals[j];
 			}
-			ber_dupbv( &a->a_nvals[slot], &v2[i] );
-			if ( nvals )
-				ber_dupbv( &a->a_vals[slot], &vals[i] );
+			if ( dont_dup ) {
+				a->a_nvals[slot] = v2[i];
+				if ( nvals )
+					a->a_vals[slot] = vals[i];
+			} else {
+				ber_dupbv( &a->a_nvals[slot], &v2[i] );
+				if ( nvals )
+					ber_dupbv( &a->a_vals[slot], &vals[i] );
+			}
 			a->a_numvals++;
 		}
 		BER_BVZERO( &a->a_vals[a->a_numvals] );
@@ -425,7 +451,11 @@ attr_valadd(
 	} else {
 		v2 = &a->a_vals[a->a_numvals];
 		for ( i = 0 ; i < nn; i++ ) {
-			ber_dupbv( &v2[i], &vals[i] );
+			if ( dont_dup ) {
+				v2[i] = vals[i];
+			} else {
+				ber_dupbv( &v2[i], &vals[i] );
+			}
 			if ( BER_BVISNULL( &v2[i] ) ) break;
 		}
 		BER_BVZERO( &v2[i] );
@@ -433,7 +463,11 @@ attr_valadd(
 		if ( nvals ) {
 			v2 = &a->a_nvals[a->a_numvals];
 			for ( i = 0 ; i < nn; i++ ) {
-				ber_dupbv( &v2[i], &nvals[i] );
+				if ( dont_dup ) {
+					v2[i] = nvals[i];
+				} else {
+					ber_dupbv( &v2[i], &nvals[i] );
+				}
 				if ( BER_BVISNULL( &v2[i] ) ) break;
 			}
 			BER_BVZERO( &v2[i] );

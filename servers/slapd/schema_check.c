@@ -224,7 +224,11 @@ got_soc:
 		/* draft-zeilenga-ldap-relax: automatically modify
 		 * structuralObjectClass if changed with relax */
 		sc = oc;
-		ber_bvreplace( &asc->a_vals[ 0 ], &sc->soc_cname );
+		if ( asc->a_flags & SLAP_ATTR_DONT_FREE_DATA ) {
+			asc->a_vals[0] = sc->soc_cname;
+		} else {
+			ber_bvreplace( &asc->a_vals[ 0 ], &sc->soc_cname );
+		}
 		if ( socp ) {
 			*socp = asc;
 		}
