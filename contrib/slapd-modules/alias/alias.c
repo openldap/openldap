@@ -252,7 +252,7 @@ alias_response( Operation *op, SlapReply *rs )
 			} else {
 				Attribute **ap;
 
-				a = attr_dup( source );
+				a = attr_dup2( source, SLAP_ATTR_DONT_FREE_DATA );
 				a->a_desc = mapping->alias;
 
 				for ( ap = &rs->sr_operational_attrs; *ap; ap=&(*ap)->a_next );
