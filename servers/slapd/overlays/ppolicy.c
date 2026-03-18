@@ -2104,8 +2104,7 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 				sizeof(AclRegexMatches), op->o_tmpmemctx );
 
 		for ( pr = pi->policy_rules; pr; pr = pr->next ) {
-			int freendn = 0;
-			struct berval policy_ndn = BER_BVNULL;
+			struct berval policy_ndn = BER_BVNULL, tmp = BER_BVNULL;
 
 			if ( pr->require_password && !have_password ) {
 				goto skip;
@@ -2163,6 +2162,7 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 						BER_BVZERO( &ndn );
 						goto skip;
 					}
+					tmp = ndn;
 				} else {
 					ndn = pr->group_ndn;
 				}
@@ -2171,9 +2171,9 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 							pr->group_at ) ) {
 					goto skip;
 				}
-				if ( pr->group_style == ACL_STYLE_EXPAND &&
-						!BER_BVISNULL( &ndn ) ) {
-					op->o_tmpfree( ndn.bv_val, op->o_tmpmemctx );
+				if ( !BER_BVISNULL( &tmp ) ) {
+					op->o_tmpfree( tmp.bv_val, op->o_tmpmemctx );
+					BER_BVZERO( &tmp );
 				}
 			}
 
@@ -2196,7 +2196,7 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 					/* did not expand to a valid dn */
 					goto skip;
 				} else {
-					freendn = 1;
+					tmp = policy_ndn;
 				}
 			} else {
 				policy_ndn = pr->policy_ndn;
@@ -2224,8 +2224,9 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 				pr = NULL;
 			}
 skip:
-			if ( freendn ) {
-				op->o_tmpfree( policy_ndn.bv_val, op->o_tmpmemctx );
+			if ( !BER_BVISNULL( &tmp ) ) {
+				op->o_tmpfree( tmp.bv_val, op->o_tmpmemctx );
+				BER_BVZERO( &tmp );
 			}
 			if ( !pr ) break;
 		}
