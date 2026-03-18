@@ -2854,6 +2854,11 @@ ppolicy_ctrls_cleanup( Operation *op, SlapReply *rs )
 		rs->sr_ctrls[n] = rs->sr_ctrls[n+1];
 	}
 
+	if ( op->o_callback && op->o_callback->sc_cleanup == ppolicy_ctrls_cleanup ) {
+		op->o_tmpfree( op->o_callback, op->o_tmpmemctx );
+		op->o_callback = NULL;
+	}
+
 	return SLAP_CB_CONTINUE;
 }
 
@@ -3334,10 +3339,11 @@ locked:
 	if ( ctrl ) {
 		slap_add_ctrl( op, rs, ctrl );
 		op->o_callback->sc_cleanup = ppolicy_ctrls_cleanup;
-	}
+	} else {
 out:
-	op->o_tmpfree( op->o_callback, op->o_tmpmemctx );
-	op->o_callback = NULL;
+		op->o_tmpfree( op->o_callback, op->o_tmpmemctx );
+		op->o_callback = NULL;
+	}
 	ldap_pvt_thread_mutex_unlock( &pi->pwdFailureTime_mutex );
 	return SLAP_CB_CONTINUE;
 }
@@ -4673,6 +4679,7 @@ return_results:
 				1, op->o_tmpmemctx );
 
 			cb->sc_cleanup = ppolicy_ctrls_cleanup;
+			overlay_callback_after_backover( op, cb, 1 );
 
 			assert( !(rs->sr_flags & REP_CTRLS_MUSTBEFREED) );
 			rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
