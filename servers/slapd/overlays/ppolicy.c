@@ -2842,7 +2842,8 @@ ppolicy_ctrls_cleanup( Operation *op, SlapReply *rs )
 		/* We only add one control */
 		if ( rs->sr_ctrls[n]->ldctl_oid == ppolicy_ctrl_oid ||
 			rs->sr_ctrls[n]->ldctl_oid == ppolicy_pwd_expired_oid ||
-			rs->sr_ctrls[n]->ldctl_oid == ppolicy_pwd_expiring_oid ) {
+			rs->sr_ctrls[n]->ldctl_oid == ppolicy_pwd_expiring_oid ||
+			rs->sr_ctrls[n]->ldctl_oid == ppolicy_account_ctrl_oid ) {
 			op->o_tmpfree( rs->sr_ctrls[n], op->o_tmpmemctx );
 			break;
 		}
