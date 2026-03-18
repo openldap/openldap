@@ -3438,6 +3438,8 @@ ppolicy_restrict(
 	}
 
 	if ( op->o_conn && !BER_BVISEMPTY( &pwcons[op->o_conn->c_conn_idx].dn )) {
+		LDAPControl *ctrl;
+
 		/* if the current authcDN doesn't match the one we recorded,
 		 * then an intervening Bind has succeeded and the restriction
 		 * no longer applies. (ITS#4516)
@@ -3452,7 +3454,6 @@ ppolicy_restrict(
 		Debug( LDAP_DEBUG_TRACE,
 			"connection restricted to password changing only\n" );
 		if ( send_ctrl ) {
-			LDAPControl *ctrl;
 			ctrl = create_passcontrol( op, -1, -1, PP_changeAfterReset );
 			slap_add_ctrl( op, rs, ctrl );
 		}
@@ -3460,7 +3461,7 @@ ppolicy_restrict(
 		send_ldap_error( op, rs, LDAP_INSUFFICIENT_ACCESS, 
 			"Operations are restricted to bind/unbind/abandon/StartTLS/modify password" );
 		if ( send_ctrl ) {
-			ppolicy_ctrls_cleanup( op, rs );
+			op->o_tmpfree( ctrl, op->o_tmpmemctx );
 		}
 		return rs->sr_err;
 	}
@@ -3797,10 +3798,11 @@ ppolicy_add(
 			}
 			rc = check_password_quality( bv, pi, &pp, &pErr, op->ora_e, &errmsg );
 			if (rc != LDAP_SUCCESS) {
+				LDAPControl *ctrl;
 				char *txt = errmsg.bv_val;
+
 				op->o_bd->bd_info = (BackendInfo *)on->on_info;
 				if ( send_ctrl ) {
-					LDAPControl *ctrl;
 					ctrl = create_passcontrol( op, -1, -1, pErr );
 					slap_add_ctrl( op, rs, ctrl );
 				}
@@ -3809,7 +3811,7 @@ ppolicy_add(
 					free( txt );
 				}
 				if ( send_ctrl ) {
-					ppolicy_ctrls_cleanup( op, rs );
+					op->o_tmpfree( ctrl, op->o_tmpmemctx );
 				}
 				return rs->sr_err;
 			}
@@ -4684,7 +4686,7 @@ return_results:
 			assert( !(rs->sr_flags & REP_CTRLS_MUSTBEFREED) );
 			rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
 		} else {
-			ppolicy_ctrls_cleanup( op, rs );
+			op->o_tmpfree( ctrl, op->o_tmpmemctx );
 		}
 	}
 	return rs->sr_err;
