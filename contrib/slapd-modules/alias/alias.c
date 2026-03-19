@@ -220,7 +220,7 @@ alias_response( Operation *op, SlapReply *rs )
 	}
 
 	for ( mapping = ov->mappings; mapping && mapping->source; mapping++ ) {
-		Attribute *source, *a;
+		Attribute *source = NULL, *a;
 		int operational = is_at_operational( mapping->source->ad_type ),
 			keep_source = 0;
 		slap_mask_t requested = operational ?
