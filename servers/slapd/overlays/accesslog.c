@@ -82,6 +82,7 @@ typedef struct log_info {
 	log_base *li_bases;
 	BerVarray li_mincsn;
 	int *li_sids, li_numcsns;
+	int li_yield_factor;
 
 	/*
 	 * Allow partial concurrency, main operation processing serialised with
@@ -106,7 +107,8 @@ enum {
 	LOG_SUCCESS,
 	LOG_OLD,
 	LOG_OLDATTR,
-	LOG_BASE
+	LOG_BASE,
+	LOG_YIELD_FACTOR
 };
 
 static ConfigTable log_cfats[] = {
@@ -147,6 +149,11 @@ static ConfigTable log_cfats[] = {
 			"DESC 'Operation types to log under a specific branch' "
 			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString )", NULL, NULL },
+	{ "logpurgebatch", NULL, 2, 2, 0, ARG_MAGIC|ARG_UINT|LOG_YIELD_FACTOR,
+		log_cf_gen, "( OLcfgOvAt:4.8 NAME 'olcAccessLogPurgeBatch' "
+			"DESC 'Pause purge task after every N entries have been purged' "
+			"EQUALITY integerMatch "
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ NULL }
 };
 
@@ -157,7 +164,8 @@ static ConfigOCs log_cfocs[] = {
 		"SUP olcOverlayConfig "
 		"MUST olcAccessLogDB "
 		"MAY ( olcAccessLogOps $ olcAccessLogPurge $ olcAccessLogSuccess $ "
-			"olcAccessLogOld $ olcAccessLogOldAttr $ olcAccessLogBase ) )",
+			"olcAccessLogOld $ olcAccessLogOldAttr $ olcAccessLogBase $ "
+			"olcAccessLogPurgeBatch ) )",
 			Cft_Overlay, log_cfats },
 	{ NULL }
 };
@@ -743,6 +751,7 @@ accesslog_purge( void *ctx, void *arg )
 
 	if ( pd.used ) {
 		int i;
+		struct timeval start = { .tv_sec = 0 };
 
 		op->o_callback = &nullsc;
 		op->o_dont_replicate = 1;
@@ -779,6 +788,8 @@ accesslog_purge( void *ctx, void *arg )
 		/* delete the expired entries */
 		op->o_tag = LDAP_REQ_DELETE;
 		for (i=0; i<pd.used; i++) {
+			unsigned int factor = li->li_yield_factor;
+
 			op->o_req_dn = pd.dn[i];
 			op->o_req_ndn = pd.ndn[i];
 			if ( !slapd_shutdown ) {
@@ -788,6 +799,31 @@ accesslog_purge( void *ctx, void *arg )
 			ch_free( pd.ndn[i].bv_val );
 			ch_free( pd.dn[i].bv_val );
 			ldap_pvt_thread_pool_pausewait( &connection_pool );
+			if ( factor && ( i % factor == 0 ) ) {
+				if ( start.tv_sec || start.tv_usec ) {
+					struct timeval diff;
+
+					gettimeofday( &diff, NULL );
+					diff.tv_sec -= start.tv_sec;
+					diff.tv_usec -= start.tv_usec;
+					if ( diff.tv_usec < 0 ) {
+						diff.tv_sec -= 1;
+						diff.tv_usec += 1000000;
+					}
+
+					diff.tv_usec /= factor;
+					diff.tv_usec += (1000000 * (diff.tv_sec % factor)) / factor;
+					diff.tv_sec /= factor;
+
+					Debug( LDAP_DEBUG_TRACE, "accesslog_purge: "
+							"giving other threads a chance for %ld.%06lds\n",
+							diff.tv_sec, diff.tv_usec );
+					select( 0, NULL, NULL, NULL, &diff );
+				}
+				gettimeofday( &start, NULL );
+			} else {
+				ldap_pvt_thread_yield();
+			}
 		}
 		ch_free( pd.ndn );
 		ch_free( pd.dn );
@@ -896,6 +932,12 @@ log_cf_gen(ConfigArgs *c)
 			break;
 		}
 		break;
+		case LOG_YIELD_FACTOR:
+			if ( li->li_yield_factor )
+				c->value_int = li->li_yield_factor;
+			else
+				rc = 1;
+			break;
 	case LDAP_MOD_DELETE:
 		switch( c->type ) {
 		case LOG_DB:
@@ -971,6 +1013,9 @@ log_cf_gen(ConfigArgs *c)
 				*lp = lb->lb_next;
 				ch_free( lb );
 			}
+			break;
+		case LOG_YIELD_FACTOR:
+			li->li_yield_factor = 0;
 			break;
 		}
 		break;
@@ -1145,6 +1190,9 @@ log_cf_gen(ConfigArgs *c)
 				rc = ARG_BAD_CONF;
 			}
 			}
+			break;
+		case LOG_YIELD_FACTOR:
+			li->li_yield_factor = c->value_int;
 			break;
 		}
 		break;
