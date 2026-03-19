@@ -400,6 +400,10 @@ set_chase( SLAP_SET_GATHER gatherer,
 		vals = gatherer( cp, &set[ i ], desc );
 		if ( vals != NULL ) {
 			nset = slap_set_join( cp, nset, '|', vals );
+			if ( nset == NULL ) {
+				ber_bvarray_free_x( set, cp->set_op->o_tmpmemctx );
+				return NULL;
+			}
 		}
 	}
 	ber_bvarray_free_x( set, cp->set_op->o_tmpmemctx );
@@ -475,6 +479,9 @@ set_parents( SetCookie *cp, BerVarray set )
 		BER_BVZERO( &vals[ last ] );
 
 		nset = slap_set_join( cp, nset, '|', vals );
+		if ( nset == NULL ) {
+			break;
+		}
 	}
 
 	ber_bvarray_free_x( set, cp->set_op->o_tmpmemctx );
