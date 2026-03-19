@@ -418,7 +418,7 @@ dds_op_add( Operation *op, SlapReply *rs )
 		assert( ttl <= DDS_RF2589_MAX_TTL );
 
 		bv.bv_val = ttlbuf;
-		bv.bv_len = snprintf( ttlbuf, sizeof( ttlbuf ), "%ld", ttl );
+		bv.bv_len = snprintf( ttlbuf, sizeof( ttlbuf ), "%lld", (long long)ttl );
 		assert( bv.bv_len < sizeof( ttlbuf ) );
 
 		/* FIXME: apparently, values in op->ora_e are malloc'ed
@@ -696,7 +696,7 @@ dds_op_modify( Operation *op, SlapReply *rs )
 					goto done;
 				}
 
-				bv_entryTtl.bv_len = snprintf( textbuf, sizeof( textbuf ), "%ld", entryTtl );
+				bv_entryTtl.bv_len = snprintf( textbuf, sizeof( textbuf ), "%lld", (long long)entryTtl );
 				break;
 
 			default:
@@ -918,7 +918,7 @@ dds_response( Operation *op, SlapReply *rs )
 		ttl = (ttl < 0) ? 0 : ttl;
 		assert( ttl <= DDS_RF2589_MAX_TTL );
 
-		len = snprintf( ttlbuf, sizeof(ttlbuf), "%ld", ttl );
+		len = snprintf( ttlbuf, sizeof(ttlbuf), "%lld", (long long)ttl );
 		if ( len < 0 )
 		{
 			goto done;
@@ -1178,7 +1178,7 @@ dds_op_extended( Operation *op, SlapReply *rs )
 		ttlmod.sml_values = ttlvalues;
 		ttlmod.sml_numvals = 1;
 		ttlvalues[ 0 ].bv_val = ttlbuf;
-		ttlvalues[ 0 ].bv_len = snprintf( ttlbuf, sizeof( ttlbuf ), "%ld", ttl );
+		ttlvalues[ 0 ].bv_len = snprintf( ttlbuf, sizeof( ttlbuf ), "%lld", (long long)ttl );
 		BER_BVZERO( &ttlvalues[ 1 ] );
 
 		/* the entryExpireTimestamp is added by modify */
@@ -1206,8 +1206,8 @@ dds_op_extended( Operation *op, SlapReply *rs )
 				rs->sr_rspoid = ch_strdup( slap_EXOP_REFRESH.bv_val );
 
 				Log( LDAP_DEBUG_TRACE, LDAP_LEVEL_INFO,
-					"%s REFRESH dn=\"%s\" TTL=%ld\n",
-					op->o_log_prefix, op->o_req_ndn.bv_val, ttl );
+					"%s REFRESH dn=\"%s\" TTL=%lld\n",
+					op->o_log_prefix, op->o_req_ndn.bv_val, (long long)ttl );
 			}
 
 			ber_free_buf( ber );

@@ -3003,14 +3003,14 @@ ldap_back_conn2str( const ldapconn_base_t *lc, char *buf, ber_len_t buflen )
 	}
 
 	if ( lc->lcb_create_time != 0 ) {
-		len = snprintf( tbuf, sizeof(tbuf), "%ld", lc->lcb_create_time );
+		len = snprintf( tbuf, sizeof(tbuf), "%lld", (long long)lc->lcb_create_time );
 		if ( ptr + sizeof(" created=") + len >= end ) return -1;
 		ptr = lutil_strcopy( ptr, " created=" );
 		ptr = lutil_strcopy( ptr, tbuf );
 	}
 
 	if ( lc->lcb_time != 0 ) {
-		len = snprintf( tbuf, sizeof(tbuf), "%ld", lc->lcb_time );
+		len = snprintf( tbuf, sizeof(tbuf), "%lld", (long long)lc->lcb_time );
 		if ( ptr + sizeof(" modified=") + len >= end ) return -1;
 		ptr = lutil_strcopy( ptr, " modified=" );
 		ptr = lutil_strcopy( ptr, tbuf );
@@ -3183,8 +3183,8 @@ ldap_back_conn_prune( ldapinfo_t *li )
 		ldap_pvt_runqueue_resched( &slapd_rq, li->li_conn_expire_task, 0 );
 
 		Debug( LDAP_DEBUG_TRACE,
-			"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
-			li->li_conn_expire_task->interval.tv_sec );
+			"ldap_back_conn_prune: scheduled connection expiry timer to %lld sec\n",
+			(long long)li->li_conn_expire_task->interval.tv_sec );
 	} else if ( next_timeout == -1 && li->li_conn_expire_task != NULL ) {
 		if ( ldap_pvt_runqueue_isrunning( &slapd_rq, li->li_conn_expire_task ) ) {
 			ldap_pvt_runqueue_stoptask( &slapd_rq, li->li_conn_expire_task );

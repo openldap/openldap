@@ -2746,8 +2746,8 @@ pc_bind_search( Operation *op, SlapReply *rs )
 					pbi->bi_flags |= BI_HASHED;
 			} else {
 				Debug( pcache_debug, "pc_bind_search: cache is stale, "
-					"reftime: %ld, current time: %ld\n",
-					pbi->bi_cq->bindref_time, op->o_time );
+					"reftime: %lld, current time: %lld\n",
+					(long long)pbi->bi_cq->bindref_time, (long long)op->o_time );
 			}
 		} else if ( pbi->bi_si ) {
 			/* This search result is going into the cache */
@@ -3904,9 +3904,9 @@ pc_cf_gen( ConfigArgs *c )
 		struct berval bv;
 		switch( c->type ) {
 		case PC_MAIN:
-			bv.bv_len = snprintf( c->cr_msg, sizeof( c->cr_msg ), "%s %d %d %d %ld",
+			bv.bv_len = snprintf( c->cr_msg, sizeof( c->cr_msg ), "%s %d %d %d %lld",
 				cm->db.bd_info->bi_type, cm->max_entries, cm->numattrsets,
-				cm->num_entries_limit, cm->cc_period );
+				cm->num_entries_limit, (long long)cm->cc_period );
 			bv.bv_val = c->cr_msg;
 			value_add_one( &c->rvalue_vals, &bv );
 			break;
@@ -3957,12 +3957,12 @@ pc_cf_gen( ConfigArgs *c )
 				/* HEADS-UP: always print all;
 				 * if optional == 0, ignore */
 				bv.bv_len = snprintf( c->cr_msg, sizeof( c->cr_msg ),
-					" %d %ld %ld %ld %ld",
+					" %d %lld %lld %lld %lld",
 					temp->attr_set_index,
-					temp->ttl,
-					temp->negttl,
-					temp->limitttl,
-					temp->ttr );
+					(long long)temp->ttl,
+					(long long)temp->negttl,
+					(long long)temp->limitttl,
+					(long long)temp->ttr );
 				bv.bv_len += temp->querystr.bv_len + 2;
 				bv.bv_val = ch_malloc( bv.bv_len+1 );
 				ptr = bv.bv_val;
@@ -3979,9 +3979,9 @@ pc_cf_gen( ConfigArgs *c )
 			for (temp=qm->templates; temp; temp=temp->qmnext) {
 				if ( !temp->bindttr ) continue;
 				bv.bv_len = snprintf( c->cr_msg, sizeof( c->cr_msg ),
-					" %d %ld %s ",
+					" %d %lld %s ",
 					temp->attr_set_index,
-					temp->bindttr,
+					(long long)temp->bindttr,
 					ldap_pvt_scope2str( temp->bindscope ));
 				bv.bv_len += temp->bindbase.bv_len + temp->bindftemp.bv_len + 4;
 				bv.bv_val = ch_malloc( bv.bv_len + 1 );

@@ -1189,8 +1189,8 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 			if ( mc->mc_network_timeout == 0 ) {
 				return 1;
 			}
-			bv.bv_len = snprintf( c->cr_msg, sizeof(c->cr_msg), "%ld",
-				mc->mc_network_timeout );
+			bv.bv_len = snprintf( c->cr_msg, sizeof(c->cr_msg), "%lld",
+				(long long)mc->mc_network_timeout );
 			bv.bv_val = c->cr_msg;
 			value_add_one( &c->rvalue_vals, &bv );
 			break;

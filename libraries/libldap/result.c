@@ -290,8 +290,8 @@ wait4msg(
 		Debug2( LDAP_DEBUG_TRACE, "wait4msg ld %p msgid %d (infinite timeout)\n",
 			(void *)ld, msgid );
 	} else {
-		Debug3( LDAP_DEBUG_TRACE, "wait4msg ld %p msgid %d (timeout %ld usec)\n",
-			(void *)ld, msgid, (long)timeout->tv_sec * 1000000 + timeout->tv_usec );
+		Debug3( LDAP_DEBUG_TRACE, "wait4msg ld %p msgid %d (timeout %lld usec)\n",
+			(void *)ld, msgid, (long long)((long long)timeout->tv_sec * 1000000 + timeout->tv_usec) );
 	}
 #endif /* LDAP_DEBUG */
 
