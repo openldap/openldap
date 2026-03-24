@@ -661,6 +661,7 @@ static int autoca_cf( ConfigArgs *c )
 				else
 					rc = 1;
 			}
+			ch_free( c->value_string );
 			break;
 		case ACA_SRVCLASS:
 			{
@@ -670,6 +671,7 @@ static int autoca_cf( ConfigArgs *c )
 				else
 					rc = 1;
 			}
+			ch_free( c->value_string );
 			break;
 		case ACA_USRKEYBITS:
 			if ( c->value_int < MIN_KEYBITS )
@@ -704,6 +706,8 @@ static int autoca_cf( ConfigArgs *c )
 					"suffix must be set" );
 				Debug( LDAP_DEBUG_CONFIG, "autoca_config: %s\n",
 					c->cr_msg );
+				ch_free( c->value_dn.bv_val );
+				ch_free( c->value_ndn.bv_val );
 				rc = ARG_BAD_CONF;
 				break;
 			}
@@ -712,6 +716,8 @@ static int autoca_cf( ConfigArgs *c )
 					"DN is not a subordinate of backend" );
 				Debug( LDAP_DEBUG_CONFIG, "autoca_config: %s\n",
 					c->cr_msg );
+				ch_free( c->value_dn.bv_val );
+				ch_free( c->value_ndn.bv_val );
 				rc = ARG_BAD_CONF;
 				break;
 			}
@@ -960,6 +966,10 @@ autoca_db_destroy(
 		X509_free( ai->ai_cert );
 	if ( ai->ai_pkey )
 		EVP_PKEY_free( ai->ai_pkey );
+	if ( ai->ai_localdn.bv_val ) {
+		ch_free( ai->ai_localdn.bv_val );
+		ch_free( ai->ai_localndn.bv_val );
+	}
 	ch_free( ai );
 
 	return 0;
