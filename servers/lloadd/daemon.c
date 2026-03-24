@@ -189,6 +189,7 @@ get_url_perms( char **exts, mode_t *perms )
                     /* skip leading '0' */
                     if ( value[0] != '0' ) return LDAP_OTHER;
                     value++;
+                    /* fallthru */
 
                 case 3:
                     for ( j = 0; j < 3; j++ ) {
