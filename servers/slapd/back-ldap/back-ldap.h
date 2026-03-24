@@ -32,7 +32,7 @@ struct ldapinfo_t;
 
 /* stuff required for monitoring */
 typedef struct ldap_monitor_info_t {
-	monitor_subsys_t	lmi_mss[2];
+	monitor_subsys_t	*lmi_mss[2];
 
 	struct berval		lmi_ndn;
 	struct berval		lmi_conn_rdn;

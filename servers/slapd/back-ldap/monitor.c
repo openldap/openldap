@@ -376,6 +376,7 @@ ldap_back_monitor_subsystem_destroy(
 	free(ms->mss_ndn.bv_val);
 	BER_BVZERO(&ms->mss_ndn);
 
+	ch_free( ms );
 	return LDAP_SUCCESS;
 }
 
@@ -946,7 +947,7 @@ int
 ldap_back_monitor_db_open( BackendDB *be )
 {
 	ldapinfo_t		*li = (ldapinfo_t *) be->be_private;
-	monitor_subsys_t	*mss = li->li_monitor_info.lmi_mss;
+	monitor_subsys_t	*mss;
 	int			rc = 0;
 	BackendInfo		*mi;
 	monitor_extra_t		*mbe;
@@ -997,9 +998,11 @@ ldap_back_monitor_db_open( BackendDB *be )
 	/* set up the subsystems used to create the operation and
 	 * volatile connection entries */
 
+	mss = ch_calloc( 1, sizeof(monitor_subsys_t) );
 	mss->mss_name = "back-ldap connections";
 	mss->mss_flags = MONITOR_F_VOLATILE_CH;
 	mss->mss_open = ldap_back_monitor_conn_init;
+	mss->mss_destroy = ldap_back_monitor_subsystem_destroy;
 	mss->mss_private = li;
 
 	if ( mbe->register_subsys_late( mss ) )
@@ -1007,14 +1010,16 @@ ldap_back_monitor_db_open( BackendDB *be )
 		Debug( LDAP_DEBUG_ANY,
 			"ldap_back_monitor_db_open: "
 			"failed to register connection subsystem" );
+		ch_free( mss );
 		return -1;
 	}
+	li->li_monitor_info.lmi_mss[0] = mss;
 
-	mss++;
-
+	mss = ch_calloc( 1, sizeof(monitor_subsys_t) );
 	mss->mss_name = "back-ldap operations";
 	mss->mss_flags = MONITOR_F_PERSISTENT_CH;
 	mss->mss_open = ldap_back_monitor_ops_init;
+	mss->mss_destroy = ldap_back_monitor_subsystem_destroy;
 	mss->mss_private = li;
 
 	if ( mbe->register_subsys_late( mss ) )
@@ -1022,8 +1027,10 @@ ldap_back_monitor_db_open( BackendDB *be )
 		Debug( LDAP_DEBUG_ANY,
 			"ldap_back_monitor_db_open: "
 			"failed to register operation subsystem" );
+		ch_free( mss );
 		return -1;
 	}
+	li->li_monitor_info.lmi_mss[1] = mss;
 
 	return rc;
 }
