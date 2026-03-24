@@ -334,6 +334,22 @@ if test $COUNT != 1 ; then
 	exit 1
 fi
 
+# The add is rejected because ppolicy restricts the connection to password change.
+echo "Testing ppolicy control reject on add while connection restricted..."
+$LDAPADD -e ppolicy -H $URI1 -D "$USER" -w $PASS >> \
+	$TESTOUT 2>&1 << EOMODS
+dn: cn=dummy,ou=People,dc=example,dc=com
+objectClass: person
+cn: dummy
+sn: dummy
+EOMODS
+RC=$?
+if test $RC = 0 ; then
+	echo "ldapadd should have been rejected!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 echo "Clearing forced reset..."
 
 $LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
@@ -367,6 +383,22 @@ $LDAPPASSWD -H $URI1 \
 RC=$?
 if test $RC = 0 ; then
 	echo "Safe modify test 1 failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+# The modify is rejected because pwdSafeModify requires the old password.
+echo "Testing ppolicy control reject on modify without old password..."
+$LDAPMODIFY -e ppolicy -H $URI1 -D "$USER" -w $PASS >> \
+	$TESTOUT 2>&1 << EOMODS
+dn: $USER
+changetype: modify
+replace: userPassword
+userPassword: newpassword1
+EOMODS
+RC=$?
+if test $RC = 0 ; then
+	echo "ldapmodify should have been rejected!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
@@ -495,6 +527,26 @@ EOMODS
 RC=$?
 if test $RC = 0 ; then
 	echo "Multiple password modify replace test failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+# The add is rejected because the password is shorter than pwdMinLength.
+echo "Testing ppolicy control reject on add with short password..."
+$LDAPADD -e ppolicy -H $URI1 -D "$USER" -w $PASS >> \
+	$TESTOUT 2>&1 << EOMODS
+dn: uid=weakpw,ou=People,dc=example,dc=com
+objectClass: top
+objectClass: person
+objectClass: inetOrgPerson
+cn: Weak Password
+uid: weakpw
+sn: Weak
+userPassword: ab
+EOMODS
+RC=$?
+if test $RC = 0 ; then
+	echo "ldapadd should have been rejected!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
