@@ -349,6 +349,7 @@ asyncmeta_back_monitor_subsystem_destroy(
 	free(ms->mss_ndn.bv_val);
 	BER_BVZERO(&ms->mss_ndn);
 
+	ch_free( ms );
 	return LDAP_SUCCESS;
 }
 
@@ -695,7 +696,6 @@ asyncmeta_back_monitor_conn_init(
 	mbe = (monitor_extra_t *) be->bd_info->bi_extra;
 
 	ms->mss_dn = ms->mss_ndn = mi->mi_monitor_info.mi_ndn;
-	ms->mss_destroy = asyncmeta_back_monitor_subsystem_destroy;
 
 	parent = mbe->entry_stub( &ms->mss_dn, &ms->mss_ndn,
 		&mi->mi_monitor_info.mi_conn_rdn, oc_monitorContainer, NULL, NULL );
@@ -870,7 +870,6 @@ asyncmeta_back_monitor_targets_init(
 	mbe = (monitor_extra_t *) be->bd_info->bi_extra;
 
 	ms->mss_dn = ms->mss_ndn = mi->mi_monitor_info.mi_ndn;
-	ms->mss_destroy = asyncmeta_back_monitor_subsystem_destroy;
 
 	parent = mbe->entry_stub( &ms->mss_dn, &ms->mss_ndn,
 		&mi->mi_monitor_info.mi_targets_rdn, oc_monitorContainer, NULL, NULL );
@@ -1205,6 +1204,7 @@ asyncmeta_back_monitor_db_open( BackendDB *be )
 	mss->mss_name = "back-asyncmeta connections";
 	mss->mss_flags = MONITOR_F_PERSISTENT_CH;
 	mss->mss_open = asyncmeta_back_monitor_conn_init;
+	mss->mss_destroy = asyncmeta_back_monitor_subsystem_destroy;
 	mss->mss_private = mi;
 
 	if ( mbe->register_subsys_late( mss ) )
@@ -1220,6 +1220,7 @@ asyncmeta_back_monitor_db_open( BackendDB *be )
 	mss->mss_name = "back-asyncmeta targets";
 	mss->mss_flags = MONITOR_F_PERSISTENT_CH;
 	mss->mss_open = asyncmeta_back_monitor_targets_init;
+	mss->mss_destroy = asyncmeta_back_monitor_subsystem_destroy;
 	mss->mss_private = mi;
 
 	if ( mbe->register_subsys_late( mss ) )
