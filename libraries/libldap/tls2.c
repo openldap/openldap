@@ -137,6 +137,33 @@ ldap_int_tls_destroy( struct ldapoptions *lo )
 		LDAP_FREE( lo->ldo_tls_crlfile );
 		lo->ldo_tls_crlfile = NULL;
 	}
+	if ( lo->ldo_tls_randfile ) {
+		LDAP_FREE( lo->ldo_tls_randfile );
+		lo->ldo_tls_randfile = NULL;
+	}
+
+	if ( !BER_BVISNULL( &lo->ldo_tls_cacert ) ) {
+		LDAP_FREE( lo->ldo_tls_cacert.bv_val );
+		BER_BVZERO( &lo->ldo_tls_cacert );
+	}
+	if ( !BER_BVISNULL( &lo->ldo_tls_cert ) ) {
+		LDAP_FREE( lo->ldo_tls_cert.bv_val );
+		BER_BVZERO( &lo->ldo_tls_cert );
+	}
+	if ( !BER_BVISNULL( &lo->ldo_tls_key ) ) {
+		LDAP_FREE( lo->ldo_tls_key.bv_val );
+		BER_BVZERO( &lo->ldo_tls_key );
+	}
+
+	if ( lo->ldo_tls_uris ) {
+		LDAP_VFREE( lo->ldo_tls_uris );
+		lo->ldo_tls_uris = NULL;
+	}
+	if ( lo->ldo_tls_cacerturis ) {
+		LDAP_VFREE( lo->ldo_tls_cacerturis );
+		lo->ldo_tls_cacerturis = NULL;
+	}
+
 	/* tls_pin_hashalg and tls_pin share the same buffer */
 	if ( lo->ldo_tls_pin_hashalg ) {
 		LDAP_FREE( lo->ldo_tls_pin_hashalg );
