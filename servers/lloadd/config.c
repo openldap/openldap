@@ -3751,6 +3751,7 @@ backend_cf_gen( ConfigArgs *c )
             if ( BER_BVISNULL( &tlskey[i].word ) ) {
                 snprintf( c->cr_msg, sizeof(c->cr_msg),
                         "invalid starttls configuration" );
+                ch_free( c->value_bv.bv_val );
                 goto fail;
             }
 #ifndef HAVE_TLS
@@ -3763,6 +3764,7 @@ backend_cf_gen( ConfigArgs *c )
                 snprintf( c->cr_msg, sizeof(c->cr_msg),
                         "invalid starttls configuration when compiled without "
                         "TLS support" );
+                ch_free( c->value_bv.bv_val );
                 goto fail;
             }
 #endif /* ! HAVE_TLS */
@@ -3771,6 +3773,7 @@ backend_cf_gen( ConfigArgs *c )
                 b->b_tls = b->b_tls_conf;
                 flag = LLOAD_BACKEND_MOD_OTHER;
             }
+            ch_free( c->value_bv.bv_val );
         } break;
         case CFG_WEIGHT:
             b->b_weight = c->value_uint;
