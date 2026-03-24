@@ -39,6 +39,7 @@ build-openssl-heimdal-lloadd:
     - echo "$(date -u -d "now - $STARTTIME sec" +%T) Building"
     - make
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
+    - export SLAPD_USE_SASL=yes
     - SLAPD_COMMON_WRAPPER=gdb make test
   artifacts:
     name: testdir
@@ -64,6 +65,7 @@ build-gnutls-mit-standalone-lloadd:
     - echo "$(date -u -d "now - $STARTTIME sec" +%T) Building"
     - make
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
+    - export SLAPD_USE_SASL=yes
     - SLAPD_COMMON_WRAPPER=gdb make test
   artifacts:
     name: testdir
@@ -90,6 +92,7 @@ build-mbedtls-mit-lloadd:
     - echo "$(date -u -d "now - $STARTTIME sec" +%T) Building"
     - make
     - ulimit -n 4096 # back-monitor takes a while scanning a long connections array
+    - export SLAPD_USE_SASL=yes
     - SLAPD_COMMON_WRAPPER=gdb make test
   artifacts:
     name: testdir
