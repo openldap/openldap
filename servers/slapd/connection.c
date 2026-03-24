@@ -307,7 +307,7 @@ static Connection* connection_get( ber_socket_t s )
 		}
 
 		Debug( LDAP_DEBUG_TRACE,
-			"connection_get(%d): got connid=%lu\n",
+			"connection_get(%d): got conn=%lu\n",
 			s, c->c_connid );
 
 		c->c_n_get++;
@@ -805,7 +805,7 @@ void connection_closing( Connection *c, const char *why )
 
 	if( c->c_conn_state != SLAP_C_CLOSING ) {
 		Debug( LDAP_DEBUG_CONNS,
-			"connection_closing: readying conn=%lu sd=%d for close\n",
+			"connection_closing: readying conn=%lu fd=%d for close\n",
 			c->c_connid, c->c_sd );
 		/* update state to closing */
 		c->c_conn_state = SLAP_C_CLOSING;
@@ -841,12 +841,12 @@ connection_close( Connection *c )
 		!LDAP_STAILQ_EMPTY(&c->c_pending_ops) )
 	{
 		Debug( LDAP_DEBUG_CONNS,
-			"connection_close: deferring conn=%lu sd=%d\n",
+			"connection_close: deferring conn=%lu fd=%d\n",
 			c->c_connid, c->c_sd );
 		return;
 	}
 
-	Debug( LDAP_DEBUG_TRACE, "connection_close: conn=%lu sd=%d\n",
+	Debug( LDAP_DEBUG_TRACE, "connection_close: conn=%lu fd=%d\n",
 		c->c_connid, c->c_sd );
 
 	connection_destroy( c );
@@ -1588,7 +1588,7 @@ connection_input( Connection *conn , conn_readinfo *cri )
 			char ebuf[128];
 			/* log, close and send error */
 			Debug( LDAP_DEBUG_TRACE,
-				"ber_get_next on fd %d failed errno=%d (%s)\n",
+				"ber_get_next on fd=%d failed errno=%d (%s)\n",
 			conn->c_sd, err, sock_errstr(err, ebuf, sizeof(ebuf)) );
 			ber_free( conn->c_currentber, 1 );
 			conn->c_currentber = NULL;
@@ -1768,7 +1768,7 @@ connection_resched( Connection *conn )
 
 	if( conn->c_conn_state == SLAP_C_CLOSING ) {
 		Debug( LDAP_DEBUG_CONNS, "connection_resched: "
-			"attempting closing conn=%lu sd=%d\n",
+			"attempting closing conn=%lu fd=%d\n",
 			conn->c_connid, conn->c_sd );
 		connection_close( conn );
 		return 0;

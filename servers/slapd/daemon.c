@@ -2962,7 +2962,7 @@ loop:
 			nwfds--;
 
 			Debug( LDAP_DEBUG_CONNS,
-				"daemon: write active on %d\n",
+				"daemon: write active on fd=%d\n",
 				wd );
 
 			/*
@@ -2990,7 +2990,7 @@ loop:
 			nrfds--;
 
 			Debug ( LDAP_DEBUG_CONNS,
-				"daemon: read activity on %d\n", rd );
+				"daemon: read activity on fd=%d\n", rd );
 			/*
 			 * NOTE: it is possible that the connection was closed
 			 * and that the stream is now inactive.
@@ -3081,7 +3081,7 @@ loop:
 #endif  /* HAVE_KQUEUE */
 				{
 					Debug( LDAP_DEBUG_CONNS,
-						"daemon: write active on %d\n",
+						"daemon: write active on fd=%d\n",
 						fd );
 
 					SLAP_EVENT_CLR_WRITE( i );
@@ -3106,7 +3106,7 @@ loop:
 				{
 					r = 1;
 					Debug( LDAP_DEBUG_CONNS,
-						"daemon: read active on %d\n",
+						"daemon: read active on fd=%d\n",
 						fd );
 
 					SLAP_EVENT_CLR_READ( i );
