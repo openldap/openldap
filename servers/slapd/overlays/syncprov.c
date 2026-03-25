@@ -245,7 +245,15 @@ syncprov_state_ctrl(
 
 	ret = ber_flatten2( ber, &bv, 0 );
 	if ( ret == 0 ) {
-		cp = op->o_tmpalloc( sizeof( LDAPControl ) + bv.bv_len, op->o_tmpmemctx );
+		slap_callback *cb = op->o_tmpcalloc( 1,
+				sizeof( slap_callback ) + sizeof( LDAPControl ) + bv.bv_len,
+				op->o_tmpmemctx );
+
+		cb->sc_cleanup = slap_freeself_cb;
+		cb->sc_next = op->o_callback;
+		overlay_callback_after_backover( op, cb, 1 );
+
+		cp = (LDAPControl *)&cb[1];
 		cp->ldctl_oid = LDAP_CONTROL_SYNC_STATE;
 		cp->ldctl_iscritical = (op->o_sync == SLAP_CONTROL_CRITICAL);
 		cp->ldctl_value.bv_val = (char *)&cp[1];
@@ -297,7 +305,15 @@ syncprov_done_ctrl(
 
 	ret = ber_flatten2( ber, &bv, 0 );
 	if ( ret == 0 ) {
-		cp = op->o_tmpalloc( sizeof( LDAPControl ) + bv.bv_len, op->o_tmpmemctx );
+		slap_callback *cb = op->o_tmpcalloc( 1,
+				sizeof( slap_callback ) + sizeof( LDAPControl ) + bv.bv_len,
+				op->o_tmpmemctx );
+
+		cb->sc_cleanup = slap_freeself_cb;
+		cb->sc_next = op->o_callback;
+		overlay_callback_after_backover( op, cb, 1 );
+
+		cp = (LDAPControl *)&cb[1];
 		cp->ldctl_oid = LDAP_CONTROL_SYNC_DONE;
 		cp->ldctl_iscritical = (op->o_sync == SLAP_CONTROL_CRITICAL);
 		cp->ldctl_value.bv_val = (char *)&cp[1];
