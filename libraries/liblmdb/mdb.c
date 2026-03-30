@@ -374,6 +374,8 @@ typedef HANDLE mdb_mutex_t, mdb_mutexref_t;
 #define pthread_setspecific(x,y)	(TlsSetValue(x,y) ? 0 : ErrCode())
 #define pthread_mutex_unlock(x)	ReleaseMutex(*x)
 #define pthread_mutex_lock(x)	WaitForSingleObject(*x, INFINITE)
+#define pthread_mutex_init(x,y)	((*x = CreateMutex(NULL, FALSE, NULL)) ? 0 : ErrCode())
+#define pthread_mutex_destroy(x)	(CloseHandle(*x) ? 0 : ErrCode())
 #define pthread_cond_signal(x)	SetEvent(*x)
 #define pthread_cond_wait(cond,mutex)	do{SignalObjectAndWait(*mutex, *cond, INFINITE, FALSE); WaitForSingleObject(*mutex, INFINITE);}while(0)
 #define THREAD_CREATE(thr,start,arg) \
@@ -1391,6 +1393,10 @@ struct MDB_txn {
 	MDB_txn		*mt_parent;		/**< parent of a nested txn */
 	/** Nested txn under this txn, set together with flag #MDB_TXN_HAS_CHILD */
 	MDB_txn		*mt_child;
+	/** The count of nested RDONLY txns under this txn */
+	unsigned int	mt_rdonly_child_count;
+	/** Mutex protecting mt_rdonly_child_count */
+	pthread_mutex_t	mt_child_mutex;
 	pgno_t		mt_next_pgno;	/**< next unallocated page */
 #if MDB_RPAGE_CACHE
 	pgno_t		mt_last_pgno;	/**< last written page */
@@ -3347,6 +3353,8 @@ mdb_txn_renew0(MDB_txn *txn)
 			mdb_debug = MDB_DBG_INFO;
 #endif
 		txn->mt_child = NULL;
+		txn->mt_rdonly_child_count = 0;
+		pthread_mutex_init(&txn->mt_child_mutex, NULL);
 		txn->mt_loose_pgs = NULL;
 		txn->mt_loose_count = 0;
 		if (env->me_flags & MDB_WRITEMAP) {
@@ -3461,11 +3469,22 @@ mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **ret)
 		return EACCES;
 
 	if (parent) {
-		/* Nested transactions: Max 1 child, write txns only, no writemap */
+		/* Nested transactions:
+		 * Only write txns may have nested txns;
+		 * if the nested txn is a write txn there may only be 1, no writemap;
+		 * if the nested txn is a read txn there may be arbitrarily many.
+		 */
+		pthread_mutex_lock(&parent->mt_child_mutex);
 		flags |= parent->mt_flags;
-		if (flags & (MDB_RDONLY|MDB_WRITEMAP|MDB_TXN_BLOCKED)) {
-			return (parent->mt_flags & MDB_TXN_RDONLY) ? EINVAL : MDB_BAD_TXN;
+		if (parent->mt_child && F_ISSET(parent->mt_child->mt_flags, MDB_RDONLY) && F_ISSET(flags, MDB_RDONLY)) {
+			flags &= ~MDB_TXN_HAS_CHILD;
 		}
+		if ((F_ISSET(flags, MDB_WRITEMAP) && !F_ISSET(flags, MDB_RDONLY)) || F_ISSET(flags, MDB_TXN_BLOCKED)) {
+			flags = parent->mt_flags;
+			pthread_mutex_unlock(&parent->mt_child_mutex);
+			return (flags & MDB_TXN_RDONLY) ? EINVAL : MDB_BAD_TXN;
+		}
+		pthread_mutex_unlock(&parent->mt_child_mutex);
 		/* Child txns save MDB_pgstate and use own copy of cursors */
 		size = env->me_maxdbs * (sizeof(MDB_db)+sizeof(MDB_cursor *)+1);
 		size += tsize = sizeof(MDB_ntxn);
@@ -3508,24 +3527,35 @@ mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **ret)
 		txn->mt_workid = txn->mt_last_workid = workid;
 		txn->mt_cursors = (MDB_cursor **)(txn->mt_dbs + env->me_maxdbs);
 		txn->mt_dbiseqs = parent->mt_dbiseqs;
-		txn->mt_u.dirty_list = malloc(sizeof(MDB_ID2)*MDB_IDL_UM_SIZE);
-		if (!txn->mt_u.dirty_list ||
-			!(txn->mt_free_pgs = mdb_midl_alloc(MDB_IDL_UM_MAX)))
-		{
-			free(txn->mt_u.dirty_list);
-			free(txn);
-			return ENOMEM;
+		/* share parent dirty and free pages with nested RDONLY txn */
+		if (F_ISSET(flags, MDB_RDONLY)) {
+			txn->mt_u.dirty_list = parent->mt_u.dirty_list;
+			txn->mt_free_pgs = parent->mt_free_pgs;
+		} else {
+			txn->mt_u.dirty_list = malloc(sizeof(MDB_ID2)*MDB_IDL_UM_SIZE);
+			if (!txn->mt_u.dirty_list ||
+				!(txn->mt_free_pgs = mdb_midl_alloc(MDB_IDL_UM_MAX)))
+			{
+				free(txn->mt_u.dirty_list);
+				free(txn);
+				return ENOMEM;
+			}
+			txn->mt_u.dirty_list[0].mid = 0;
 		}
 		txn->mt_txnid = parent->mt_txnid;
 		txn->mt_dirty_room = parent->mt_dirty_room;
-		txn->mt_u.dirty_list[0].mid = 0;
 		txn->mt_spill_pgs = NULL;
 #if OVERFLOW_NOTYET
 		txn->mt_dirty_ovs = NULL;
 #endif
 		txn->mt_next_pgno = parent->mt_next_pgno;
+		pthread_mutex_lock(&parent->mt_child_mutex);
 		parent->mt_flags |= MDB_TXN_HAS_CHILD;
 		parent->mt_child = txn;
+		if (F_ISSET(flags, MDB_RDONLY)) {
+			parent->mt_rdonly_child_count++;
+		}
+		pthread_mutex_unlock(&parent->mt_child_mutex);
 		txn->mt_parent = parent;
 		txn->mt_numdbs = parent->mt_numdbs;
 #if MDB_RPAGE_CACHE
@@ -3538,19 +3568,22 @@ mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **ret)
 			txn->mt_dbflags[i] = parent->mt_dbflags[i] & ~DB_NEW;
 		rc = 0;
 		ntxn = (MDB_ntxn *)txn;
-		ntxn->mnt_pgstate = env->me_pgstate; /* save parent me_pghead & co */
-		if (env->me_pghead) {
-			size = MDB_IDL_SIZEOF(env->me_pghead);
-			env->me_pghead = mdb_midl_alloc(env->me_pghead[0]);
-			if (env->me_pghead)
-				memcpy(env->me_pghead, ntxn->mnt_pgstate.mf_pghead, size);
-			else
-				rc = ENOMEM;
+		if (!F_ISSET(flags, MDB_RDONLY)) {
+			ntxn->mnt_pgstate = env->me_pgstate; /* save parent me_pghead & co */
+			/* Do not copy parent me_pghead when nested and RDONLY */
+			if (env->me_pghead) {
+				size = MDB_IDL_SIZEOF(env->me_pghead);
+				env->me_pghead = mdb_midl_alloc(env->me_pghead[0]);
+				if (env->me_pghead)
+					memcpy(env->me_pghead, ntxn->mnt_pgstate.mf_pghead, size);
+				else
+					rc = ENOMEM;
+			}
+			if (!rc)
+				rc = mdb_cursor_shadow(parent, txn);
+			if (rc)
+				mdb_txn_end(txn, MDB_END_FAIL_BEGINCHILD);
 		}
-		if (!rc)
-			rc = mdb_cursor_shadow(parent, txn);
-		if (rc)
-			mdb_txn_end(txn, MDB_END_FAIL_BEGINCHILD);
 	} else { /* MDB_RDONLY */
 		txn->mt_dbiseqs = env->me_dbiseqs;
 renew:
@@ -3559,7 +3592,9 @@ renew:
 	if (rc) {
 		if (txn != env->me_txn0) {
 			/* mt_rpages belongs to parent */
-			free(txn->mt_u.dirty_list);
+			if (!F_ISSET(flags, MDB_RDONLY)) {
+				free(txn->mt_u.dirty_list);
+			}
 			free(txn);
 		}
 	} else {
@@ -3639,6 +3674,16 @@ mdb_txn_end(MDB_txn *txn, unsigned mode)
 		(void *) txn, (void *)env, txn->mt_dbs[MAIN_DBI].md_root));
 
 	if (F_ISSET(txn->mt_flags, MDB_TXN_RDONLY)) {
+		if (txn->mt_parent) {
+				pthread_mutex_lock(&txn->mt_parent->mt_child_mutex);
+				txn->mt_parent->mt_rdonly_child_count--;
+				/* mark parent txn has no longer having children if this is the last nested txn */
+				if (txn->mt_parent->mt_rdonly_child_count == 0) {
+					txn->mt_parent->mt_child = NULL;
+					txn->mt_parent->mt_flags &= ~MDB_TXN_HAS_CHILD;
+				}
+				pthread_mutex_unlock(&txn->mt_parent->mt_child_mutex);
+		} else
 		if (txn->mt_u.reader) {
 			txn->mt_u.reader->mr_txnid = (txnid_t)-1;
 			if (!(env->me_flags & MDB_NOTLS)) {
@@ -3725,8 +3770,11 @@ mdb_txn_end(MDB_txn *txn, unsigned mode)
 			free(tl);
 	}
 #endif
-	if (mode & MDB_END_FREE)
+	if (mode & MDB_END_FREE) {
+		if (!F_ISSET(txn->mt_flags, MDB_TXN_RDONLY))
+			pthread_mutex_destroy(&txn->mt_child_mutex);
 		free(txn);
+	}
 }
 
 void
@@ -3735,8 +3783,8 @@ mdb_txn_reset(MDB_txn *txn)
 	if (txn == NULL)
 		return;
 
-	/* This call is only valid for read-only txns */
-	if (!(txn->mt_flags & MDB_TXN_RDONLY))
+	/* This call is only valid for non-nested read-only txns */
+	if (!(txn->mt_flags & MDB_TXN_RDONLY) || txn->mt_parent)
 		return;
 
 	mdb_txn_end(txn, MDB_END_RESET);
@@ -3747,6 +3795,14 @@ _mdb_txn_abort(MDB_txn *txn)
 {
 	if (txn == NULL)
 		return;
+
+	if (txn->mt_parent && (txn->mt_flags & MDB_RDONLY)) {
+		/* You must first abort the child before the parent */
+		pthread_mutex_lock(&txn->mt_child_mutex);
+		int count = txn->mt_rdonly_child_count;
+		pthread_mutex_unlock(&txn->mt_child_mutex);
+		mdb_tassert(txn, txn->mt_parent && count == 0);
+	}
 
 	if (txn->mt_child)
 		_mdb_txn_abort(txn->mt_child);
@@ -7216,7 +7272,7 @@ mdb_page_get(MDB_cursor *mc, pgno_t pgno,
 	MDB_txn *txn = mc->mc_txn, *tx2;
 	MDB_page *p = NULL;
 
-	if (! (mc->mc_flags & (C_ORIG_RDONLY|C_WRITEMAP))) {
+	if (! (( mc->mc_flags & (C_ORIG_RDONLY|C_WRITEMAP) ) && mc->mc_txn->mt_parent == NULL)) {
 		for (tx2 = txn;; ) {
 			MDB_ID2L dl = tx2->mt_u.dirty_list;
 			MDB_IDL  sl;

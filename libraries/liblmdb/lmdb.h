@@ -1070,6 +1070,10 @@ int mdb_env_set_checksum(MDB_env *env, MDB_sum_func *func, unsigned int size);
 	 * as its parent. Transactions may be nested to any level. A parent
 	 * transaction and its cursors may not issue any other operations than
 	 * mdb_txn_commit and mdb_txn_abort while it has active child transactions.
+	 * @note A parent transaction with read-only child transactions must not
+	 * issue any operations while it has active child transactions, not even
+	 * #mdb_txn_commit() nor #mdb_txn_abort(). Child transactions must be
+	 * aborted prior to performing actions with the parent one.
 	 * @param[in] flags Special options for this transaction. This parameter
 	 * must be set to 0 or by bitwise OR'ing together one or more of the
 	 * values described here.
@@ -1191,7 +1195,7 @@ int  mdb_env_rollback(MDB_env *env, mdb_size_t txnid);
 	 */
 void mdb_txn_abort(MDB_txn *txn);
 
-	/** @brief Reset a read-only transaction.
+	/** @brief Reset a non-nested read-only transaction.
 	 *
 	 * Abort the transaction like #mdb_txn_abort(), but keep the transaction
 	 * handle. #mdb_txn_renew() may reuse the handle. This saves allocation
@@ -1210,11 +1214,11 @@ void mdb_txn_abort(MDB_txn *txn);
 	 */
 void mdb_txn_reset(MDB_txn *txn);
 
-	/** @brief Renew a read-only transaction.
+	/** @brief Renew a non-nested read-only transaction.
 	 *
 	 * This acquires a new reader lock for a transaction handle that had been
 	 * released by #mdb_txn_reset(). It must be called before a reset transaction
-	 * may be used again.
+	 * may be used again. Nested read-only transactions cannot be renewed.
 	 * @param[in] txn A transaction handle returned by #mdb_txn_begin()
 	 * @return A non-zero error value on failure and 0 on success. Some possible
 	 * errors are:
