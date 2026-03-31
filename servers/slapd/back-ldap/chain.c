@@ -89,6 +89,10 @@ typedef struct ldap_chain_t {
 	/* tree of configured[/generated?] "uri" info */
 	ldap_avl_info_t		lc_lai;
 
+	/* dynamically added databases */
+	BackendDB		**lc_dbs;
+	int			lc_numdbs;
+
 	/* max depth in nested referrals chaining */
 	int			lc_max_depth;
 
@@ -1382,6 +1386,9 @@ chain_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 	rc = ldap_chain_db_init_one( ca->be );
 	lc->lc_cfg_li = NULL;
 
+	lc->lc_dbs = ch_realloc( lc->lc_dbs, (lc->lc_numdbs + 1) * sizeof(BackendDB *) );
+	lc->lc_dbs[lc->lc_numdbs++] = ca->be;
+
 	if ( rc != 0 ) {
 fail:
 		Debug( LDAP_DEBUG_ANY, "slapd-chain: "
@@ -1492,6 +1499,7 @@ chain_lddel( CfEntryInfo *ce, Operation *op )
 	slap_overinst	*on = (slap_overinst *)pe->ce_bi;
 	ldap_chain_t	*lc = (ldap_chain_t *)on->on_bi.bi_private;
 	ldapinfo_t	*li = (ldapinfo_t *) ce->ce_be->be_private;
+	int i;
 
 	if ( li != lc->lc_common_li ) {
 		if (! ldap_tavl_delete( &lc->lc_lai.lai_tree, li, ldap_chain_uri_cmp ) ) {
@@ -1514,6 +1522,12 @@ chain_lddel( CfEntryInfo *ce, Operation *op )
 	}
 	if ( ce->ce_be->bd_info->bi_db_destroy ) {
 		ce->ce_be->bd_info->bi_db_destroy( ce->ce_be, NULL );
+	}
+
+	for ( i = 0; i < lc->lc_numdbs; i++ ) {
+		if ( lc->lc_dbs[i] == ce->ce_be ) {
+			lc->lc_dbs[i] = lc->lc_dbs[lc->lc_numdbs--];
+		}
 	}
 
 	ch_free(ce->ce_be);
@@ -2032,6 +2046,13 @@ ldap_chain_db_destroy(
 	rc = ldap_chain_db_func( be, db_destroy );
 
 	if ( lc ) {
+		int i;
+
+		for ( i = 0; i < lc->lc_numdbs; i++ ) {
+			ch_free( lc->lc_dbs[i] );
+		}
+		ch_free( lc->lc_dbs );
+
 		ldap_tavl_free( lc->lc_lai.lai_tree, NULL );
 		ldap_pvt_thread_mutex_destroy( &lc->lc_lai.lai_mutex );
 		ch_free( lc );
