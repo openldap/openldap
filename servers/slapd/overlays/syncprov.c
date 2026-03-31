@@ -887,10 +887,10 @@ syncprov_free_syncop( syncops *so, int flags )
 		ldap_pvt_thread_mutex_lock( &so->s_mutex );
 	/* already being freed, or still in use */
 	if ( !so->s_inuse || so->s_inuse > 1 ) {
-		if ( flags & FS_LOCK )
-			ldap_pvt_thread_mutex_unlock( &so->s_mutex );
 		if ( !( flags & FS_DEFER ) && so->s_inuse )
 			so->s_inuse--;
+		if ( flags & FS_LOCK )
+			ldap_pvt_thread_mutex_unlock( &so->s_mutex );
 		return FSR_NOTFREE;
 	}
 	ldap_pvt_thread_mutex_unlock( &so->s_mutex );
@@ -1059,13 +1059,8 @@ syncprov_qplay( Operation *op, syncops *so )
 	} while (1);
 
 	/* We now only send one change at a time, to prevent one
-	 * psearch from hogging all the CPU. Resubmit this task if
-	 * there are more responses queued and no errors occurred.
+	 * psearch from hogging all the CPU.
 	 */
-
-	if ( rc == 0 && so->s_res ) {
-		syncprov_qstart( so );
-	}
 
 	return rc;
 }
@@ -1106,24 +1101,32 @@ syncprov_qtask( void *ctx, void *arg )
 
 	rc = syncprov_qplay( op, so );
 
+	/* no errors, and more to do */
+	if ( !rc && so->s_res ) {
+		so->s_inuse--;
+		syncprov_qstart( so );
+		ldap_pvt_thread_mutex_unlock( &so->s_mutex );
+		return NULL;
+	}
+
 	/* if an error occurred, or no responses left, task is no longer queued */
-	if ( !rc && !so->s_res )
-		rc = 1;
+	so->s_flags &= ~PS_TASK_QUEUED;
 
 	flag = FS_UNLINK;
-	if ( rc && op->o_abandon )
+
+	/* on error or abandon, prepare to drop */
+	if ( rc || so->s_op->o_abandon ) {
+		so->s_inuse--;
 		flag = FS_DEFER;
+	}
 
 	/* decrement use count... */
 	frc = syncprov_free_syncop( so, flag );
 	if ( frc == FSR_NOTFREE ) {
-		if ( rc )
-			/* if we didn't unlink, and task is no longer queued, clear flag */
-			so->s_flags ^= PS_TASK_QUEUED;
 		ldap_pvt_thread_mutex_unlock( &so->s_mutex );
 	}
 
-	/* if we got abandoned while processing, cleanup now */
+	/* if we prepared to drop it, cleanup now */
 	if ( frc == FSR_CANFREE ) {
 		syncprov_drop_psearch( so, 1 );
 	}
@@ -1287,6 +1290,7 @@ syncprov_op_abandon( Operation *op, SlapReply *rs )
 	}
 	ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
 	if ( so ) {
+		int drop = 0;
 		/* Is this really a Cancel exop? */
 		if ( op->o_tag != LDAP_REQ_ABANDON ) {
 			so->s_op->o_cancel = SLAP_CANCEL_ACK;
@@ -1303,7 +1307,11 @@ syncprov_op_abandon( Operation *op, SlapReply *rs )
 			}
 		}
 		/* if task is active, it must drop itself */
+		ldap_pvt_thread_mutex_lock( &so->s_mutex );
 		if ( !( so->s_flags & PS_TASK_QUEUED ))
+			drop = 1;
+		ldap_pvt_thread_mutex_unlock( &so->s_mutex );
+		if ( drop )
 			syncprov_drop_psearch( so, 0 );
 	}
 	return SLAP_CB_CONTINUE;
