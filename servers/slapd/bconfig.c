@@ -5509,7 +5509,8 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 			Debug( LDAP_DEBUG_TRACE, "%s: config_add_internal: "
 				"DN=\"%s\" no structural objectClass add function\n",
 				log_prefix, e->e_name.bv_val );
-			return LDAP_OBJECT_CLASS_VIOLATION;
+			rc = LDAP_OBJECT_CLASS_VIOLATION;
+			goto done_noop;
 		}
 	}
 
