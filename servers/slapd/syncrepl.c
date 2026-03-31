@@ -5992,8 +5992,15 @@ void syncrepl_diff_entry( Operation *op, Attribute *old, Attribute *new,
 
 	/* These are all missing from provider */
 	while ( old ) {
-		Modifications *mod = ch_malloc( sizeof( Modifications ) );
+		Modifications *mod;
 
+		/* Skip contextCSN we screen ourselves */
+		if ( is_ctx && old->a_desc == slap_schema.si_ad_contextCSN ) {
+			old = old->a_next;
+			continue;
+		}
+
+		mod = ch_malloc( sizeof( Modifications ) );
 		mod->sml_op = LDAP_MOD_DELETE;
 		mod->sml_flags = 0;
 		mod->sml_desc = old->a_desc;
