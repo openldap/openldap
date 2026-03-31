@@ -2170,6 +2170,10 @@ done:
 	return SLAP_CB_CONTINUE;
 
 skip:
+	if ( !BER_BVISNULL( &li->li_uuid ) ) {
+		ber_memfree( li->li_uuid.bv_val );
+		BER_BVZERO( &li->li_uuid );
+	}
 	if ( lo->mask & LOG_OP_WRITES ) {
 		/* We haven't transitioned to li_log_mutex yet */
 		ldap_pvt_thread_mutex_unlock( &li->li_op_rmutex );
