@@ -128,6 +128,18 @@ timeout specified was exceeded.
 and
 .B ldap_msgid()
 return \-1 on error.
+.SH BUGS
+When there are multiple messages in
+.BR **result
+including a result message (common with searches), the return value of
+.B ldap_result
+will vary depending on various factors. Some implementations have started
+depending on this behaviour and as such it is unlikely to be be fixed in the
+2.x release series. To get the actual message type you're interested, use
+.B ldap_first_message
+or
+.B ldap_parse_result
+as needed.
 .SH SEE ALSO
 .BR ldap (3),
 .BR ldap_first_message (3),
