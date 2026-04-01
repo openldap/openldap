@@ -21,7 +21,7 @@ if test $SYNCPROV = syncprovno; then
 	exit 0
 fi
 
-ITS=9288
+ITS=9888
 
 CFPRO=$TESTDIR/cfpro.d
 CFCON=$TESTDIR/cfcon.d
@@ -225,6 +225,13 @@ olcSyncRepl: rid=001 provider=$URI1 binddn="cn=config,cn=consumer"
 add: olcUpdateRef
 olcUpdateRef: $URI1
 EOF
+
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
 
 sleep 1
 
@@ -482,7 +489,7 @@ timestamp=`date --utc +"%Y%m%d%H%M%S.%6NZ"`
 newcsn="${timestamp}#000000#001#000000"
 
 sed -i -e "s/entryCSN:.*/entryCSN: $newcsn/" testrun/config-consumer.ldif
-sed -i -e 's/contextCSN: .*#001#.*/contextCSN: 20230724180831.311873Z#000000#001#000000/' testrun/config-consumer.ldif
+sed -i -e 's/contextCSN: .*#001#.*/contextCSN: $newcsn/' testrun/config-consumer.ldif
 
 mv testrun/db.1.a testrun/db.1.a.orig
 mkdir -p testrun/db.1.a
