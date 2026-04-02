@@ -192,7 +192,7 @@ case $RC in
 	;;
 esac
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS 2>/dev/null
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS 2>/dev/null || exit $?; }
 
 echo ">>>>> Test succeeded"
 

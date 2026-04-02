@@ -410,7 +410,7 @@ EOF
 	rm -f $PIPEFILE $TESTDIR/pipe.log "$AUDITLOGFILE"
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

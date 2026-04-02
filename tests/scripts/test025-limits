@@ -760,7 +760,7 @@ fi
 if test x"$SLAPD_PAGE_SIZE" != x ; then
 	PAGESIZE="$SLAPD_PAGE_SIZE"
 	if test "$PAGESIZE" -le 0 ; then
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 		echo ""
 		echo "Testing with pagedResults control disabled"
@@ -1411,7 +1411,7 @@ case $RC in
 	;;
 esac
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

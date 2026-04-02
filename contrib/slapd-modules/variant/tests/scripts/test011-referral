@@ -146,7 +146,7 @@ if test $RC != 10; then
 	exit 1
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 LDIF=data/test011-out.ldif
 

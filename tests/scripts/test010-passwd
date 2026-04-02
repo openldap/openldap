@@ -180,7 +180,7 @@ $LDAPSEARCH -H $URI1 \
 	'objectclass=*' >> $TESTOUT 2>&1
 
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

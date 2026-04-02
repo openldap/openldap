@@ -156,7 +156,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -183,7 +183,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -293,7 +293,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -317,7 +317,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -343,7 +343,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -374,7 +374,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -404,7 +404,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -434,7 +434,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -466,7 +466,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -553,7 +553,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -624,7 +624,7 @@ case $RC in
 	;;
 	51)
 		echo "### Hit LDAP_BUSY problem; you may want to re-run the test"
-		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 		exit 0
 	;;
 	*)
@@ -730,7 +730,7 @@ case $RC,$BACKEND in
 	;;
 esac
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

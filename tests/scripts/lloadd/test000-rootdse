@@ -97,7 +97,7 @@ if test $RC = 0 ; then
     RC=$?
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 count=3
 if test $RC != 0 ; then

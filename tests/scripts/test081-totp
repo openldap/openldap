@@ -130,7 +130,7 @@ fi
 "$python" "$0".py
 RC=$?
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 if test $RC != 0 ; then
     echo "Test failed ($RC)!"

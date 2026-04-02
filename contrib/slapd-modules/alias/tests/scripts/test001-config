@@ -59,7 +59,7 @@ if test $RC != 0 ; then
 fi
 
 echo "Stopping slapd on TCP/IP port $PORT1..."
-kill -HUP $KILLPIDS
+kill -HUP $KILLPIDS && wait $KILLPIDS || exit $?
 KILLPIDS=""
 sleep $SLEEP0
 echo "Starting slapd on TCP/IP port $PORT1..."
@@ -223,7 +223,7 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo "Filtering ldapsearch results..."
 $LDIFFILTER -s e < $SERVER1OUT > $SERVER1FLT

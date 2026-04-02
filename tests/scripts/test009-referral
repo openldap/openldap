@@ -158,7 +158,7 @@ else
 	exit $RC
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 LDIF=$SEARCHOUTPROVIDER
 

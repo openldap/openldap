@@ -174,7 +174,7 @@ echo "Exporting accesslog database..."
 $SLAPCAT -F $CFDIR -b cn=accesslog -l $TESTDIR/accesslogdb.ldif
 RC=$?
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 # 1 root entry, 2 binds, 3 searches, 1 compare
 count=7

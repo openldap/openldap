@@ -284,7 +284,7 @@ $LDAPSEARCH -S "" -b "$METABASEDN" -H $URI3 \
 			'(objectClass=*)' > $SEARCHOUT 2>&1
 RC=$?
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 if test $RC != 0 ; then
 	echo "ldapsearch failed ($RC)!"

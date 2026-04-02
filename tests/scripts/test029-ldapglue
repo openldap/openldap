@@ -215,7 +215,7 @@ if false && test $USE_SASL != "no" ; then
 	fi
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

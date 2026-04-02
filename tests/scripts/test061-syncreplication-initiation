@@ -660,7 +660,7 @@ EOF
 	fi
 done
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 if test $ERROR != 0; then
 	echo "Error found after $RACE_NUM of $INITIATION_RACE_TESTS iterations"

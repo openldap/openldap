@@ -171,7 +171,7 @@ grep "supportedSASLMechanisms: $MECH" $SEARCHOUT > $TESTOUT
 RC=$?
 if test $RC != 0 ; then
     echo "SASL mechanism $MECH is not available, test skipped"
-    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
     exit 0
 fi
 
@@ -238,7 +238,7 @@ if test $? != 0 ; then
     exit 1
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 if test $RC != 0 ; then
     echo ">>>>> Test failed"

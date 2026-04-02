@@ -106,7 +106,7 @@ $LDAPSEARCH -S "" -b "$MODDN" -H $URI1 \
 			'objectClass=*' 'carLicense' > $SEARCHOUT 2>&1
 
 RC=$?
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 if test $RC != 0 ; then
 	echo "ldapsearch failed ($RC)!"
 	exit $RC

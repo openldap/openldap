@@ -355,7 +355,7 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo "Filtering provider results..."
 $LDIFFILTER -s a < $PROVIDEROUT | sed -e 's/CN=/cn=/g' -e 's/OU=/ou=/g' -e 's/DC=/dc=/g' > $PROVIDERFLT

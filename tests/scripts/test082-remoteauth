@@ -388,7 +388,7 @@ echo -n "3 "
 
 echo "ok"
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 # LDIFFILTER doesn't (un)wrap long lines yet, so the result would differ
 #. $CONFFILTER $BACKEND < $DATADIR/remoteauth/config.ldif \

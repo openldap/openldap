@@ -161,7 +161,7 @@ $SLAPDTESTER -P "$PROGDIR" -d "$TESTDIR" \
     -i '*INVALID_CREDENTIALS,*BUSY,UNWILLING_TO_PERFORM'
 RC=$?
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 if test $RC != 0 ; then
     echo "slapd-tester failed ($RC)!"

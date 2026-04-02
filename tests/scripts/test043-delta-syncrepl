@@ -517,7 +517,7 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo "Filtering provider results..."
 $LDIFFILTER -b $BACKEND -s $SPEC < $PROVIDEROUT | grep -iv "^auditcontext:" > $PROVIDERFLT

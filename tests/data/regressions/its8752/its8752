@@ -504,7 +504,7 @@ if [ "$check_sync_every" -gt 0 ] && [ `expr $n % $check_sync_every` = 0 ]; then
 	n=`expr $n + 1`
 done
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

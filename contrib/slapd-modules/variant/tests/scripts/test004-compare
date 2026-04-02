@@ -54,7 +54,7 @@ if test $RC != 6 && test $RC,$BACKEND != 5,null ; then
 	exit 1
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

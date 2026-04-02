@@ -407,7 +407,7 @@ case $RC in
     ;;
 esac
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 MSGCOUNT=`grep -c '^dn: ' $SEARCHOUT`
 if test $MSGCOUNT != 3 ; then

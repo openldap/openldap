@@ -532,7 +532,7 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 LDIF=$DDSOUT
 

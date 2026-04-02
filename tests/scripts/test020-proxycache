@@ -634,7 +634,7 @@ if test $RC != 4 ; then
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS && wait
 	exit 1
 fi
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 
