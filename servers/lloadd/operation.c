@@ -640,13 +640,14 @@ operations_timeout( evutil_socket_t s, short what, void *arg )
 {
     struct event *self = arg;
     LloadTier *tier;
-    time_t threshold;
+    struct timeval threshold;
 
     Debug( LDAP_DEBUG_TRACE, "operations_timeout: "
             "running timeout task\n" );
     if ( !lload_timeout_api ) goto done;
 
-    threshold = slap_get_time() - lload_timeout_api->tv_sec;
+    gettimeofday( &threshold, NULL );
+    timersub( &threshold, lload_timeout_api, &threshold );
 
     LDAP_STAILQ_FOREACH ( tier, &tiers, t_next ) {
         LloadBackend *b;
