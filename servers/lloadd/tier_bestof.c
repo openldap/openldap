@@ -66,7 +66,9 @@ bestof_cmp( const void *left, const void *right )
 
     gettimeofday( &now, NULL );
     /* We assume this is less than a second after the last update */
-    factor = 1 / ( pow( ( 1 / factor ) + 1, now.tv_usec / 1000000.0 ) - 1 );
+    if ( now.tv_usec > 0 ) {
+        factor = 1 / ( pow( ( 1 / factor ) + 1, now.tv_usec / 1000000.0 ) - 1 );
+    }
 
     count = __atomic_load_n( &l->b_operation_count, __ATOMIC_RELAXED );
     diff = __atomic_load_n( &l->b_operation_time, __ATOMIC_RELAXED );
