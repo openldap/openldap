@@ -148,7 +148,6 @@ handle_unsolicited( LloadConnection *c, BerElement *ber )
 
     assert( c->c_state != LLOAD_C_INVALID );
     if ( c->c_state == LLOAD_C_DYING ) {
-        CONNECTION_UNLOCK(c);
         goto out;
     }
     c->c_state = LLOAD_C_CLOSING;
@@ -206,12 +205,6 @@ handle_unsolicited( LloadConnection *c, BerElement *ber )
             node = next;
         }
         RELEASE_REF( client, c_refcnt, client->c_destroy );
-    }
-
-    if ( c->c_state == LLOAD_C_CLOSING && c->c_ops ) {
-        CONNECTION_UNLOCK(c);
-    } else {
-        CONNECTION_DESTROY(c);
     }
 
 out:
