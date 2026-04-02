@@ -59,6 +59,12 @@ esac
 echo "Starting provider slapd on TCP/IP port $PORT1..."
 . $CONFFILTER $BACKEND < $DYNAMICCONF > $CONFLDIF
 $SLAPADD -F $CFPRO -n 0 -l $CONFLDIF
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 $SLAPD -F $CFPRO -h $URI1 -d $LVL > $LOG1 2>&1 &
 PROVIDERPID=$!
 if test $WAIT != 0 ; then
@@ -184,6 +190,12 @@ fi
 
 echo "Starting consumer slapd on TCP/IP port $PORT2..."
 $SLAPADD -F $CFCON -n 0 -l $CONFLDIF
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 $SLAPD -F $CFCON -h $URI2 -d $LVL > $LOG2 2>&1 &
 CONSUMERPID=$!
 if test $WAIT != 0 ; then
@@ -446,6 +458,12 @@ sleep 3
 
 echo "Exporting config database for consumer from provider"
 $SLAPCAT -o ldif-wrap=no -F testrun/cfpro.d -b "cn=config,cn=consumer" -l testrun/config-consumer.ldif
+RC=$?
+if test $RC != 0 ; then
+	echo "slapcat failed ($RC)!"
+	exit $RC
+fi
+
 echo "Rewriting config database for loading on consumer"
 cp testrun/config-consumer.ldif testrun/consumer.ldif
 sed -i -e "s/^dn:\(.*\),cn=consumer/dn:\1/" testrun/consumer.ldif
@@ -453,6 +471,11 @@ mv $CFCON $CFCON.orig
 mkdir -p $CFCON
 echo "Reloading config database on consumer"
 $SLAPADD -F $CFCON -n 0 -l testrun/consumer.ldif
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 echo "Restarting consumer slapd on TCP/IP port $PORT2..."
 $SLAPD -F $CFCON -h $URI2 -d $LVL >> $LOG2 2>&1 &

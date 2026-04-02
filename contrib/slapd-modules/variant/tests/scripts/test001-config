@@ -96,6 +96,12 @@ echo "database config" >>$CONF2
 echo "rootpw `$SLAPPASSWD -T $CONFIGPWF`" >>$CONF2
 
 $SLAPADD -f $CONF2 -l $LDIFORDERED
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 $SLAPD -Tt -f $CONF2 -F $TESTDIR/conftest -d $LVL >> $LOG2 2>&1
 RC=$?
 if test $RC != 0 ; then

@@ -120,6 +120,12 @@ echo "Starting lloadd on TCP/IP port $PORT1..."
 . $CONFFILTER $BACKEND < $LLOADDUNREACHABLECONF > $CONF1.lloadd
 . $CONFFILTER $BACKEND < $SLAPDLLOADCONF > $CONF1.slapd
 $SLAPD -Tt -f $CONF1.slapd -F $CONF1.d -d $LVL > $LOG1 2>&1
+RC=$?
+if test $RC != 0 ; then
+    echo "slaptest failed ($RC)!"
+    exit $RC
+fi
+
 $SLAPD -F $CONF1.d -h $URI6 -d $LVL >> $LOG1 2>&1 &
 PID=$!
 if test $WAIT != 0 ; then

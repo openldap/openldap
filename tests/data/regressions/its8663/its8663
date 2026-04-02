@@ -40,6 +40,12 @@ ITSDIR=$DATADIR/regressions/its$ITS
 echo "Starting provider slapd on TCP/IP port $PORT1..."
 . $CONFFILTER $BACKEND < $ITSDIR/slapd-provider.ldif > $CONFLDIF
 $SLAPADD -F $CFPRO -n 0 -l $CONFLDIF
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 $SLAPD -F $CFPRO -h $URI1 -d $LVL > $LOG1 2>&1 &
 PID=$!
 if test $WAIT != 0 ; then

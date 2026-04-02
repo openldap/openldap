@@ -38,6 +38,11 @@ ITSDIR=$DATADIR/regressions/its$ITS
 echo "Starting slapd on TCP/IP port $PORT1..."
 . $CONFFILTER $BACKEND < $ITSDIR/slapd.ldif > $CONFLDIF
 $SLAPADD -F $CFPRO -n 0 -l $CONFLDIF
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 echo "Populating root database..."
 $SLAPADD -F $CFPRO -b "dc=example,dc=com" -l $ITSDIR/root.ldif >> $TESTOUT 2>&1

@@ -58,7 +58,19 @@ while [ $n -le $MPR ]; do
 	mkdir -p ${XDIR}$n $DBDIR.1 $DBDIR.2 $CFDIR
 	. $CONFFILTER $BACKEND < $ITSDIR/slapd-provider${n}.ldif > $CONFLDIF
 	$SLAPADD -F $CFDIR -n 0 -l $CONFLDIF
+	RC=$?
+	if test $RC != 0 ; then
+		echo "slapadd failed ($RC)!"
+		exit $RC
+	fi
+
 	$SLAPADD -F $CFDIR -q -b $BASEDN -l $ITSDIR/db.ldif
+	RC=$?
+	if test $RC != 0 ; then
+		echo "slapadd failed ($RC)!"
+		exit $RC
+	fi
+
 	n=`expr $n + 1`
 done
 
@@ -142,6 +154,12 @@ mv $DBDIR.1 $DBDIR.1.orig
 mv $DBDIR.2 $DBDIR.2.orig
 mkdir -p $DBDIR.1 $DBDIR.2
 $SLAPADD -F $CFDIR -q -b $BASEDN -l $ITSDIR/db.ldif
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 echo "done"
 
 echo "Starting provider1 slapd on TCP/IP URI $URI1"
@@ -184,6 +202,12 @@ n=1
 while [ $n -le 4 ]; do
 	CFDIR=${XDIR}$n/slapd.d
 	$SLAPCAT -F $CFDIR -b $BASEDN -l $TESTDIR/finaldb-$n.ldif
+	RC=$?
+	if test $RC != 0 ; then
+		echo "slapcat failed ($RC)!"
+		exit $RC
+	fi
+
 	n=`expr $n + 1`
 done
 

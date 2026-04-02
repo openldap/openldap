@@ -62,6 +62,12 @@ cp $ITSDIR/db.ldif $TESTDIR
 echo "Running slapadd to build database on the provider..."
 . $CONFFILTER $BACKEND <  $ITSDIR/slapd-provider.ldif > $CONFLDIF
 $SLAPADD -F $PDIR/slapd.d -n 0 -l $CONFLDIF
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 $SLAPADD -F $PDIR/slapd.d -q -b $BASEDN -l $TESTDIR/db.ldif
 RC=$?
 if test $RC != 0 ; then
@@ -104,6 +110,12 @@ fi
 echo "Starting slapd consumer on TCP/IP port $PORT3 and ${PORT4}..."
 . $CONFFILTER $BACKEND < $ITSDIR/slapd-consumer.ldif > $CONF2
 $SLAPADD -F $CDIR/slapd.d -n 0 -l $CONF2
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 $SLAPD -F $CDIR/slapd.d -h "$URI3 $SURI4" -d $LVL > $LOG2 2>&1 &
 CONSPID=$!
 if test $WAIT != 0 ; then

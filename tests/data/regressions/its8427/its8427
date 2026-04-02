@@ -130,6 +130,11 @@ EOF
 echo "Configuring provider"
 cd $TESTDIR/srv1
 $SLAPADD -F ./slapd.d -n 0 -d-1 < $TMP > $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 $SLAPADD -F ./slapd.d -n 0 -d-1 <<EOF >> $TESTOUT 2>&1
 dn: olcOverlay=syncprov,olcDatabase={1}$BACKEND,cn=config
@@ -137,6 +142,12 @@ objectClass: olcOverlayConfig
 objectClass: olcSyncProvConfig
 olcOverlay: syncprov
 EOF
+
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 echo "Starting provider..."
 $SLAPD -F ./slapd.d -h "$SURIP1 ldaps://127.0.0.2:$PORT1" -d $LVL > $LOG1 2>&1 &
@@ -169,6 +180,11 @@ fi
 echo "Configuring consumer"
 cd $TESTDIR/srv2
 $SLAPADD -F ./slapd.d -n 0 -d-1 < $TMP >> $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 $SLAPMODIFY -F ./slapd.d -n 0 -d-1 <<EOF >> $TESTOUT 2>&1
 dn: olcDatabase={1}$BACKEND,cn=config
@@ -179,6 +195,12 @@ olcSyncRepl: rid=001 provider=ldaps://127.0.0.2:$PORT1
   searchbase="$BASEDN" $SYNCTYPE retry="3 +" timeout=3
   tls_cacert=$TESTDIR/tls/ca/certs/testsuiteCA.crt tls_reqcert=allow
 EOF
+
+RC=$?
+if test $RC != 0 ; then
+	echo "slapmodify failed ($RC)!"
+	exit $RC
+fi
 
 echo "Starting consumer..."
 $SLAPD -F ./slapd.d -h $URI2 -d $LVL > $LOG2 2>&1 &

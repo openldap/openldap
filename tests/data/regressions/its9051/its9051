@@ -38,7 +38,18 @@ echo "Initializing server configuration for provider..."
 mkdir -p ${XDIR} $DBDIR.1 $DBDIR.2 $CFDIR
 . $CONFFILTER $BACKEND < $ITSDIR/slapd-provider.ldif > $CONFLDIF
 $SLAPADD -F $CFDIR -n 0 -l $CONFLDIF
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
+
 $SLAPADD -F $CFDIR -q -b $BASEDN -l $ITSDIR/db.ldif
+RC=$?
+if test $RC != 0 ; then
+	echo "slapadd failed ($RC)!"
+	exit $RC
+fi
 
 KILLPIDS=
 CFDIR=${XDIR}/slapd.d

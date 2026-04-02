@@ -56,6 +56,12 @@ while [ $n -le $MMR ]; do
 	fi
 	sed -e "s/@SID@/$n/g" -e "s|@URI@|$MYURI|g" $TESTDIR/config${n}.ldif > $CONFLDIF
 	$SLAPADD -F $CFDIR -n 0 -l $CONFLDIF
+	RC=$?
+	if test $RC != 0 ; then
+		echo "slapadd failed ($RC)!"
+		exit $RC
+	fi
+
 	n=`expr $n + 1`
 done
 

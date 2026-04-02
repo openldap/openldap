@@ -61,6 +61,12 @@ while [ $n -le $MPR ]; do
 	mkdir -p ${XDIR}$n $DBDIR.1 $DBDIR.2 $CFDIR
 	. $CONFFILTER $BACKEND < $ITSDIR/slapd-provider${n}.ldif > $CONFLDIF
 	$SLAPADD -F $CFDIR -n 0 -l $CONFLDIF
+	RC=$?
+	if test $RC != 0 ; then
+		echo "slapadd failed ($RC)!"
+		exit $RC
+	fi
+
 	n=`expr $n + 1`
 done
 
