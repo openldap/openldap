@@ -3537,7 +3537,7 @@ syncrepl_message_to_entry(
 	size_t textlen = sizeof txtbuf;
 
 	struct berval	bdn = BER_BVNULL, dn, ndn, bv2;
-	int		rc, is_ctx;
+	int		rc, is_ctx, freeReqDn = 0;
 
 	*modlist = NULL;
 
@@ -3605,12 +3605,13 @@ syncrepl_message_to_entry(
 	ber_dupbv( &op->o_req_ndn, &ndn );
 	slap_sl_free( ndn.bv_val, op->o_tmpmemctx );
 	slap_sl_free( dn.bv_val, op->o_tmpmemctx );
+	freeReqDn = 1;
 
 	is_ctx = dn_match( &op->o_req_ndn, &op->o_bd->be_nsuffix[0] );
 
 	e = entry_alloc();
-	e->e_name = op->o_req_dn;
-	e->e_nname = op->o_req_ndn;
+	ber_dupbv( &e->e_name, &op->o_req_dn );
+	ber_dupbv( &e->e_nname, &op->o_req_ndn );
 
 	while ( ber_remaining( ber ) ) {
 		if ( (ber_scanf( ber, "{mW}", &tmp.sml_type, &tmp.sml_values ) ==
@@ -3720,6 +3721,10 @@ syncrepl_message_to_entry(
 
 done:
 	ber_free( ber, 0 );
+	if ( freeReqDn ) {
+		ber_memfree( op->o_req_dn.bv_val );
+		ber_memfree( op->o_req_ndn.bv_val );
+	}
 	if ( rc != LDAP_SUCCESS ) {
 		if ( e ) {
 			entry_free( e );
@@ -4482,8 +4487,8 @@ retry_add:;
 		if ( BER_BVISNULL( &dni.dn ) ) {
 			SlapReply	rs_add = {REP_RESULT};
 
-			op->o_req_dn = entry->e_name;
-			op->o_req_ndn = entry->e_nname;
+			ber_dupbv( &op->o_req_dn, &entry->e_name );
+			ber_dupbv( &op->o_req_ndn, &entry->e_nname );
 			op->o_tag = LDAP_REQ_ADD;
 			op->ora_e = entry;
 			op->o_bd = si->si_wbe;
@@ -4494,6 +4499,8 @@ retry_add:;
 			Debug( LDAP_DEBUG_SYNC,
 					"syncrepl_entry: %s be_add %s (%d)\n", 
 					si->si_ridtxt, op->o_req_dn.bv_val, rc );
+			ber_memfree( op->o_req_dn.bv_val );
+			ber_memfree( op->o_req_ndn.bv_val );
 			switch ( rs_add.sr_err ) {
 			case LDAP_SUCCESS:
 				if ( op->ora_e == entry ) {
@@ -4575,7 +4582,7 @@ retry_add:;
 			default:
 				Debug( LDAP_DEBUG_ANY,
 					"syncrepl_entry: %s be_add %s failed (%d)\n",
-					si->si_ridtxt, op->o_req_dn.bv_val, rs_add.sr_err );
+					si->si_ridtxt, entry->e_name.bv_val, rs_add.sr_err );
 				break;
 			}
 			syncCSN = NULL;
@@ -5348,8 +5355,8 @@ syncrepl_add_glue(
 	cb.sc_response = syncrepl_null_callback;
 	cb.sc_private = NULL;
 
-	op->o_req_dn = e->e_name;
-	op->o_req_ndn = e->e_nname;
+	ber_dupbv( &op->o_req_dn, &e->e_name );
+	ber_dupbv( &op->o_req_ndn, &e->e_nname );
 	op->ora_e = e;
 	rc = be->be_add ( op, &rs_add );
 	if ( rs_add.sr_err == LDAP_SUCCESS ) {
@@ -5358,6 +5365,8 @@ syncrepl_add_glue(
 	} else {
 		entry_free( e );
 	}
+	ber_memfree( op->o_req_dn.bv_val );
+	ber_memfree( op->o_req_ndn.bv_val );
 
 	return rc;
 }
