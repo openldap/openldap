@@ -447,6 +447,7 @@ $CMP $PROVIDERFLT $CONSUMERFLT > $CMPOUT
 
 if test $? != 0 ; then
 	echo "test failed - provider and consumer databases differ"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
 
@@ -539,23 +540,27 @@ CSN2=`$LDAPSEARCH -x -D "cn=config" -w "topsecret" -H $URI2 -b "cn=config" -s ba
 
 if test -z "$CSN1" ; then
 	echo "ERROR: contextCSN missing on the provider version of the consumer config"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
 
 if test -z "$CSN2" ; then
 	echo "ERROR: contextCSN missing on the consumer config database"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
 
 nCSN=`echo "$CSN1" | wc -l`
 if test "$nCSN" -ne 2 ; then
 	echo "ERROR: Wrong contextCSN count on provider, should be 2"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
 
 nCSN=`echo "$CSN2" | wc -l`
 if test "$nCSN" -ne 2 ; then
 	echo "ERROR: Wrong contextCSN count on consumer, should be 2"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
 if  test -z "$CSN2" -o "$CSN1" != "$CSN2" ; then
@@ -564,6 +569,7 @@ if  test -z "$CSN2" -o "$CSN1" != "$CSN2" ; then
 	echo "$CSN1"
 	echo "contextCSN on consumer:"
 	echo "$CSN2"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi
 
