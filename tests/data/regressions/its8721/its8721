@@ -165,7 +165,7 @@ fi
 
 echo "Stopping backend and triggering quarantine..."
 kill -HUP $SERVERPID2
-wait $SERVERPID2
+wait $SERVERPID2 || { kill -HUP $KILLPIDS; exit 1; }
 KILLPIDS="$SERVERPID3 $PROXYPID"
 
 QUARANTINE_START=$(( `date +%s` ))
@@ -235,6 +235,6 @@ fi
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

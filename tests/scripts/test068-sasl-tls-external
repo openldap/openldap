@@ -125,6 +125,6 @@ else
 	RC=0
 fi
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit $RC

@@ -269,7 +269,7 @@ fi
 
 echo "Stopping the provider, sleeping $SLEEP2 seconds and restarting it..."
 kill -HUP "$MASTERPID"
-wait $MASTERPID
+wait $MASTERPID || { kill -HUP $KILLPIDS; exit 1; }
 sleep $SLEEP2
 
 echo "======================= RESTART =======================" >> $LOG1
@@ -331,6 +331,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

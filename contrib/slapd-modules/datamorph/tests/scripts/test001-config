@@ -59,7 +59,7 @@ if test $RC != 0 ; then
 fi
 
 echo "Stopping slapd on TCP/IP port $PORT1..."
-kill -HUP $KILLPIDS
+kill -HUP $KILLPIDS && wait $KILLPIDS || exit $?
 KILLPIDS=""
 sleep $SLEEP0
 echo "Starting slapd on TCP/IP port $PORT1..."
@@ -243,6 +243,6 @@ fi
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

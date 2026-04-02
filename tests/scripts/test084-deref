@@ -87,7 +87,7 @@ fi
 
 test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 

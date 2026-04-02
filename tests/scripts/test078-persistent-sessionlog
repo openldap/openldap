@@ -366,8 +366,8 @@ fi
 
 
 echo "Restarting servers..."
-kill -HUP $KILLPIDS
-wait
+kill -HUP $KILLPIDS || exit $?
+wait $KILLPIDS || exit $?
 KILLPIDS=""
 n=1
 while [ $n -le $MMR ]; do
@@ -647,6 +647,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

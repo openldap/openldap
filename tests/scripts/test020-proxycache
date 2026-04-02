@@ -158,7 +158,7 @@ grep "query template" $LOG2 > /dev/null
 RC=$?
 if test $RC != 0 ; then
 	echo "Debug messages unavailable, remaining test skipped..."
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS && wait
+	test $KILLSERVERS != no && { kill -HUP $KILLPIDS && wait $KILLPIDS || exit $?; }
 	exit 0
 fi
 
@@ -638,6 +638,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

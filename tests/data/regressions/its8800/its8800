@@ -142,7 +142,7 @@ echo "done"
 
 echo -n "Stopping MPR1 slapd..."
 kill -HUP $MPID
-wait $MPID
+wait $MPID || { kill -HUP $KILLPIDS; exit 1; }
 KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $MPID / /"`;
 sleep $SLEEP2
 echo "done"
@@ -227,6 +227,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

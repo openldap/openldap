@@ -122,7 +122,7 @@ fi
 SLEEP=2
 echo "Stopping the server and sleeping $SLEEP seconds..."
 kill -HUP "$SERVERPID"
-wait $SERVERPID
+wait $SERVERPID || { kill -HUP $KILLPIDS; exit 1; }
 sleep $SLEEP
 KILLPIDS="$PROXYPID"
 
@@ -219,6 +219,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

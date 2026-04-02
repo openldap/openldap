@@ -379,10 +379,10 @@ sleep $SLEEP0
 kill -HUP $PID3
 KILLPIDS=`echo " $KILLPIDS " | sed -e "s/ $PID3 / /"`
 
-wait "$PID3"
+wait "$PID3" || wait $?
 
 echo "Waiting for the syncrepl session to finish"
-wait "$SYNCPID1"
+wait "$SYNCPID1" || wait $?
 KILLPIDS=`echo " $KILLPIDS " | sed -e "s/ $SYNCPID1 / /"`
 
 $LDAPCOMPARE -H $URI5 "$CONN_INTER" olmConnectionState:dying >>$TESTOUT 2>&1
@@ -423,6 +423,6 @@ fi
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

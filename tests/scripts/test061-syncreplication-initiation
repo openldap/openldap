@@ -353,7 +353,7 @@ while test $ERROR -eq 0 -a $RACE_NUM -lt $INITIATION_RACE_TESTS ; do
 	echo "Stopping forwarders for add test"
 	for pid in $FWD1_PID; do
 		kill -HUP $pid
-		wait $pid
+		wait $pid || { kill -HUP $KILLPIDS; exit 1; }
 		KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $pid / /"`;
 	done
 
@@ -434,7 +434,7 @@ EOF
 	echo "Stopping forwarders for add/delete test"
 	for pid in $FWD1_PID; do
 		kill -HUP $pid
-		wait $pid
+		wait $pid || { kill -HUP $KILLPIDS; exit 1; }
 		KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $pid / /"`;
 	done
 
@@ -561,7 +561,7 @@ EOF
 	echo "Stopping forwarders for delete test"
 	for pid in $FWD1_PID; do
 		kill -HUP $pid
-		wait $pid
+		wait $pid || { kill -HUP $KILLPIDS; exit 1; }
 		KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $pid / /"`;
 	done
 

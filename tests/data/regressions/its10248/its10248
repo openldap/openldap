@@ -199,7 +199,7 @@ echo ">>>>> Test succeeded"
 
 if test $KILLSERVERS != no ; then
 	kill -HUP $KILLPIDS
-	wait
+	wait $KILLPIDS || exit $?
 fi
 
 exit 0

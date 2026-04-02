@@ -349,7 +349,7 @@ EOF
 	echo "Verifying entry was logged to named pipe..."
 	sleep 1
 	kill $CATPID 2>/dev/null
-	wait $CATPID 2>/dev/null
+	wait $CATPID 2>/dev/null || { kill -HUP $KILLSERVERS; exit 1; }
 
 	if [ ! -f $TESTDIR/pipe.log ]; then
 		echo "Named pipe log file was not created!"
@@ -414,6 +414,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

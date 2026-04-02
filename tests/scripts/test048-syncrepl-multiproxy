@@ -214,7 +214,7 @@ fi
 CHECK=`expr $CHECK + 1`
 echo "$CHECK > Stopping the provider, sleeping $SLEEP2 seconds and restarting it..."
 kill -HUP "$PROVIDERPID"
-wait $PROVIDERPID
+wait $PROVIDERPID || { kill -HUP $KILLPIDS; exit 1; }
 sleep $SLEEP2
 
 echo "======================= RESTART =======================" >> $LOG1
@@ -398,8 +398,8 @@ fi
 CHECK=`expr $CHECK + 1`
 echo "$CHECK > Stopping consumer to test recovery..."
 kill -HUP $P1CONSUMERPID $R1CONSUMERPID
-wait $P1CONSUMERPID
-wait $R1CONSUMERPID
+wait $P1CONSUMERPID || { kill -HUP $KILLPIDS; exit 1; }
+wait $R1CONSUMERPID || { kill -HUP $KILLPIDS; exit 1; }
 
 echo "Modifying more entries on the provider..."
 $LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
@@ -591,6 +591,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

@@ -209,6 +209,7 @@ echo "Checking ldapsearch status"
 exec 3>&-
 wait $LDAPSEARCHPID
 RC=$?
+KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $LDAPSEARCHPID / /"`
 if test $RC != 52 ; then
 	echo "Failure: expected ldapsearch to return error unavailable (52) from proxy but got $RC"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS 2>/dev/null
@@ -277,6 +278,7 @@ echo "Checking ldapsearch status"
 exec 3>&-
 wait $LDAPSEARCHPID
 RC=$?
+KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $LDAPSEARCHPID / /"`
 
 if test $RC != 0 ; then
 	echo "ldapsearch failed ($RC)!"
@@ -342,6 +344,7 @@ echo "Checking ldapsearch status"
 exec 3>&-
 wait $LDAPSEARCHPID
 RC=$?
+KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $LDAPSEARCHPID / /"`
 if test $RC != 52 ; then
 	echo "Failure: expected ldapsearch to return error unavailable (52) from proxy but got $RC"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS 2>/dev/null
@@ -406,6 +409,7 @@ echo "Checking ldapsearch status"
 exec 3>&-
 wait $LDAPSEARCHPID
 RC=$?
+KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $LDAPSEARCHPID / /"`
 if test $RC != 52 ; then
 	echo "Failure: expected ldapsearch to return error unavailable (52) from proxy but got $RC"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS 2>/dev/null
@@ -417,6 +421,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS 2>/dev/null
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

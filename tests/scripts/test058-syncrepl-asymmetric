@@ -946,7 +946,7 @@ ERRORS=0
 # values unless the bug in ITS#5597 have been fixed.
 echo "Stopping site1 provider..."
 kill -HUP "$SM1_PID"
-wait "$SM1_PID"
+wait "$SM1_PID" || { kill -HUP $KILLPIDS; exit 1; }
 KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SM1_PID / /"`;
 SM1_PID=
 
@@ -1293,7 +1293,7 @@ fi
 if test $CSN_ERRORS != 0 ; then
 	echo "Stopping all servers to synchronize contextCSN..."
 	kill -HUP  $KILLPIDS
-	for pid in $KILLPIDS ; do wait $pid ; done
+	for pid in $KILLPIDS ; do wait $pid || exit $? ; done
 	KILLPIDS=
 
 	echo "Restarting site1 provider slapd on TCP/IP port $PORT2..."
@@ -1379,7 +1379,7 @@ if test $CSN_ERRORS != 0 ; then
 
 	echo "Stopping site1 and site2 provider..."
 	kill -HUP  $SM1_PID $SM2_PID
-	for pid in $SM1_PID $SM2_PID ; do wait $pid ; done
+	for pid in $SM1_PID $SM2_PID ; do wait $pid || exit $? ; done
 	KILLPIDS=" $SMC_PID"
 
 	echo "Restarting site1 provider slapd on TCP/IP port $PORT2..."
@@ -2041,7 +2041,7 @@ echo "Checking contextCSN after modify of second backend on site2 provider..."
 # connection has been set up when site2 provider receives the database:
 echo "Stopping central provider and site2 servers to test start with empty db..."
 kill -HUP  $SMC_PID $SM2_PID $SS2_PID
-for pid in $SMC_PID $SM2_PID $SS2_PID; do wait $pid ; done
+for pid in $SMC_PID $SM2_PID $SS2_PID; do wait $pid || exit $? ; done
 KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SMC_PID / /"`;
 KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SM2_PID / /"`;
 KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SS2_PID / /"`;
@@ -2219,7 +2219,7 @@ if test $RC != 0 ; then
 
 	echo "Restarting central provider slapd on TCP/IP port $PORT1..."
 	kill -HUP $SMC_PID
-	wait $SMC_PID
+	wait $SMC_PID || { kill -HUP $KILLPIDS; exit 1; }
 	KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SMC_PID / /"`;
 
 	cd $SMC_DIR
@@ -2285,7 +2285,7 @@ if test $RC != 0 ; then
 
 	echo "Restarting central search slapd on TCP/IP port $PORT4..."
 	kill -HUP $SSC_PID
-	wait $SSC_PID
+	wait $SSC_PID || { kill -HUP $KILLPIDS; exit 1; }
 	KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SSC_PID / /"`;
 
 	cd $SSC_DIR
@@ -2355,7 +2355,7 @@ while test $RACE_ERROR -eq 0 -a $RACE_NUM -lt $RACE_TESTS ; do
 
 	echo "Stopping central provider..."
 	kill -HUP $SMC_PID
-	wait $SMC_PID
+	wait $SMC_PID || { kill -HUP $KILLPIDS; exit 1; }
 	KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SMC_PID / /"`;
 
 	MNUM=`expr $MNUM + 1`
@@ -2408,7 +2408,7 @@ EOF
 
 	echo "Stopping central provider..."
 	kill -HUP $SMC_PID
-	wait $SMC_PID
+	wait $SMC_PID || { kill -HUP $KILLPIDS; exit 1; }
 	KILLPIDS=`echo "$KILLPIDS " | sed -e "s/ $SMC_PID / /"`;
 
 	echo "Using ldapdelete to delete entry on site1 provider..."
@@ -2470,7 +2470,7 @@ else
 	echo "No race errors found after $RACE_TESTS iterations"
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS && wait $KILLPIDS || exit $?; }
 
 if test $ERRORS -ne 0; then
 	echo "Found $ERRORS errors"

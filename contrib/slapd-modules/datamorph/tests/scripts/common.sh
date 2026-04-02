@@ -117,7 +117,7 @@ else
 fi
 
 echo "Stopping slapd on TCP/IP port $PORT1..."
-kill -HUP $KILLPIDS
+kill -HUP $KILLPIDS && wait $KILLPIDS || exit $?
 KILLPIDS=""
 sleep $SLEEP0
 

@@ -509,7 +509,7 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS && wait $KILLPIDS || exit $?; }
 test "$lock_bug" = 2	&& exit 2
 
 echo ">>>>> Test succeeded"

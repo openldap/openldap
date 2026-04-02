@@ -118,6 +118,8 @@ C1PID=$!
 $LDAPADD -D "$MANAGERDN" -H $URI1 -w $PASSWD < \
 	$MORELDIF > $TESTOUT2 2>&1 &
 C2PID=$!
+# These two are explicitly racing on certain entries, so can legitimately
+# exit != 0 under normal circumstances
 wait $C1PID $C2PID
 
 echo "Waiting $SLEEP1 seconds for syncrepl to receive changes..."
@@ -125,7 +127,7 @@ sleep $SLEEP1
 
 echo "Stopping the provider, sleeping 10 seconds and restarting it..."
 kill -HUP "$PID"
-wait $PID
+wait $PID || { kill -HUP $KILLPIDS; exit 1; }
 sleep 10
 echo "RESTART" >> $LOG1
 $SLAPD -f $CONF1 -h $URI1 -d $LVL >> $LOG1 2>&1 &
@@ -261,7 +263,7 @@ sleep $SLEEP1
 
 echo "Stopping consumer to test recovery..."
 kill -HUP $CONSUMERPID
-wait $CONSUMERPID
+wait $CONSUMERPID || { kill -HUP $KILLPIDS; exit 1; }
 
 echo "Modifying more entries on the provider..."
 $LDAPMODIFY -v -D "$MANAGERDN" -H $URI1 -w $PASSWD >> \
@@ -372,6 +374,6 @@ fi
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

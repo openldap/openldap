@@ -161,7 +161,7 @@ fi
 echo "Stopping slapd and reworking configuration for MPR..."
 
 kill -HUP $KILLPIDS
-wait $KILLPIDS
+wait $KILLPIDS || exit $?
 
 KILLPIDS=
 n=1
@@ -375,7 +375,7 @@ EOMODS
 done
 
 kill -HUP $KILLPIDS
-wait $KILLPIDS
+wait $KILLPIDS || exit $?
 
 echo "The next step of the test will perform $iterations random write operations and may take some time."
 echo "As this test is for a deadlock, it will take manual intervention to exit the test if one occurs."
@@ -508,6 +508,6 @@ test $KILLSERVERS != no && kill -HUP $KILLPIDS
 
 echo ">>>>> Test succeeded"
 
-test $KILLSERVERS != no && wait
+test $KILLSERVERS != no && { wait $KILLPIDS || exit $?; }
 
 exit 0

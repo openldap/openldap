@@ -292,7 +292,7 @@ if test $RC != 0 ; then
 fi
 
 
-test $KILLSERVERS != no && kill -HUP $KILLPIDS
+test $KILLSERVERS != no && { kill -HUP $KILLPIDS && wait $KILLPIDS || exit $?; }
 
 echo ">>>>> Test succeeded"
 
