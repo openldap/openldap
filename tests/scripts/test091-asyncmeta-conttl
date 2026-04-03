@@ -220,61 +220,81 @@ if test $? != 0 ; then
 fi
 # wait 7 seconds (the con ttl time + 1) and search cn=monitor
 # connection group 1 should be closed
+# we allow a couple of retrys to compensate for delays
 echo "Waiting for the time-to-live time..."
 sleep $SLEEP1
 SEARCHDN="cn=Connections,cn=database 1,cn=databases,cn=monitor"
 echo "Verifying that connection group 1 is closed..."
-cat /dev/null > $SEARCHOUT
+for i in 0 1 2; do
+	cat /dev/null > $SEARCHOUT
 
-echo "	base=\"cn=Connection Group 1,$SEARCHDN\"..."
-echo "# 	base=\"$SEARCHDN\"..." >> $SEARCHOUT
-$LDAPSEARCH  -H $URI3 \
-			 -b "cn=Connection Group 1,$SEARCHDN" \
-			 "olmTargetConnFlags=closed" 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
-RC=$?
-if test $RC != 0 ; then
-	echo "Unable to read monitor ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
-fi
-echo "Filtering ldapsearch results..."
-$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
-$LDIFFILTER < $DATADIR/asyncmeta.1.out > $LDIFFLT
-echo "Comparing filter output..."
-$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
-if test $? != 0 ; then
-	echo "Comparison failed - connection group 1 is not closed"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
-fi
+	echo "	base=\"cn=Connection Group 1,$SEARCHDN\"..."
+	echo "# 	base=\"$SEARCHDN\"..." >> $SEARCHOUT
+	$LDAPSEARCH  -H $URI3 \
+				 -b "cn=Connection Group 1,$SEARCHDN" \
+				 "olmTargetConnFlags=closed" 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
+	RC=$?
+	if test $RC != 0 ; then
+		echo "Unable to read monitor ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+	echo "Filtering ldapsearch results..."
+	$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+	$LDIFFILTER < $DATADIR/asyncmeta.1.out > $LDIFFLT
+	echo "Comparing filter output..."
+	$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+	if test $? != 0 ; then
+		if test $i != 2 ; then
+			echo "Comparison failed - connection group 1 is not closed, retrying in $SLEEP0 seconds..."
+			sleep $SLEEP0
+		else
+			echo "Comparison failed - connection group 1 is not closed, test failed"
+			test $KILLSERVERS != no && kill -HUP $KILLPIDS
+			exit 1
+		fi
+	else
+		echo "Comparison successful, all connections are closed"
+		break
+	fi
+done
 # wait 7 seconds (the con ttl interval + 1) and search cn=monitor
 # connection group 2 should be closed
 echo "Waiting for the connection reset interval..."
 sleep $SLEEP1
 echo "Verifying that target connection group 2 is closed..."
-cat /dev/null > $SEARCHOUT
+for i in 0 1 2; do
+	cat /dev/null > $SEARCHOUT
+	echo "	base=\"cn=Connection Group 2,$SEARCHDN\"..."
+	$LDAPSEARCH  -H $URI3 \
+				 -b "cn=Connection Group 2,$SEARCHDN" \
+				 "olmTargetConnFlags=closed" 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
+	RC=$?
+	if test $RC != 0 ; then
+		echo "Unable to read monitor ($RC)!"
+		test $KILLSERVERS != no && kill -HUP $KILLPIDS
+		exit $RC
+	fi
+	echo "Filtering ldapsearch results..."
+	$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
+	$LDIFFILTER < $DATADIR/asyncmeta.2.out > $LDIFFLT
+	echo "Comparing filter output..."
+	$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
+	if test $? != 0 ; then
+		if test $i != 2 ; then
+			echo "Comparison failed - connection group 2 is not closed, retrying in $SLEEP0 seconds..."
+			sleep $SLEEP0
+		else
+			echo "Comparison failed - connection group 2 is not closed, test failed"
+			test $KILLSERVERS != no && kill -HUP $KILLPIDS
+			exit 1
+		fi
+	else
+		echo "Comparison successful, all connections are closed"
+		break
+	fi
+done
 
-echo "	base=\"cn=Connection Group 2,$SEARCHDN\"..."
-$LDAPSEARCH  -H $URI3 \
-			 -b "cn=Connection Group 2,$SEARCHDN" \
-			 "olmTargetConnFlags=closed" 'olmTargetConnFlags' >> $SEARCHOUT 2>&1
-RC=$?
-if test $RC != 0 ; then
-	echo "Unable to read monitor ($RC)!"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
-fi
-
-echo "Filtering ldapsearch results..."
-$LDIFFILTER < $SEARCHOUT > $SEARCHFLT
-$LDIFFILTER < $DATADIR/asyncmeta.2.out > $LDIFFLT
-echo "Comparing filter output..."
-$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
-if test $? != 0 ; then
-	echo "Comparison failed - connection group 2 is not closed"
-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit 1
-fi
 # wait 7 seconds (the con ttl interval + 1) and search cn=monitor
 # all connections should be closed
 # sometimes the timeout loop may be delayed, so we give it a couple of
@@ -303,15 +323,15 @@ for i in 0 1 2; do
 	$CMP $SEARCHFLT $LDIFFLT > $CMPOUT
 	if test $? != 0 ; then
 		if test $i != 2 ; then
-			echo "Comparison failed - the connections are  not closed, retrying in $SLEEP0 seconds..."
+			echo "Comparison failed - the connections are not closed, retrying in $SLEEP0 seconds..."
 			sleep $SLEEP0
 		else
-			echo "Comparison failed - the connections are  not closed, test failed"
+			echo "Comparison failed - the connections are not closed, test failed"
 			test $KILLSERVERS != no && kill -HUP $KILLPIDS
 			exit 1
 		fi
 	else
-		echo "Comparison successfull, all connections are closed"
+		echo "Comparison successful, all connections are closed"
 		break
 	fi
 done
