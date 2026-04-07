@@ -287,6 +287,19 @@ mdb_db_open( BackendDB *be, ConfigReply *cr )
 	 * a configured index wasn't created yet.
 	 */
 	if ( !(slapMode & SLAP_TOOL_READONLY) ) {
+		/* check if objectClass index exists, add if not */
+		if ( mdb_attr_slot( mdb, slap_schema.si_ad_objectClass, NULL ) == -1 ) {
+			struct config_reply_s c_reply;
+			char *argv[] = { "objectClass", "eq" };
+			rc = mdb_attr_index_config( mdb, __FILE__, __LINE__, 2, argv, &c_reply );
+			if ( rc ) {
+				Debug( LDAP_DEBUG_ANY,
+					LDAP_XSTRING(mdb_db_open) ": database %s: "
+					"couldn't index objectClass attribute (%d)\n",
+					be->be_suffix[0].bv_val, rc );
+				goto fail;
+			}
+		}
 		rc = mdb_attr_dbs_open( be, txn, cr );
 		if ( rc ) {
 			mdb_txn_abort( txn );

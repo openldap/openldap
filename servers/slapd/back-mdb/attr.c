@@ -459,6 +459,12 @@ fail:
 					continue;
 				}
 			}
+			ch_free( a );
+			/* silently ignore redundant setting of objectClass index */
+			if ( ad == slap_schema.si_ad_objectClass ) {
+				rc = 0;
+				continue;
+			}
 			if (c_reply) {
 				snprintf(c_reply->msg, sizeof(c_reply->msg),
 					"duplicate index definition for attr \"%s\"",

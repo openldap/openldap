@@ -763,6 +763,10 @@ mdb_cf_gen( ConfigArgs *c )
 						/* if we got here... */
 						assert( ad != NULL );
 
+						/* silently ignore deletes of objectClass index */
+						if ( ad == slap_schema.si_ad_objectClass )
+							continue;
+
 						ai = mdb_attr_mask( mdb, ad );
 						/* if we got here... */
 						assert( ai != NULL );
