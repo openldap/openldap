@@ -157,7 +157,7 @@ ldap_parse_ldif_record_x(
 		}
 	
 		if ( ( rc = ldif_parse_line2( line, lr->lr_btype+i, lr->lr_vals+i, &freev ) ) < 0 ) {
-			fprintf( stderr, _("%s: invalid format (line %lu) entry: \"%s\"\n"),
+			Debug3( LDAP_DEBUG_ANY, _("%s: invalid format (line %lu) entry: \"%s\"\n"),
 				errstr, linenum+i, dn == NULL ? "" : dn );
 			rc = LDAP_PARAM_ERROR;
 			goto leave;
@@ -176,7 +176,7 @@ ldap_parse_ldif_record_x(
 				static const struct berval version1 = { 1, "1" };
 				if ( lr->lr_vals[i].bv_len != version1.bv_len || strncmp( lr->lr_vals[i].bv_val, version1.bv_val, version1.bv_len ) != 0 )
 				{
-					fprintf( stderr,
+					Debug3( LDAP_DEBUG_ANY,
 						_("%s: invalid version %s, line %lu (ignored)\n"),
 						errstr, lr->lr_vals[i].bv_val, linenum );
 				}
@@ -212,6 +212,9 @@ ldap_parse_ldif_record_x(
 	if ( no_dn ) {
 		i = 0;
 	} else {
+		if ( !dn )
+			dn = "(no DN)";
+
 		i = idn+1;
 		/* Check for "control" tag after dn and before changetype. */
 		if ( BV_CASEMATCH( lr->lr_btype+i, &BV_CONTROL )) {
@@ -219,7 +222,7 @@ ldap_parse_ldif_record_x(
 			if ( !( flags & LDIF_NO_CONTROLS ) ) {
 				rc = parse_ldif_control( lr->lr_vals+i, &pctrls );
 				if (rc != 0) {
-					fprintf( stderr,
+					Debug4( LDAP_DEBUG_ANY,
 							 _("%s: Error processing %s line, line %lu: %s\n"),
 							 errstr, BV_CONTROL.bv_val, linenum+i, ldap_err2string(rc) );
 				}
@@ -227,7 +230,7 @@ ldap_parse_ldif_record_x(
 			i++;
 			if ( i>= lr->lr_lines ) {
 short_input:
-				fprintf( stderr,
+				Debug3( LDAP_DEBUG_ANY,
 					_("%s: Expecting more input after %s line, line %lu\n"),
 					errstr, lr->lr_btype[i-1].bv_val, linenum+i );
 
@@ -249,13 +252,13 @@ short_input:
 		if ( ++icnt != lr->lr_vals[i].bv_len ) {
 #ifdef LIBERAL_CHANGETYPE_MODOP
 		/* trim trailing spaces (and log warning ...) */
-			fprintf( stderr, _("%s: illegal trailing space after"
+			Debug5( LDAP_DEBUG_ANY, _("%s: illegal trailing space after"
 				" \"%s: %s\" trimmed (line %lu, entry \"%s\")\n"),
 				errstr, BV_CHANGETYPE.bv_val, lr->lr_vals[i].bv_val, linenum+i, dn );
 			lr->lr_vals[i].bv_val[icnt] = '\0';
 			lr->lr_vals[i].bv_len = icnt;
 #else /* !LIBERAL_CHANGETYPE_MODOP */
-			fprintf( stderr, _("%s: illegal trailing space after"
+			Debug5( LDAP_DEBUG_ANY, _("%s: illegal trailing space after"
 				" \"%s: %s\" (line %lu, entry \"%s\")\n"),
 				errstr, BV_CHANGETYPE.bv_val, lr->lr_vals[i].bv_val, linenum+i, dn );
 			rc = LDAP_PARAM_ERROR;
@@ -291,7 +294,7 @@ short_input:
 			if ( i >= lr->lr_lines )
 				goto short_input;
 			if ( !BV_CASEMATCH( lr->lr_btype+i, &BV_NEWRDN )) {
-				fprintf( stderr, _("%s: expecting \"%s:\" but saw"
+				Debug5( LDAP_DEBUG_ANY, _("%s: expecting \"%s:\" but saw"
 					" \"%s:\" (line %lu, entry \"%s\")\n"),
 					errstr, BV_NEWRDN.bv_val, lr->lr_btype[i].bv_val, linenum+i, dn );
 				rc = LDAP_PARAM_ERROR;
@@ -302,7 +305,7 @@ short_input:
 			if ( i >= lr->lr_lines )
 				goto short_input;
 			if ( !BV_CASEMATCH( lr->lr_btype+i, &BV_DELETEOLDRDN )) {
-				fprintf( stderr, _("%s: expecting \"%s:\" but saw"
+				Debug5( LDAP_DEBUG_ANY, _("%s: expecting \"%s:\" but saw"
 					" \"%s:\" (line %lu, entry \"%s\")\n"),
 					errstr, BV_DELETEOLDRDN.bv_val, lr->lr_btype[i].bv_val, linenum+i, dn );
 				rc = LDAP_PARAM_ERROR;
@@ -312,7 +315,7 @@ short_input:
 			i++;
 			if ( i < lr->lr_lines ) {
 				if ( !BV_CASEMATCH( lr->lr_btype+i, &BV_NEWSUP )) {
-					fprintf( stderr, _("%s: expecting \"%s:\" but saw"
+					Debug5( LDAP_DEBUG_ANY, _("%s: expecting \"%s:\" but saw"
 						" \"%s:\" (line %lu, entry \"%s\")\n"),
 						errstr, BV_NEWSUP.bv_val, lr->lr_btype[i].bv_val, linenum+i, dn );
 					rc = LDAP_PARAM_ERROR;
@@ -325,8 +328,8 @@ short_input:
 		} else if ( BV_CASEMATCH( lr->lr_vals+i, &BV_DELETECT )) {
 			got_all = delete_entry = 1;
 		} else {
-			fprintf( stderr,
-				_("%s:  unknown %s \"%s\" (line %lu, entry \"%s\")\n"),
+			Debug5( LDAP_DEBUG_ANY,
+				_("%s: unknown %s \"%s\" (line %lu, entry \"%s\")\n"),
 				errstr, BV_CHANGETYPE.bv_val, lr->lr_vals[i].bv_val, linenum+i, dn );
 			rc = LDAP_PARAM_ERROR;
 			goto leave;
@@ -351,7 +354,7 @@ short_input:
 
 	if ( got_all ) {
 		if ( i < lr->lr_lines ) {
-			fprintf( stderr,
+			Debug3( LDAP_DEBUG_ANY,
 				_("%s: extra lines at end (line %lu, entry \"%s\")\n"),
 				errstr, linenum+i, dn );
 			rc = LDAP_PARAM_ERROR;
@@ -370,7 +373,7 @@ short_input:
 		for (; i<lr->lr_lines; i++) {
 			for (j=i+1; j<lr->lr_lines; j++) {
 				if ( !lr->lr_btype[j].bv_val ) {
-					fprintf( stderr,
+					Debug3( LDAP_DEBUG_ANY,
 						_("%s: missing attributeDescription (line %lu, entry \"%s\")\n"),
 						errstr, linenum+j, dn );
 					rc = LDAP_PARAM_ERROR;
@@ -416,7 +419,7 @@ short_input:
 		BER_BVZERO(&bv);
 		for (i=idn; i<lr->lr_lines; i++) {
 			if ( BV_CASEMATCH( lr->lr_btype+i, &BV_DN )) {
-				fprintf( stderr, _("%s: attributeDescription \"%s\":"
+				Debug4( LDAP_DEBUG_ANY, _("%s: attributeDescription \"%s\":"
 					" (possible missing newline"
 						" after line %lu, entry \"%s\"?)\n"),
 					errstr, lr->lr_btype[i].bv_val, linenum+i - 1, dn );
@@ -457,14 +460,14 @@ short_input:
     
 			if ( ++icnt != lr->lr_vals[i].bv_len ) {
 #ifdef LIBERAL_CHANGETYPE_MODOP
-				fprintf( stderr, _("%s: illegal trailing space after"
+				Debug5( LDAP_DEBUG_ANY, _("%s: illegal trailing space after"
 					" \"%s: %s\" trimmed (line %lu, entry \"%s\")\n"),
 					errstr, lr->lr_btype[i].bv_val, lr->lr_vals[i].bv_val,
 					linenum+i, dn );
 				lr->lr_vals[i].bv_val[icnt] = '\0';
 				lr->lr_vals[i].bv_len = icnt;
 #else /* !LIBERAL_CHANGETYPE_MODOP */
-				fprintf( stderr, _("%s: illegal trailing space after"
+				Debug5( LDAP_DEBUG_ANY, _("%s: illegal trailing space after"
 					" \"%s: %s\" (line %lu, entry \"%s\")\n"),
 					errstr, lr->lr_btype[i].bv_val, lr->lr_vals[i].bv_val,
 					linenum+i, dn );
@@ -497,7 +500,7 @@ short_input:
 				lr->lr_mops[i] = M_SEP;
 				nmods--;
 			} else {	/* no modify op: invalid LDIF */
-				fprintf( stderr, _("%s: modify operation type is missing at"
+				Debug3( LDAP_DEBUG_ANY, _("%s: modify operation type is missing at"
 					" line %lu, entry \"%s\"\n"),
 					errstr, linenum+i, dn );
 				rc = LDAP_PARAM_ERROR;
@@ -511,7 +514,7 @@ short_input:
 			nmods--;
 		} else {
 			if ( !BV_CASEMATCH( lr->lr_btype+i, &bv )) {
-				fprintf( stderr, _("%s: wrong attributeType at"
+				Debug3( LDAP_DEBUG_ANY, _("%s: wrong attributeType at"
 					" line %lu, entry \"%s\"\n"),
 					errstr, linenum+i, dn );
 				rc = LDAP_PARAM_ERROR;

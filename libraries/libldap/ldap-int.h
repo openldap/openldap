@@ -100,6 +100,15 @@
 	ldap_log_printf( NULL, (level), fmt, arg1, arg2, arg3 ); \
 	} while ( 0 )
 
+#define Debug4( level, fmt, arg1, arg2, arg3, arg4 ) \
+	do { if ( DebugTest( (level) ) ) \
+	ldap_log_printf( NULL, (level), fmt, arg1, arg2, arg3, arg4 ); \
+	} while ( 0 )
+
+#define Debug5( level, fmt, arg1, arg2, arg3, arg4, arg5 ) \
+	do { if ( DebugTest( (level) ) ) \
+	ldap_log_printf( NULL, (level), fmt, arg1, arg2, arg3, arg4, arg5 ); \
+	} while ( 0 )
 #else
 
 #define DebugTest( level )                                    (0 == 1)
@@ -107,6 +116,8 @@
 #define Debug1( level, fmt, arg1 )                            ((void)0)
 #define Debug2( level, fmt, arg1, arg2 )                      ((void)0)
 #define Debug3( level, fmt, arg1, arg2, arg3 )                ((void)0)
+#define Debug4( level, fmt, arg1, arg2, arg3, arg4 )          ((void)0)
+#define Debug5( level, fmt, arg1, arg2, arg3, arg4, arg5 )    ((void)0)
 
 #endif /* LDAP_DEBUG */
 

@@ -279,7 +279,9 @@ main( int argc, char **argv )
 		ldiffp = &ldifdummy;
 	}
 
-	if ( debug ) ldif_debug = debug;
+	if ( !debug )
+		debug = 32768; /* needs to be non-zero */
+	ldif_debug = debug;
 
 	ld = tool_conn_setup( dont, 0 );
 
