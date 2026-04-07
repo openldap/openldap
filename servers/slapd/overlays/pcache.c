@@ -2688,8 +2688,8 @@ pc_bind_attrs( Operation *op, Entry *e, QueryTemplate *temp,
 	for ( i=0; i<temp->bindnattrs; i++ ) {
 		a = attr_find( e->e_attrs, temp->bindfattrs[i] );
 		if ( a && a->a_vals ) {
-			vals[i] = a->a_vals[0];
-			len += a->a_vals[0].bv_len;
+			filter_escape_value( &a->a_vals[0], &vals[i] );
+			len += vals[i].bv_len;
 		} else {
 			vals[i] = pres;
 		}
@@ -2710,6 +2710,12 @@ pc_bind_attrs( Operation *op, Entry *e, QueryTemplate *temp,
 		p1++;
 	}
 	*p2 = '\0';
+
+	for ( i=0; i<temp->bindnattrs; i++ ) {
+		if ( vals[i].bv_val != pres.bv_val ) {
+			ch_free( vals[i].bv_val );
+		}
+	}
 	op->o_tmpfree( vals, op->o_tmpmemctx );
 
 	/* FIXME: are we sure str2filter_x can't fail?
