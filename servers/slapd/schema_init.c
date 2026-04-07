@@ -109,10 +109,10 @@
 #ifdef LUTIL_HASH64_BYTES
 #define HASH_BYTES				LUTIL_HASH64_BYTES
 #define HASH_LEN	hashlen
-static void (*hashinit)(lutil_HASH_CTX *ctx) = lutil_HASHInit;
-static void (*hashupdate)(lutil_HASH_CTX *ctx,unsigned char const *buf, ber_len_t len) = lutil_HASHUpdate;
-static void (*hashfinal)(unsigned char digest[HASH_BYTES], lutil_HASH_CTX *ctx) = lutil_HASHFinal;
-static int hashlen = LUTIL_HASH_BYTES;
+static void (*hashinit)(lutil_HASH_CTX *ctx) = lutil_HASH64Init;
+static void (*hashupdate)(lutil_HASH_CTX *ctx,unsigned char const *buf, ber_len_t len) = lutil_HASH64Update;
+static void (*hashfinal)(unsigned char digest[HASH_BYTES], lutil_HASH_CTX *ctx) = lutil_HASH64Final;
+static int hashlen = LUTIL_HASH64_BYTES;
 #define HASH_Init(c)			hashinit(c)
 #define HASH_Update(c,buf,len)	hashupdate(c,buf,len)
 #define HASH_Final(d,c)			hashfinal(d,c)
@@ -145,7 +145,7 @@ int slap_hash64( int onoff )
 #define HASH_Update(c,buf,len)	lutil_HASHUpdate(c,buf,len)
 #define HASH_Final(d,c)			lutil_HASHFinal(d,c)
 
-int slap_has64( int onoff )
+int slap_hash64( int onoff )
 {
 	if ( onoff < 0 )
 		return 0;
