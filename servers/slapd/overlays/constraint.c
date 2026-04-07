@@ -657,7 +657,7 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 			int found = 0;
 			int rc;
 			size_t len;
-			struct berval filterstr;
+			struct berval filterstr, escaped;
 			char *ptr;
 
 			cb.sc_response = constraint_uri_cb;
@@ -701,11 +701,13 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 				  c->filter.bv_len +
 				  STRLENOF(")(|");
 
+			filter_escape_value_x( bv, &escaped, op->o_tmpmemctx );
+
 			for (i = 0; c->attrs[i]; i++) {
 				len += STRLENOF("(") +
 					   c->attrs[i]->ad_cname.bv_len +
 					   STRLENOF("=") +
-					   bv->bv_len +
+					   escaped.bv_len +
 					   STRLENOF(")");
 			}
 
@@ -719,7 +721,7 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 				*ptr++ = '(';
 				ptr = lutil_strcopy( ptr, c->attrs[i]->ad_cname.bv_val );
 				*ptr++ = '=';
-				ptr = lutil_strcopy( ptr, bv->bv_val );
+				ptr = lutil_strcopy( ptr, escaped.bv_val );
 				*ptr++ = ')';
 			}
 			*ptr++ = ')';
@@ -748,6 +750,7 @@ constraint_violation( constraint *c, struct berval *bv, Operation *op )
 					rc, found );
 			}
 			op->o_tmpfree(filterstr.bv_val, op->o_tmpmemctx);
+			op->o_tmpfree(escaped.bv_val, op->o_tmpmemctx);
 
 			if ((rc != LDAP_SUCCESS) && (rc != LDAP_NO_SUCH_OBJECT)) {
 				return rc; /* unexpected error */
