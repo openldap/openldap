@@ -874,9 +874,23 @@ slap_send_ldap_result( Operation *op, SlapReply *rs )
 
 	rs->sr_type = REP_RESULT;
 
+	assert( rs->sr_err != LDAP_PARTIAL_RESULTS );
+
+	if ( rs->sr_err == LDAP_REFERRAL ) {
+		if( op->o_domain_scope ) rs->sr_ref = NULL;
+
+		if( rs->sr_ref == NULL ) {
+			rs->sr_err = LDAP_NO_SUCH_OBJECT;
+		} else if ( op->o_protocol < LDAP_VERSION3 ) {
+			rs->sr_err = LDAP_PARTIAL_RESULTS;
+		}
+	}
+
 	/* Propagate Abandons so that cleanup callbacks can be processed */
 	if ( rs->sr_err == SLAPD_ABANDON || op->o_abandon )
 		goto abandon;
+
+	assert( !LDAP_API_ERROR( rs->sr_err ) );
 
 	Debug( LDAP_DEBUG_TRACE,
 		"send_ldap_result: %s p=%d\n",
@@ -889,18 +903,6 @@ slap_send_ldap_result( Operation *op, SlapReply *rs )
 		Debug( LDAP_DEBUG_ARGS,
 			"send_ldap_result: referral=\"%s\"\n",
 			rs->sr_ref[0].bv_val ? rs->sr_ref[0].bv_val : "NULL" );
-	}
-	assert( !LDAP_API_ERROR( rs->sr_err ) );
-	assert( rs->sr_err != LDAP_PARTIAL_RESULTS );
-
-	if ( rs->sr_err == LDAP_REFERRAL ) {
-		if( op->o_domain_scope ) rs->sr_ref = NULL;
-
-		if( rs->sr_ref == NULL ) {
-			rs->sr_err = LDAP_NO_SUCH_OBJECT;
-		} else if ( op->o_protocol < LDAP_VERSION3 ) {
-			rs->sr_err = LDAP_PARTIAL_RESULTS;
-		}
 	}
 
 	if ( op->o_protocol < LDAP_VERSION3 ) {
