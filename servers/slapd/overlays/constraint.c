@@ -945,6 +945,7 @@ constraint_check_count_violation( Modifications *m, Entry *target_entry, constra
 
 	for ( j = 0; cp->ap[j]; j++ ) {
 		/* Get this attribute count */
+		ce = 0;
 		if ( target_entry )
 			ce = constraint_count_attr( target_entry, cp->ap[j] );
 
@@ -988,9 +989,12 @@ constraint_check_count_violation( Modifications *m, Entry *target_entry, constra
 					ce, ca, (unsigned long) cp->count);
 			}
 		}
+		if ( ce > cp->count ) {
+			return 1;
+		}
 	}
 
-	return ( ce > cp->count );
+	return 0;
 }
 
 static int
