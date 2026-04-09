@@ -874,7 +874,6 @@ slap_send_ldap_result( Operation *op, SlapReply *rs )
 
 	rs->sr_type = REP_RESULT;
 
-	assert( !LDAP_API_ERROR( rs->sr_err ) );
 	assert( rs->sr_err != LDAP_PARTIAL_RESULTS );
 
 	if ( rs->sr_err == LDAP_REFERRAL ) {
@@ -890,6 +889,8 @@ slap_send_ldap_result( Operation *op, SlapReply *rs )
 	/* Propagate Abandons so that cleanup callbacks can be processed */
 	if ( rs->sr_err == SLAPD_ABANDON || op->o_abandon )
 		goto abandon;
+
+	assert( !LDAP_API_ERROR( rs->sr_err ) );
 
 	Debug( LDAP_DEBUG_TRACE,
 		"send_ldap_result: %s p=%d\n",
