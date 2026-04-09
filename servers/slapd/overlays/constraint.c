@@ -855,7 +855,7 @@ constraint_add( Operation *op, SlapReply *rs )
 	int rc = 0;
 	char *msg = NULL;
 
-	if ( get_relax(op) || be_shadow_update( op ) ) {
+	if ( be_shadow_update( op ) ) {
 		return SLAP_CB_CONTINUE;
 	}
 
@@ -886,6 +886,13 @@ constraint_add( Operation *op, SlapReply *rs )
 			if ((b = a->a_vals) == NULL) continue;
 
 			if (cp->restrict_lud != NULL && constraint_check_restrict(op, cp, op->ora_e) == 0) {
+				continue;
+			}
+
+			/* No need to check if user asked to Relax this op and has MANAGE
+			 * access to the attribute */
+			if ( get_relax(op) && access_allowed( op, op->ora_e, a->a_desc,
+						NULL, ACL_MANAGE, NULL ) ) {
 				continue;
 			}
 
@@ -936,7 +943,8 @@ add_violation:
 
 
 static int
-constraint_check_count_violation( Modifications *m, Entry *target_entry, constraint *cp )
+constraint_check_count_violation( Operation *op, Modifications *m, Entry
+		*target_entry, constraint *cp )
 {
 	BerVarray b = NULL;
 	unsigned ce = 0;
@@ -990,6 +998,10 @@ constraint_check_count_violation( Modifications *m, Entry *target_entry, constra
 			}
 		}
 		if ( ce > cp->count ) {
+			if ( get_relax(op) && access_allowed( op, target_entry, cp->ap[j],
+						NULL, ACL_MANAGE, NULL ) ) {
+				continue;
+			}
 			return 1;
 		}
 	}
@@ -1013,7 +1025,7 @@ constraint_update( Operation *op, SlapReply *rs )
 	char *msg = NULL;
 	int is_v;
 
-	if ( get_relax(op) || be_shadow_update( op ) ) {
+	if ( be_shadow_update( op ) ) {
 		return SLAP_CB_CONTINUE;
 	}
 
@@ -1057,7 +1069,7 @@ constraint_update( Operation *op, SlapReply *rs )
 				continue;
 			}
 
-			is_v = constraint_check_count_violation(m, target_entry, cp);
+			is_v = constraint_check_count_violation(op, m, target_entry, cp);
 
 			Debug(LDAP_DEBUG_TRACE,
 				"==> constraint_update is_v: %d\n", is_v );
@@ -1084,6 +1096,13 @@ constraint_update( Operation *op, SlapReply *rs )
 		/* and DELETE are used to track attribute count */
 		if ((( b = m->sml_values ) == NULL ) || (b[0].bv_val == NULL))
 			continue;
+
+		/* No need to check if user asked to Relax this op and has MANAGE
+		 * access to the attribute */
+		if ( get_relax(op) && access_allowed( op, target_entry, m->sml_desc,
+					NULL, ACL_MANAGE, NULL ) ) {
+			continue;
+		}
 
 		for(cp = c; cp; cp = cp->ap_next) {
 			int j;

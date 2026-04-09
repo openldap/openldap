@@ -21,9 +21,11 @@ It constrains only LDAP \fIadd\fP, \fImodify\fP and \fIrename\fP commands
 and only seeks to control the \fIadd\fP and \fIreplace\fP values
 of \fImodify\fP and \fIrename\fP requests.
 .LP
-No constraints are applied for operations performed with the
+Constraints can be lifted for operations where the
 .I relax
-control set.
+control is set and the user has
+.B manage
+privileges to the relevant attribute.
 .SH CONFIGURATION
 These
 .B slapd.conf
@@ -115,7 +117,11 @@ to maintain backwards compatibility.
 Any attempt to add or modify an attribute named as part of the
 constraint overlay specification which does not fit the 
 constraint listed will fail with a
-LDAP_CONSTRAINT_VIOLATION error.
+LDAP_CONSTRAINT_VIOLATION error unless the
+.I relax
+control was set and the user has
+.B manage
+privilege on the attribute in question.
 .SH EXAMPLES
 .LP
 .RS
