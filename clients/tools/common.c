@@ -1269,7 +1269,7 @@ tool_conn_setup( int dont, void (*private_setup)( LDAP * ) )
 						goto dnssrv_free;
 					}
 					
-					rc = ldap_domain2hostlist( domain, &hostlist );
+					rc = ldap_domain2hostlist_proto( domain, &hostlist, lud->lud_scheme );
 					if ( rc ) {
 						fprintf( stderr,
 							"DNS SRV: Could not turn "
