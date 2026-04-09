@@ -60,7 +60,9 @@ ber_skip_data(
 	nleft = ber_pvt_ber_remaining( ber );
 	actuallen = nleft < len ? nleft : len;
 	ber->ber_ptr += actuallen;
-	ber->ber_tag = *(unsigned char *)ber->ber_ptr;
+	ber->ber_tag = ( ber->ber_ptr < ber->ber_end ) ?
+		*(unsigned char *) ber->ber_ptr :
+		LBER_DEFAULT;
 
 	return( (ber_slen_t) actuallen );
 }
