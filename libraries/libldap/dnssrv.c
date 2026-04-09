@@ -257,6 +257,18 @@ int ldap_domain2hostlist(
 	LDAP_CONST char *domain,
 	char **list )
 {
+	return ldap_domain2hostlist_proto( domain, list, "ldap" );
+}
+
+/*
+ * Lookup and return LDAP servers for domain (using the DNS
+ * SRV record _<proto>._tcp.domain).
+ */
+int ldap_domain2hostlist_proto(
+	LDAP_CONST char *domain,
+	char **list,
+	char *proto )
+{
 #ifdef HAVE_RES_QUERY
     char *request;
     char *hostlist = NULL;
@@ -272,11 +284,17 @@ int ldap_domain2hostlist(
 		return LDAP_PARAM_ERROR;
 	}
 
-    request = LDAP_MALLOC(strlen(domain) + sizeof("_ldap._tcp."));
+    len = strlen(proto);
+    if ( len < 4 || len > 5 || strncmp( proto, "ldap", 4 ) ||
+            ( len == 5 && proto[4] != 's' ) ) {
+        return LDAP_PARAM_ERROR;
+    }
+
+    request = LDAP_MALLOC(strlen(domain) + len + sizeof("_._tcp."));
     if (request == NULL) {
 		return LDAP_NO_MEMORY;
     }
-    sprintf(request, "_ldap._tcp.%s", domain);
+    sprintf(request, "_%s._tcp.%s", proto, domain);
 
     LDAP_MUTEX_LOCK(&ldap_int_resolv_mutex);
 

@@ -604,3 +604,8 @@ OPENLDAP_2.200
     *;
 };
 
+OPENLDAP_2.201
+{
+  global:
+    ldap_domain2hostlist_proto;
+} OPENLDAP_2.200;

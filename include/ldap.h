@@ -1111,6 +1111,12 @@ ldap_domain2hostlist LDAP_P((
 	LDAP_CONST char *domain,
 	char** hostlist ));
 
+LDAP_F( int )
+ldap_domain2hostlist_proto LDAP_P((
+	LDAP_CONST char *domain,
+	char** hostlist,
+	char* proto ));
+
 /*
  * in extended.c:
  */
