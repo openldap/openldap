@@ -72,10 +72,12 @@ dnssrv_back_referrals(
 	Debug( LDAP_DEBUG_TRACE, "DNSSRV: dn=\"%s\" -> domain=\"%s\"\n",
 		op->o_req_dn.bv_val, domain );
 
-	i = ldap_domain2hostlist( domain, &hostlist );
-	if ( i ) {
+	i = ldap_domain2hostlist_proto( domain, &hostlist, "ldaps" );
+	if ( i == LDAP_UNAVAILABLE ) {
+		goto do_ldap;
+	} else if ( i ) {
 		Debug( LDAP_DEBUG_TRACE,
-			"DNSSRV: domain2hostlist(%s) returned %d\n",
+			"DNSSRV: domain2hostlist(%s, \"ldaps\") returned %d\n",
 			domain, i );
 		rs->sr_text = "no DNS SRV RR available for DN";
 		rc = LDAP_NO_SUCH_OBJECT;
@@ -93,6 +95,54 @@ dnssrv_back_referrals(
 	for( i=0; hosts[i] != NULL; i++) {
 		struct berval url;
 
+		url.bv_len = STRLENOF( "ldaps://" ) + strlen( hosts[i] );
+		url.bv_val = ch_malloc( url.bv_len + 1 );
+
+		strcpy( url.bv_val, "ldaps://" );
+		strcpy( &url.bv_val[STRLENOF( "ldaps://" )], hosts[i] );
+
+		if ( ber_bvarray_add( &urls, &url ) < 0 ) {
+			free( url.bv_val );
+			rs->sr_text = "problem processing DNS SRV records for DN";
+			goto done;
+		}
+	}
+
+do_ldap:
+	if ( hosts != NULL ) {
+		ldap_charray_free( hosts );
+		hosts = NULL;
+	}
+	if ( hostlist != NULL ) {
+		ch_free( hostlist );
+		hostlist = NULL;
+	}
+
+	i = ldap_domain2hostlist_proto( domain, &hostlist, "ldap" );
+	if ( i == LDAP_UNAVAILABLE && urls ) {
+		/* Allow if no _ldap._tcp but we have some ldaps urls */
+		goto success;
+	} else if ( i ) {
+		Debug( LDAP_DEBUG_TRACE,
+			"DNSSRV: domain2hostlist(%s, \"ldap\") returned %d\n",
+			domain, i );
+		rs->sr_text = "no DNS SRV RR available for DN";
+		rc = LDAP_NO_SUCH_OBJECT;
+		goto done;
+	}
+
+	hosts = ldap_str2charray( hostlist, " " );
+
+	if( hosts == NULL ) {
+		Debug( LDAP_DEBUG_TRACE, "DNSSRV: str2charray error\n" );
+		rs->sr_text = "problem processing DNS SRV records for DN";
+		rc = LDAP_OTHER;
+		goto done;
+	}
+
+	for( i=0; hosts[i] != NULL; i++) {
+		struct berval url;
+
 		url.bv_len = STRLENOF( "ldap://" ) + strlen( hosts[i] );
 		url.bv_val = ch_malloc( url.bv_len + 1 );
 
@@ -102,10 +152,12 @@ dnssrv_back_referrals(
 		if ( ber_bvarray_add( &urls, &url ) < 0 ) {
 			free( url.bv_val );
 			rs->sr_text = "problem processing DNS SRV records for DN";
+			rc = LDAP_OTHER;
 			goto done;
 		}
 	}
 
+success:
 	Debug( LDAP_DEBUG_STATS,
 	    "%s DNSSRV p=%d dn=\"%s\" url=\"%s\"\n",
 	    op->o_log_prefix, op->o_protocol,
