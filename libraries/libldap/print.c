@@ -45,15 +45,49 @@ int ldap_log_printf( LDAP *ld, int loglvl, const char *fmt, ... )
 {
 	char buf[ 1024 ];
 	va_list ap;
+#ifdef HAVE_CLOCK_GETTIME
+	struct timespec tv;
+#define TS  "%08x"
+#define Tfrac   tv.tv_nsec
+#define gettime(tv) clock_gettime( CLOCK_REALTIME, tv )
+#else
+	struct timeval tv;
+#define TS  "%05x"
+#define Tfrac   tv.tv_usec
+#define gettime(tv) gettimeofday( tv, NULL )
+#endif
+
+#ifdef NO_THREADS
+#define TIDp ""
+#define TIDs
+#else
+#define TIDp " %p"
+#define TIDs , (void *)ldap_pvt_thread_self()
+#endif
+
+	char *ptr = buf;
+	int len = sizeof(buf);
 
 	if ( !ldap_log_check( ld, loglvl )) {
 		return 0;
 	}
 
+	/* if using default printer, add timestamp and threadID.
+	 * slapd uses its own printer and already includes this.
+	 */
+	if ( ber_pvt_log_print == ber_error_print ) {
+		int prefixlen;
+		gettime( &tv );
+		prefixlen = sprintf( ptr, "%llx." TS TIDp " ",
+			(long long)tv.tv_sec, (unsigned int)Tfrac TIDs );
+		len -= prefixlen;
+		ptr += prefixlen;
+	}
+
 	va_start( ap, fmt );
 
 	buf[sizeof(buf) - 1] = '\0';
-	vsnprintf( buf, sizeof(buf)-1, fmt, ap );
+	vsnprintf( ptr, len-1, fmt, ap );
 
 	va_end(ap);
 
