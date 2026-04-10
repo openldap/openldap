@@ -1415,9 +1415,14 @@ dnssrv_free:;
 
 		rc = ldap_connect( ld );
 		if( rc != LDAP_SUCCESS ) {
-			fprintf( stderr,
-				"Could not connect to URI=%s ", ldapuri );
-			tool_perror2( ld, "" );
+			static const char connectErr[] = "Could not connect to URI";
+			char *msg = malloc( strlen( ldapuri ) + sizeof(connectErr) + 2 );
+			if ( msg )
+				sprintf(msg, "%s=%s", connectErr, ldapuri );
+			else
+				msg = connectErr;
+			tool_perror2( ld, msg );
+			if ( msg != connectErr ) free( msg );
 			tool_exit( ld, EXIT_FAILURE );
 		}
 
