@@ -117,7 +117,7 @@ mdb_filter_candidates(
 		goto out;
 	}
 
-	switch ( f->f_choice ) {
+	switch ( f->f_choice & SLAPD_FILTER_MASK ) {
 	case SLAPD_FILTER_COMPUTED:
 		switch( f->f_result ) {
 		case SLAPD_COMPARE_UNDEFINED:

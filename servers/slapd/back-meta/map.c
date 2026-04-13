@@ -359,6 +359,7 @@ ldap_back_int_filter_map_rewrite(
 			ber_bvunknown = BER_BVC( "(?=unknown)" ),
 			ber_bvnone = BER_BVC( "(?=none)" );
 	ber_len_t	len;
+	ber_tag_t	choice;
 
 	assert( fstr != NULL );
 	BER_BVZERO( fstr );
@@ -368,7 +369,8 @@ ldap_back_int_filter_map_rewrite(
 		return LDAP_OTHER;
 	}
 
-	switch ( ( f->f_choice & SLAPD_FILTER_MASK ) ) {
+	choice = f->f_choice & SLAPD_FILTER_MASK;
+	switch ( choice ) {
 	case LDAP_FILTER_EQUALITY:
 		if ( map_attr_value( dc, f->f_av_desc, &atmp,
 					&f->f_av_value, &vtmp, remap, memctx ) )
@@ -563,8 +565,8 @@ ldap_back_int_filter_map_rewrite(
 		fstr->bv_val = ber_memalloc_x( fstr->bv_len + 128, memctx );	/* FIXME: why 128? */
 
 		snprintf( fstr->bv_val, fstr->bv_len + 1, "(%c)",
-			f->f_choice == LDAP_FILTER_AND ? '&' :
-			f->f_choice == LDAP_FILTER_OR ? '|' : '!' );
+			choice == LDAP_FILTER_AND ? '&' :
+			choice == LDAP_FILTER_OR ? '|' : '!' );
 
 		for ( p = f->f_list; p != NULL; p = p->f_next ) {
 			int	rc;

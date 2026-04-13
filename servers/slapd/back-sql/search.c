@@ -756,9 +756,11 @@ backsql_process_filter( backsql_srch_info *bsi, Filter *f )
 	unsigned		i;
 	int 			done = 0;
 	int			rc = 0;
+	ber_tag_t	choice;
 
 	Debug( LDAP_DEBUG_TRACE, "==>backsql_process_filter()\n" );
-	if ( f->f_choice == SLAPD_FILTER_COMPUTED ) {
+	choice = f->f_choice & SLAPD_FILTER_MASK;
+	if ( choice == SLAPD_FILTER_COMPUTED ) {
 		struct berval	flt;
 		char		*msg = NULL;
 
@@ -801,7 +803,7 @@ backsql_process_filter( backsql_srch_info *bsi, Filter *f )
 		goto done;
 	}
 
-	switch( f->f_choice ) {
+	switch( choice ) {
 	case LDAP_FILTER_OR:
 		rc = backsql_process_filter_list( bsi, f->f_or, 
 				LDAP_FILTER_OR );
@@ -877,7 +879,7 @@ backsql_process_filter( backsql_srch_info *bsi, Filter *f )
 		 * otherwise, let's see if we are lucky: filtering
 		 * for "structural" objectclass or ancestor...
 		 */
-		switch ( f->f_choice ) {
+		switch ( choice ) {
 		case LDAP_FILTER_EQUALITY:
 		{
 			ObjectClass	*oc = oc_bvfind( &f->f_av_value );
@@ -950,7 +952,7 @@ backsql_process_filter( backsql_srch_info *bsi, Filter *f )
 		char		keyvalbuf[LDAP_PVT_INTTYPE_CHARS(unsigned long)];
 #endif /* ! BACKSQL_ARBITRARY_KEY */
 
-		switch ( f->f_choice ) {
+		switch ( choice ) {
 		case LDAP_FILTER_EQUALITY:
 			backsql_entryUUID_decode( &f->f_av_value, &oc_id, &keyval );
 
@@ -1285,7 +1287,7 @@ backsql_process_filter_attr( backsql_srch_info *bsi, Filter *f, backsql_at_map_r
 		return 1;
 	}
 
-	switch ( f->f_choice ) {
+	switch ( f->f_choice & SLAPD_FILTER_MASK ) {
 	case LDAP_FILTER_EQUALITY:
 		filter_value = &f->f_av_value;
 		matching_rule = at->bam_ad->ad_type->sat_equality;

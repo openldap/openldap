@@ -86,6 +86,7 @@ asyncmeta_int_filter2bv( a_dncookie		*dc,
 			ber_bvnone = BER_BVC( "(?=none)" );
 	ber_len_t	len;
 	void *memctx = dc->memctx;
+	ber_tag_t	choice;
 
 	assert( fstr != NULL );
 	BER_BVZERO( fstr );
@@ -95,7 +96,8 @@ asyncmeta_int_filter2bv( a_dncookie		*dc,
 		return LDAP_OTHER;
 	}
 
-	switch ( ( f->f_choice & SLAPD_FILTER_MASK ) ) {
+	choice = f->f_choice & SLAPD_FILTER_MASK;
+	switch ( choice ) {
 	case LDAP_FILTER_EQUALITY:
 		if ( f->f_av_desc->ad_type->sat_syntax == slap_schema.si_syn_distinguishedName ) {
 			asyncmeta_dn_massage( dc, &f->f_av_value, &vtmp );
@@ -219,8 +221,8 @@ asyncmeta_int_filter2bv( a_dncookie		*dc,
 		fstr->bv_val = dc->op->o_tmpalloc( fstr->bv_len + 128, memctx );	/* FIXME: why 128? */
 
 		snprintf( fstr->bv_val, fstr->bv_len + 1, "(%c)",
-			f->f_choice == LDAP_FILTER_AND ? '&' :
-			f->f_choice == LDAP_FILTER_OR ? '|' : '!' );
+			choice == LDAP_FILTER_AND ? '&' :
+			choice == LDAP_FILTER_OR ? '|' : '!' );
 
 		for ( p = f->f_list; p != NULL; p = p->f_next ) {
 			int	rc;
