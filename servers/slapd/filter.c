@@ -537,6 +537,9 @@ filter_free_x( Operation *op, Filter *f, int freeme )
 	if ( f == NULL ) {
 		return;
 	}
+	if ( f->f_choice & SLAPD_FILTER_REUSED ) {
+		goto out;
+	}
 
 	f->f_choice &= SLAPD_FILTER_MASK;
 
@@ -588,6 +591,7 @@ filter_free_x( Operation *op, Filter *f, int freeme )
 		break;
 	}
 
+out:
 	if ( freeme ) {
 		op->o_tmpfree( f, op->o_tmpmemctx );
 	}
@@ -785,8 +789,8 @@ simple:
 		fstr->bv_val = op->o_tmpalloc( fstr->bv_len + 128, op->o_tmpmemctx );
 
 		snprintf( fstr->bv_val, fstr->bv_len + 1, "(%c)",
-			f->f_choice == LDAP_FILTER_AND ? '&' :
-			f->f_choice == LDAP_FILTER_OR ? '|' : '!' );
+			choice == LDAP_FILTER_AND ? '&' :
+			choice == LDAP_FILTER_OR ? '|' : '!' );
 
 		for ( p = f->f_list; p != NULL; p = p->f_next ) {
 			len = fstr->bv_len;

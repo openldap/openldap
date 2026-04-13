@@ -1056,6 +1056,7 @@ struct Filter {
 #define SLAPD_FILTER_COMPUTED		0
 #define SLAPD_FILTER_MASK			0x7fff
 #define SLAPD_FILTER_UNDEFINED		0x8000
+#define SLAPD_FILTER_REUSED			0x10000
 
 	union f_un_u {
 		/* precomputed result */

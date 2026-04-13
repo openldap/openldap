@@ -72,7 +72,7 @@ test_filter(
 		goto out;
 	}
 
-	switch ( f->f_choice ) {
+	switch ( f->f_choice & SLAPD_FILTER_MASK ) {
 	case SLAPD_FILTER_COMPUTED:
 		Debug( LDAP_DEBUG_FILTER, "    COMPUTED %s (%d)\n",
 			f->f_result == LDAP_COMPARE_FALSE ? "false" :
