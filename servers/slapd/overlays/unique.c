@@ -1214,11 +1214,14 @@ unique_modify(
 	unique_domain *domain;
 	Operation nop = *op;
 	Modifications *m;
-	Entry *e = NULL;
+	Entry *tmp = NULL, *e = NULL;
 	char *key, *kp;
+	const char *text;
 	struct berval bvkey;
 	int rc = SLAP_CB_CONTINUE;
 	int locked = 0;
+	char textbuf[SLAP_TEXT_BUFLEN];
+	size_t textlen = sizeof(textbuf);
 
 	Debug(LDAP_DEBUG_TRACE, "==> unique_modify <%s>\n",
 	      op->o_req_dn.bv_val );
@@ -1231,17 +1234,27 @@ unique_modify(
 	if ( be_shadow_update( op ) ) {
 		return rc;
 	}
-	if ( wants_relax(op)
-		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
-		&& e
-		&& access_allowed( op, e,
-			slap_schema.si_ad_entry, NULL,
-			ACL_MANAGE, NULL ) ) {
-		overlay_entry_release_ov( op, e, 0, on );
+
+	overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &tmp, on );
+	if ( wants_relax(op) && tmp &&
+			access_allowed( op, tmp, slap_schema.si_ad_entry, NULL,
+				ACL_MANAGE, NULL ) ) {
+		overlay_entry_release_ov( op, tmp, 0, on );
 		return rc;
 	}
-	if ( e ) {
-		overlay_entry_release_ov( op, e, 0, on );
+
+	if ( tmp ) {
+		e = entry_dup( tmp );
+		overlay_entry_release_ov( op, tmp, 0, on );
+		/* Estimate the final state of the entry, which is what the uniqueness
+		 * rules are meant to maintain */
+		if ( modify_entry( op, e, op->orm_modlist, wants_permissiveModify(op), 0,
+					&text, textbuf, textlen ) ) {
+			/* We can't figure out what the entry should look like, just run
+			 * the uniqueness checks blind */
+			entry_free( e );
+			e = NULL;
+		}
 	}
 
 	for ( domain = legacy ? legacy : domains;
@@ -1261,6 +1274,14 @@ unique_modify(
 			     && !dnIsSuffix( &op->o_req_ndn, &uri->ndn ))
 				continue;
 
+			if ( e && uri->f ) {
+				if ( test_filter( NULL, e, uri->f ) == LDAP_COMPARE_FALSE ) {
+					Debug( LDAP_DEBUG_TRACE, "==> unique_modify_skip<%s>\n",
+						op->o_req_dn.bv_val );
+					continue;
+				}
+			}
+
 			for ( m = op->orm_modlist; m; m = m->sml_next)
 				if ( (m->sml_op & LDAP_MOD_OP)
 				     != LDAP_MOD_DELETE )
@@ -1276,6 +1297,23 @@ unique_modify(
 			if ( domain->serial && !locked ) {
 				ldap_pvt_thread_mutex_lock( &private->serial_mutex );
 				locked = 1;
+				if ( e ) {
+					/* Fetch the entry again to ensure full consistency */
+					entry_free( e );
+					e = NULL;
+					if ( overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL,
+								0, &tmp, on ) == LDAP_SUCCESS
+							&& tmp ) {
+						e = entry_dup( tmp );
+						overlay_entry_release_ov( op, tmp, 0, on );
+						if ( modify_entry( op, e, op->orm_modlist,
+									wants_permissiveModify(op), 0,
+									&text, textbuf, textlen ) ) {
+							entry_free( e );
+							e = NULL;
+						}
+					}
+				}
 			}
 
 			/* terminating NUL */
@@ -1330,6 +1368,10 @@ unique_modify(
 		if ( rc != SLAP_CB_CONTINUE ) break;
 	}
 
+	if ( e ) {
+		entry_free( e );
+	}
+
 	if ( locked ) {
 		if ( rc != SLAP_CB_CONTINUE ) {
 			ldap_pvt_thread_mutex_unlock( &private->serial_mutex );
@@ -1357,13 +1399,13 @@ unique_modrdn(
 	unique_domain *legacy = private->legacy;
 	unique_domain *domain;
 	Operation nop = *op;
-	Entry *e = NULL;
+	Entry *tmp = NULL, *e = NULL;
 	char *key, *kp;
 	struct berval bvkey;
 	LDAPRDN	newrdn;
 	struct berval bv[2];
 	int rc = SLAP_CB_CONTINUE;
-	int locked = 0;
+	int i, locked = 0;
 
 	Debug(LDAP_DEBUG_TRACE, "==> unique_modrdn <%s> <%s>\n",
 		op->o_req_dn.bv_val, op->orr_newrdn.bv_val );
@@ -1371,17 +1413,38 @@ unique_modrdn(
 	if ( be_shadow_update( op ) ) {
 		return rc;
 	}
-	if ( wants_relax(op)
-		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
-		&& e
-		&& access_allowed( op, e,
-			slap_schema.si_ad_entry, NULL,
-			ACL_MANAGE, NULL ) ) {
-		overlay_entry_release_ov( op, e, 0, on );
+
+	if ( overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &tmp, on ) == LDAP_SUCCESS
+			&& tmp ) {
+		e = entry_dup( tmp );
+		overlay_entry_release_ov( op, tmp, 0, on );
+	}
+
+	if ( wants_relax(op) && e && access_allowed( op, e,
+			slap_schema.si_ad_entry, NULL, ACL_MANAGE, NULL ) ) {
+		entry_free( e );
 		return rc;
 	}
-	if ( e ) {
-		overlay_entry_release_ov( op, e, 0, on );
+
+	if ( ldap_bv2rdn_x( &op->oq_modrdn.rs_newrdn, &newrdn,
+				(char **)&rs->sr_text, LDAP_DN_FORMAT_LDAP,
+				op->o_tmpmemctx ) ) {
+		op->o_bd->bd_info = (BackendInfo *) on->on_info;
+		send_ldap_error( op, rs, LDAP_INVALID_SYNTAX,
+				"unknown type(s) used in RDN" );
+		rc = rs->sr_err;
+		goto done;
+	}
+
+	for ( i=0; newrdn[i]; i++) {
+		AttributeDescription *ad = NULL;
+		if ( slap_bv2ad( &newrdn[i]->la_attr, &ad, &rs->sr_text ) ) {
+			rs->sr_err = LDAP_INVALID_SYNTAX;
+			send_ldap_result( op, rs );
+			rc = rs->sr_err;
+			goto done;
+		}
+		newrdn[i]->la_private = ad;
 	}
 
 	for ( domain = legacy ? legacy : domains;
@@ -1394,7 +1457,7 @@ unique_modrdn(
 		      uri;
 		      uri = uri->next )
 		{
-			int i, len;
+			int len;
 			int ks = 0;
 
 			if ( uri->ndn.bv_val
@@ -1403,31 +1466,13 @@ unique_modrdn(
 				 || !dnIsSuffix( op->orr_nnewSup, &uri->ndn )))
 				continue;
 
-			if ( ldap_bv2rdn_x ( &op->oq_modrdn.rs_newrdn,
-					     &newrdn,
-					     (char **)&rs->sr_text,
-					     LDAP_DN_FORMAT_LDAP,
-					     op->o_tmpmemctx ) ) {
-				op->o_bd->bd_info = (BackendInfo *) on->on_info;
-				send_ldap_error(op, rs, LDAP_INVALID_SYNTAX,
-						"unknown type(s) used in RDN");
-				rc = rs->sr_err;
-				break;
-			}
-
-			rc = SLAP_CB_CONTINUE;
-			for ( i=0; newrdn[i]; i++) {
-				AttributeDescription *ad = NULL;
-				if ( slap_bv2ad( &newrdn[i]->la_attr, &ad, &rs->sr_text )) {
-					ldap_rdnfree_x( newrdn, op->o_tmpmemctx );
-					rs->sr_err = LDAP_INVALID_SYNTAX;
-					send_ldap_result( op, rs );
-					rc = rs->sr_err;
-					break;
+			if ( uri->f ) {
+				if ( test_filter( NULL, e, uri->f ) == LDAP_COMPARE_FALSE ) {
+					Debug( LDAP_DEBUG_TRACE, "==> unique_modrdn_skip<%s>\n",
+						op->o_req_dn.bv_val );
+					continue;
 				}
-				newrdn[i]->la_private = ad;
 			}
-			if ( rc != SLAP_CB_CONTINUE ) break;
 
 			bv[1].bv_val = NULL;
 			bv[1].bv_len = 0;
@@ -1500,6 +1545,11 @@ unique_modrdn(
 		if ( rc != SLAP_CB_CONTINUE ) break;
 	}
 
+done:
+	ldap_rdnfree_x( newrdn, op->o_tmpmemctx );
+	if ( e ) {
+		entry_free( e );
+	}
 	if ( locked ) {
 		if ( rc != SLAP_CB_CONTINUE ) {
 			ldap_pvt_thread_mutex_unlock( &private->serial_mutex );
