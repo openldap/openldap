@@ -1,6 +1,7 @@
 LMDB 0.9 Change Log
 
 LMDB 0.9.36 Engineering
+	ITS#8386 - be a bit more precise that mdb_get retrieves data in intro.doc
 	ITS#10054 - fix write of 2GB values
 
 LMDB 0.9.35 Release (2026/01/27)
