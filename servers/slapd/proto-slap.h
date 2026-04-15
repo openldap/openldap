@@ -1366,6 +1366,10 @@ LDAP_SLAPD_F( int ) modify_increment_values( Entry *e,
 	Modification *mod,
 	int permissive,
 	const char **text, char *textbuf, size_t textlen );
+LDAP_SLAPD_F( int ) modify_entry( Operation *op, Entry *e,
+	Modifications *mods,
+	int permissive, int schema_check,
+	const char **text, char *textbuf, size_t textlen );
 
 LDAP_SLAPD_F( void ) slap_mod_free( Modification *mod, int freeit );
 LDAP_SLAPD_F( void ) slap_mods_free( Modifications *mods, int freevals );
