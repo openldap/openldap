@@ -123,9 +123,14 @@ typedef SSIZE_T	ssize_t;
 #include <resolv.h>	/* defines BYTE_ORDER on HPUX and Solaris */
 #endif
 
-#if defined(__FreeBSD__) && defined(__FreeBSD_version) && __FreeBSD_version >= 1100110
-# define MDB_USE_POSIX_MUTEX	1
-# define MDB_USE_ROBUST	1
+#if defined(__FreeBSD__) && defined(__FreeBSD_version)
+# if __FreeBSD_version >= 1100110
+#  define MDB_USE_POSIX_MUTEX	1
+#  define MDB_USE_ROBUST	1
+# endif
+# if __FreeBSD_version < 1101000
+#  define MDB_FDATASYNC		fsync
+# endif
 #elif defined(__APPLE__) || defined (BSD) || defined(__FreeBSD_kernel__)
 # define MDB_USE_POSIX_SEM	1
 # if defined(__APPLE__)
