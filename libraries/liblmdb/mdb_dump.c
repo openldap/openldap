@@ -172,7 +172,7 @@ int main(int argc, char *argv[])
 		usage(prog);
 	}
 
-	/* -a: dump main DB and all subDBs
+	/* -a: dump all subDBs
 	 * -s: dump only the named subDB
 	 * -n: use NOSUBDIR flag on env_open
 	 * -p: use printable characters
