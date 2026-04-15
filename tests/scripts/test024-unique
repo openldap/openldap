@@ -681,7 +681,7 @@ dn: uid=not edgar,uid=edgar,ou=users,o=unique
 objectClass: inetOrgPerson
 uid: not edgar
 sn: Alan
-cn: not edgar
+cn: edgar
 EOF
 
 RC=$?
@@ -736,9 +736,35 @@ if test $RC != 0 ; then
 	exit $RC
 fi
 
+echo "Adding another record, not considered"
+$LDAPADD -D "$UNIQUEDN" -H $URI1 -w $PASSWD > \
+	$TESTOUT 2>&1 << EOF
+dn: uid=dave,uid=edgar,ou=users,o=unique
+objectClass: inetOrgPerson
+uid: dave
+sn: Alan
+cn: not edgar
+EOF
+
+RC=$?
+if test $RC != 0 ; then
+	echo "spurious unique error ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
 echo "Cleaning up"
 $LDAPDELETE -D "$UNIQUEDN" -H $URI1 -w $PASSWD \
     "uid=edgar,uid=edgar,ou=users,o=unique" > $TESTOUT 2>&1
+RC=$?
+if test $RC != 0; then
+	echo "ldapdelete failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPDELETE -D "$UNIQUEDN" -H $URI1 -w $PASSWD \
+    "uid=dave,uid=edgar,ou=users,o=unique" > $TESTOUT 2>&1
 RC=$?
 if test $RC != 0; then
 	echo "ldapdelete failed ($RC)!"
