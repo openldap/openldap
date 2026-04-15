@@ -3454,12 +3454,20 @@ mdb_page_flush(MDB_txn *txn, int keep)
 			if (n) {
 retry_write:
 				/* Write previous page(s) */
+				if (n == 1) {
+					while (wsize > MAX_WRITE) {
+						wsize -= MAX_WRITE;
+						wres = pwrite(env->me_fd, iov[0].iov_base, MAX_WRITE, wpos);
+						if (wres != MAX_WRITE)
+							goto bad_write;;
+						wpos += MAX_WRITE;
+						iov[0].iov_base += MAX_WRITE;
+					}
+					wres = pwrite(env->me_fd, iov[0].iov_base, wsize, wpos);
+				} else {
 #ifdef MDB_USE_PWRITEV
 				wres = pwritev(env->me_fd, iov, n, wpos);
 #else
-				if (n == 1) {
-					wres = pwrite(env->me_fd, iov[0].iov_base, wsize, wpos);
-				} else {
 retry_seek:
 					if (lseek(env->me_fd, wpos, SEEK_SET) == -1) {
 						rc = ErrCode();
@@ -3471,6 +3479,7 @@ retry_seek:
 					wres = writev(env->me_fd, iov, n);
 				}
 #endif
+bad_write:
 				if (wres != wsize) {
 					if (wres < 0) {
 						rc = ErrCode();
