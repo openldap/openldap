@@ -4417,6 +4417,12 @@ mdb_env_write_meta(MDB_txn *txn)
 				rc = ErrCode();
 				goto fail;
 			}
+#if defined(__APPLE__)
+			if (MDB_FDATASYNC(env->me_mfd)) {
+				rc = ErrCode();
+				goto fail;
+			}
+#endif
 		}
 		goto done;
 	}
@@ -4476,6 +4482,12 @@ fail:
 		env->me_flags |= MDB_FATAL_ERROR;
 		return rc;
 	}
+#if defined(__APPLE__)
+	if (mfd == env->me_mfd && MDB_FDATASYNC(env->me_mfd)) {
+		rc = ErrCode();
+		return rc;
+	}
+#endif
 	/* MIPS has cache coherency issues, this is a no-op everywhere else */
 	CACHEFLUSH(env->me_map + off, len, DCACHE);
 done:
