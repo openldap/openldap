@@ -3866,12 +3866,20 @@ retry_write:
 				}
 				async_i++;
 #else
-#ifdef MDB_USE_PWRITEV
-				wres = pwritev(fd, iov, n, wpos);
-#else
 				if (n == 1) {
+					while (wsize > MAX_WRITE) {
+						wsize -= MAX_WRITE;
+						wres = pwrite(fd, iov[0].iov_base, MAX_WRITE, wpos);
+						if (wres != MAX_WRITE)
+							goto bad_write;;
+						wpos += MAX_WRITE;
+						iov[0].iov_base += MAX_WRITE;
+					}
 					wres = pwrite(fd, iov[0].iov_base, wsize, wpos);
 				} else {
+#ifdef MDB_USE_PWRITEV
+					wres = pwritev(fd, iov, n, wpos);
+#else
 retry_seek:
 					if (lseek(fd, wpos, SEEK_SET) == -1) {
 						rc = ErrCode();
@@ -3883,6 +3891,7 @@ retry_seek:
 					wres = writev(fd, iov, n);
 				}
 #endif
+bad_write:
 				if (wres != wsize) {
 					if (wres < 0) {
 						rc = ErrCode();
