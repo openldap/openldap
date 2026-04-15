@@ -4198,6 +4198,14 @@ retry_write:
 				wres = pwritev(fd, iov, n, wpos);
 #else
 				if (n == 1) {
+					while (wsize > MAX_WRITE) {
+						wsize -= MAX_WRITE;
+						wres = pwrite(fd, iov[0].iov_base, MAX_WRITE, wpos);
+						if (wres != MAX_WRITE)
+							goto bad_write;;
+						wpos += MAX_WRITE;
+						iov[0].iov_base += MAX_WRITE;
+					}
 					wres = pwrite(fd, iov[0].iov_base, wsize, wpos);
 				} else {
 retry_seek:
@@ -4213,6 +4221,7 @@ retry_seek:
 					}
 				}
 #endif
+bad_write:
 				if (wres != wsize) {
 					if (wres < 0) {
 						rc = ErrCode();
