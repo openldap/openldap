@@ -4194,9 +4194,6 @@ retry_write:
 				}
 				async_i++;
 #else /* _WIN32 */
-#ifdef MDB_USE_PWRITEV
-				wres = pwritev(fd, iov, n, wpos);
-#else
 				if (n == 1) {
 					while (wsize > MAX_WRITE) {
 						wsize -= MAX_WRITE;
@@ -4208,6 +4205,9 @@ retry_write:
 					}
 					wres = pwrite(fd, iov[0].iov_base, wsize, wpos);
 				} else {
+#ifdef MDB_USE_PWRITEV
+					wres = pwritev(fd, iov, n, wpos);
+#else
 retry_seek:
 					if (lseek(fd, wpos, SEEK_SET) == -1) {
 						rc = ErrCode();
