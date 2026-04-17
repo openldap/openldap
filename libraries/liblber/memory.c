@@ -719,7 +719,8 @@ ber_bvreplace_x( struct berval *dst, LDAP_CONST struct berval *src, void *ctx )
 	}
 
 	if ( dst->bv_val != NULL ) {
-		AC_MEMCPY( dst->bv_val, src->bv_val, dst->bv_len + 1 );
+		AC_MEMCPY( dst->bv_val, src->bv_val, dst->bv_len );
+		dst->bv_val[dst->bv_len] = '\0';
 	}
 
 	return dst;
