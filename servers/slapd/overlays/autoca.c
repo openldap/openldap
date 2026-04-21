@@ -804,6 +804,40 @@ static ConfigOCs autoca_ocs[] = {
 };
 
 static int
+autoca_set_extras(
+	Operation *op,
+	Attribute *a,
+	struct berval *tag,
+	myext *extras
+)
+{
+	char *ptr;
+	int i;
+	int len = 0;
+	for ( i=0; i<a->a_numvals; i++ ) {
+		if (strchr(a->a_vals[i].bv_val, ',')) {
+			Debug( LDAP_DEBUG_TRACE, "autoca_set_extras: illegal characters in %s\n",
+				a->a_desc->ad_cname.bv_val );
+			return SLAP_CB_CONTINUE;
+		}
+		len += a->a_vals[i].bv_len;
+	}
+	len += ( tag->bv_len+1 ) * a->a_numvals;
+
+	extras[0].name = "subjectAltName";
+	extras[1].name = NULL;
+	extras[0].value = op->o_tmpalloc( len, op->o_tmpmemctx );
+	ptr = extras[0].value;
+	for ( i=0; i<a->a_numvals; i++ ) {
+		if ( i )
+			*ptr++ = ',';
+		ptr = lutil_strcopy( ptr, tag->bv_val );
+		ptr = lutil_strcopy( ptr, a->a_vals[i].bv_val );
+	}
+	return 0;
+}
+
+static int
 autoca_op_response(
 	Operation *op,
 	SlapReply *rs
@@ -849,10 +883,10 @@ autoca_op_response(
 			a = attr_find( rs->sr_entry->e_attrs, ad_mail );
 			if ( a )
 			{
-				extras[0].name = "subjectAltName";
-				extras[1].name = NULL;
-				extras[0].value = op->o_tmpalloc( sizeof("email:") + a->a_vals[0].bv_len, op->o_tmpmemctx );
-				sprintf(extras[0].value, "email:%s", a->a_vals[0].bv_val);
+				struct berval bv = BER_BVC("email:");
+				rc = autoca_set_extras( op, a, &bv, extras );
+				if ( rc )
+					return rc;
 				args.more_exts = extras;
 			}
 		} else
@@ -862,10 +896,10 @@ autoca_op_response(
 			args.days = ai->ai_srvdays;
 			if ( ad_ipaddr && (a = attr_find( rs->sr_entry->e_attrs, ad_ipaddr )))
 			{
-				extras[0].name = "subjectAltName";
-				extras[1].name = NULL;
-				extras[0].value = op->o_tmpalloc( sizeof("IP:") + a->a_vals[0].bv_len, op->o_tmpmemctx );
-				sprintf(extras[0].value, "IP:%s", a->a_vals[0].bv_val);
+				struct berval bv = BER_BVC("IP:");
+				rc = autoca_set_extras( op, a, &bv, extras );
+				if ( rc )
+					return rc;
 				args.more_exts = extras;
 			}
 		}
