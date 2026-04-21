@@ -20,6 +20,13 @@
 #include <signal.h>
 #include "lmdb.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#define	MDB_STDOUT	GetStdHandle(STD_OUTPUT_HANDLE)
+#else
+#define	MDB_STDOUT	1
+#endif
+
 #define Yu	MDB_PRIy(u)
 
 #define PRINT	1
@@ -153,7 +160,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 
 static void usage(char *prog)
 {
-	fprintf(stderr, "usage: %s [-V] [-f output] [-l] [-n] [-p] [-v] [-m module [-w password]] [-a|-s subdb] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-f output] [-i txnid] [-l] [-n] [-p] [-v] [-m module [-w password]] [-a|-s subdb] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -164,8 +171,9 @@ int main(int argc, char *argv[])
 	MDB_txn *txn;
 	MDB_dbi dbi;
 	char *prog = argv[0];
-	char *envname;
+	char *envname, *outname = NULL;
 	char *subname = NULL;
+	size_t txnid = 0;
 	int alldbs = 0, envflags = 0, list = 0;
 	char *module = NULL, *password = NULL, *errmsg;
 	void *mlm = NULL;
@@ -179,11 +187,12 @@ int main(int argc, char *argv[])
 	 * -n: use NOSUBDIR flag on env_open
 	 * -p: use printable characters
 	 * -f: write to file instead of stdout
+	 * -i: do incremental dump from txnid
 	 * -v: use previous snapshot
 	 * -V: print version and exit
 	 * (default) dump only the main DB
 	 */
-	while ((i = getopt(argc, argv, "af:lm:nps:vw:V")) != EOF) {
+	while ((i = getopt(argc, argv, "af:i:lm:nps:vw:V")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -198,8 +207,11 @@ int main(int argc, char *argv[])
 			alldbs++;
 			break;
 		case 'f':
-			if (freopen(optarg, "w", stdout) == NULL) {
-				fprintf(stderr, "%s: %s: reopen: %s\n",
+			outname = optarg;
+			break;
+		case 'i':
+			if (sscanf(optarg, "%" Yu "i", &txnid) != 1 || !txnid) {
+				fprintf(stderr, "%s: %s: invalid txnid: %s\n",
 					prog, optarg, strerror(errno));
 				exit(EXIT_FAILURE);
 			}
@@ -266,6 +278,22 @@ int main(int argc, char *argv[])
 	if (rc) {
 		fprintf(stderr, "mdb_env_open failed, error %d %s\n", rc, mdb_strerror(rc));
 		goto env_close;
+	}
+
+	if (txnid) {
+		if (outname)
+			rc = mdb_env_incr_dump(env, outname, txnid);
+		else
+			rc = mdb_env_incr_dumpfd(env, MDB_STDOUT, txnid);
+		if (rc)
+			fprintf(stderr, "mdb_env_incr_dump failed, error %d %s\n", rc, mdb_strerror(rc));
+		goto env_close;
+	}
+
+	if (outname && freopen(outname, "w", stdout) == NULL) {
+		fprintf(stderr, "%s: %s: reopen: %s\n",
+			prog, outname, strerror(errno));
+		exit(EXIT_FAILURE);
 	}
 
 	rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);

@@ -19,6 +19,13 @@
 #include <unistd.h>
 #include "lmdb.h"
 
+#ifdef _WIN32
+#include <windows.h>
+#define	MDB_STDIN	GetStdHandle(STD_INPUT_HANDLE)
+#else
+#define	MDB_STDIN	0
+#endif
+
 #define PRINT	1
 #define NOHDR	2
 static int mode;
@@ -295,7 +302,7 @@ badend:
 
 static void usage(void)
 {
-	fprintf(stderr, "usage: %s [-V] [-a] [-f input] [-n] [-m module [-w password]] [-s name] [-N] [-Q] [-T] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-a] [-f input] [-i] [-n] [-m module [-w password]] [-s name] [-N] [-Q] [-T] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -313,7 +320,7 @@ int main(int argc, char *argv[])
 	MDB_dbi dbi;
 	char *envname;
 	int envflags = MDB_NOSYNC, putflags = 0;
-	int dohdr = 0, append = 0;
+	int dohdr = 0, append = 0, incr = 0;
 	MDB_val prevk;
 	char *module = NULL, *password = NULL, *errmsg;
 	void *mlm = NULL;
@@ -326,6 +333,8 @@ int main(int argc, char *argv[])
 
 	/* -a: append records in input order
 	 * -f: load file instead of stdin
+	 * -i: load an incremental dump
+	 * -m: dynamically load a module
 	 * -n: use NOSUBDIR flag on env_open
 	 * -s: load into named subDB
 	 * -N: use NOOVERWRITE on puts
@@ -333,7 +342,7 @@ int main(int argc, char *argv[])
 	 * -T: read plaintext
 	 * -V: print version and exit
 	 */
-	while ((i = getopt(argc, argv, "af:m:ns:w:NQTV")) != EOF) {
+	while ((i = getopt(argc, argv, "af:im:ns:w:NQTV")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -348,6 +357,9 @@ int main(int argc, char *argv[])
 					prog, optarg, strerror(errno));
 				exit(EXIT_FAILURE);
 			}
+			break;
+		case 'i':
+			incr = 1;
 			break;
 		case 'n':
 			envflags |= MDB_NOSUBDIR;
@@ -377,6 +389,7 @@ int main(int argc, char *argv[])
 
 	if (optind != argc - 1)
 		usage();
+	envname = argv[optind];
 
 	dbuf.mv_size = 4096;
 	dbuf.mv_data = malloc(dbuf.mv_size);
@@ -384,7 +397,6 @@ int main(int argc, char *argv[])
 	if (!(mode & NOHDR))
 		readhdr();
 
-	envname = argv[optind];
 	rc = mdb_env_create(&env);
 	if (rc) {
 		fprintf(stderr, "mdb_env_create failed, error %d %s\n", rc, mdb_strerror(rc));
@@ -398,6 +410,17 @@ int main(int argc, char *argv[])
 			goto env_close;
 		}
 		mdb_modsetup(env, mcf, password);
+	}
+
+	if (incr) {
+		envflags |= MDB_WRITEMAP;
+		rc = mdb_env_open(env, envname, envflags, 0664);
+		if (rc)
+			goto openfail;
+		rc = mdb_env_incr_loadfd(env, MDB_STDIN);
+		if (rc)
+			fprintf(stderr, "mdb_env_incr_load failed, error %d %s\n", rc, mdb_strerror(rc));
+		goto env_close;
 	}
 
 	mdb_env_set_maxdbs(env, 2);
@@ -416,6 +439,7 @@ int main(int argc, char *argv[])
 
 	rc = mdb_env_open(env, envname, envflags, 0664);
 	if (rc) {
+openfail:
 		fprintf(stderr, "mdb_env_open failed, error %d %s\n", rc, mdb_strerror(rc));
 		goto env_close;
 	}
