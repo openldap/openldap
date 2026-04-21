@@ -155,15 +155,6 @@ ldap_int_tls_destroy( struct ldapoptions *lo )
 		BER_BVZERO( &lo->ldo_tls_key );
 	}
 
-	if ( lo->ldo_tls_uris ) {
-		LDAP_VFREE( lo->ldo_tls_uris );
-		lo->ldo_tls_uris = NULL;
-	}
-	if ( lo->ldo_tls_cacerturis ) {
-		LDAP_VFREE( lo->ldo_tls_cacerturis );
-		lo->ldo_tls_cacerturis = NULL;
-	}
-
 	/* tls_pin_hashalg and tls_pin share the same buffer */
 	if ( lo->ldo_tls_pin_hashalg ) {
 		LDAP_FREE( lo->ldo_tls_pin_hashalg );
