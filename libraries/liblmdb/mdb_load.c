@@ -295,7 +295,7 @@ badend:
 
 static void usage(void)
 {
-	fprintf(stderr, "usage: %s [-V] [-a] [-f input] [-n] [-m module [-w password]] [-s name] [-N] [-T] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-a] [-f input] [-n] [-m module [-w password]] [-s name] [-N] [-Q] [-T] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
