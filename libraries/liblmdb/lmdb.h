@@ -528,6 +528,8 @@ typedef enum MDB_cursor_op {
 #define MDB_TXN_PENDING		(-30775)
 	/** Environment can't rollback the last transaction */
 #define MDB_CANT_ROLLBACK	(-30774)
+	/** Can't drop main DBI while other DBIs are open */
+#define MDB_DBIS_BUSY	(-30773)
 	/** The last defined error code */
 #define MDB_LAST_ERRCODE	MDB_CANT_ROLLBACK
 /** @} */

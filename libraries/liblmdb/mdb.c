@@ -1524,8 +1524,9 @@ struct MDB_txn {
 #define MDB_TXN_HAS_CHILD	0x10		/**< txn has an #MDB_txn.%mt_child */
 #define MDB_TXN_DIRTYNUM	0x20		/**< dirty list uses nump list */
 #define MDB_TXN_PREPARE		0x40		/**< prepare txn, don't fully commit */
+#define MDB_TXN_DROPPED		0x80		/**< main DBI has been dropped, env will reset */
 	/** most operations on the txn are currently illegal */
-#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE)
+#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE|MDB_TXN_DROPPED)
 /** @} */
 	unsigned int	mt_flags;		/**< @ref mdb_txn */
 	/** #dirty_list room: Array size - \#dirty pages visible to this txn.
@@ -1914,6 +1915,7 @@ static char *const mdb_errstr[] = {
 	"MDB_ENV_ENCRYPTION: Environment encryption mismatch",
 	"MDB_TXN_PENDING: Transaction already prepared, must abort or commit",
 	"MDB_CANT_ROLLBACK: Environment can't rollback last transaction",
+	"MDB_DBIS_BUSY: Can't drop main DBI while other DBIs are open",
 };
 
 char *
@@ -12232,11 +12234,35 @@ int mdb_drop(MDB_txn *txn, MDB_dbi dbi, int del)
 	if (TXN_DBI_CHANGED(txn, dbi))
 		return MDB_BAD_DBI;
 
+	MDB_TRACE(("%u, %d", dbi, del));
+
+	/* Dropping the main DBI empties/resets the entire environment.
+	 * Can't do it if any other DBIs are still open. Can only commit
+	 * or abort after this.
+	 */
+	if (dbi == MAIN_DBI) {
+		MDB_dbi i;
+		for (i = CORE_DBS; i<txn->mt_numdbs; i++) {
+			if (txn->mt_dbflags[i] & DB_VALID)
+				return MDB_DBIS_BUSY;
+		}
+		for (i = 0; i<CORE_DBS; i++) {
+			txn->mt_dbflags[i] |= DB_DIRTY;
+			txn->mt_dbs[i].md_depth = 0;
+			txn->mt_dbs[i].md_branch_pages = 0;
+			txn->mt_dbs[i].md_leaf_pages = 0;
+			txn->mt_dbs[i].md_overflow_pages = 0;
+			txn->mt_dbs[i].md_entries = 0;
+			txn->mt_dbs[i].md_root = P_INVALID;
+		}
+		txn->mt_flags |= MDB_TXN_DIRTY|MDB_TXN_DROPPED;
+		return MDB_SUCCESS;
+	}
+
 	rc = mdb_cursor_open(txn, dbi, &mc);
 	if (rc)
 		return rc;
 
-	MDB_TRACE(("%u, %d", dbi, del));
 	rc = mdb_drop0(mc, mc->mc_db->md_flags & MDB_DUPSORT);
 	/* Invalidate the dropped DB's cursors */
 	for (m2 = txn->mt_cursors[dbi]; m2; m2 = m2->mc_next)
