@@ -2,6 +2,7 @@ LMDB 0.9 Change Log
 
 LMDB 0.9.36 Engineering
 	ITS#8386 - be a bit more precise that mdb_get retrieves data in intro.doc
+	ITS#8590 - suppress SIGPIPE on Mac OSX for mdb_copy/compact
 	ITS#8739 - don't use fdatasync on FreeBSD 11.0 and older
 	ITS#8824 - mdb_dump: cleanup check for MDB_SUCCESS
 	ITS#10054 - fix write of 2GB values
