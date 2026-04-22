@@ -27,7 +27,11 @@ CFLAGS	= $(THREADS) $(OPT) $(W) $(XCFLAGS)
 LDFLAGS = $(THREADS)
 LDLIBS	= 
 SOLIBS	= 
+LIBVER	= 1
+ABIVER	= 0
+VEREXT	= $(LIBVER).$(ABIVER)
 SOEXT	= .so
+SOFULL	= $(SOEXT).$(VEREXT)
 LDL		= -ldl
 prefix	= /usr/local
 exec_prefix = $(prefix)
@@ -40,13 +44,14 @@ mandir = $(datarootdir)/man
 ########################################################################
 
 IHDRS	= lmdb.h
-ILIBS	= liblmdb.a liblmdb$(SOEXT)
+ILIBS	= liblmdb.a
+ILIBS2	= liblmdb$(SOFULL)
 IPROGS	= mdb_stat mdb_copy mdb_dump mdb_load mdb_drop
 IDOCS	= mdb_stat.1 mdb_copy.1 mdb_dump.1 mdb_load.1 mdb_drop.1
 PROGS	= $(IPROGS) mtest mtest2 mtest3 mtest4 mtest5
 RPROGS	= mtest_remap mtest_enc mtest_enc2
 
-all:	$(ILIBS) $(PROGS)
+all:	$(ILIBS) $(ILIBS2) $(PROGS)
 # Requires CPPFLAGS=-DMDB_VL32 and/or -DMDB_RPAGE_CACHE
 rall:	all $(RPROGS)
 
@@ -57,6 +62,7 @@ install: $(ILIBS) $(IPROGS) $(IHDRS)
 	mkdir -p $(DESTDIR)$(mandir)/man1
 	for f in $(IPROGS); do cp $$f $(DESTDIR)$(bindir); done
 	for f in $(ILIBS); do cp $$f $(DESTDIR)$(libdir); done
+	for f in $(ILIBS2); do cp $$f $(DESTDIR)$(libdir); ln -s $$f $(DESTDIR)$(libdir)/`basename -s .$(VEREXT) $$f`; done
 	for f in $(IHDRS); do cp $$f $(DESTDIR)$(includedir); done
 	for f in $(IDOCS); do cp $$f $(DESTDIR)$(mandir)/man1; done
 
@@ -70,9 +76,10 @@ test:	all
 liblmdb.a:	mdb.o midl.o module.o
 	$(AR) rs $@ mdb.o midl.o module.o
 
-liblmdb$(SOEXT):	mdb.lo midl.lo module.lo
+liblmdb$(SOFULL):	mdb.lo midl.lo module.lo
 #	$(CC) $(LDFLAGS) -pthread -shared -Wl,-Bsymbolic -o $@ mdb.o midl.o $(SOLIBS)
-	$(CC) $(LDFLAGS) -pthread -shared -o $@ mdb.lo midl.lo module.lo $(SOLIBS) $(LDL)
+	$(CC) $(LDFLAGS) -shared -Wl,-soname,liblmdb$(SOEXT).$(LIBVER) -o $@ mdb.lo midl.lo module.lo $(SOLIBS) $(LDL)
+	rm -f liblmdb$(SOEXT); ln -s $@ liblmdb$(SOEXT)
 
 mdb_stat: mdb_stat.o liblmdb.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDL)
