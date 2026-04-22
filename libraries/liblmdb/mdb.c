@@ -11920,7 +11920,7 @@ mdb_env_info(MDB_env *env, MDB_envinfo *arg)
 		return EINVAL;
 
 	meta = mdb_env_pick_meta(env);
-	arg->me_mapaddr = meta->mm_address;
+	arg->me_mapaddr = meta->mm_address ? meta->mm_address : env->me_map;
 	arg->me_last_pgno = meta->mm_last_pg;
 	arg->me_last_txnid = meta->mm_txnid;
 

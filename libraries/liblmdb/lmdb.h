@@ -547,7 +547,7 @@ typedef struct MDB_stat {
 
 /** @brief Information about the environment */
 typedef struct MDB_envinfo {
-	void	*me_mapaddr;			/**< Address of map, if fixed */
+	void	*me_mapaddr;			/**< Address of map */
 	mdb_size_t	me_mapsize;				/**< Size of the data memory map */
 	mdb_size_t	me_last_pgno;			/**< ID of the last used page */
 	mdb_size_t	me_last_txnid;			/**< ID of the last committed transaction */
