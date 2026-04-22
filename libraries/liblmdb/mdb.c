@@ -11045,7 +11045,7 @@ typedef struct mdb_copy {
 	char *mc_wbuf[2];
 	char *mc_over[2];
 	size_t mc_wlen[2];
-	size_t mc_olen[2];
+	mdb_size_t mc_olen[2];
 	pgno_t mc_next_pgno;
 	HANDLE mc_fd;
 	int mc_toggle;			/**< Buffer number in provider */
@@ -11069,11 +11069,12 @@ mdb_env_copythr(void *arg)
 	mdb_copy *my = arg;
 	char *ptr;
 	int toggle = 0, rc;
-	size_t wsize;
+	mdb_size_t wsize;
 #ifdef _WIN32
-	DWORD len;
+	DWORD len, w2;
 #else
-	int len;
+	ssize_t len;
+	size_t w2;
 #ifdef SIGPIPE
 	sigset_t set;
 	sigemptyset(&set);
@@ -11094,7 +11095,8 @@ mdb_env_copythr(void *arg)
 again:
 		rc = MDB_SUCCESS;
 		while (wsize > 0 && !my->mc_error) {
-			DO_WRITE(rc, my->mc_fd, ptr, wsize, len);
+			w2 = (wsize > MAX_WRITE) ? MAX_WRITE : wsize;
+			DO_WRITE(rc, my->mc_fd, ptr, w2, len);
 			if (!rc) {
 				rc = ErrCode();
 #if defined(SIGPIPE) && !defined(_WIN32)
@@ -11509,10 +11511,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 	}
 	wsize = w3 - wsize;
 	while (wsize > 0) {
-		if (wsize > MAX_WRITE)
-			w2 = MAX_WRITE;
-		else
-			w2 = wsize;
+		w2 = (wsize > MAX_WRITE) ? MAX_WRITE : wsize;
 		DO_WRITE(rc, fd, ptr, w2, len);
 		if (!rc) {
 			rc = ErrCode();
@@ -11592,7 +11591,7 @@ mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 	int rc;
 	MDB_page *mp, *mend;
 	MDB_txn *txn;
-	size_t wsize;
+	mdb_size_t wsize;
 	char *buf = NULL;
 #ifdef _WIN32
 	DWORD len, w2;
@@ -11634,21 +11633,27 @@ mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 	if (env->me_txns)
 		UNLOCK_MUTEX(env->me_wmutex);
 
-	mp = (MDB_page *)buf;
-	if (mp->mp_txnid > txnid) {
-		DO_WRITE(rc, fd, mp, env->me_psize, len);
-		if (!rc) {
-			rc = ErrCode();
-			goto leave;
+	{
+		MDB_meta *mm;
+		mp = (MDB_page *)buf;
+		mm = METADATA(mp);
+		if (mm->mm_txnid > txnid) {
+			DO_WRITE(rc, fd, mp, env->me_psize, len);
+			if (!rc) {
+				rc = ErrCode();
+				goto leave;
+			}
 		}
-	}
-	mp = (MDB_page *)((char *)mp + env->me_psize);
-	if (mp->mp_txnid > txnid) {
-		DO_WRITE(rc, fd, mp, env->me_psize, len);
-		if (!rc) {
-			rc = ErrCode();
-			goto leave;
+		mp = (MDB_page *)((char *)mp + env->me_psize);
+		mm = METADATA(mp);
+		if (mm->mm_txnid > txnid) {
+			DO_WRITE(rc, fd, mp, env->me_psize, len);
+			if (!rc) {
+				rc = ErrCode();
+				goto leave;
+			}
 		}
+
 	}
 	ALIGNED_FREE(buf);
 	buf = NULL;
@@ -11660,9 +11665,10 @@ mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 		if (IS_OVERFLOW(mp))
 			wsize *= mp->mp_pages;
 		if (mp->mp_txnid > txnid) {
+			mdb_size_t w3 = wsize;
 			char *ptr = (char *)mp;
-			w2 = wsize;
-			while (w2 > 0) {
+			while (w3 > 0) {
+				w2 = (w3 > MAX_WRITE) ? MAX_WRITE : w3;
 				DO_WRITE(rc, fd, ptr, w2, len);
 				if (!rc) {
 					rc = ErrCode();
@@ -11670,7 +11676,7 @@ mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 				} else if (len > 0) {
 					rc = MDB_SUCCESS;
 					ptr += len;
-					w2 -= len;
+					w3 -= len;
 					continue;
 				} else {
 					rc = EIO;
