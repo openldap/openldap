@@ -50,6 +50,10 @@ IPROGS	= mdb_stat mdb_copy mdb_dump mdb_load mdb_drop
 IDOCS	= mdb_stat.1 mdb_copy.1 mdb_dump.1 mdb_load.1 mdb_drop.1
 PROGS	= $(IPROGS) mtest mtest2 mtest3 mtest4 mtest5
 RPROGS	= mtest_remap mtest_enc mtest_enc2
+SOVER	= liblmdb$(SOEXT).$(LIBVER)
+VERSION_OPT	= -Wl,-soname,$(SOVER)
+# For MacOSX:
+#VERSION_OPT	= -Wl,-current_version,$(VEREXT)
 
 all:	$(ILIBS) $(ILIBS2) $(PROGS)
 # Requires CPPFLAGS=-DMDB_VL32 and/or -DMDB_RPAGE_CACHE
@@ -62,12 +66,16 @@ install: $(ILIBS) $(IPROGS) $(IHDRS)
 	mkdir -p $(DESTDIR)$(mandir)/man1
 	for f in $(IPROGS); do cp $$f $(DESTDIR)$(bindir); done
 	for f in $(ILIBS); do cp $$f $(DESTDIR)$(libdir); done
-	for f in $(ILIBS2); do cp $$f $(DESTDIR)$(libdir); ln -s $$f $(DESTDIR)$(libdir)/`basename -s .$(VEREXT) $$f`; done
+	for f in $(ILIBS2); do cp $$f $(DESTDIR)$(libdir); \
+		i=`basename -s .$(ABIVER) $$f`; rm -f $(DESTDIR)$(libdir)/$$i; \
+		ln -s $$f $(DESTDIR)$(libdir)/$$i; \
+		i=`basename -s .$(LIBVER) $$i`; rm -f $(DESTDIR)$(libdir)/$$i; \
+		ln -s $$f $(DESTDIR)$(libdir)/$$i; done
 	for f in $(IHDRS); do cp $$f $(DESTDIR)$(includedir); done
 	for f in $(IDOCS); do cp $$f $(DESTDIR)$(mandir)/man1; done
 
 clean:
-	rm -rf $(PROGS) $(RPROGS) *.[ao] *.[ls]o *~ testdb
+	rm -rf $(PROGS) $(RPROGS) *.[ao] *.[ls]o *.so.* *~ testdb
 
 test:	all
 	rm -rf testdb && mkdir testdb
@@ -78,8 +86,9 @@ liblmdb.a:	mdb.o midl.o module.o
 
 liblmdb$(SOFULL):	mdb.lo midl.lo module.lo
 #	$(CC) $(LDFLAGS) -pthread -shared -Wl,-Bsymbolic -o $@ mdb.o midl.o $(SOLIBS)
-	$(CC) $(LDFLAGS) -shared -Wl,-soname,liblmdb$(SOEXT).$(LIBVER) -o $@ mdb.lo midl.lo module.lo $(SOLIBS) $(LDL)
+	$(CC) $(LDFLAGS) -shared $(VERSION_OPT) -o $@ mdb.lo midl.lo module.lo $(SOLIBS) $(LDL)
 	rm -f liblmdb$(SOEXT); ln -s $@ liblmdb$(SOEXT)
+	rm -f $(SOVER); ln -s $@ $(SOVER)
 
 mdb_stat: mdb_stat.o liblmdb.a
 	$(CC) $(LDFLAGS) -o $@ $^ $(LDL)
