@@ -5301,15 +5301,15 @@ enum mdb_fopen_type {
 	MDB_O_RDONLY, MDB_O_RDWR, MDB_O_OVERLAPPED, MDB_O_META, MDB_O_COPY, MDB_O_LOCKS
 #else
 	/* A comment in mdb_fopen() explains some O_* flag choices. */
-	MDB_O_RDONLY= O_RDONLY,                            /**< for RDONLY me_fd */
-	MDB_O_RDWR  = O_RDWR  |O_CREAT,                    /**< for me_fd */
-	MDB_O_META  = O_WRONLY|MDB_DSYNC     |MDB_CLOEXEC, /**< for me_mfd */
-	MDB_O_COPY  = O_WRONLY|O_CREAT|O_EXCL|MDB_CLOEXEC, /**< for #mdb_env_copy() */
+	MDB_O_RDONLY= O_RDONLY               , /**< for RDONLY me_fd */
+	MDB_O_RDWR  = O_RDWR  |O_CREAT       , /**< for me_fd */
+	MDB_O_META  = O_WRONLY|MDB_DSYNC     , /**< for me_mfd */
+	MDB_O_COPY  = O_WRONLY|O_CREAT|O_EXCL, /**< for #mdb_env_copy() */
 	/** Bitmask for open() flags in enum #mdb_fopen_type.  The other bits
 	 * distinguish otherwise-equal MDB_O_* constants from each other.
 	 */
-	MDB_O_MASK  = MDB_O_RDWR|MDB_CLOEXEC | MDB_O_RDONLY|MDB_O_META|MDB_O_COPY,
-	MDB_O_LOCKS = MDB_O_RDWR|MDB_CLOEXEC | ((MDB_O_MASK+1) & ~MDB_O_MASK) /**< for me_lfd */
+	MDB_O_MASK  = MDB_O_RDWR| MDB_O_RDONLY|MDB_O_META|MDB_O_COPY,
+	MDB_O_LOCKS = MDB_O_RDWR| ((MDB_O_MASK+1) & ~MDB_O_MASK) /**< for me_lfd */
 #endif
 };
 
@@ -5346,11 +5346,8 @@ mdb_fopen(const MDB_env *env, MDB_name *fname,
 	 * With MDB_O_COPY we do not want the OS to cache the writes, since
 	 * the source data is already in the OS cache.
 	 *
-	 * The lockfile needs FD_CLOEXEC (close file descriptor on exec*())
-	 * to avoid the flock() issues noted under Caveats in lmdb.h.
-	 * Also set it for other filehandles which the user cannot get at
-	 * and close himself, which he may need after fork().  I.e. all but
-	 * me_fd, which programs do use via mdb_env_get_fd().
+	 * All files are opened with MDB_CLOEXEC to prevent leaking across
+	 * an exec().
 	 */
 
 #ifdef _WIN32
@@ -5383,17 +5380,16 @@ mdb_fopen(const MDB_env *env, MDB_name *fname,
 	}
 	fd = CreateFileW(fname->mn_val, acc, share, NULL, disp, attrs, NULL);
 #else
-	fd = open(fname->mn_val, which & MDB_O_MASK, mode);
+	fd = open(fname->mn_val, (which & MDB_O_MASK)|MDB_CLOEXEC, mode);
 #endif
 
 	if (fd == INVALID_HANDLE_VALUE)
 		rc = ErrCode();
 #ifndef _WIN32
 	else {
-		if (which != MDB_O_RDONLY && which != MDB_O_RDWR) {
-			/* Set CLOEXEC if we could not pass it to open() */
-			if (!MDB_CLOEXEC && (flags = fcntl(fd, F_GETFD)) != -1)
-				(void) fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+		/* Set CLOEXEC if we could not pass it to open() */
+		if (!MDB_CLOEXEC && (flags = fcntl(fd, F_GETFD)) != -1) {
+			(void) fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
 		}
 		if (which == MDB_O_COPY && env->me_psize >= env->me_os_psize) {
 			/* This may require buffer alignment.  There is no portable
