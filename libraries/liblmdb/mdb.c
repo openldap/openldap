@@ -11552,11 +11552,10 @@ mdb_env_copy_open(MDB_env *env, const char *path, HANDLE *retfd)
 {
 	int rc;
 	MDB_name fname;
-	HANDLE newfd = INVALID_HANDLE_VALUE;
 
 	rc = mdb_fname_init(path, env->me_flags | MDB_NOLOCK, &fname);
 	if (rc == MDB_SUCCESS) {
-		rc = mdb_fopen(env, &fname, MDB_O_COPY, 0666, &newfd);
+		rc = mdb_fopen(env, &fname, MDB_O_COPY, 0666, retfd);
 		mdb_fname_destroy(fname);
 	}
 	return rc;
