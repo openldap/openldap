@@ -105,7 +105,7 @@ LDAP_SLAPD_F (int) parse_acl LDAP_P(( struct config_args_s *ca, int pos ));
 LDAP_SLAPD_F (char *) access2str LDAP_P(( slap_access_t access ));
 LDAP_SLAPD_F (slap_access_t) str2access LDAP_P(( const char *str ));
 
-#define ACCESSMASK_MAXLEN	sizeof("unknown (+wrscan)")
+#define ACCESSMASK_MAXLEN	sizeof("unknown (+mazirscxd)")
 LDAP_SLAPD_F (char *) accessmask2str LDAP_P(( slap_mask_t mask, char*, int debug ));
 LDAP_SLAPD_F (slap_mask_t) str2accessmask LDAP_P(( const char *str ));
 LDAP_SLAPD_F (void) acl_unparse LDAP_P(( AccessControl*, struct berval* ));

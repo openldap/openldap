@@ -1997,17 +1997,21 @@ accessmask2str( slap_mask_t mask, char *buf, int debug )
 		none = 0;
 		*ptr++ = 'w';
 
-	} else if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WADD) ) {
-		none = 0;
-		*ptr++ = 'a';
+	} else {
+		if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WADD) ) {
+			none = 0;
+			*ptr++ = 'a';
 
-	} else if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WDEL) ) {
-		none = 0;
-		*ptr++ = 'z';
+		}
+		if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WDEL) ) {
+			none = 0;
+			*ptr++ = 'z';
 
-	} else if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WINCR) ) {
-		none = 0;
-		*ptr++ = 'i';
+		}
+		if ( ACL_PRIV_ISSET(mask, ACL_PRIV_WINCR) ) {
+			none = 0;
+			*ptr++ = 'i';
+		}
 	}
 
 	if ( ACL_PRIV_ISSET(mask, ACL_PRIV_READ) ) {
