@@ -537,7 +537,7 @@ typedef enum MDB_cursor_op {
 	/** Env or txn is read-only, can't write */
 #define MDB_IS_READONLY	(-30770)
 	/** Requested map address is unavailable */
-#define MDB_ADDR_BUSY
+#define MDB_ADDR_BUSY	(-30769)
 	/** The last defined error code */
 #define MDB_LAST_ERRCODE	MDB_ADDR_BUSY
 /** @} */
