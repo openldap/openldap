@@ -330,6 +330,7 @@ union semun {
 #endif
 
 /* Internal error codes, not exposed outside liblmdb */
+#define	MDB_NO_META		(MDB_LAST_ERRCODE + 9)
 #define	MDB_NO_ROOT		(MDB_LAST_ERRCODE + 10)
 #ifdef _WIN32
 #define MDB_OWNERDEAD	((int) WAIT_ABANDONED)
@@ -1916,6 +1917,10 @@ static char *const mdb_errstr[] = {
 	"MDB_TXN_PENDING: Transaction already prepared, must abort or commit",
 	"MDB_CANT_ROLLBACK: Environment can't rollback last transaction",
 	"MDB_DBIS_BUSY: Can't drop main DBI while other DBIs are open",
+	"MDB_SHORT_WRITE: Fewer bytes were written than requested",
+	"MDB_ENV_BUSY: Environment is busy, can't use previous snapshot",
+	"MDB_IS_READONLY: Can't write in readonly txn or environment",
+	"MDB_ADDR_BUSY: Requested map address is unavailable",
 };
 
 char *
@@ -1946,13 +1951,8 @@ mdb_strerror(int err)
 	 * have used LMDB-specific error codes for everything.
 	 */
 	switch(err) {
-	case ENOENT:	/* 2, FILE_NOT_FOUND */
-	case EIO:		/* 5, ACCESS_DENIED */
 	case ENOMEM:	/* 12, INVALID_ACCESS */
-	case EACCES:	/* 13, INVALID_DATA */
-	case EBUSY:		/* 16, CURRENT_DIRECTORY */
 	case EINVAL:	/* 22, BAD_COMMAND */
-	case ENOSPC:	/* 28, OUT_OF_PAPER */
 		return strerror(err);
 	default:
 		;
@@ -3104,7 +3104,7 @@ mdb_env_sync0(MDB_env *env, int force, pgno_t numpgs)
 {
 	int rc = 0;
 	if (env->me_flags & MDB_RDONLY)
-		return EACCES;
+		return MDB_IS_READONLY;
 	if (force || !(env->me_flags & MDB_NOSYNC)
 #ifdef _WIN32	/* Sync is normally achieved in Windows by doing WRITE_THROUGH writes */
 		&& (env->me_flags & MDB_WRITEMAP)
@@ -3485,7 +3485,7 @@ mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **ret)
 	flags |= env->me_flags & MDB_WRITEMAP;
 
 	if (env->me_flags & MDB_RDONLY & ~flags) /* write txn in RDONLY env */
-		return EACCES;
+		return MDB_IS_READONLY;
 
 	if (parent) {
 		/* Nested transactions:
@@ -4248,7 +4248,7 @@ bad_write:
 							goto retry_write;
 						DPRINTF(("Write error: %s", strerror(rc)));
 					} else {
-						rc = EIO; /* TODO: Use which error code? */
+						rc = MDB_SHORT_WRITE;
 						DPUTS("short write, filesystem full?");
 					}
 				}
@@ -4677,7 +4677,7 @@ mdb_env_read_header(MDB_env *env, int prev, MDB_meta *meta)
 		p = (MDB_page *)env->me_map;
 		for (i=0; i<NUM_METAS; i++) {
 			if (!F_ISSET(p->mp_flags, P_META))
-				return ENOENT;
+				return MDB_NO_META;
 			if (env->me_metas[i]->mm_magic != MDB_MAGIC)
 				return MDB_INVALID;
 			if (env->me_metas[i]->mm_version != MDB_DATA_VERSION)
@@ -4707,7 +4707,7 @@ mdb_env_read_header(MDB_env *env, int prev, MDB_meta *meta)
 #endif
 		if (rc != Size) {
 			if (rc == 0 && off == 0)
-				return ENOENT;
+				return MDB_NO_META;
 			rc = rc < 0 ? (int) ErrCode() : MDB_INVALID;
 			DPRINTF(("read: %s", mdb_strerror(rc)));
 			return rc;
@@ -4717,7 +4717,7 @@ mdb_env_read_header(MDB_env *env, int prev, MDB_meta *meta)
 
 		if (!F_ISSET(p->mp_flags, P_META)) {
 			if (env->me_flags & MDB_RAWPART)
-				return ENOENT;
+				return MDB_NO_META;
 			DPRINTF(("page %"Yu" not a meta page", p->mp_pgno));
 			return MDB_INVALID;
 		}
@@ -4822,7 +4822,7 @@ mdb_env_init_meta(MDB_env *env, MDB_meta *meta)
 	else if ((unsigned) len == psize * NUM_METAS)
 		rc = MDB_SUCCESS;
 	else
-		rc = ENOSPC;
+		rc = MDB_SHORT_WRITE;
 	free(p);
 	return rc;
 }
@@ -4925,7 +4925,7 @@ retry_write:
 	rc = pwrite(mfd, ptr, len, off);
 #endif
 	if (rc != len) {
-		rc = rc < 0 ? ErrCode() : EIO;
+		rc = rc < 0 ? ErrCode() : MDB_SHORT_WRITE;
 #ifndef _WIN32
 		if (rc == EINTR)
 			goto retry_write;
@@ -5128,7 +5128,7 @@ mdb_env_map(MDB_env *env, void *addr)
 	 * instead unmap existing pages to make room for the new map.
 	 */
 	if (addr && env->me_map != addr)
-		return EBUSY;	/* TODO: Make a new MDB_* error code? */
+		return MDB_ADDR_BUSY;
 
 	p = (MDB_page *)env->me_map;
 	env->me_metas[0] = METADATA(p);
@@ -5501,7 +5501,7 @@ mdb_env_open2(MDB_env *env, int prev)
 #endif
 
 	if ((i = mdb_env_read_header(env, prev, &meta)) != 0) {
-		if (i != ENOENT)
+		if (i != MDB_NO_META)
 			return i;
 		DPUTS("new mdbenv");
 		newenv = 1;
@@ -6077,10 +6077,6 @@ mdb_env_setup_locks(MDB_env *env, MDB_name *fname, int mode, int *excl)
 			rc = MDB_VERSION_MISMATCH;
 			goto fail;
 		}
-		rc = ErrCode();
-		if (rc && rc != EACCES && rc != EAGAIN) {
-			goto fail;
-		}
 #ifdef _WIN32
 		mdb_env_mname_init(env);
 		env->me_rmutex = OpenMutexA(SYNCHRONIZE, FALSE, MUTEXNAME(env, 'r'));
@@ -6297,7 +6293,7 @@ mdb_env_open(MDB_env *env, const char *path, unsigned int flags, mdb_mode_t mode
 		if (rc)
 			goto leave;
 		if ((flags & MDB_PREVSNAPSHOT) && !excl) {
-			rc = EAGAIN;
+			rc = MDB_ENV_BUSY;
 			goto leave;
 		}
 	}
@@ -8507,7 +8503,7 @@ _mdb_cursor_put(MDB_cursor *mc, MDB_val *key, MDB_val *data,
 	flags &= ~MDB_NOSPILL;
 
 	if (mc->mc_txn->mt_flags & (MDB_TXN_RDONLY|MDB_TXN_BLOCKED))
-		return (mc->mc_txn->mt_flags & MDB_TXN_RDONLY) ? EACCES : MDB_BAD_TXN;
+		return (mc->mc_txn->mt_flags & MDB_TXN_RDONLY) ? MDB_IS_READONLY : MDB_BAD_TXN;
 
 	if (key->mv_size-1 >= ENV_MAXKEY(env))
 		return MDB_BAD_VALSIZE;
@@ -9016,7 +9012,7 @@ _mdb_cursor_del(MDB_cursor *mc, unsigned int flags)
 	int rc;
 
 	if (mc->mc_txn->mt_flags & (MDB_TXN_RDONLY|MDB_TXN_BLOCKED))
-		return (mc->mc_txn->mt_flags & MDB_TXN_RDONLY) ? EACCES : MDB_BAD_TXN;
+		return (mc->mc_txn->mt_flags & MDB_TXN_RDONLY) ? MDB_IS_READONLY : MDB_BAD_TXN;
 
 	if (!(mc->mc_flags & C_INITIALIZED))
 		return EINVAL;
@@ -10513,7 +10509,7 @@ mdb_del(MDB_txn *txn, MDB_dbi dbi,
 		return EINVAL;
 
 	if (txn->mt_flags & (MDB_TXN_RDONLY|MDB_TXN_BLOCKED))
-		return (txn->mt_flags & MDB_TXN_RDONLY) ? EACCES : MDB_BAD_TXN;
+		return (txn->mt_flags & MDB_TXN_RDONLY) ? MDB_IS_READONLY : MDB_BAD_TXN;
 
 	if (!F_ISSET(txn->mt_dbs[dbi].md_flags, MDB_DUPSORT)) {
 		/* must ignore any data */
@@ -11017,7 +11013,7 @@ mdb_put(MDB_txn *txn, MDB_dbi dbi,
 		return EINVAL;
 
 	if (txn->mt_flags & (MDB_TXN_RDONLY|MDB_TXN_BLOCKED))
-		return (txn->mt_flags & MDB_TXN_RDONLY) ? EACCES : MDB_BAD_TXN;
+		return (txn->mt_flags & MDB_TXN_RDONLY) ? MDB_IS_READONLY : MDB_BAD_TXN;
 
 	MDB_TRACE(("%p, %u, %"Z"u[%s], %"Z"u%s, %u",
 		txn, dbi, key ? key->mv_size:0, DKEY(key), data->mv_size, mdb_dval(txn, dbi, data, dbuf), flags));
@@ -11111,7 +11107,7 @@ again:
 				wsize -= len;
 				continue;
 			} else {
-				rc = EIO;
+				rc = MDB_SHORT_WRITE;
 				break;
 			}
 		}
@@ -11488,7 +11484,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 			continue;
 		} else {
 			/* Non-blocking or async handles are not supported */
-			rc = EIO;
+			rc = MDB_SHORT_WRITE;
 			break;
 		}
 	}
@@ -11519,7 +11515,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 			wsize -= len;
 			continue;
 		} else {
-			rc = EIO;
+			rc = MDB_SHORT_WRITE;
 			break;
 		}
 	}
@@ -11675,7 +11671,7 @@ mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 					w3 -= len;
 					continue;
 				} else {
-					rc = EIO;
+					rc = MDB_SHORT_WRITE;
 					goto leave;
 				}
 			}
@@ -12022,7 +12018,7 @@ int mdb_dbi_open(MDB_txn *txn, const char *name, unsigned int flags, MDB_dbi *db
 		if (rc != MDB_NOTFOUND || !(flags & MDB_CREATE))
 			return rc;
 		if (F_ISSET(txn->mt_flags, MDB_TXN_RDONLY))
-			return EACCES;
+			return MDB_IS_READONLY;
 	}
 
 	/* Done here so we cannot fail after creating a new DB */
@@ -12223,7 +12219,7 @@ int mdb_drop(MDB_txn *txn, MDB_dbi dbi, int del)
 		return EINVAL;
 
 	if (F_ISSET(txn->mt_flags, MDB_TXN_RDONLY))
-		return EACCES;
+		return MDB_IS_READONLY;
 
 	if (TXN_DBI_CHANGED(txn, dbi))
 		return MDB_BAD_DBI;

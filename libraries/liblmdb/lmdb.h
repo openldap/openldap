@@ -530,8 +530,16 @@ typedef enum MDB_cursor_op {
 #define MDB_CANT_ROLLBACK	(-30774)
 	/** Can't drop main DBI while other DBIs are open */
 #define MDB_DBIS_BUSY	(-30773)
+	/** Write was incomplete */
+#define MDB_SHORT_WRITE	(-30772)
+	/** Env is busy, can't use previous snapshot */
+#define MDB_ENV_BUSY	(-30771)
+	/** Env or txn is read-only, can't write */
+#define MDB_IS_READONLY	(-30770)
+	/** Requested map address is unavailable */
+#define MDB_ADDR_BUSY
 	/** The last defined error code */
-#define MDB_LAST_ERRCODE	MDB_CANT_ROLLBACK
+#define MDB_LAST_ERRCODE	MDB_ADDR_BUSY
 /** @} */
 
 /** @brief Statistics for a database in the environment */
