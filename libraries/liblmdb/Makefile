@@ -27,12 +27,15 @@ CFLAGS	= $(THREADS) $(OPT) $(W) $(XCFLAGS)
 LDFLAGS = $(THREADS)
 LDLIBS	= 
 SOLIBS	= 
+SOEXT	= .so
+LDL		= -ldl
+
 LIBVER	= 1
 ABIVER	= 0
 VEREXT	= $(LIBVER).$(ABIVER)
-SOEXT	= .so
+LMDB_VERSION	= 1.0.0
 SOFULL	= $(SOEXT).$(VEREXT)
-LDL		= -ldl
+
 prefix	= /usr/local
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
@@ -55,7 +58,7 @@ VERSION_OPT	= -Wl,-soname,$(SOVER)
 # For MacOSX:
 #VERSION_OPT	= -Wl,-current_version,$(VEREXT)
 
-all:	$(ILIBS) $(ILIBS2) $(PROGS)
+all:	$(ILIBS) $(ILIBS2) $(PROGS) lmdb.pc
 # Requires CPPFLAGS=-DMDB_VL32 and/or -DMDB_RPAGE_CACHE
 rall:	all $(RPROGS)
 
@@ -136,6 +139,19 @@ module.lo: module.c lmdb.h
 
 %.o:	%.c lmdb.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+lmdb.pc: Makefile
+	@echo "prefix=$(prefix)" > $@
+	@echo "exec_prefix=$(exec_prefix)" >>$@
+	@echo "includedir=$(includedir)" >>$@
+	@echo "libdir=$(libdir)" >>$@
+	@echo >>$@
+	@echo "Name: lmdb (OpenLDAP)" >>$@
+	@echo "Description: OpenLDAP Lightning Memory Mapped Database library" >>$@
+	@echo "URL: https://www.openldap.org" >>$@
+	@echo "Version: $(LMDB_VERSION)" >>$@
+	@echo "Cflags: $(THREADS) $(XCFLAGS)" >>$@
+	@echo "Libs: $(LDL)" >>$@
 
 COV_FLAGS=-fprofile-arcs -ftest-coverage
 COV_OBJS=xmdb.o xmidl.o
