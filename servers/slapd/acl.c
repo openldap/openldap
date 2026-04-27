@@ -800,7 +800,7 @@ acl_mask_dn(
 			MATCHES_MEMSET( &tmp_matches );
 			tmp_data = &tmp_matches.dn_data[0];
 
-			if ( a->acl_attrval_style == ACL_STYLE_REGEX )
+			if ( !a || a->acl_attrval_style == ACL_STYLE_REGEX )
 				tmp_matchesp = matches;
 			else switch ( a->acl_dn_style ) {
 			case ACL_STYLE_REGEX:
@@ -808,7 +808,8 @@ acl_mask_dn(
 					tmp_matchesp = matches; 
 					break;
 				}
-			/* FALLTHRU: applies also to ACL_STYLE_REGEX when pattern is "*" */
+			/* FALLTHRU */
+			/* applies also to ACL_STYLE_REGEX when pattern is "*" */
 
 			case ACL_STYLE_BASE:
 				tmp_data[0].rm_so = 0;
@@ -867,7 +868,7 @@ acl_mask_dn(
 			bv.bv_val = buf;
 
 			/* Expand value regex */
-			if ( a->acl_attrval_style == ACL_STYLE_REGEX )
+			if ( !a || a->acl_attrval_style == ACL_STYLE_REGEX )
 				tmp_matchesp = matches;
 			else switch ( a->acl_dn_style ) {
 			case ACL_STYLE_REGEX:
@@ -875,7 +876,8 @@ acl_mask_dn(
 					tmp_matchesp = matches;
 					break;
 				}
-			/* FALLTHRU: applies also to ACL_STYLE_REGEX when pattern is "*" */
+			/* FALLTHRU */
+			/* applies also to ACL_STYLE_REGEX when pattern is "*" */
 
 			case ACL_STYLE_BASE:
 				tmp_data[0].rm_so = 0;
@@ -1014,10 +1016,7 @@ acl_mask_dnattr(
 	Operation		*op,
 	Entry			*e,
 	struct berval		*val,
-	AccessControl		*a,
 	int			count,
-	AccessControlState	*state,
-	slap_mask_t			*mask,
 	slap_dn_access		*bdn,
 	struct berval		*opndn )
 {
@@ -1097,6 +1096,586 @@ acl_mask_dnattr(
 	return 0;
 }
 
+int
+acl_check_who(
+	Operation *op,
+	Entry *e,
+	struct berval *val,
+	AccessControl *a,
+	Access *b,
+	AclRegexMatches *matches,
+	int count )
+{
+	if ( !BER_BVISEMPTY( &b->a_dn_pat ) ) {
+		Debug( LDAP_DEBUG_ACL, "<= check a_dn_pat: %s\n",
+				b->a_dn_pat.bv_val );
+		/*
+		 * if access applies to the entry itself, and the
+		 * user is bound as somebody in the same namespace as
+		 * the entry, OR the given dn matches the dn pattern
+		 */
+		/*
+		 * NOTE: styles "anonymous", "users" and "self"
+		 * have been moved to enum slap_style_t, whose
+		 * value is set in a_dn_style; however, the string
+		 * is maintained in a_dn_pat.
+		 */
+
+		if ( acl_mask_dn( op, e, val, a, matches,
+					&b->a_dn, &op->o_ndn ) )
+		{
+			return 1;
+		}
+	}
+
+	if ( !BER_BVISEMPTY( &b->a_realdn_pat ) ) {
+		struct berval	ndn;
+
+		Debug( LDAP_DEBUG_ACL, "<= check a_realdn_pat: %s\n",
+				b->a_realdn_pat.bv_val );
+		/*
+		 * if access applies to the entry itself, and the
+		 * user is bound as somebody in the same namespace as
+		 * the entry, OR the given dn matches the dn pattern
+		 */
+		/*
+		 * NOTE: styles "anonymous", "users" and "self"
+		 * have been moved to enum slap_style_t, whose
+		 * value is set in a_dn_style; however, the string
+		 * is maintained in a_dn_pat.
+		 */
+
+		if ( op->o_conn && !BER_BVISNULL( &op->o_conn->c_ndn ) )
+		{
+			ndn = op->o_conn->c_ndn;
+		} else {
+			ndn = op->o_ndn;
+		}
+
+		if ( acl_mask_dn( op, e, val, a, matches,
+					&b->a_realdn, &ndn ) )
+		{
+			return 1;
+		}
+	}
+
+	if ( !BER_BVISEMPTY( &b->a_sockurl_pat ) ) {
+		if ( ! op->o_conn->c_listener ) {
+			return 1;
+		}
+		Debug( LDAP_DEBUG_ACL, "<= check a_sockurl_pat: %s\n",
+				b->a_sockurl_pat.bv_val );
+
+		if ( !ber_bvccmp( &b->a_sockurl_pat, '*' ) ) {
+			if ( b->a_sockurl_style == ACL_STYLE_REGEX) {
+				if ( !regex_matches( &b->a_sockurl_pat, op->o_conn->c_listener_url.bv_val,
+							&e->e_nname, val, matches ) )
+				{
+					return 1;
+				}
+
+			} else if ( b->a_sockurl_style == ACL_STYLE_EXPAND ) {
+				struct berval	bv;
+				char buf[ACL_BUF_SIZE];
+
+				bv.bv_len = sizeof( buf ) - 1;
+				bv.bv_val = buf;
+				if ( acl_string_expand( &bv, &b->a_sockurl_pat, &e->e_nname, val, matches ) )
+				{
+					return 1;
+				}
+
+				if ( ber_bvstrcasecmp( &bv, &op->o_conn->c_listener_url ) != 0 )
+				{
+					return 1;
+				}
+
+			} else {
+				if ( ber_bvstrcasecmp( &b->a_sockurl_pat, &op->o_conn->c_listener_url ) != 0 )
+				{
+					return 1;
+				}
+			}
+		}
+	}
+
+	if ( !BER_BVISEMPTY( &b->a_domain_pat ) ) {
+		if ( !op->o_conn->c_peer_domain.bv_val ) {
+			return 1;
+		}
+		Debug( LDAP_DEBUG_ACL, "<= check a_domain_pat: %s\n",
+				b->a_domain_pat.bv_val );
+		if ( !ber_bvccmp( &b->a_domain_pat, '*' ) ) {
+			if ( b->a_domain_style == ACL_STYLE_REGEX) {
+				if ( !regex_matches( &b->a_domain_pat, op->o_conn->c_peer_domain.bv_val,
+							&e->e_nname, val, matches ) )
+				{
+					return 1;
+				}
+			} else {
+				char buf[ACL_BUF_SIZE];
+
+				struct berval 	cmp = op->o_conn->c_peer_domain;
+				struct berval 	pat = b->a_domain_pat;
+
+				if ( b->a_domain_expand ) {
+					struct berval bv;
+
+					bv.bv_len = sizeof(buf) - 1;
+					bv.bv_val = buf;
+
+					if ( acl_string_expand(&bv, &b->a_domain_pat, &e->e_nname, val, matches) )
+					{
+						return 1;
+					}
+					pat = bv;
+				}
+
+				if ( b->a_domain_style == ACL_STYLE_SUBTREE ) {
+					int offset = cmp.bv_len - pat.bv_len;
+					if ( offset < 0 ) {
+						return 1;
+					}
+
+					if ( offset == 1 || ( offset > 1 && cmp.bv_val[ offset - 1 ] != '.' ) ) {
+						return 1;
+					}
+
+					/* trim the domain */
+					cmp.bv_val = &cmp.bv_val[ offset ];
+					cmp.bv_len -= offset;
+				}
+
+				if ( ber_bvstrcasecmp( &pat, &cmp ) != 0 ) {
+					return 1;
+				}
+			}
+		}
+	}
+
+	if ( !BER_BVISEMPTY( &b->a_peername_pat ) ) {
+		if ( !op->o_conn->c_peer_name.bv_val ) {
+			return 1;
+		}
+		Debug( LDAP_DEBUG_ACL, "<= check a_peername_path: %s\n",
+				b->a_peername_pat.bv_val );
+		if ( !ber_bvccmp( &b->a_peername_pat, '*' ) ) {
+			if ( b->a_peername_style == ACL_STYLE_REGEX ) {
+				if ( !regex_matches( &b->a_peername_pat, op->o_conn->c_peer_name.bv_val,
+							&e->e_nname, val, matches ) )
+				{
+					return 1;
+				}
+
+			} else {
+				/* try exact match */
+				if ( b->a_peername_style == ACL_STYLE_BASE ) {
+					if ( ber_bvstrcasecmp( &b->a_peername_pat, &op->o_conn->c_peer_name ) != 0 ) {
+						return 1;
+					}
+
+				} else if ( b->a_peername_style == ACL_STYLE_EXPAND ) {
+					struct berval	bv;
+					char buf[ACL_BUF_SIZE];
+
+					bv.bv_len = sizeof( buf ) - 1;
+					bv.bv_val = buf;
+					if ( acl_string_expand( &bv, &b->a_peername_pat, &e->e_nname, val, matches ) )
+					{
+						return 1;
+					}
+
+					if ( ber_bvstrcasecmp( &bv, &op->o_conn->c_peer_name ) != 0 ) {
+						return 1;
+					}
+
+					/* extract IP and try exact match */
+				} else if ( b->a_peername_style == ACL_STYLE_IP ) {
+					char		*port;
+					char		buf[STRLENOF("255.255.255.255") + 1];
+					struct berval	ip;
+					unsigned long	addr;
+					int		port_number = -1;
+
+					if ( strncasecmp( op->o_conn->c_peer_name.bv_val,
+								acl_bv_ip_eq.bv_val,
+								acl_bv_ip_eq.bv_len ) != 0 )
+						return 1;
+
+					ip.bv_val = op->o_conn->c_peer_name.bv_val + acl_bv_ip_eq.bv_len;
+					ip.bv_len = op->o_conn->c_peer_name.bv_len - acl_bv_ip_eq.bv_len;
+
+					port = strrchr( ip.bv_val, ':' );
+					if ( port ) {
+						ip.bv_len = port - ip.bv_val;
+						++port;
+						if ( lutil_atoi( &port_number, port ) != 0 )
+							return 1;
+					}
+
+					/* the port check can be anticipated here */
+					if ( b->a_peername_port != -1 && port_number != b->a_peername_port )
+						return 1;
+
+					/* address longer than expected? */
+					if ( ip.bv_len >= sizeof(buf) )
+						return 1;
+
+					AC_MEMCPY( buf, ip.bv_val, ip.bv_len );
+					buf[ ip.bv_len ] = '\0';
+
+					addr = inet_addr( buf );
+
+					/* unable to convert? */
+					if ( addr == (unsigned long)(-1) )
+						return 1;
+
+					if ( (addr & b->a_peername_mask) != b->a_peername_addr )
+						return 1;
+
+#ifdef LDAP_PF_INET6
+					/* extract IPv6 and try exact match */
+				} else if ( b->a_peername_style == ACL_STYLE_IPV6 ) {
+					char		*port;
+					char		buf[STRLENOF("FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF") + 1];
+					struct berval	ip;
+					struct in6_addr	addr;
+					int		port_number = -1;
+
+					if ( strncasecmp( op->o_conn->c_peer_name.bv_val,
+								acl_bv_ipv6_eq.bv_val,
+								acl_bv_ipv6_eq.bv_len ) != 0 )
+						return 1;
+
+					ip.bv_val = op->o_conn->c_peer_name.bv_val + acl_bv_ipv6_eq.bv_len;
+					ip.bv_len = op->o_conn->c_peer_name.bv_len - acl_bv_ipv6_eq.bv_len;
+
+					port = strrchr( ip.bv_val, ']' );
+					if ( port ) {
+						ip.bv_len = port - ip.bv_val;
+						++port;
+						if ( port[0] == ':' && lutil_atoi( &port_number, ++port ) != 0 )
+							return 1;
+					}
+
+					/* the port check can be anticipated here */
+					if ( b->a_peername_port != -1 && port_number != b->a_peername_port )
+						return 1;
+
+					/* address longer than expected? */
+					if ( ip.bv_len >= sizeof(buf) )
+						return 1;
+
+					AC_MEMCPY( buf, ip.bv_val, ip.bv_len );
+					buf[ ip.bv_len ] = '\0';
+
+					if ( inet_pton( AF_INET6, buf, &addr ) != 1 )
+						return 1;
+
+					/* check mask */
+					if ( !slap_addr6_mask( &addr, &b->a_peername_mask6, &b->a_peername_addr6 ) )
+						return 1;
+#endif /* LDAP_PF_INET6 */
+
+#ifdef LDAP_PF_LOCAL
+					/* extract path and try exact match */
+				} else if ( b->a_peername_style == ACL_STYLE_PATH ) {
+					struct berval path;
+
+					if ( strncmp( op->o_conn->c_peer_name.bv_val,
+								acl_bv_path_eq.bv_val,
+								acl_bv_path_eq.bv_len ) != 0 )
+						return 1;
+
+					path.bv_val = op->o_conn->c_peer_name.bv_val
+						+ acl_bv_path_eq.bv_len;
+					path.bv_len = op->o_conn->c_peer_name.bv_len
+						- acl_bv_path_eq.bv_len;
+
+					if ( ber_bvcmp( &b->a_peername_pat, &path ) != 0 )
+						return 1;
+
+#endif /* LDAP_PF_LOCAL */
+
+					/* exact match (very unlikely...) */
+				} else if ( ber_bvcmp( &op->o_conn->c_peer_name, &b->a_peername_pat ) != 0 ) {
+					return 1;
+				}
+			}
+		}
+	}
+
+	if ( !BER_BVISEMPTY( &b->a_sockname_pat ) ) {
+		if ( BER_BVISNULL( &op->o_conn->c_sock_name ) ) {
+			return 1;
+		}
+		Debug( LDAP_DEBUG_ACL, "<= check a_sockname_path: %s\n",
+				b->a_sockname_pat.bv_val );
+		if ( !ber_bvccmp( &b->a_sockname_pat, '*' ) ) {
+			if ( b->a_sockname_style == ACL_STYLE_REGEX) {
+				if ( !regex_matches( &b->a_sockname_pat, op->o_conn->c_sock_name.bv_val,
+							&e->e_nname, val, matches ) )
+				{
+					return 1;
+				}
+
+			} else if ( b->a_sockname_style == ACL_STYLE_EXPAND ) {
+				struct berval	bv;
+				char buf[ACL_BUF_SIZE];
+
+				bv.bv_len = sizeof( buf ) - 1;
+				bv.bv_val = buf;
+				if ( acl_string_expand( &bv, &b->a_sockname_pat, &e->e_nname, val, matches ) )
+				{
+					return 1;
+				}
+
+				if ( ber_bvstrcasecmp( &bv, &op->o_conn->c_sock_name ) != 0 ) {
+					return 1;
+				}
+
+			} else {
+				if ( ber_bvstrcasecmp( &b->a_sockname_pat, &op->o_conn->c_sock_name ) != 0 ) {
+					return 1;
+				}
+			}
+		}
+	}
+
+	if ( b->a_dn_at != NULL ) {
+		if ( acl_mask_dnattr( op, e, val, count, &b->a_dn, &op->o_ndn ) )
+		{
+			return 1;
+		}
+	}
+
+	if ( b->a_realdn_at != NULL ) {
+		struct berval	ndn;
+
+		if ( op->o_conn && !BER_BVISNULL( &op->o_conn->c_ndn ) )
+		{
+			ndn = op->o_conn->c_ndn;
+		} else {
+			ndn = op->o_ndn;
+		}
+
+		if ( acl_mask_dnattr( op, e, val, count, &b->a_realdn, &ndn ) )
+		{
+			return 1;
+		}
+	}
+
+	if ( !BER_BVISEMPTY( &b->a_group_pat ) ) {
+		struct berval bv;
+		struct berval ndn = BER_BVNULL;
+		int rc;
+
+		if ( op->o_ndn.bv_len == 0 ) {
+			return 1;
+		}
+
+		Debug( LDAP_DEBUG_ACL, "<= check a_group_pat: %s\n",
+				b->a_group_pat.bv_val );
+
+		/* b->a_group is an unexpanded entry name, expanded it should be an
+		 * entry with objectclass group* and we test to see if odn is one of
+		 * the values in the attribute group
+		 */
+		/* see if asker is listed in dnattr */
+		if ( b->a_group_style == ACL_STYLE_EXPAND ) {
+			char		buf[ACL_BUF_SIZE];
+			AclRegexMatches	tmp_matches,
+							*tmp_matchesp = &tmp_matches;
+			regmatch_t 	*tmp_data;
+
+			MATCHES_MEMSET( &tmp_matches );
+			tmp_data = &tmp_matches.dn_data[0];
+
+			bv.bv_len = sizeof(buf) - 1;
+			bv.bv_val = buf;
+
+			rc = 0;
+
+			if ( !a || a->acl_attrval_style == ACL_STYLE_REGEX )
+				tmp_matchesp = matches;
+			else switch ( a->acl_dn_style ) {
+				case ACL_STYLE_REGEX:
+					if ( !BER_BVISNULL( &a->acl_dn_pat ) ) {
+						tmp_matchesp = matches;
+						break;
+					}
+
+					/* FALLTHRU */
+					/* applies also to ACL_STYLE_REGEX when pattern is "*" */
+				case ACL_STYLE_BASE:
+					tmp_data[0].rm_so = 0;
+					tmp_data[0].rm_eo = e->e_nname.bv_len;
+					tmp_matches.dn_count = 1;
+					break;
+
+				case ACL_STYLE_ONE:
+				case ACL_STYLE_SUBTREE:
+				case ACL_STYLE_CHILDREN:
+					tmp_data[0].rm_so = 0;
+					tmp_data[0].rm_eo = e->e_nname.bv_len;
+
+					tmp_data[1].rm_so = e->e_nname.bv_len - a->acl_dn_pat.bv_len;
+					tmp_data[1].rm_eo = e->e_nname.bv_len;
+					tmp_matches.dn_count = 2;
+					break;
+
+				default:
+					/* error */
+					rc = 1;
+					break;
+			}
+
+			if ( rc ) {
+				return 1;
+			}
+
+			if ( acl_string_expand( &bv, &b->a_group_pat,
+						&e->e_nname, val,
+						tmp_matchesp ) )
+			{
+				return 1;
+			}
+
+			if ( dnNormalize( 0, NULL, NULL, &bv, &ndn,
+						op->o_tmpmemctx ) != LDAP_SUCCESS )
+			{
+				/* did not expand to a valid dn */
+				return 1;
+			}
+
+			bv = ndn;
+
+		} else {
+			bv = b->a_group_pat;
+		}
+
+		rc = backend_group( op, e, &bv, &op->o_ndn,
+				b->a_group_oc, b->a_group_at );
+
+		if ( ndn.bv_val ) {
+			slap_sl_free( ndn.bv_val, op->o_tmpmemctx );
+		}
+
+		if ( rc != 0 ) {
+			return 1;
+		}
+	}
+
+	if ( !BER_BVISEMPTY( &b->a_set_pat ) ) {
+		struct berval	bv;
+		char		buf[ACL_BUF_SIZE];
+
+		Debug( LDAP_DEBUG_ACL, "<= check a_set_pat: %s\n",
+				b->a_set_pat.bv_val );
+
+		if ( b->a_set_style == ACL_STYLE_EXPAND ) {
+			AclRegexMatches	tmp_matches,
+							*tmp_matchesp = &tmp_matches;
+			int		rc = 0;
+			regmatch_t 	*tmp_data;
+
+			MATCHES_MEMSET( &tmp_matches );
+			tmp_data = &tmp_matches.dn_data[0];
+
+			bv.bv_len = sizeof( buf ) - 1;
+			bv.bv_val = buf;
+
+			rc = 0;
+
+			if ( !a || a->acl_attrval_style == ACL_STYLE_REGEX )
+				tmp_matchesp = matches;
+			else switch ( a->acl_dn_style ) {
+				case ACL_STYLE_REGEX:
+					if ( !BER_BVISNULL( &a->acl_dn_pat ) ) {
+						tmp_matchesp = matches;
+						break;
+					}
+
+					/* FALLTHRU */
+					/* applies also to ACL_STYLE_REGEX when pattern is "*" */
+				case ACL_STYLE_BASE:
+					tmp_data[0].rm_so = 0;
+					tmp_data[0].rm_eo = e->e_nname.bv_len;
+					tmp_matches.dn_count = 1;
+					break;
+
+				case ACL_STYLE_ONE:
+				case ACL_STYLE_SUBTREE:
+				case ACL_STYLE_CHILDREN:
+					tmp_data[0].rm_so = 0;
+					tmp_data[0].rm_eo = e->e_nname.bv_len;
+					tmp_data[1].rm_so = e->e_nname.bv_len - a->acl_dn_pat.bv_len;
+					tmp_data[1].rm_eo = e->e_nname.bv_len; tmp_matches.dn_count = 2;
+					break;
+
+				default:
+					/* error */
+					rc = 1;
+					break;
+			}
+
+			if ( rc ) {
+				return 1;
+			}
+
+			if ( acl_string_expand( &bv, &b->a_set_pat,
+						&e->e_nname, val,
+						tmp_matchesp ) )
+			{
+				return 1;
+			}
+
+		} else {
+			bv = b->a_set_pat;
+		}
+
+		if ( acl_match_set( &bv, op, e, NULL ) == 0 ) {
+			return 1;
+		}
+	}
+
+	if ( b->a_authz.sai_ssf ) {
+		Debug( LDAP_DEBUG_ACL, "<= check a_authz.sai_ssf: ACL %u > OP %u\n",
+				b->a_authz.sai_ssf, op->o_ssf );
+		if ( b->a_authz.sai_ssf >  op->o_ssf ) {
+			return 1;
+		}
+	}
+
+	if ( b->a_authz.sai_transport_ssf ) {
+		Debug( LDAP_DEBUG_ACL,
+				"<= check a_authz.sai_transport_ssf: ACL %u > OP %u\n",
+				b->a_authz.sai_transport_ssf, op->o_transport_ssf );
+		if ( b->a_authz.sai_transport_ssf >  op->o_transport_ssf ) {
+			return 1;
+		}
+	}
+
+	if ( b->a_authz.sai_tls_ssf ) {
+		Debug( LDAP_DEBUG_ACL,
+				"<= check a_authz.sai_tls_ssf: ACL %u > OP %u\n",
+				b->a_authz.sai_tls_ssf, op->o_tls_ssf );
+		if ( b->a_authz.sai_tls_ssf >  op->o_tls_ssf ) {
+			return 1;
+		}
+	}
+
+	if ( b->a_authz.sai_sasl_ssf ) {
+		Debug( LDAP_DEBUG_ACL,
+				"<= check a_authz.sai_sasl_ssf: ACL %u > OP %u\n",
+				b->a_authz.sai_sasl_ssf, op->o_sasl_ssf );
+		if ( b->a_authz.sai_sasl_ssf >	op->o_sasl_ssf ) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
 
 /*
  * slap_acl_mask - modifies mask based upon the given acl and the
@@ -1188,575 +1767,9 @@ slap_acl_mask(
 				continue;
 		}
 
-		/* AND <who> clauses */
-		if ( !BER_BVISEMPTY( &b->a_dn_pat ) ) {
-			Debug( LDAP_DEBUG_ACL, "<= check a_dn_pat: %s\n",
-				b->a_dn_pat.bv_val );
-			/*
-			 * if access applies to the entry itself, and the
-			 * user is bound as somebody in the same namespace as
-			 * the entry, OR the given dn matches the dn pattern
-			 */
-			/*
-			 * NOTE: styles "anonymous", "users" and "self" 
-			 * have been moved to enum slap_style_t, whose 
-			 * value is set in a_dn_style; however, the string
-			 * is maintained in a_dn_pat.
-			 */
-
-			if ( acl_mask_dn( op, e, val, a, matches,
-				&b->a_dn, &op->o_ndn ) )
-			{
-				continue;
-			}
-		}
-
-		if ( !BER_BVISEMPTY( &b->a_realdn_pat ) ) {
-			struct berval	ndn;
-
-			Debug( LDAP_DEBUG_ACL, "<= check a_realdn_pat: %s\n",
-				b->a_realdn_pat.bv_val );
-			/*
-			 * if access applies to the entry itself, and the
-			 * user is bound as somebody in the same namespace as
-			 * the entry, OR the given dn matches the dn pattern
-			 */
-			/*
-			 * NOTE: styles "anonymous", "users" and "self" 
-			 * have been moved to enum slap_style_t, whose 
-			 * value is set in a_dn_style; however, the string
-			 * is maintained in a_dn_pat.
-			 */
-
-			if ( op->o_conn && !BER_BVISNULL( &op->o_conn->c_ndn ) )
-			{
-				ndn = op->o_conn->c_ndn;
-			} else {
-				ndn = op->o_ndn;
-			}
-
-			if ( acl_mask_dn( op, e, val, a, matches,
-				&b->a_realdn, &ndn ) )
-			{
-				continue;
-			}
-		}
-
-		if ( !BER_BVISEMPTY( &b->a_sockurl_pat ) ) {
-			if ( ! op->o_conn->c_listener ) {
-				continue;
-			}
-			Debug( LDAP_DEBUG_ACL, "<= check a_sockurl_pat: %s\n",
-				b->a_sockurl_pat.bv_val );
-
-			if ( !ber_bvccmp( &b->a_sockurl_pat, '*' ) ) {
-				if ( b->a_sockurl_style == ACL_STYLE_REGEX) {
-					if ( !regex_matches( &b->a_sockurl_pat, op->o_conn->c_listener_url.bv_val,
-							&e->e_nname, val, matches ) ) 
-					{
-						continue;
-					}
-
-				} else if ( b->a_sockurl_style == ACL_STYLE_EXPAND ) {
-					struct berval	bv;
-					char buf[ACL_BUF_SIZE];
-
-					bv.bv_len = sizeof( buf ) - 1;
-					bv.bv_val = buf;
-					if ( acl_string_expand( &bv, &b->a_sockurl_pat, &e->e_nname, val, matches ) )
-					{
-						continue;
-					}
-
-					if ( ber_bvstrcasecmp( &bv, &op->o_conn->c_listener_url ) != 0 )
-					{
-						continue;
-					}
-
-				} else {
-					if ( ber_bvstrcasecmp( &b->a_sockurl_pat, &op->o_conn->c_listener_url ) != 0 )
-					{
-						continue;
-					}
-				}
-			}
-		}
-
-		if ( !BER_BVISEMPTY( &b->a_domain_pat ) ) {
-			if ( !op->o_conn->c_peer_domain.bv_val ) {
-				continue;
-			}
-			Debug( LDAP_DEBUG_ACL, "<= check a_domain_pat: %s\n",
-				b->a_domain_pat.bv_val );
-			if ( !ber_bvccmp( &b->a_domain_pat, '*' ) ) {
-				if ( b->a_domain_style == ACL_STYLE_REGEX) {
-					if ( !regex_matches( &b->a_domain_pat, op->o_conn->c_peer_domain.bv_val,
-							&e->e_nname, val, matches ) ) 
-					{
-						continue;
-					}
-				} else {
-					char buf[ACL_BUF_SIZE];
-
-					struct berval 	cmp = op->o_conn->c_peer_domain;
-					struct berval 	pat = b->a_domain_pat;
-
-					if ( b->a_domain_expand ) {
-						struct berval bv;
-
-						bv.bv_len = sizeof(buf) - 1;
-						bv.bv_val = buf;
-
-						if ( acl_string_expand(&bv, &b->a_domain_pat, &e->e_nname, val, matches) )
-						{
-							continue;
-						}
-						pat = bv;
-					}
-
-					if ( b->a_domain_style == ACL_STYLE_SUBTREE ) {
-						int offset = cmp.bv_len - pat.bv_len;
-						if ( offset < 0 ) {
-							continue;
-						}
-
-						if ( offset == 1 || ( offset > 1 && cmp.bv_val[ offset - 1 ] != '.' ) ) {
-							continue;
-						}
-
-						/* trim the domain */
-						cmp.bv_val = &cmp.bv_val[ offset ];
-						cmp.bv_len -= offset;
-					}
-					
-					if ( ber_bvstrcasecmp( &pat, &cmp ) != 0 ) {
-						continue;
-					}
-				}
-			}
-		}
-
-		if ( !BER_BVISEMPTY( &b->a_peername_pat ) ) {
-			if ( !op->o_conn->c_peer_name.bv_val ) {
-				continue;
-			}
-			Debug( LDAP_DEBUG_ACL, "<= check a_peername_path: %s\n",
-				b->a_peername_pat.bv_val );
-			if ( !ber_bvccmp( &b->a_peername_pat, '*' ) ) {
-				if ( b->a_peername_style == ACL_STYLE_REGEX ) {
-					if ( !regex_matches( &b->a_peername_pat, op->o_conn->c_peer_name.bv_val,
-							&e->e_nname, val, matches ) ) 
-					{
-						continue;
-					}
-
-				} else {
-					/* try exact match */
-					if ( b->a_peername_style == ACL_STYLE_BASE ) {
-						if ( ber_bvstrcasecmp( &b->a_peername_pat, &op->o_conn->c_peer_name ) != 0 ) {
-							continue;
-						}
-
-					} else if ( b->a_peername_style == ACL_STYLE_EXPAND ) {
-						struct berval	bv;
-						char buf[ACL_BUF_SIZE];
-
-						bv.bv_len = sizeof( buf ) - 1;
-						bv.bv_val = buf;
-						if ( acl_string_expand( &bv, &b->a_peername_pat, &e->e_nname, val, matches ) )
-						{
-							continue;
-						}
-
-						if ( ber_bvstrcasecmp( &bv, &op->o_conn->c_peer_name ) != 0 ) {
-							continue;
-						}
-
-					/* extract IP and try exact match */
-					} else if ( b->a_peername_style == ACL_STYLE_IP ) {
-						char		*port;
-						char		buf[STRLENOF("255.255.255.255") + 1];
-						struct berval	ip;
-						unsigned long	addr;
-						int		port_number = -1;
-						
-						if ( strncasecmp( op->o_conn->c_peer_name.bv_val, 
-									acl_bv_ip_eq.bv_val,
-									acl_bv_ip_eq.bv_len ) != 0 ) 
-							continue;
-
-						ip.bv_val = op->o_conn->c_peer_name.bv_val + acl_bv_ip_eq.bv_len;
-						ip.bv_len = op->o_conn->c_peer_name.bv_len - acl_bv_ip_eq.bv_len;
-
-						port = strrchr( ip.bv_val, ':' );
-						if ( port ) {
-							ip.bv_len = port - ip.bv_val;
-							++port;
-							if ( lutil_atoi( &port_number, port ) != 0 )
-								continue;
-						}
-						
-						/* the port check can be anticipated here */
-						if ( b->a_peername_port != -1 && port_number != b->a_peername_port )
-							continue;
-						
-						/* address longer than expected? */
-						if ( ip.bv_len >= sizeof(buf) )
-							continue;
-
-						AC_MEMCPY( buf, ip.bv_val, ip.bv_len );
-						buf[ ip.bv_len ] = '\0';
-
-						addr = inet_addr( buf );
-
-						/* unable to convert? */
-						if ( addr == (unsigned long)(-1) )
-							continue;
-
-						if ( (addr & b->a_peername_mask) != b->a_peername_addr )
-							continue;
-
-#ifdef LDAP_PF_INET6
-					/* extract IPv6 and try exact match */
-					} else if ( b->a_peername_style == ACL_STYLE_IPV6 ) {
-						char		*port;
-						char		buf[STRLENOF("FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF") + 1];
-						struct berval	ip;
-						struct in6_addr	addr;
-						int		port_number = -1;
-						
-						if ( strncasecmp( op->o_conn->c_peer_name.bv_val, 
-									acl_bv_ipv6_eq.bv_val,
-									acl_bv_ipv6_eq.bv_len ) != 0 ) 
-							continue;
-
-						ip.bv_val = op->o_conn->c_peer_name.bv_val + acl_bv_ipv6_eq.bv_len;
-						ip.bv_len = op->o_conn->c_peer_name.bv_len - acl_bv_ipv6_eq.bv_len;
-
-						port = strrchr( ip.bv_val, ']' );
-						if ( port ) {
-							ip.bv_len = port - ip.bv_val;
-							++port;
-							if ( port[0] == ':' && lutil_atoi( &port_number, ++port ) != 0 )
-								continue;
-						}
-						
-						/* the port check can be anticipated here */
-						if ( b->a_peername_port != -1 && port_number != b->a_peername_port )
-							continue;
-						
-						/* address longer than expected? */
-						if ( ip.bv_len >= sizeof(buf) )
-							continue;
-
-						AC_MEMCPY( buf, ip.bv_val, ip.bv_len );
-						buf[ ip.bv_len ] = '\0';
-
-						if ( inet_pton( AF_INET6, buf, &addr ) != 1 )
-							continue;
-
-						/* check mask */
-						if ( !slap_addr6_mask( &addr, &b->a_peername_mask6, &b->a_peername_addr6 ) )
-							continue;
-#endif /* LDAP_PF_INET6 */
-
-#ifdef LDAP_PF_LOCAL
-					/* extract path and try exact match */
-					} else if ( b->a_peername_style == ACL_STYLE_PATH ) {
-						struct berval path;
-						
-						if ( strncmp( op->o_conn->c_peer_name.bv_val,
-									acl_bv_path_eq.bv_val,
-									acl_bv_path_eq.bv_len ) != 0 )
-							continue;
-
-						path.bv_val = op->o_conn->c_peer_name.bv_val
-							+ acl_bv_path_eq.bv_len;
-						path.bv_len = op->o_conn->c_peer_name.bv_len
-							- acl_bv_path_eq.bv_len;
-
-						if ( ber_bvcmp( &b->a_peername_pat, &path ) != 0 )
-							continue;
-
-#endif /* LDAP_PF_LOCAL */
-
-					/* exact match (very unlikely...) */
-					} else if ( ber_bvcmp( &op->o_conn->c_peer_name, &b->a_peername_pat ) != 0 ) {
-							continue;
-					}
-				}
-			}
-		}
-
-		if ( !BER_BVISEMPTY( &b->a_sockname_pat ) ) {
-			if ( BER_BVISNULL( &op->o_conn->c_sock_name ) ) {
-				continue;
-			}
-			Debug( LDAP_DEBUG_ACL, "<= check a_sockname_path: %s\n",
-				b->a_sockname_pat.bv_val );
-			if ( !ber_bvccmp( &b->a_sockname_pat, '*' ) ) {
-				if ( b->a_sockname_style == ACL_STYLE_REGEX) {
-					if ( !regex_matches( &b->a_sockname_pat, op->o_conn->c_sock_name.bv_val,
-							&e->e_nname, val, matches ) ) 
-					{
-						continue;
-					}
-
-				} else if ( b->a_sockname_style == ACL_STYLE_EXPAND ) {
-					struct berval	bv;
-					char buf[ACL_BUF_SIZE];
-
-					bv.bv_len = sizeof( buf ) - 1;
-					bv.bv_val = buf;
-					if ( acl_string_expand( &bv, &b->a_sockname_pat, &e->e_nname, val, matches ) )
-					{
-						continue;
-					}
-
-					if ( ber_bvstrcasecmp( &bv, &op->o_conn->c_sock_name ) != 0 ) {
-						continue;
-					}
-
-				} else {
-					if ( ber_bvstrcasecmp( &b->a_sockname_pat, &op->o_conn->c_sock_name ) != 0 ) {
-						continue;
-					}
-				}
-			}
-		}
-
-		if ( b->a_dn_at != NULL ) {
-			if ( acl_mask_dnattr( op, e, val, a,
-					count, state, mask,
-					&b->a_dn, &op->o_ndn ) )
-			{
-				continue;
-			}
-		}
-
-		if ( b->a_realdn_at != NULL ) {
-			struct berval	ndn;
-
-			if ( op->o_conn && !BER_BVISNULL( &op->o_conn->c_ndn ) )
-			{
-				ndn = op->o_conn->c_ndn;
-			} else {
-				ndn = op->o_ndn;
-			}
-
-			if ( acl_mask_dnattr( op, e, val, a,
-					count, state, mask,
-					&b->a_realdn, &ndn ) )
-			{
-				continue;
-			}
-		}
-
-		if ( !BER_BVISEMPTY( &b->a_group_pat ) ) {
-			struct berval bv;
-			struct berval ndn = BER_BVNULL;
-			int rc;
-
-			if ( op->o_ndn.bv_len == 0 ) {
-				continue;
-			}
-
-			Debug( LDAP_DEBUG_ACL, "<= check a_group_pat: %s\n",
-				b->a_group_pat.bv_val );
-
-			/* b->a_group is an unexpanded entry name, expanded it should be an 
-			 * entry with objectclass group* and we test to see if odn is one of
-			 * the values in the attribute group
-			 */
-			/* see if asker is listed in dnattr */
-			if ( b->a_group_style == ACL_STYLE_EXPAND ) {
-				char		buf[ACL_BUF_SIZE];
-				AclRegexMatches	tmp_matches,
-						*tmp_matchesp = &tmp_matches;
-				regmatch_t 	*tmp_data;
-
-				MATCHES_MEMSET( &tmp_matches );
-				tmp_data = &tmp_matches.dn_data[0];
-
-				bv.bv_len = sizeof(buf) - 1;
-				bv.bv_val = buf;
-
-				rc = 0;
-
-				if ( a->acl_attrval_style == ACL_STYLE_REGEX )
-					tmp_matchesp = matches;
-				else switch ( a->acl_dn_style ) {
-				case ACL_STYLE_REGEX:
-					if ( !BER_BVISNULL( &a->acl_dn_pat ) ) {
-						tmp_matchesp = matches;
-						break;
-					}
-
-				/* FALLTHRU: applies also to ACL_STYLE_REGEX when pattern is "*" */
-				case ACL_STYLE_BASE:
-					tmp_data[0].rm_so = 0;
-					tmp_data[0].rm_eo = e->e_nname.bv_len;
-					tmp_matches.dn_count = 1;
-					break;
-
-				case ACL_STYLE_ONE:
-				case ACL_STYLE_SUBTREE:
-				case ACL_STYLE_CHILDREN:
-					tmp_data[0].rm_so = 0;
-					tmp_data[0].rm_eo = e->e_nname.bv_len;
-
-					tmp_data[1].rm_so = e->e_nname.bv_len - a->acl_dn_pat.bv_len;
-					tmp_data[1].rm_eo = e->e_nname.bv_len;
-					tmp_matches.dn_count = 2;
-					break;
-
-				default:
-					/* error */
-					rc = 1;
-					break;
-				}
-
-				if ( rc ) {
-					continue;
-				}
-				
-				if ( acl_string_expand( &bv, &b->a_group_pat,
-						&e->e_nname, val,
-						tmp_matchesp ) )
-				{
-					continue;
-				}
-
-				if ( dnNormalize( 0, NULL, NULL, &bv, &ndn,
-						op->o_tmpmemctx ) != LDAP_SUCCESS )
-				{
-					/* did not expand to a valid dn */
-					continue;
-				}
-
-				bv = ndn;
-
-			} else {
-				bv = b->a_group_pat;
-			}
-
-			rc = backend_group( op, e, &bv, &op->o_ndn,
-				b->a_group_oc, b->a_group_at );
-
-			if ( ndn.bv_val ) {
-				slap_sl_free( ndn.bv_val, op->o_tmpmemctx );
-			}
-
-			if ( rc != 0 ) {
-				continue;
-			}
-		}
-
-		if ( !BER_BVISEMPTY( &b->a_set_pat ) ) {
-			struct berval	bv;
-			char		buf[ACL_BUF_SIZE];
-
-			Debug( LDAP_DEBUG_ACL, "<= check a_set_pat: %s\n",
-				b->a_set_pat.bv_val );
-
-			if ( b->a_set_style == ACL_STYLE_EXPAND ) {
-				AclRegexMatches	tmp_matches,
-						*tmp_matchesp = &tmp_matches;
-				int		rc = 0;
-				regmatch_t 	*tmp_data;
-
-				MATCHES_MEMSET( &tmp_matches );
-				tmp_data = &tmp_matches.dn_data[0];
-
-				bv.bv_len = sizeof( buf ) - 1;
-				bv.bv_val = buf;
-
-				rc = 0;
-
-				if ( a->acl_attrval_style == ACL_STYLE_REGEX )
-					tmp_matchesp = matches;
-				else switch ( a->acl_dn_style ) {
-				case ACL_STYLE_REGEX:
-					if ( !BER_BVISNULL( &a->acl_dn_pat ) ) {
-						tmp_matchesp = matches;
-						break;
-					}
-
-				/* FALLTHRU: applies also to ACL_STYLE_REGEX when pattern is "*" */
-				case ACL_STYLE_BASE:
-					tmp_data[0].rm_so = 0;
-					tmp_data[0].rm_eo = e->e_nname.bv_len;
-					tmp_matches.dn_count = 1;
-					break;
-
-				case ACL_STYLE_ONE:
-				case ACL_STYLE_SUBTREE:
-				case ACL_STYLE_CHILDREN:
-					tmp_data[0].rm_so = 0;
-					tmp_data[0].rm_eo = e->e_nname.bv_len;
-					tmp_data[1].rm_so = e->e_nname.bv_len - a->acl_dn_pat.bv_len;
-					tmp_data[1].rm_eo = e->e_nname.bv_len; tmp_matches.dn_count = 2;
-					break;
-
-				default:
-					/* error */
-					rc = 1;
-					break;
-				}
-
-				if ( rc ) {
-					continue;
-				}
-				
-				if ( acl_string_expand( &bv, &b->a_set_pat,
-						&e->e_nname, val,
-						tmp_matchesp ) )
-				{
-					continue;
-				}
-
-			} else {
-				bv = b->a_set_pat;
-			}
-			
-			if ( acl_match_set( &bv, op, e, NULL ) == 0 ) {
-				continue;
-			}
-		}
-
-		if ( b->a_authz.sai_ssf ) {
-			Debug( LDAP_DEBUG_ACL, "<= check a_authz.sai_ssf: ACL %u > OP %u\n",
-				b->a_authz.sai_ssf, op->o_ssf );
-			if ( b->a_authz.sai_ssf >  op->o_ssf ) {
-				continue;
-			}
-		}
-
-		if ( b->a_authz.sai_transport_ssf ) {
-			Debug( LDAP_DEBUG_ACL,
-				"<= check a_authz.sai_transport_ssf: ACL %u > OP %u\n",
-				b->a_authz.sai_transport_ssf, op->o_transport_ssf );
-			if ( b->a_authz.sai_transport_ssf >  op->o_transport_ssf ) {
-				continue;
-			}
-		}
-
-		if ( b->a_authz.sai_tls_ssf ) {
-			Debug( LDAP_DEBUG_ACL,
-				"<= check a_authz.sai_tls_ssf: ACL %u > OP %u\n",
-				b->a_authz.sai_tls_ssf, op->o_tls_ssf );
-			if ( b->a_authz.sai_tls_ssf >  op->o_tls_ssf ) {
-				continue;
-			}
-		}
-
-		if ( b->a_authz.sai_sasl_ssf ) {
-			Debug( LDAP_DEBUG_ACL,
-				"<= check a_authz.sai_sasl_ssf: ACL %u > OP %u\n",
-				b->a_authz.sai_sasl_ssf, op->o_sasl_ssf );
-			if ( b->a_authz.sai_sasl_ssf >	op->o_sasl_ssf ) {
-				continue;
-			}
+		/* check <who> clauses */
+		if ( acl_check_who( op, e, val, a, b, matches, count ) ) {
+			continue;
 		}
 
 #ifdef SLAP_DYNACL

@@ -321,17 +321,1077 @@ regex_done:;
 }
 
 int
+acl_parse_who(
+	struct config_args_s *c,
+	Access *b,
+	char **argv,
+	int argc,
+	int *pos,
+	char **current )
+{
+	struct berval	bv;
+	char *left, *right, *style;
+	const char *text;
+	Backend *be = c->be;
+	int rc, i = *pos;
+
+	for ( ; i < argc; i++ ) {
+		slap_style_t	sty = ACL_STYLE_REGEX;
+		char		*style_modifier = NULL;
+		char		*style_level = NULL;
+		int		level = 0;
+		int		expand = 0;
+		slap_dn_access	*bdn = &b->a_dn;
+		int		is_realdn = 0;
+
+		split( argv[i], '=', &left, &right );
+		split( left, '.', &left, &style );
+		if ( style ) {
+			split( style, ',', &style, &style_modifier );
+
+			if ( strncasecmp( style, "level", STRLENOF( "level" ) ) == 0 ) {
+				split( style, '{', &style, &style_level );
+				if ( style_level != NULL ) {
+					char *p = strchr( style_level, '}' );
+					if ( p == NULL ) {
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+								"premature eol: expecting closing '}' in \"level{n}\"");
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					} else if ( p == style_level ) {
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+								"empty level in \"level{n}\"");
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					}
+					p[0] = '\0';
+				}
+			}
+		}
+
+		if ( style == NULL || *style == '\0' ||
+				strcasecmp( style, "exact" ) == 0 ||
+				strcasecmp( style, "baseObject" ) == 0 ||
+				strcasecmp( style, "base" ) == 0 )
+		{
+			sty = ACL_STYLE_BASE;
+
+		} else if ( strcasecmp( style, "onelevel" ) == 0 ||
+				strcasecmp( style, "one" ) == 0 )
+		{
+			sty = ACL_STYLE_ONE;
+
+		} else if ( strcasecmp( style, "subtree" ) == 0 ||
+				strcasecmp( style, "sub" ) == 0 )
+		{
+			sty = ACL_STYLE_SUBTREE;
+
+		} else if ( strcasecmp( style, "children" ) == 0 ) {
+			sty = ACL_STYLE_CHILDREN;
+
+		} else if ( strcasecmp( style, "level" ) == 0 )
+		{
+			if ( lutil_atoi( &level, style_level ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"unable to parse level in \"level{n}\"");
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			sty = ACL_STYLE_LEVEL;
+
+		} else if ( strcasecmp( style, "regex" ) == 0 ) {
+			sty = ACL_STYLE_REGEX;
+
+		} else if ( strcasecmp( style, "expand" ) == 0 ) {
+			sty = ACL_STYLE_EXPAND;
+
+		} else if ( strcasecmp( style, "ip" ) == 0 ) {
+			sty = ACL_STYLE_IP;
+
+		} else if ( strcasecmp( style, "ipv6" ) == 0 ) {
+#ifndef LDAP_PF_INET6
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"IPv6 not supported");
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+#endif /* ! LDAP_PF_INET6 */
+			sty = ACL_STYLE_IPV6;
+
+		} else if ( strcasecmp( style, "path" ) == 0 ) {
+			sty = ACL_STYLE_PATH;
+#ifndef LDAP_PF_LOCAL
+			snprintf( c->cr_msg, sizeof( c->cr_msg),
+					"\"path\" style modifier is useless without local");
+			Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, "%s: %s.\n", c->log, c->cr_msg );
+			goto fail;
+#endif /* LDAP_PF_LOCAL */
+
+		} else {
+			snprintf( c->cr_msg, sizeof ( c->cr_msg ),
+					"unknown style \"%s\" in by clause", style );
+			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			goto fail;
+		}
+
+		if ( style_modifier &&
+				strcasecmp( style_modifier, "expand" ) == 0 )
+		{
+			switch ( sty ) {
+				case ACL_STYLE_REGEX:
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"\"regex\" style implies \"expand\" modifier" );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+					break;
+
+				case ACL_STYLE_EXPAND:
+					break;
+
+				default:
+					/* we'll see later if it's pertinent */
+					expand = 1;
+					break;
+			}
+		}
+
+		if ( strncasecmp( left, "real", STRLENOF( "real" ) ) == 0 ) {
+			is_realdn = 1;
+			bdn = &b->a_realdn;
+			left += STRLENOF( "real" );
+		}
+
+		if ( strcasecmp( left, "*" ) == 0 ) {
+			if ( is_realdn ) {
+				goto fail;
+			}
+
+			ber_str2bv( "*", STRLENOF( "*" ), 1, &bv );
+			sty = ACL_STYLE_REGEX;
+
+		} else if ( strcasecmp( left, "anonymous" ) == 0 ) {
+			ber_str2bv("anonymous", STRLENOF( "anonymous" ), 1, &bv);
+			sty = ACL_STYLE_ANONYMOUS;
+
+		} else if ( strcasecmp( left, "users" ) == 0 ) {
+			ber_str2bv("users", STRLENOF( "users" ), 1, &bv);
+			sty = ACL_STYLE_USERS;
+
+		} else if ( strcasecmp( left, "self" ) == 0 ) {
+			ber_str2bv("self", STRLENOF( "self" ), 1, &bv);
+			sty = ACL_STYLE_SELF;
+
+		} else if ( strcasecmp( left, "dn" ) == 0 ) {
+			if ( sty == ACL_STYLE_REGEX ) {
+				bdn->a_style = ACL_STYLE_REGEX;
+				if ( right == NULL ) {
+					/* no '=' */
+					ber_str2bv("users",
+							STRLENOF( "users" ),
+							1, &bv);
+					bdn->a_style = ACL_STYLE_USERS;
+
+				} else if (*right == '\0' ) {
+					/* dn="" */
+					ber_str2bv("anonymous",
+							STRLENOF( "anonymous" ),
+							1, &bv);
+					bdn->a_style = ACL_STYLE_ANONYMOUS;
+
+				} else if ( strcmp( right, "*" ) == 0 ) {
+					/* dn=* */
+					/* any or users?  users for now */
+					ber_str2bv("users",
+							STRLENOF( "users" ),
+							1, &bv);
+					bdn->a_style = ACL_STYLE_USERS;
+
+				} else if ( strcmp( right, ".+" ) == 0
+						|| strcmp( right, "^.+" ) == 0
+						|| strcmp( right, ".+$" ) == 0
+						|| strcmp( right, "^.+$" ) == 0
+						|| strcmp( right, ".+$$" ) == 0
+						|| strcmp( right, "^.+$$" ) == 0 )
+				{
+					ber_str2bv("users",
+							STRLENOF( "users" ),
+							1, &bv);
+					bdn->a_style = ACL_STYLE_USERS;
+
+				} else if ( strcmp( right, ".*" ) == 0
+						|| strcmp( right, "^.*" ) == 0
+						|| strcmp( right, ".*$" ) == 0
+						|| strcmp( right, "^.*$" ) == 0
+						|| strcmp( right, ".*$$" ) == 0
+						|| strcmp( right, "^.*$$" ) == 0 )
+				{
+					ber_str2bv("*",
+							STRLENOF( "*" ),
+							1, &bv);
+
+				} else {
+					acl_regex_normalized_dn( right, &bv );
+					if ( !ber_bvccmp( &bv, '*' ) ) {
+						if ( regtest( c, bv.bv_val ) != 0)
+							goto fail;
+					}
+				}
+
+			} else if ( right == NULL || *right == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"missing \"=\" in (or value after) \"%s\" in by clause", left );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+
+			} else {
+				ber_str2bv( right, 0, 1, &bv );
+			}
+
+		} else {
+			BER_BVZERO( &bv );
+		}
+
+		if ( !BER_BVISNULL( &bv ) ) {
+			if ( !BER_BVISEMPTY( &bdn->a_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"dn pattern already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( sty != ACL_STYLE_REGEX &&
+					sty != ACL_STYLE_ANONYMOUS &&
+					sty != ACL_STYLE_USERS &&
+					sty != ACL_STYLE_SELF &&
+					expand == 0 )
+			{
+				rc = dnNormalize(0, NULL, NULL,
+						&bv, &bdn->a_pat, NULL);
+				if ( rc != LDAP_SUCCESS ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"bad DN \"%s\" in by DN clause", bv.bv_val );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+				free( bv.bv_val );
+				if ( sty == ACL_STYLE_BASE
+						&& be != NULL
+						&& !BER_BVISNULL( &be->be_rootndn )
+						&& dn_match( &bdn->a_pat, &be->be_rootndn ) )
+				{
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"rootdn is always granted unlimited privileges" );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				}
+
+			} else {
+				bdn->a_pat = bv;
+			}
+			bdn->a_style = sty;
+			if ( expand ) {
+				char	*exp;
+				int	gotit = 0;
+
+				for ( exp = strchr( bdn->a_pat.bv_val, '$' );
+						exp && (ber_len_t)(exp - bdn->a_pat.bv_val)
+						< bdn->a_pat.bv_len;
+						exp = strchr( exp, '$' ) )
+				{
+					if ( ( isdigit( (unsigned char) exp[ 1 ] ) ||
+								exp[ 1 ] == '{' ) ) {
+						gotit = 1;
+						break;
+					}
+				}
+
+				if ( gotit == 1 ) {
+					bdn->a_expand = expand;
+
+				} else {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"\"expand\" used with no expansions in \"pattern\"");
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+			}
+			if ( sty == ACL_STYLE_SELF ) {
+				bdn->a_self_level = level;
+
+			} else {
+				if ( level < 0 ) {
+					snprintf( c->cr_msg, sizeof( c ->cr_msg ),
+							"bad negative level \"%d\" in by DN clause", level );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				} else if ( level == 1 ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"\"onelevel\" should be used instead of \"level{1}\" in by DN clause" );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				} else if ( level == 0 && sty == ACL_STYLE_LEVEL ) {
+					snprintf ( c->cr_msg, sizeof( c->cr_msg ),
+							"\"base\" should be used instead of \"level{0}\" in by DN clause" );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				}
+
+				bdn->a_level = level;
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "dnattr" ) == 0 ) {
+			if ( right == NULL || right[0] == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"missing \"=\" in (or value after) \"%s\" in by clause", left );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if( bdn->a_at != NULL ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"dnattr already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			rc = slap_str2ad( right, &bdn->a_at, &text );
+
+			if( rc != LDAP_SUCCESS ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"dnattr \"%s\": %s", right, text );
+				Debug(LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+
+			if( !is_at_syntax( bdn->a_at->ad_type,
+						SLAPD_DN_SYNTAX ) &&
+					!is_at_syntax( bdn->a_at->ad_type,
+						SLAPD_NAMEUID_SYNTAX ))
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"dnattr \"%s\": " "inappropriate syntax: %s",
+						right, bdn->a_at->ad_type->sat_syntax_oid );
+				Debug(LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if( bdn->a_at->ad_type->sat_equality == NULL ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"dnattr \"%s\": inappropriate matching (no EQUALITY)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			continue;
+		}
+
+		if ( strncasecmp( left, "group", STRLENOF( "group" ) ) == 0 ) {
+			char *name = NULL;
+			char *value = NULL;
+			char *attr_name = SLAPD_GROUP_ATTR;
+
+			switch ( sty ) {
+				case ACL_STYLE_REGEX:
+					/* legacy, tolerated */
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"deprecated group style \"regex\"; use \"expand\" instead" );
+					Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, "%s: %s.\n", c->log, c->cr_msg );
+					sty = ACL_STYLE_EXPAND;
+					break;
+
+				case ACL_STYLE_BASE:
+					/* legal, traditional */
+				case ACL_STYLE_EXPAND:
+					/* legal, substring expansion; supersedes regex */
+					break;
+
+				default:
+					/* unknown */
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"inappropriate style \"%s\" in by clause", style );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+			}
+
+			if ( right == NULL || right[0] == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"missing \"=\" in (or value after) \"%s\" in by clause", left );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !BER_BVISEMPTY( &b->a_group_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"group pattern already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			/* format of string is
+			   "group/objectClassValue/groupAttrName" */
+			if ( ( value = strchr(left, '/') ) != NULL ) {
+				*value++ = '\0';
+				if ( *value && ( name = strchr( value, '/' ) ) != NULL ) {
+					*name++ = '\0';
+				}
+			}
+
+			b->a_group_style = sty;
+			if ( sty == ACL_STYLE_EXPAND ) {
+				acl_regex_normalized_dn( right, &bv );
+				if ( !ber_bvccmp( &bv, '*' ) ) {
+					if ( regtest( c, bv.bv_val ) != 0)
+						goto fail;
+				}
+				b->a_group_pat = bv;
+
+			} else {
+				ber_str2bv( right, 0, 0, &bv );
+				rc = dnNormalize( 0, NULL, NULL, &bv,
+						&b->a_group_pat, NULL );
+				if ( rc != LDAP_SUCCESS ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg),
+							"bad DN \"%s\"", right );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+			}
+
+			if ( value && *value ) {
+				b->a_group_oc = oc_find( value );
+				*--value = '/';
+
+				if ( b->a_group_oc == NULL ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"group objectclass \"%s\" unknown", value );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+
+			} else {
+				b->a_group_oc = oc_find( SLAPD_GROUP_CLASS );
+
+				if( b->a_group_oc == NULL ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"group default objectclass \"%s\" unknown", SLAPD_GROUP_CLASS );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+			}
+
+			if ( is_object_subclass( slap_schema.si_oc_referral,
+						b->a_group_oc ) )
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"group objectclass \"%s\" is subclass of referral", value );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( is_object_subclass( slap_schema.si_oc_alias,
+						b->a_group_oc ) )
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"group objectclass \"%s\" is subclass of alias", value );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( name && *name ) {
+				attr_name = name;
+				*--name = '/';
+
+			}
+
+			rc = slap_str2ad( attr_name, &b->a_group_at, &text );
+			if ( rc != LDAP_SUCCESS ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"group \"%s\": %s", right, text );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !is_at_syntax( b->a_group_at->ad_type,
+						SLAPD_DN_SYNTAX ) /* e.g. "member" */
+					&& !is_at_syntax( b->a_group_at->ad_type,
+						SLAPD_NAMEUID_SYNTAX ) /* e.g. memberUID */
+					&& !is_at_subtype( b->a_group_at->ad_type,
+						slap_schema.si_ad_labeledURI->ad_type ) /* e.g. memberURL */ )
+			{
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"group \"%s\" attr \"%s\": inappropriate syntax: %s; " "must be " SLAPD_DN_SYNTAX " (DN), " SLAPD_NAMEUID_SYNTAX " (NameUID) " "or a subtype of labeledURI",
+						right, attr_name, at_syntax(b->a_group_at->ad_type) );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+
+			{
+				int rc;
+				ObjectClass *ocs[2];
+
+				ocs[0] = b->a_group_oc;
+				ocs[1] = NULL;
+
+				rc = oc_check_allowed( b->a_group_at->ad_type,
+						ocs, NULL );
+
+				if( rc != 0 ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"group: \"%s\" not allowed by \"%s\".\n",
+							b->a_group_at->ad_cname.bv_val,
+							b->a_group_oc->soc_oid );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "peername" ) == 0 ) {
+			switch ( sty ) {
+				case ACL_STYLE_REGEX:
+				case ACL_STYLE_BASE:
+					/* legal, traditional */
+				case ACL_STYLE_EXPAND:
+					/* cheap replacement to regex for simple expansion */
+				case ACL_STYLE_IP:
+				case ACL_STYLE_IPV6:
+				case ACL_STYLE_PATH:
+					/* legal, peername specific */
+					break;
+
+				default:
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"inappropriate style \"%s\" in by clause", style );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+			}
+
+			if ( right == NULL || right[0] == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"missing \"=\" in (or value after) \"%s\" in by clause", left);
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !BER_BVISEMPTY( &b->a_peername_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"peername pattern already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			b->a_peername_style = sty;
+			if ( sty == ACL_STYLE_REGEX ) {
+				acl_regex_normalized_dn( right, &bv );
+				if ( !ber_bvccmp( &bv, '*' ) ) {
+					if ( regtest( c, bv.bv_val ) != 0)
+						goto fail;
+				}
+				b->a_peername_pat = bv;
+
+			} else {
+				ber_str2bv( right, 0, 1, &b->a_peername_pat );
+
+				if ( sty == ACL_STYLE_IP ) {
+					char		*addr = NULL,
+								*mask = NULL,
+								*port = NULL;
+
+					split( right, '{', &addr, &port );
+					split( addr, '%', &addr, &mask );
+
+					b->a_peername_addr = inet_addr( addr );
+					if ( b->a_peername_addr == (unsigned long)(-1) ) {
+						/* illegal address */
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+								"illegal peername address \"%s\"", addr );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					}
+
+					b->a_peername_mask = (unsigned long)(-1);
+					if ( mask != NULL ) {
+						b->a_peername_mask = inet_addr( mask );
+						if ( b->a_peername_mask ==
+								(unsigned long)(-1) )
+						{
+							/* illegal mask */
+							snprintf( c->cr_msg, sizeof( c->cr_msg ),
+									"illegal peername address mask \"%s\"", mask );
+							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+							goto fail;
+						}
+					}
+
+					b->a_peername_port = -1;
+					if ( port ) {
+						char	*end = NULL;
+
+						b->a_peername_port = strtol( port, &end, 10 );
+						if ( end == port || end[0] != '}' ) {
+							/* illegal port */
+							snprintf( c->cr_msg, sizeof( c->cr_msg ),
+									"illegal peername port specification \"{%s}\"", port );
+							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+							goto fail;
+						}
+					}
+
+#ifdef LDAP_PF_INET6
+				} else if ( sty == ACL_STYLE_IPV6 ) {
+					char		*addr = NULL,
+								*mask = NULL,
+								*port = NULL;
+
+					split( right, '{', &addr, &port );
+					split( addr, '%', &addr, &mask );
+
+					if ( inet_pton( AF_INET6, addr, &b->a_peername_addr6 ) != 1 ) {
+						/* illegal address */
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+								"illegal peername address \"%s\"", addr );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					}
+
+					if ( mask == NULL ) {
+						mask = "FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF";
+					}
+
+					if ( inet_pton( AF_INET6, mask, &b->a_peername_mask6 ) != 1 ) {
+						/* illegal mask */
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+								"illegal peername address mask \"%s\"", mask );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					}
+
+					b->a_peername_port = -1;
+					if ( port ) {
+						char	*end = NULL;
+
+						b->a_peername_port = strtol( port, &end, 10 );
+						if ( end == port || end[0] != '}' ) {
+							/* illegal port */
+							snprintf( c->cr_msg, sizeof( c->cr_msg ),
+									"illegal peername port specification \"{%s}\"", port );
+							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+							goto fail;
+						}
+					}
+#endif /* LDAP_PF_INET6 */
+				}
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "sockname" ) == 0 ) {
+			switch ( sty ) {
+				case ACL_STYLE_REGEX:
+				case ACL_STYLE_BASE:
+					/* legal, traditional */
+				case ACL_STYLE_EXPAND:
+					/* cheap replacement to regex for simple expansion */
+					break;
+
+				default:
+					/* unknown */
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"inappropriate style \"%s\" in by clause", style );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+			}
+
+			if ( right == NULL || right[0] == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"missing \"=\" in (or value after) \"%s\" in by clause", left );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !BER_BVISNULL( &b->a_sockname_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"sockname pattern already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			b->a_sockname_style = sty;
+			if ( sty == ACL_STYLE_REGEX ) {
+				acl_regex_normalized_dn( right, &bv );
+				if ( !ber_bvccmp( &bv, '*' ) ) {
+					if ( regtest( c, bv.bv_val ) != 0)
+						goto fail;
+				}
+				b->a_sockname_pat = bv;
+
+			} else {
+				ber_str2bv( right, 0, 1, &b->a_sockname_pat );
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "domain" ) == 0 ) {
+			switch ( sty ) {
+				case ACL_STYLE_REGEX:
+				case ACL_STYLE_BASE:
+				case ACL_STYLE_SUBTREE:
+					/* legal, traditional */
+					break;
+
+				case ACL_STYLE_EXPAND:
+					/* tolerated: means exact,expand */
+					if ( expand ) {
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+								"\"expand\" modifier with \"expand\" style" );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					}
+					sty = ACL_STYLE_BASE;
+					expand = 1;
+					break;
+
+				default:
+					/* unknown */
+					snprintf( c->cr_msg, sizeof( c->cr_msg),
+							"inappropriate style \"%s\" in by clause", style );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+			}
+
+			if ( right == NULL || right[0] == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"missing \"=\" in (or value after) \"%s\" in by clause", left );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !BER_BVISEMPTY( &b->a_domain_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"domain pattern already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			b->a_domain_style = sty;
+			b->a_domain_expand = expand;
+			if ( sty == ACL_STYLE_REGEX ) {
+				acl_regex_normalized_dn( right, &bv );
+				if ( !ber_bvccmp( &bv, '*' ) ) {
+					if ( regtest( c, bv.bv_val ) != 0)
+						goto fail;
+				}
+				b->a_domain_pat = bv;
+
+			} else {
+				ber_str2bv( right, 0, 1, &b->a_domain_pat );
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "sockurl" ) == 0 ) {
+			switch ( sty ) {
+				case ACL_STYLE_REGEX:
+				case ACL_STYLE_BASE:
+					/* legal, traditional */
+				case ACL_STYLE_EXPAND:
+					/* cheap replacement to regex for simple expansion */
+					break;
+
+				default:
+					/* unknown */
+					snprintf( c->cr_msg, sizeof( c->cr_msg),
+							"inappropriate style \"%s\" in by clause", style );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+			}
+
+			if ( right == NULL || right[0] == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"missing \"=\" in (or value after) \"%s\" in by clause", left );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !BER_BVISEMPTY( &b->a_sockurl_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"sockurl pattern already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			b->a_sockurl_style = sty;
+			if ( sty == ACL_STYLE_REGEX ) {
+				acl_regex_normalized_dn( right, &bv );
+				if ( !ber_bvccmp( &bv, '*' ) ) {
+					if ( regtest( c, bv.bv_val ) != 0)
+						goto fail;
+				}
+				b->a_sockurl_pat = bv;
+
+			} else {
+				ber_str2bv( right, 0, 1, &b->a_sockurl_pat );
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "set" ) == 0 ) {
+			switch ( sty ) {
+				/* deprecated */
+				case ACL_STYLE_REGEX:
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"deprecated set style "
+							"\"regex\" in <by> clause; "
+							"use \"expand\" instead" );
+					Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, "%s: %s.\n", c->log, c->cr_msg );
+					sty = ACL_STYLE_EXPAND;
+					/* FALLTHRU */
+
+				case ACL_STYLE_BASE:
+				case ACL_STYLE_EXPAND:
+					break;
+
+				default:
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"inappropriate style \"%s\" in by clause", style );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+			}
+
+			if ( !BER_BVISEMPTY( &b->a_set_pat ) ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"set attribute already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( right == NULL || *right == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"no set is defined" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			b->a_set_style = sty;
+			ber_str2bv( right, 0, 1, &b->a_set_pat );
+
+			continue;
+		}
+
+#ifdef SLAP_DYNACL
+		{
+			char		*name = NULL,
+						*opts = NULL;
+
+#if 1 /* tolerate legacy "aci" <who> */
+			if ( strcasecmp( left, "aci" ) == 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"undocumented deprecated \"aci\" directive "
+						"is superseded by \"dynacl/aci\"" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				name = "aci";
+
+			} else
+#endif /* tolerate legacy "aci" <who> */
+				if ( strncasecmp( left, "dynacl/", STRLENOF( "dynacl/" ) ) == 0 ) {
+					name = &left[ STRLENOF( "dynacl/" ) ];
+					opts = strchr( name, '/' );
+					if ( opts ) {
+						opts[ 0 ] = '\0';
+						opts++;
+					}
+				}
+
+			if ( name ) {
+				if ( slap_dynacl_config( c, b, name, opts, sty, right ) ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"unable to configure dynacl \"%s\"", name );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+
+				continue;
+			}
+		}
+#endif /* SLAP_DYNACL */
+
+		if ( strcasecmp( left, "ssf" ) == 0 ) {
+			if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"inappropriate style \"%s\" in by clause", style );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( b->a_authz.sai_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"ssf attribute already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( right == NULL || *right == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"no ssf is defined" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( lutil_atou( &b->a_authz.sai_ssf, right ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"unable to parse ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !b->a_authz.sai_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"invalid ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "transport_ssf" ) == 0 ) {
+			if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"inappropriate style \"%s\" in by clause", style );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( b->a_authz.sai_transport_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"transport_ssf attribute already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( right == NULL || *right == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"no transport_ssf is defined" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( lutil_atou( &b->a_authz.sai_transport_ssf, right ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"unable to parse transport_ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !b->a_authz.sai_transport_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"invalid transport_ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "tls_ssf" ) == 0 ) {
+			if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"inappropriate style \"%s\" in by clause", style );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( b->a_authz.sai_tls_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"tls_ssf attribute already specified" );
+				goto fail;
+			}
+
+			if ( right == NULL || *right == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"no tls_ssf is defined" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( lutil_atou( &b->a_authz.sai_tls_ssf, right ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"unable to parse tls_ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !b->a_authz.sai_tls_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"invalid tls_ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+			continue;
+		}
+
+		if ( strcasecmp( left, "sasl_ssf" ) == 0 ) {
+			if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"inappropriate style \"%s\" in by clause", style );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( b->a_authz.sai_sasl_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"sasl_ssf attribute already specified" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( right == NULL || *right == '\0' ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"no sasl_ssf is defined" );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( lutil_atou( &b->a_authz.sai_sasl_ssf, right ) != 0 ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"unable to parse sasl_ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+
+			if ( !b->a_authz.sai_sasl_ssf ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"invalid sasl_ssf value (%s)", right );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+				goto fail;
+			}
+			continue;
+		}
+
+		if ( right != NULL ) {
+			/* unsplit */
+			right[-1] = '=';
+		}
+		break;
+	}
+
+	*pos = i;
+	*current = left;
+	return 0;
+
+fail:
+	*pos = i;
+	return 1;
+}
+
+int
 parse_acl(
 	struct config_args_s *c,
 	int		pos )
 {
 	int		i;
 	char		*left, *right, *style;
-	struct berval	bv;
 	AccessControl	*a = NULL;
 	Access	*b = NULL;
 	int rc;
-	const char *text;
 	Backend *be = c->be;
 	const char *fname = c->fname;
 	int lineno = c->lineno;
@@ -705,1042 +1765,8 @@ parse_acl(
 			ACL_INVALIDATE( b->a_access_mask );
 
 			/* get <who> */
-			for ( ; i < argc; i++ ) {
-				slap_style_t	sty = ACL_STYLE_REGEX;
-				char		*style_modifier = NULL;
-				char		*style_level = NULL;
-				int		level = 0;
-				int		expand = 0;
-				slap_dn_access	*bdn = &b->a_dn;
-				int		is_realdn = 0;
-
-				split( argv[i], '=', &left, &right );
-				split( left, '.', &left, &style );
-				if ( style ) {
-					split( style, ',', &style, &style_modifier );
-
-					if ( strncasecmp( style, "level", STRLENOF( "level" ) ) == 0 ) {
-						split( style, '{', &style, &style_level );
-						if ( style_level != NULL ) {
-							char *p = strchr( style_level, '}' );
-							if ( p == NULL ) {
-								snprintf( c->cr_msg, sizeof( c->cr_msg ),
-									"premature eol: expecting closing '}' in \"level{n}\"");
-								Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-								goto fail;
-							} else if ( p == style_level ) {
-								snprintf( c->cr_msg, sizeof( c->cr_msg ),
-									"empty level in \"level{n}\"");
-								Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-								goto fail;
-							}
-							p[0] = '\0';
-						}
-					}
-				}
-
-				if ( style == NULL || *style == '\0' ||
-					strcasecmp( style, "exact" ) == 0 ||
-					strcasecmp( style, "baseObject" ) == 0 ||
-					strcasecmp( style, "base" ) == 0 )
-				{
-					sty = ACL_STYLE_BASE;
-
-				} else if ( strcasecmp( style, "onelevel" ) == 0 ||
-					strcasecmp( style, "one" ) == 0 )
-				{
-					sty = ACL_STYLE_ONE;
-
-				} else if ( strcasecmp( style, "subtree" ) == 0 ||
-					strcasecmp( style, "sub" ) == 0 )
-				{
-					sty = ACL_STYLE_SUBTREE;
-
-				} else if ( strcasecmp( style, "children" ) == 0 ) {
-					sty = ACL_STYLE_CHILDREN;
-
-				} else if ( strcasecmp( style, "level" ) == 0 )
-				{
-					if ( lutil_atoi( &level, style_level ) != 0 ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"unable to parse level in \"level{n}\"");
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					sty = ACL_STYLE_LEVEL;
-
-				} else if ( strcasecmp( style, "regex" ) == 0 ) {
-					sty = ACL_STYLE_REGEX;
-
-				} else if ( strcasecmp( style, "expand" ) == 0 ) {
-					sty = ACL_STYLE_EXPAND;
-
-				} else if ( strcasecmp( style, "ip" ) == 0 ) {
-					sty = ACL_STYLE_IP;
-
-				} else if ( strcasecmp( style, "ipv6" ) == 0 ) {
-#ifndef LDAP_PF_INET6
-					snprintf( c->cr_msg, sizeof( c->cr_msg ),
-						"IPv6 not supported");
-					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-#endif /* ! LDAP_PF_INET6 */
-					sty = ACL_STYLE_IPV6;
-
-				} else if ( strcasecmp( style, "path" ) == 0 ) {
-					sty = ACL_STYLE_PATH;
-#ifndef LDAP_PF_LOCAL
-					snprintf( c->cr_msg, sizeof( c->cr_msg),
-						"\"path\" style modifier is useless without local");
-					Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, "%s: %s.\n", c->log, c->cr_msg );
-					goto fail;
-#endif /* LDAP_PF_LOCAL */
-
-				} else {
-					snprintf( c->cr_msg, sizeof ( c->cr_msg ),
-						"unknown style \"%s\" in by clause", style );
-					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-					goto fail;
-				}
-
-				if ( style_modifier &&
-					strcasecmp( style_modifier, "expand" ) == 0 )
-				{
-					switch ( sty ) {
-					case ACL_STYLE_REGEX:
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"\"regex\" style implies \"expand\" modifier" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-						break;
-
-					case ACL_STYLE_EXPAND:
-						break;
-
-					default:
-						/* we'll see later if it's pertinent */
-						expand = 1;
-						break;
-					}
-				}
-
-				if ( strncasecmp( left, "real", STRLENOF( "real" ) ) == 0 ) {
-					is_realdn = 1;
-					bdn = &b->a_realdn;
-					left += STRLENOF( "real" );
-				}
-
-				if ( strcasecmp( left, "*" ) == 0 ) {
-					if ( is_realdn ) {
-						goto fail;
-					}
-
-					ber_str2bv( "*", STRLENOF( "*" ), 1, &bv );
-					sty = ACL_STYLE_REGEX;
-
-				} else if ( strcasecmp( left, "anonymous" ) == 0 ) {
-					ber_str2bv("anonymous", STRLENOF( "anonymous" ), 1, &bv);
-					sty = ACL_STYLE_ANONYMOUS;
-
-				} else if ( strcasecmp( left, "users" ) == 0 ) {
-					ber_str2bv("users", STRLENOF( "users" ), 1, &bv);
-					sty = ACL_STYLE_USERS;
-
-				} else if ( strcasecmp( left, "self" ) == 0 ) {
-					ber_str2bv("self", STRLENOF( "self" ), 1, &bv);
-					sty = ACL_STYLE_SELF;
-
-				} else if ( strcasecmp( left, "dn" ) == 0 ) {
-					if ( sty == ACL_STYLE_REGEX ) {
-						bdn->a_style = ACL_STYLE_REGEX;
-						if ( right == NULL ) {
-							/* no '=' */
-							ber_str2bv("users",
-								STRLENOF( "users" ),
-								1, &bv);
-							bdn->a_style = ACL_STYLE_USERS;
-
-						} else if (*right == '\0' ) {
-							/* dn="" */
-							ber_str2bv("anonymous",
-								STRLENOF( "anonymous" ),
-								1, &bv);
-							bdn->a_style = ACL_STYLE_ANONYMOUS;
-
-						} else if ( strcmp( right, "*" ) == 0 ) {
-							/* dn=* */
-							/* any or users?  users for now */
-							ber_str2bv("users",
-								STRLENOF( "users" ),
-								1, &bv);
-							bdn->a_style = ACL_STYLE_USERS;
-
-						} else if ( strcmp( right, ".+" ) == 0
-							|| strcmp( right, "^.+" ) == 0
-							|| strcmp( right, ".+$" ) == 0
-							|| strcmp( right, "^.+$" ) == 0
-							|| strcmp( right, ".+$$" ) == 0
-							|| strcmp( right, "^.+$$" ) == 0 )
-						{
-							ber_str2bv("users",
-								STRLENOF( "users" ),
-								1, &bv);
-							bdn->a_style = ACL_STYLE_USERS;
-
-						} else if ( strcmp( right, ".*" ) == 0
-							|| strcmp( right, "^.*" ) == 0
-							|| strcmp( right, ".*$" ) == 0
-							|| strcmp( right, "^.*$" ) == 0
-							|| strcmp( right, ".*$$" ) == 0
-							|| strcmp( right, "^.*$$" ) == 0 )
-						{
-							ber_str2bv("*",
-								STRLENOF( "*" ),
-								1, &bv);
-
-						} else {
-							acl_regex_normalized_dn( right, &bv );
-							if ( !ber_bvccmp( &bv, '*' ) ) {
-								if ( regtest( c, bv.bv_val ) != 0)
-									goto fail;
-							}
-						}
-
-					} else if ( right == NULL || *right == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"missing \"=\" in (or value after) \"%s\" in by clause", left );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-
-					} else {
-						ber_str2bv( right, 0, 1, &bv );
-					}
-
-				} else {
-					BER_BVZERO( &bv );
-				}
-
-				if ( !BER_BVISNULL( &bv ) ) {
-					if ( !BER_BVISEMPTY( &bdn->a_pat ) ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"dn pattern already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( sty != ACL_STYLE_REGEX &&
-							sty != ACL_STYLE_ANONYMOUS &&
-							sty != ACL_STYLE_USERS &&
-							sty != ACL_STYLE_SELF &&
-							expand == 0 )
-					{
-						rc = dnNormalize(0, NULL, NULL,
-							&bv, &bdn->a_pat, NULL);
-						if ( rc != LDAP_SUCCESS ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"bad DN \"%s\" in by DN clause", bv.bv_val );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						}
-						free( bv.bv_val );
-						if ( sty == ACL_STYLE_BASE
-							&& be != NULL
-							&& !BER_BVISNULL( &be->be_rootndn )
-							&& dn_match( &bdn->a_pat, &be->be_rootndn ) )
-						{
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"rootdn is always granted unlimited privileges" );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						}
-
-					} else {
-						bdn->a_pat = bv;
-					}
-					bdn->a_style = sty;
-					if ( expand ) {
-						char	*exp;
-						int	gotit = 0;
-
-						for ( exp = strchr( bdn->a_pat.bv_val, '$' );
-							exp && (ber_len_t)(exp - bdn->a_pat.bv_val)
-								< bdn->a_pat.bv_len;
-							exp = strchr( exp, '$' ) )
-						{
-							if ( ( isdigit( (unsigned char) exp[ 1 ] ) ||
-								    exp[ 1 ] == '{' ) ) {
-								gotit = 1;
-								break;
-							}
-						}
-
-						if ( gotit == 1 ) {
-							bdn->a_expand = expand;
-
-						} else {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"\"expand\" used with no expansions in \"pattern\"");
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						}
-					}
-					if ( sty == ACL_STYLE_SELF ) {
-						bdn->a_self_level = level;
-
-					} else {
-						if ( level < 0 ) {
-							snprintf( c->cr_msg, sizeof( c ->cr_msg ),
-								"bad negative level \"%d\" in by DN clause", level );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						} else if ( level == 1 ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"\"onelevel\" should be used instead of \"level{1}\" in by DN clause" );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						} else if ( level == 0 && sty == ACL_STYLE_LEVEL ) {
-							snprintf ( c->cr_msg, sizeof( c->cr_msg ),
-								"\"base\" should be used instead of \"level{0}\" in by DN clause" );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						}
-
-						bdn->a_level = level;
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "dnattr" ) == 0 ) {
-					if ( right == NULL || right[0] == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"missing \"=\" in (or value after) \"%s\" in by clause", left );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if( bdn->a_at != NULL ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"dnattr already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					rc = slap_str2ad( right, &bdn->a_at, &text );
-
-					if( rc != LDAP_SUCCESS ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-						      "dnattr \"%s\": %s", right, text );
-						Debug(LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-
-					if( !is_at_syntax( bdn->a_at->ad_type,
-						SLAPD_DN_SYNTAX ) &&
-						!is_at_syntax( bdn->a_at->ad_type,
-						SLAPD_NAMEUID_SYNTAX ))
-					{
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-						      "dnattr \"%s\": " "inappropriate syntax: %s",
-							  right, bdn->a_at->ad_type->sat_syntax_oid );
-						Debug(LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if( bdn->a_at->ad_type->sat_equality == NULL ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"dnattr \"%s\": inappropriate matching (no EQUALITY)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					continue;
-				}
-
-				if ( strncasecmp( left, "group", STRLENOF( "group" ) ) == 0 ) {
-					char *name = NULL;
-					char *value = NULL;
-					char *attr_name = SLAPD_GROUP_ATTR;
-
-					switch ( sty ) {
-					case ACL_STYLE_REGEX:
-						/* legacy, tolerated */
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"deprecated group style \"regex\"; use \"expand\" instead" );
-						Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, "%s: %s.\n", c->log, c->cr_msg );
-						sty = ACL_STYLE_EXPAND;
-						break;
-
-					case ACL_STYLE_BASE:
-						/* legal, traditional */
-					case ACL_STYLE_EXPAND:
-						/* legal, substring expansion; supersedes regex */
-						break;
-
-					default:
-						/* unknown */
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || right[0] == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"missing \"=\" in (or value after) \"%s\" in by clause", left );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !BER_BVISEMPTY( &b->a_group_pat ) ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"group pattern already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					/* format of string is
-						"group/objectClassValue/groupAttrName" */
-					if ( ( value = strchr(left, '/') ) != NULL ) {
-						*value++ = '\0';
-						if ( *value && ( name = strchr( value, '/' ) ) != NULL ) {
-							*name++ = '\0';
-						}
-					}
-
-					b->a_group_style = sty;
-					if ( sty == ACL_STYLE_EXPAND ) {
-						acl_regex_normalized_dn( right, &bv );
-						if ( !ber_bvccmp( &bv, '*' ) ) {
-							if ( regtest( c, bv.bv_val ) != 0)
-								goto fail;
-						}
-						b->a_group_pat = bv;
-
-					} else {
-						ber_str2bv( right, 0, 0, &bv );
-						rc = dnNormalize( 0, NULL, NULL, &bv,
-							&b->a_group_pat, NULL );
-						if ( rc != LDAP_SUCCESS ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg),
-								"bad DN \"%s\"", right );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						}
-					}
-
-					if ( value && *value ) {
-						b->a_group_oc = oc_find( value );
-						*--value = '/';
-
-						if ( b->a_group_oc == NULL ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"group objectclass \"%s\" unknown", value );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						}
-
-					} else {
-						b->a_group_oc = oc_find( SLAPD_GROUP_CLASS );
-
-						if( b->a_group_oc == NULL ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"group default objectclass \"%s\" unknown", SLAPD_GROUP_CLASS );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						}
-					}
-
-					if ( is_object_subclass( slap_schema.si_oc_referral,
-						b->a_group_oc ) )
-					{
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"group objectclass \"%s\" is subclass of referral", value );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( is_object_subclass( slap_schema.si_oc_alias,
-						b->a_group_oc ) )
-					{
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"group objectclass \"%s\" is subclass of alias", value );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( name && *name ) {
-						attr_name = name;
-						*--name = '/';
-
-					}
-
-					rc = slap_str2ad( attr_name, &b->a_group_at, &text );
-					if ( rc != LDAP_SUCCESS ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-						      "group \"%s\": %s", right, text );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !is_at_syntax( b->a_group_at->ad_type,
-							SLAPD_DN_SYNTAX ) /* e.g. "member" */
-						&& !is_at_syntax( b->a_group_at->ad_type,
-							SLAPD_NAMEUID_SYNTAX ) /* e.g. memberUID */
-						&& !is_at_subtype( b->a_group_at->ad_type,
-							slap_schema.si_ad_labeledURI->ad_type ) /* e.g. memberURL */ )
-					{
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-						      "group \"%s\" attr \"%s\": inappropriate syntax: %s; " "must be " SLAPD_DN_SYNTAX " (DN), " SLAPD_NAMEUID_SYNTAX " (NameUID) " "or a subtype of labeledURI",
-						      right, attr_name, at_syntax(b->a_group_at->ad_type) );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-
-					{
-						int rc;
-						ObjectClass *ocs[2];
-
-						ocs[0] = b->a_group_oc;
-						ocs[1] = NULL;
-
-						rc = oc_check_allowed( b->a_group_at->ad_type,
-							ocs, NULL );
-
-						if( rc != 0 ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							      "group: \"%s\" not allowed by \"%s\".\n",
-							      b->a_group_at->ad_cname.bv_val,
-							      b->a_group_oc->soc_oid );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						}
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "peername" ) == 0 ) {
-					switch ( sty ) {
-					case ACL_STYLE_REGEX:
-					case ACL_STYLE_BASE:
-						/* legal, traditional */
-					case ACL_STYLE_EXPAND:
-						/* cheap replacement to regex for simple expansion */
-					case ACL_STYLE_IP:
-					case ACL_STYLE_IPV6:
-					case ACL_STYLE_PATH:
-						/* legal, peername specific */
-						break;
-
-					default:
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || right[0] == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"missing \"=\" in (or value after) \"%s\" in by clause", left);
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !BER_BVISEMPTY( &b->a_peername_pat ) ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"peername pattern already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					b->a_peername_style = sty;
-					if ( sty == ACL_STYLE_REGEX ) {
-						acl_regex_normalized_dn( right, &bv );
-						if ( !ber_bvccmp( &bv, '*' ) ) {
-							if ( regtest( c, bv.bv_val ) != 0)
-								goto fail;
-						}
-						b->a_peername_pat = bv;
-
-					} else {
-						ber_str2bv( right, 0, 1, &b->a_peername_pat );
-
-						if ( sty == ACL_STYLE_IP ) {
-							char		*addr = NULL,
-									*mask = NULL,
-									*port = NULL;
-
-							split( right, '{', &addr, &port );
-							split( addr, '%', &addr, &mask );
-
-							b->a_peername_addr = inet_addr( addr );
-							if ( b->a_peername_addr == (unsigned long)(-1) ) {
-								/* illegal address */
-								snprintf( c->cr_msg, sizeof( c->cr_msg ),
-									"illegal peername address \"%s\"", addr );
-								Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-								goto fail;
-							}
-
-							b->a_peername_mask = (unsigned long)(-1);
-							if ( mask != NULL ) {
-								b->a_peername_mask = inet_addr( mask );
-								if ( b->a_peername_mask ==
-									(unsigned long)(-1) )
-								{
-									/* illegal mask */
-									snprintf( c->cr_msg, sizeof( c->cr_msg ),
-										"illegal peername address mask \"%s\"", mask );
-									Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-									goto fail;
-								}
-							}
-
-							b->a_peername_port = -1;
-							if ( port ) {
-								char	*end = NULL;
-
-								b->a_peername_port = strtol( port, &end, 10 );
-								if ( end == port || end[0] != '}' ) {
-									/* illegal port */
-									snprintf( c->cr_msg, sizeof( c->cr_msg ),
-										"illegal peername port specification \"{%s}\"", port );
-									Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-									goto fail;
-								}
-							}
-
-#ifdef LDAP_PF_INET6
-						} else if ( sty == ACL_STYLE_IPV6 ) {
-							char		*addr = NULL,
-									*mask = NULL,
-									*port = NULL;
-
-							split( right, '{', &addr, &port );
-							split( addr, '%', &addr, &mask );
-
-							if ( inet_pton( AF_INET6, addr, &b->a_peername_addr6 ) != 1 ) {
-								/* illegal address */
-								snprintf( c->cr_msg, sizeof( c->cr_msg ),
-									"illegal peername address \"%s\"", addr );
-								Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-								goto fail;
-							}
-
-							if ( mask == NULL ) {
-								mask = "FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF:FFFF";
-							}
-
-							if ( inet_pton( AF_INET6, mask, &b->a_peername_mask6 ) != 1 ) {
-								/* illegal mask */
-								snprintf( c->cr_msg, sizeof( c->cr_msg ),
-									"illegal peername address mask \"%s\"", mask );
-								Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-								goto fail;
-							}
-
-							b->a_peername_port = -1;
-							if ( port ) {
-								char	*end = NULL;
-
-								b->a_peername_port = strtol( port, &end, 10 );
-								if ( end == port || end[0] != '}' ) {
-									/* illegal port */
-									snprintf( c->cr_msg, sizeof( c->cr_msg ),
-										"illegal peername port specification \"{%s}\"", port );
-									Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-									goto fail;
-								}
-							}
-#endif /* LDAP_PF_INET6 */
-						}
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "sockname" ) == 0 ) {
-					switch ( sty ) {
-					case ACL_STYLE_REGEX:
-					case ACL_STYLE_BASE:
-						/* legal, traditional */
-					case ACL_STYLE_EXPAND:
-						/* cheap replacement to regex for simple expansion */
-						break;
-
-					default:
-						/* unknown */
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || right[0] == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"missing \"=\" in (or value after) \"%s\" in by clause", left );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !BER_BVISNULL( &b->a_sockname_pat ) ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"sockname pattern already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					b->a_sockname_style = sty;
-					if ( sty == ACL_STYLE_REGEX ) {
-						acl_regex_normalized_dn( right, &bv );
-						if ( !ber_bvccmp( &bv, '*' ) ) {
-							if ( regtest( c, bv.bv_val ) != 0)
-								goto fail;
-						}
-						b->a_sockname_pat = bv;
-
-					} else {
-						ber_str2bv( right, 0, 1, &b->a_sockname_pat );
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "domain" ) == 0 ) {
-					switch ( sty ) {
-					case ACL_STYLE_REGEX:
-					case ACL_STYLE_BASE:
-					case ACL_STYLE_SUBTREE:
-						/* legal, traditional */
-						break;
-
-					case ACL_STYLE_EXPAND:
-						/* tolerated: means exact,expand */
-						if ( expand ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"\"expand\" modifier with \"expand\" style" );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						}
-						sty = ACL_STYLE_BASE;
-						expand = 1;
-						break;
-
-					default:
-						/* unknown */
-						snprintf( c->cr_msg, sizeof( c->cr_msg),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || right[0] == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"missing \"=\" in (or value after) \"%s\" in by clause", left );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !BER_BVISEMPTY( &b->a_domain_pat ) ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"domain pattern already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					b->a_domain_style = sty;
-					b->a_domain_expand = expand;
-					if ( sty == ACL_STYLE_REGEX ) {
-						acl_regex_normalized_dn( right, &bv );
-						if ( !ber_bvccmp( &bv, '*' ) ) {
-							if ( regtest( c, bv.bv_val ) != 0)
-								goto fail;
-						}
-						b->a_domain_pat = bv;
-
-					} else {
-						ber_str2bv( right, 0, 1, &b->a_domain_pat );
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "sockurl" ) == 0 ) {
-					switch ( sty ) {
-					case ACL_STYLE_REGEX:
-					case ACL_STYLE_BASE:
-						/* legal, traditional */
-					case ACL_STYLE_EXPAND:
-						/* cheap replacement to regex for simple expansion */
-						break;
-
-					default:
-						/* unknown */
-						snprintf( c->cr_msg, sizeof( c->cr_msg),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || right[0] == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"missing \"=\" in (or value after) \"%s\" in by clause", left );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !BER_BVISEMPTY( &b->a_sockurl_pat ) ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"sockurl pattern already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					b->a_sockurl_style = sty;
-					if ( sty == ACL_STYLE_REGEX ) {
-						acl_regex_normalized_dn( right, &bv );
-						if ( !ber_bvccmp( &bv, '*' ) ) {
-							if ( regtest( c, bv.bv_val ) != 0)
-								goto fail;
-						}
-						b->a_sockurl_pat = bv;
-
-					} else {
-						ber_str2bv( right, 0, 1, &b->a_sockurl_pat );
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "set" ) == 0 ) {
-					switch ( sty ) {
-						/* deprecated */
-					case ACL_STYLE_REGEX:
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"deprecated set style "
-							"\"regex\" in <by> clause; "
-							"use \"expand\" instead" );
-						Debug( LDAP_DEBUG_CONFIG | LDAP_DEBUG_ACL, "%s: %s.\n", c->log, c->cr_msg );
-						sty = ACL_STYLE_EXPAND;
-						/* FALLTHRU */
-
-					case ACL_STYLE_BASE:
-					case ACL_STYLE_EXPAND:
-						break;
-
-					default:
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !BER_BVISEMPTY( &b->a_set_pat ) ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"set attribute already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || *right == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"no set is defined" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					b->a_set_style = sty;
-					ber_str2bv( right, 0, 1, &b->a_set_pat );
-
-					continue;
-				}
-
-#ifdef SLAP_DYNACL
-				{
-					char		*name = NULL,
-							*opts = NULL;
-
-#if 1 /* tolerate legacy "aci" <who> */
-					if ( strcasecmp( left, "aci" ) == 0 ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"undocumented deprecated \"aci\" directive "
-							"is superseded by \"dynacl/aci\"" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						name = "aci";
-
-					} else
-#endif /* tolerate legacy "aci" <who> */
-					if ( strncasecmp( left, "dynacl/", STRLENOF( "dynacl/" ) ) == 0 ) {
-						name = &left[ STRLENOF( "dynacl/" ) ];
-						opts = strchr( name, '/' );
-						if ( opts ) {
-							opts[ 0 ] = '\0';
-							opts++;
-						}
-					}
-
-					if ( name ) {
-						if ( slap_dynacl_config( c, b, name, opts, sty, right ) ) {
-							snprintf( c->cr_msg, sizeof( c->cr_msg ),
-								"unable to configure dynacl \"%s\"", name );
-							Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-							goto fail;
-						}
-
-						continue;
-					}
-				}
-#endif /* SLAP_DYNACL */
-
-				if ( strcasecmp( left, "ssf" ) == 0 ) {
-					if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( b->a_authz.sai_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"ssf attribute already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || *right == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"no ssf is defined" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( lutil_atou( &b->a_authz.sai_ssf, right ) != 0 ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"unable to parse ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !b->a_authz.sai_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"invalid ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "transport_ssf" ) == 0 ) {
-					if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( b->a_authz.sai_transport_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"transport_ssf attribute already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || *right == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"no transport_ssf is defined" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( lutil_atou( &b->a_authz.sai_transport_ssf, right ) != 0 ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"unable to parse transport_ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !b->a_authz.sai_transport_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"invalid transport_ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "tls_ssf" ) == 0 ) {
-					if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( b->a_authz.sai_tls_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"tls_ssf attribute already specified" );
-						goto fail;
-					}
-
-					if ( right == NULL || *right == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"no tls_ssf is defined" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( lutil_atou( &b->a_authz.sai_tls_ssf, right ) != 0 ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"unable to parse tls_ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !b->a_authz.sai_tls_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"invalid tls_ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-					continue;
-				}
-
-				if ( strcasecmp( left, "sasl_ssf" ) == 0 ) {
-					if ( sty != ACL_STYLE_REGEX && sty != ACL_STYLE_BASE ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"inappropriate style \"%s\" in by clause", style );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( b->a_authz.sai_sasl_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"sasl_ssf attribute already specified" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( right == NULL || *right == '\0' ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"no sasl_ssf is defined" );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( lutil_atou( &b->a_authz.sai_sasl_ssf, right ) != 0 ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"unable to parse sasl_ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-
-					if ( !b->a_authz.sai_sasl_ssf ) {
-						snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"invalid sasl_ssf value (%s)", right );
-						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
-						goto fail;
-					}
-					continue;
-				}
-
-				if ( right != NULL ) {
-					/* unsplit */
-					right[-1] = '=';
-				}
-				break;
+			if ( acl_parse_who( c, b, argv, argc, &i, &left ) ) {
+				goto fail;
 			}
 
 			if ( i == argc || ( strcasecmp( left, "stop" ) == 0 ) ) {
@@ -2557,12 +2583,8 @@ dnaccess2text( slap_dn_access *bdn, char *ptr, int is_realdn )
 }
 
 static char *
-access2text( Access *b, char *ptr )
+acl_who2text( Access *b, char *ptr )
 {
-	char maskbuf[ACCESSMASK_MAXLEN];
-
-	ptr = acl_safe_strcopy( ptr, "\tby" );
-
 	if ( !BER_BVISEMPTY( &b->a_dn_pat ) ) {
 		ptr = dnaccess2text( &b->a_dn, ptr, 0 );
 	}
@@ -2683,6 +2705,18 @@ access2text( Access *b, char *ptr )
 	}
 
 	ptr = acl_safe_strcopy( ptr, " " );
+	return ptr;
+}
+
+static char *
+access2text( Access *b, char *ptr )
+{
+	char maskbuf[ACCESSMASK_MAXLEN];
+
+	ptr = acl_safe_strcopy( ptr, "\tby" );
+
+	ptr = acl_who2text( b, ptr );
+
 	if ( b->a_dn_self ) {
 		ptr = acl_safe_strcopy( ptr, "self" );
 	} else if ( b->a_realdn_self ) {
