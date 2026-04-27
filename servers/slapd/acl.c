@@ -545,6 +545,20 @@ slap_acl_get(
 		if ( a != frontendDB->be_acl && state->as_fe_done )
 			state->as_fe_done++;
 
+		if ( a->acl_op ) {
+			slap_restrictop_t restrictop = SLAP_OP2RESTRICT(slap_req2op( op->o_tag ));
+			if ( !(a->acl_op & restrictop) )
+				continue;
+
+			if ( restrictop == SLAP_RESTRICT_OP_EXTENDED && !BER_BVISNULL( &a->acl_oid ) &&
+					ber_bvcmp( &a->acl_oid, &op->oq_extended.rs_reqoid ) != 0 )
+				continue;
+		}
+
+		if ( a->acl_control &&
+				_SCM(op->o_ctrlflag[a->acl_control]) <= SLAP_CONTROL_IGNORED )
+			continue;
+
 		if ( a->acl_dn_pat.bv_len || ( a->acl_dn_style != ACL_STYLE_REGEX )) {
 			if ( a->acl_dn_style == ACL_STYLE_REGEX ) {
 				Debug( LDAP_DEBUG_ACL, "=> dnpat: [%d] %s nsub: %d\n", 

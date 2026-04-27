@@ -154,6 +154,8 @@ It can have the forms
 	dn[.<dnstyle>]=<dnpattern>
 	filter=<ldapfilter>
 	attrs=<attrlist>[ val[/matchingRule][.<attrstyle>]=<attrval>]
+	op=<operation>|<oid>
+	control=<oid>
 .fi
 .LP
 with
@@ -275,10 +277,26 @@ or
 .BR children ,
 resulting in base, onelevel, subtree or children match, respectively.
 .LP
-The dn, filter, and attrs statements are additive; they can be used in sequence 
-to select entities the access rule applies to based on naming context,
-value and attribute type simultaneously.
-Submatches resulting from
+The statement
+.B op=<operation>|<oid>
+narrows the rule to a specific operation (e.g. search, rename) or, if
+.B oid
+is provided, a specific extended operation.
+.B objectIdentifier macros
+are also resolved but keep in mind that those are currently case-sensitive.
+.LP
+The statement
+.B control=<oid>
+narrows the rule to when a specific control has been requested. Same as with
+the
+.B op=<oid>
+case, you can make use of
+.B objectIdentifier macros
+from the schema.
+.LP
+The dn, filter, attrs, op and control statements are additive; they can be used
+in sequence to select entities the access rule applies to based on naming
+context, value and attribute type simultaneously. Submatches resulting from
 .B regex
 matching can be dereferenced in the
 .B <who>

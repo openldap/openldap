@@ -1691,6 +1691,51 @@ parse_acl(
 						}
 					}
 
+				} else if ( strcasecmp( left, "control" ) == 0 ) {
+					char *oid = oidm_find( right );
+
+					if ( !oid ) {
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"bad control OID \"%s\" in to clause", right );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					}
+
+					if ( slap_find_control_id( oid, &a->acl_control ) ) {
+						if ( oid != right ) {
+							ch_free( oid );
+						}
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"unknown control \"%s\" in to clause", right );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					}
+					ber_str2bv( right, 0, 1, &a->acl_controlval );
+					if ( oid != right ) {
+						ch_free( oid );
+					}
+				} else if ( strcasecmp( left, "op" ) == 0 ) {
+					int i = verb_to_mask( right, slap_restrictable_ops );
+
+					a->acl_op = slap_restrictable_ops[i].mask;
+					if ( !a->acl_op ) {
+						char *oid = oidm_find( right );
+						if ( oid ) {
+							ber_str2bv( oid, 0, oid == right, &a->acl_oid );
+							a->acl_op = SLAP_RESTRICT_OP_EXTENDED;
+						}
+					}
+
+					/* Also filter out "extended=..." because those should be
+					 * specified by OID directly */
+					a->acl_op &= SLAP_RESTRICT_OP_MASK;
+					if ( !a->acl_op ) {
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"unsupported operation type \"%s\" in to clause", right );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+						goto fail;
+					}
+					ber_str2bv( right, 0, 1, &a->acl_opval );
 				} else {
 					snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"expecting <what> got \"%s\"",
@@ -2196,9 +2241,11 @@ acl_usage(void)
 				"[ by <who> [ <access> ] [ <control> ] ]+ \n";
 	char *what =
 		"<what> ::= * | dn[.<dnstyle>=<DN>] [filter=<filter>] [attrs=<attrspec>]\n"
+			"\t[op=<opspec>] [control=<oid>]\n"
 		"<attrspec> ::= <attrname> [val[/<matchingRule>][.<attrstyle>]=<value>] | <attrlist>\n"
 		"<attrlist> ::= <attr> [ , <attrlist> ]\n"
-		"<attr> ::= <attrname> | @<objectClass> | !<objectClass> | entry | children\n";
+		"<attr> ::= <attrname> | @<objectClass> | !<objectClass> | entry | children\n"
+		"<opspec> ::= <LDAPOperation> | <oid>\n";
 
 	char *who =
 		"<who> ::= [ * | anonymous | users | self | dn[.<dnstyle>]=<DN> ]\n"
@@ -2393,6 +2440,13 @@ acl_free( AccessControl *a )
 		if ( !BER_BVISNULL( &a->acl_attrval ) ) {
 			ber_memfree( a->acl_attrval.bv_val );
 		}
+	}
+	if ( !BER_BVISNULL( &a->acl_controlval ) ) {
+		free( a->acl_controlval.bv_val );
+	}
+	if ( !BER_BVISNULL( &a->acl_opval ) ) {
+		free( a->acl_opval.bv_val );
+		free( a->acl_oid.bv_val );
 	}
 	for ( ; a->acl_access; a->acl_access = n ) {
 		n = a->acl_access->a_next;
@@ -2813,6 +2867,20 @@ acl_unparse( AccessControl *a, struct berval *bv )
 		ptr = acl_safe_strcopy( ptr, "=\"" );
 		ptr = acl_safe_strbvcopy( ptr, &a->acl_attrval );
 		ptr = acl_safe_strcopy( ptr, "\"\n" );
+	}
+
+	if ( !BER_BVISNULL( &a->acl_opval ) ) {
+		to++;
+		ptr = acl_safe_strcopy( ptr, " op=" );
+		ptr = acl_safe_strbvcopy( ptr, &a->acl_opval );
+		ptr = acl_safe_strcopy( ptr, "\n" );
+	}
+
+	if ( !BER_BVISNULL( &a->acl_controlval ) ) {
+		to++;
+		ptr = acl_safe_strcopy( ptr, " control=" );
+		ptr = acl_safe_strbvcopy( ptr, &a->acl_controlval );
+		ptr = acl_safe_strcopy( ptr, "\n" );
 	}
 
 	if ( !to ) {

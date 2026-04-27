@@ -613,6 +613,27 @@ case $RC in
 	;;
 esac
 
+$LDAPMODIFY -D "$BABSDN" -H $URI1 -w bjensen -M >> \
+	$TESTOUT 2>&1 << EOMODS15a
+dn: cn=Added by Bjorn (will be deleted),ou=Add & Delete,dc=example,dc=com
+changetype: delete
+EOMODS15a
+RC=$?
+case $RC in
+50)
+	;;
+0)
+	echo "ldapmodify should have failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+	;;
+*)
+	echo "ldapmodify failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+	;;
+esac
+
 $LDAPMODIFY -D "$BABSDN" -H $URI1 -w bjensen >> \
 	$TESTOUT 2>&1 << EOMODS15
 dn: cn=Added by Bjorn (will be deleted),ou=Add & Delete,dc=example,dc=com

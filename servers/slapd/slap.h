@@ -1612,6 +1612,13 @@ typedef struct AccessControl {
 	slap_style_t	acl_attrval_style;
 	regex_t		acl_attrval_re;
 	struct berval	acl_attrval;
+	slap_restrictop_t	acl_op;
+	struct berval	acl_oid;
+	int		acl_control;
+
+	/* Preserved op= and control= parts as configured */
+	struct berval	acl_opval;
+	struct berval	acl_controlval;
 
 	/* "by" part: list of who has what access to the entries */
 	Access	*acl_access;
