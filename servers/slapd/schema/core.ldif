@@ -62,6 +62,59 @@ dn: cn=core,cn=schema,cn=config
 objectClass: olcSchemaConfig
 cn: core
 #
+# Known control object identifiers
+#
+olcObjectIdentifier: manageDSAiT 2.16.840.1.113730.3.4.2
+olcObjectIdentifier: proxyAuthz 2.16.840.1.113730.3.4.18
+olcObjectIdentifier: subentries 1.3.6.1.4.1.4203.1.10.1
+olcObjectIdentifier: valuesReturnFilter 1.2.826.0.1.3344810.2.3
+olcObjectIdentifier: assert 1.3.6.1.1.12
+olcObjectIdentifier: preread 1.3.6.1.1.13.1
+olcObjectIdentifier: postread 1.3.6.1.1.13.2
+olcObjectIdentifier: sort 1.2.840.113556.1.4.473
+olcObjectIdentifier: pagedResults 1.2.840.113556.1.4.319
+olcObjectIdentifier: authzId 2.16.840.1.113730.3.4.16
+olcObjectIdentifier: sync 1.3.6.1.4.1.4203.1.9.1.1
+olcObjectIdentifier: dontUseCopy 1.3.6.1.1.22
+olcObjectIdentifier: ppolicy 1.3.6.1.4.1.42.2.27.8.5.1
+olcObjectIdentifier: noop 1.3.6.1.4.1.4203.666.5.2
+olcObjectIdentifier: nosubordinates 1.3.6.1.4.1.4203.666.5.11
+olcObjectIdentifier: relax 1.3.6.1.4.1.4203.666.5.12
+olcObjectIdentifier: slurp 1.3.6.1.4.1.4203.666.5.13
+olcObjectIdentifier: valsort 1.3.6.1.4.1.4203.666.5.14
+olcObjectIdentifier: x-deref 1.3.6.1.4.1.4203.666.5.16
+olcObjectIdentifier: x-whatfailed 1.3.6.1.4.1.4203.666.5.17
+olcObjectIdentifier: x-chainingBehaviour 1.3.6.1.4.1.4203.666.11.3
+olcObjectIdentifier: x-lazyCommit 1.2.840.113556.1.4.619
+olcObjectIdentifier: x-domainScope 1.2.840.113556.1.4.1339
+olcObjectIdentifier: x-permissiveModify 1.2.840.113556.1.4.1413
+olcObjectIdentifier: x-searchOptions 1.2.840.113556.1.4.1340
+olcObjectIdentifier: x-treeDelete 1.2.840.113556.1.4.805
+olcObjectIdentifier: x-serverNotification 1.2.840.113556.1.4.528
+olcObjectIdentifier: x-extendedDN 1.2.840.113556.1.4.529
+olcObjectIdentifier: x-showDeleted 1.2.840.113556.1.4.417
+olcObjectIdentifier: x-dirSync 1.2.840.113556.1.4.841
+olcObjectIdentifier: sessionTracking 1.3.6.1.4.1.21008.108.63.1
+olcObjectIdentifier: dupent 2.16.840.1.113719.1.27.101.1
+olcObjectIdentifier: persist 2.16.840.1.113730.3.4.3
+olcObjectIdentifier: vlv 2.16.840.1.113730.3.4.9
+olcObjectIdentifier: x-accountUsability 1.3.6.1.4.1.42.2.27.9.5.8
+olcObjectIdentifier: x-returnContinuationReference 1.3.6.1.4.1.4203.666.11.6.3
+olcObjectIdentifier: txnSpecification 1.3.6.1.1.21.2
+#
+# Known extended operation object identifiers
+#
+olcObjectIdentifier: startTLS 1.3.6.1.4.1.1466.20037
+olcObjectIdentifier: modifyPassword 1.3.6.1.4.1.4203.1.11.1
+olcObjectIdentifier: cancel 1.3.6.1.1.8
+olcObjectIdentifier: refresh 1.3.6.1.4.1.1466.101.119.1
+olcObjectIdentifier: verifyCredentials 1.3.6.1.4.1.4203.666.6.5
+olcObjectIdentifier: whoAmI 1.3.6.1.4.1.4203.1.11.3
+olcObjectIdentifier: turn 1.3.6.1.1.19
+olcObjectIdentifier: x-chainedRequest 1.3.6.1.4.1.4203.666.11.6.1
+olcObjectIdentifier: txnStart 1.3.6.1.1.21.1
+olcObjectIdentifier: txnEnd 1.3.6.1.1.21.3
+#
 # system schema
 #olcAttributeTypes: ( 2.5.4.0 NAME 'objectClass'
 #	DESC 'RFC2256: object classes of the entity'
