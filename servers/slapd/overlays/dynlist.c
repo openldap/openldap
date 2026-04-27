@@ -941,7 +941,7 @@ dynlist_compare( Operation *op, SlapReply *rs )
 	BackendDB *be;
 	int ret = SLAP_CB_CONTINUE;
 
-	if ( get_manageDSAit( op ) )
+	if ( wants_manageDSAit( op ) )
 		return SLAP_CB_CONTINUE;
 
 	for ( ; dli != NULL; dli = dli->dli_next ) {
@@ -1896,7 +1896,7 @@ dynlist_search( Operation *op, SlapReply *rs )
 	int nested, found, tmpwant;
 	int opattrs, userattrs;
 
-	if ( get_manageDSAit( op ) )
+	if ( wants_manageDSAit( op ) )
 		return SLAP_CB_CONTINUE;
 
 	sc = op->o_tmpcalloc( 1, sizeof(slap_callback)+sizeof(dynlist_search_t), op->o_tmpmemctx );

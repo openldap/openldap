@@ -97,7 +97,7 @@ asyncmeta_back_add_start(Operation *op,
 	for ( i = 0, a = op->ora_e->e_attrs; a; a = a->a_next ) {
 		int j;
 
-		if ( !isupdate && !get_relax( op ) && a->a_desc->ad_type->sat_no_user_mod  )
+		if ( !isupdate && !wants_relax( op ) && a->a_desc->ad_type->sat_no_user_mod  )
 		{
 			continue;
 		}

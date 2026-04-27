@@ -36,7 +36,7 @@ backsql_compare( Operation *op, SlapReply *rs )
 	Attribute		*a = NULL;
 	backsql_srch_info	bsi = { 0 };
 	int			rc;
-	int			manageDSAit = get_manageDSAit( op );
+	int			manageDSAit = wants_manageDSAit( op );
 	AttributeName		anlist[2];
 
 	Debug( LDAP_DEBUG_TRACE, "==>backsql_compare()\n" );
@@ -87,7 +87,7 @@ backsql_compare( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 			( test_filter( op, &e, get_assertion( op ) )
 			  != LDAP_COMPARE_TRUE ) )
 	{

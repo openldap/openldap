@@ -318,7 +318,7 @@ fe_op_modrdn( Operation *op, SlapReply *rs )
 		int repl_user = be_isupdate( op );
 		if ( !SLAP_SINGLE_SHADOW(op->o_bd) || repl_user )
 		{
-			if ( op->o_txnSpec ) {
+			if ( wants_txnSpec( op ) ) {
 				txn_preop( op, rs );
 				goto cleanup;
 			}

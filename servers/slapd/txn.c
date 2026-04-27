@@ -83,7 +83,7 @@ int txn_spec_ctrl(
 		rs->sr_text = "txnSpec control must be marked critical";
 		return LDAP_PROTOCOL_ERROR;
 	}
-	if( op->o_txnSpec ) {
+	if ( wants_txnSpec( op ) ) {
 		rs->sr_text = "txnSpec control provided multiple times";
 		return LDAP_PROTOCOL_ERROR;
 	}

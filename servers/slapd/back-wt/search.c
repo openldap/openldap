@@ -149,7 +149,7 @@ static int search_candidates(
      */
 	if (!oc_filter(op->oq_search.rs_filter, 1, &depth)
 		&& !get_subentries_visibility(op)) {
-		if( !get_manageDSAit(op) && !get_domainScope(op) ) {
+		if( !wants_manageDSAit(op) && !wants_domainScope(op) ) {
 			/* match referral objects */
 			struct berval bv_ref = BER_BVC( "referral" );
 			rf.f_choice = LDAP_FILTER_EQUALITY;
@@ -340,7 +340,7 @@ wt_search( Operation *op, SlapReply *rs )
 
 	Debug( LDAP_DEBUG_ARGS, "==> wt_search: %s\n", op->o_req_dn.bv_val );
 
-	manageDSAit = get_manageDSAit( op );
+	manageDSAit = wants_manageDSAit( op );
 
 	wc = wt_ctx_get(op, wi);
 	if( !wc ){
@@ -443,7 +443,7 @@ wt_search( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		 ( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
@@ -584,7 +584,7 @@ loop_begin:
 					goto loop_continue;
 				}
 
-			} else if ( get_subentries( op ) &&
+			} else if ( wants_subentries( op ) &&
 						!get_subentries_visibility( op ))
 			{
 				/* only subentries are visible */

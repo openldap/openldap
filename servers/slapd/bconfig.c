@@ -5357,7 +5357,7 @@ config_add_internal( CfBackInfo *cfb, Entry *e, ConfigArgs *ca, SlapReply *rs,
 	 */
 	ce = config_find_base( cfb->cb_root, &e->e_nname, &last, op );
 	if ( ce ) {
-		if ( ( op && op->o_managedsait ) ||
+		if ( ( op && wants_manageDSAit( op ) ) ||
 			( ce->ce_type != Cft_Database && ce->ce_type != Cft_Overlay &&
 			  ce->ce_type != Cft_Module ) )
 		{
@@ -6108,7 +6108,7 @@ config_modify_internal( CfEntryInfo *ce, Operation *op, SlapReply *rs,
 				idx = d->idx;
 			}
 			rc = modify_delete_vindex(e, &ml->sml_mod,
-				get_permissiveModify(op),
+				wants_permissiveModify(op),
 				&rs->sr_text, ca->cr_msg, sizeof(ca->cr_msg), idx );
 			if ( ml->sml_op == LDAP_MOD_REPLACE ) {
 				ml->sml_values = vals;
@@ -6164,7 +6164,7 @@ config_modify_internal( CfEntryInfo *ce, Operation *op, SlapReply *rs,
 				}
 			}
 			rc = modify_add_values(e, &ml->sml_mod,
-				   get_permissiveModify(op),
+				   wants_permissiveModify(op),
 				   &rs->sr_text, ca->cr_msg, sizeof(ca->cr_msg) );
 
 			/* If value already exists, show success here
@@ -6431,7 +6431,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 	slap_mods_opattrs( op, &op->orm_modlist, 1 );
 
 	/* If we have a backend, it will handle the control */
-	if ( !cfb->cb_use_ldif && op->o_preread ) {
+	if ( !cfb->cb_use_ldif && wants_preread( op ) ) {
 		if ( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -6502,7 +6502,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 
 		rs->sr_ctrls = sc.sc_private;
 		rs->sr_flags |= REP_CTRLS_MUSTBEFREED;
-	} else if ( op->o_postread ) {
+	} else if ( wants_postread( op ) ) {
 		if ( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -7360,7 +7360,7 @@ fail:
 		op->ora_e = e;
 		op->ora_modlist = NULL;
 		slap_add_opattrs( op, NULL, NULL, 0, 0 );
-		if ( !op->o_noop ) {
+		if ( !wants_noop( op ) ) {
 			SlapReply rs2 = {REP_RESULT};
 			op->o_bd->be_add( op, &rs2 );
 			rs->sr_err = rs2.sr_err;

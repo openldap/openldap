@@ -1039,7 +1039,7 @@ backend_check_controls(
 			case LDAP_COMPARE_FALSE:
 				if ( !op->o_bd->be_ctrls[cid] && (*ctrls)->ldctl_iscritical ) {
 #ifdef SLAP_CONTROL_X_WHATFAILED
-					if ( get_whatFailed( op ) ) {
+					if ( wants_whatFailed( op ) ) {
 						char *oids[ 2 ];
 						oids[ 0 ] = (*ctrls)->ldctl_oid;
 						oids[ 1 ] = NULL;
@@ -1076,7 +1076,7 @@ backend_check_controls(
 
 #if 0 /* temporarily removed */
 	/* check should be generalized */
-	if( get_relax(op) && !be_isroot(op)) {
+	if( wants_relax(op) && !be_isroot(op)) {
 		rs->sr_text = "requires manager authorization";
 		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 	}

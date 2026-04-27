@@ -764,7 +764,7 @@ ldif_send_entry( Operation *op, SlapReply *rs, Entry *e, int scope )
 			return rc;
 		}
 
-		else if ( !get_manageDSAit( op ) && is_entry_referral( e ) ) {
+		else if ( !wants_manageDSAit( op ) && is_entry_referral( e ) ) {
 			/* Send a continuation reference.
 			 * (ldif_back_referrals() handles baseobject referrals.)
 			 * Don't check the filter since it's only a candidate.
@@ -1091,7 +1091,7 @@ ldif_prepare_create(
 			/* No parent dir, check parent .ldif */
 			dir2ldif_name( ppath );
 			rc = ldif_read_entry( op, ppath.bv_val, NULL, NULL,
-				(op->o_tag != LDAP_REQ_ADD || get_manageDSAit( op )
+				(op->o_tag != LDAP_REQ_ADD || wants_manageDSAit( op )
 				 ? &parent : NULL),
 				text );
 			switch ( rc ) {
@@ -1164,28 +1164,28 @@ apply_modify_to_entry(
 		switch (mods->sm_op) {
 		case LDAP_MOD_ADD:
 			rc = modify_add_values(entry, mods,
-				   get_permissiveModify(op),
+				   wants_permissiveModify(op),
 				   &rs->sr_text, textbuf,
 				   SLAP_TEXT_BUFLEN );
 			break;
 
 		case LDAP_MOD_DELETE:
 			rc = modify_delete_values(entry, mods,
-				get_permissiveModify(op),
+				wants_permissiveModify(op),
 				&rs->sr_text, textbuf,
 				SLAP_TEXT_BUFLEN );
 			break;
 
 		case LDAP_MOD_REPLACE:
 			rc = modify_replace_values(entry, mods,
-				 get_permissiveModify(op),
+				 wants_permissiveModify(op),
 				 &rs->sr_text, textbuf,
 				 SLAP_TEXT_BUFLEN );
 			break;
 
 		case LDAP_MOD_INCREMENT:
 			rc = modify_increment_values( entry,
-				mods, get_permissiveModify(op),
+				mods, wants_permissiveModify(op),
 				&rs->sr_text, textbuf,
 				SLAP_TEXT_BUFLEN );
 			break;
@@ -1193,7 +1193,7 @@ apply_modify_to_entry(
 		case SLAP_MOD_SOFTADD:
 			mods->sm_op = LDAP_MOD_ADD;
 			rc = modify_add_values(entry, mods,
-				   get_permissiveModify(op),
+				   wants_permissiveModify(op),
 				   &rs->sr_text, textbuf,
 				   SLAP_TEXT_BUFLEN );
 			mods->sm_op = SLAP_MOD_SOFTADD;
@@ -1205,7 +1205,7 @@ apply_modify_to_entry(
 		case SLAP_MOD_SOFTDEL:
 			mods->sm_op = LDAP_MOD_DELETE;
 			rc = modify_delete_values(entry, mods,
-				   get_permissiveModify(op),
+				   wants_permissiveModify(op),
 				   &rs->sr_text, textbuf,
 				   SLAP_TEXT_BUFLEN );
 			mods->sm_op = SLAP_MOD_SOFTDEL;
@@ -1221,7 +1221,7 @@ apply_modify_to_entry(
 			}
 			mods->sm_op = LDAP_MOD_ADD;
 			rc = modify_add_values(entry, mods,
-				   get_permissiveModify(op),
+				   wants_permissiveModify(op),
 				   &rs->sr_text, textbuf,
 				   SLAP_TEXT_BUFLEN );
 			mods->sm_op = SLAP_MOD_ADD_IF_NOT_PRESENT;
@@ -1263,7 +1263,7 @@ ldif_back_referrals( Operation *op, SlapReply *rs )
 		return LDAP_SUCCESS;	/* Root DSE again */
 	}
 
-	entryp = get_manageDSAit( op ) ? NULL : &entry;
+	entryp = wants_manageDSAit( op ) ? NULL : &entry;
 	ldap_pvt_thread_rdwr_rlock( &li->li_rdwr );
 
 	for (;;) {
@@ -1421,7 +1421,7 @@ ldif_back_add( Operation *op, SlapReply *rs )
 
 	rc = ldif_prepare_create( op, e, &path, &parentdir, &rs->sr_text );
 
-	if ( rc == LDAP_SUCCESS && op->o_postread ) {
+	if ( rc == LDAP_SUCCESS && wants_postread( op ) ) {
 		if ( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -1486,7 +1486,7 @@ ldif_back_modify( Operation *op, SlapReply *rs )
 
 	rc = get_entry( op, &entry, &path, &rs->sr_text );
 	if ( rc == LDAP_SUCCESS ) {
-		if ( op->o_preread ) {
+		if ( wants_preread( op ) ) {
 			if ( preread_ctrl == NULL ) {
 				preread_ctrl = &ctrls[num_ctrls++];
 				ctrls[num_ctrls] = NULL;
@@ -1507,7 +1507,7 @@ ldif_back_modify( Operation *op, SlapReply *rs )
 
 		rc = apply_modify_to_entry( entry, modlst, op, rs, textbuf );
 
-		if ( rc == LDAP_SUCCESS && op->o_postread ) {
+		if ( rc == LDAP_SUCCESS && wants_postread( op ) ) {
 			if ( postread_ctrl == NULL ) {
 				postread_ctrl = &ctrls[num_ctrls++];
 				ctrls[num_ctrls] = NULL;
@@ -1577,7 +1577,7 @@ ldif_back_delete( Operation *op, SlapReply *rs )
 	}
 
 	/* pre-read */
-	if ( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		Entry *e = NULL;
 
 		if ( preread_ctrl == NULL ) {
@@ -1756,7 +1756,7 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 
 	rc = get_entry( op, &entry, &old_path, &rs->sr_text );
 	if ( rc == LDAP_SUCCESS ) {
-		if ( op->o_preread ) {
+		if ( wants_preread( op ) ) {
 			if ( preread_ctrl == NULL ) {
 				preread_ctrl = &ctrls[num_ctrls++];
 				ctrls[num_ctrls] = NULL;
@@ -1786,7 +1786,7 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 			rc = ldif_move_entry( op, entry, same_ndn, &old_path,
 				&rs->sr_text );
 
-		if ( rc == LDAP_SUCCESS && op->o_postread ) {
+		if ( rc == LDAP_SUCCESS && wants_postread( op ) ) {
 			if ( postread_ctrl == NULL ) {
 				postread_ctrl = &ctrls[num_ctrls++];
 				ctrls[num_ctrls] = NULL;

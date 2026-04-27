@@ -32,7 +32,7 @@ wt_compare( Operation *op, SlapReply *rs )
 {
     struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	Entry *e = NULL;
-	int manageDSAit = get_manageDSAit( op );
+	int manageDSAit = wants_manageDSAit( op );
 	int rc;
 	wt_ctx *wc = NULL;
 

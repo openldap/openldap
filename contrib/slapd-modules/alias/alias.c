@@ -356,7 +356,7 @@ alias_op_search( Operation *op, SlapReply *rs )
 	AttributeName *an_orig = NULL, *an_new = NULL;
 	int mapped, an_length = 0;
 
-	if ( get_manageDSAit( op ) )
+	if ( wants_manageDSAit( op ) )
 		return SLAP_CB_CONTINUE;
 
 	/*

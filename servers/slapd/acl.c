@@ -398,7 +398,7 @@ access_allowed_mask(
 		{
 			access = ACL_AUTH;
 
-		} else if ( get_relax( op ) && access_level == ACL_WRITE_ &&
+		} else if ( wants_relax( op ) && access_level == ACL_WRITE_ &&
 			desc == slap_schema.si_ad_entry )
 		{
 			access = ACL_MANAGE;

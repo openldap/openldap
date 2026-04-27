@@ -36,7 +36,7 @@ dnssrv_back_compare(
 )
 {
 #if 0
-	assert( get_manageDSAit( op ) );
+	assert( wants_manageDSAit( op ) );
 #endif
 	send_ldap_error( op, rs, LDAP_OTHER,
 		"Operation not supported within naming context" );

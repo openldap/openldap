@@ -81,7 +81,7 @@ asyncmeta_back_modify_start(Operation *op,
 	for ( i = 0, ml = op->orm_modlist; ml; ml = ml->sml_next ) {
 		int	j;
 
-		if ( !isupdate && !get_relax( op ) && ml->sml_desc->ad_type->sat_no_user_mod  )
+		if ( !isupdate && !wants_relax( op ) && ml->sml_desc->ad_type->sat_no_user_mod  )
 		{
 			continue;
 		}

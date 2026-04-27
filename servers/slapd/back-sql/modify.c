@@ -37,7 +37,7 @@ backsql_modify( Operation *op, SlapReply *rs )
 	backsql_oc_map_rec	*oc = NULL;
 	backsql_srch_info	bsi = { 0 };
 	Entry			m = { 0 }, *e = NULL;
-	int			manageDSAit = get_manageDSAit( op );
+	int			manageDSAit = wants_manageDSAit( op );
 	SQLUSMALLINT		CompletionType = SQL_ROLLBACK;
 
 	/*
@@ -105,7 +105,7 @@ backsql_modify( Operation *op, SlapReply *rs )
 		bsi.bsi_base_id.eid_dn.bv_val,
 		BACKSQL_IDARG(bsi.bsi_base_id.eid_id) );
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 			( test_filter( op, &m, get_assertion( op ) )
 			  != LDAP_COMPARE_TRUE ))
 	{
@@ -159,7 +159,7 @@ do_transact:;
 	/*
 	 * Commit only if all operations succeed
 	 */
-	if ( rs->sr_err == LDAP_SUCCESS && !op->o_noop ) {
+	if ( rs->sr_err == LDAP_SUCCESS && !wants_noop( op ) ) {
 		assert( e == NULL );
 		CompletionType = SQL_COMMIT;
 	}
@@ -181,7 +181,7 @@ done:;
 		}
 	}
 
-	if ( op->o_noop && rs->sr_err == LDAP_SUCCESS ) {
+	if ( wants_noop( op ) && rs->sr_err == LDAP_SUCCESS ) {
 		rs->sr_err = LDAP_X_NO_OPERATION;
 	}
 

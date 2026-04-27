@@ -269,7 +269,7 @@ cloak_search( Operation *op, SlapReply *rs )
 
 	if ( op->ors_attrsonly ||
 	     op->ors_attrs ||
-	     get_manageDSAit( op ) )
+	     wants_manageDSAit( op ) )
 		return SLAP_CB_CONTINUE;
 
 	sc = op->o_tmpcalloc( 1, sizeof( *sc ), op->o_tmpmemctx );

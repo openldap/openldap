@@ -717,7 +717,7 @@ nestgroup_op_search( Operation *op, SlapReply *rs )
 	int mbr_nf = 0, mof_nf = 0, negated = 0;
 	nestgroup_filterinst_t *mbr_f = NULL, *mof_f = NULL;
 
-	if ( get_manageDSAit( op ))
+	if ( wants_manageDSAit( op ))
 		return SLAP_CB_CONTINUE;
 
 	/* groupBase must be explicitly configured */

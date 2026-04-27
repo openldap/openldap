@@ -203,7 +203,7 @@ int passwd_extop(
 		goto error_return;
 	}
 
-	if ( op->o_txnSpec ) {
+	if ( wants_txnSpec( op ) ) {
 		rc = txn_preop( op, rs );
 		goto error_return;
 	}

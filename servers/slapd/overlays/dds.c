@@ -733,7 +733,7 @@ done:;
 		rc = is_dynamicObject - was_dynamicObject;
 		if ( rc ) {
 #if 0 /* fix subordinate issues first */
-			if ( get_relax( op ) ) {
+			if ( wants_relax( op ) ) {
 				switch ( rc ) {
 				case -1:
 					/* need to delete entryTtl to have a consistent entry */

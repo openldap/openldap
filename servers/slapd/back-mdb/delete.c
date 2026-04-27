@@ -29,7 +29,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 	struct berval	pdn = {0, NULL};
 	Entry	*e = NULL;
 	Entry	*p = NULL;
-	int		manageDSAit = get_manageDSAit( op );
+	int		manageDSAit = wants_manageDSAit( op );
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
 	MDB_txn		*txn = NULL;
@@ -212,7 +212,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 		}
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
@@ -245,7 +245,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 	}
 
 	/* pre-read */
-	if( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		if( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -365,7 +365,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 	if( moi == &opinfo ) {
 		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 		opinfo.moi_oe.oe_key = NULL;
-		if( op->o_noop ) {
+		if( wants_noop( op ) ) {
 			mdb_txn_abort( txn );
 			rs->sr_err = LDAP_X_NO_OPERATION;
 			txn = NULL;
@@ -379,7 +379,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_ANY,
 			LDAP_XSTRING(mdb_delete) ": txn_%s failed: %s (%d)\n",
-			op->o_noop ? "abort (no-op)" : "commit",
+			wants_noop( op ) ? "abort (no-op)" : "commit",
 			mdb_strerror(rs->sr_err), rs->sr_err );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "commit failed";
@@ -389,7 +389,7 @@ mdb_delete( Operation *op, SlapReply *rs )
 
 	Debug( LDAP_DEBUG_TRACE,
 		LDAP_XSTRING(mdb_delete) ": deleted%s id=%08lx dn=\"%s\"\n",
-		op->o_noop ? " (no-op)" : "",
+		wants_noop( op ) ? " (no-op)" : "",
 		e->e_id, op->o_req_dn.bv_val );
 	rs->sr_err = LDAP_SUCCESS;
 	rs->sr_text = NULL;

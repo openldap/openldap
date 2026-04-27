@@ -45,7 +45,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 	struct berval *np_ndn = NULL; /* newSuperior ndn */
 	struct berval *new_parent_dn = NULL; /* np_dn, p_dn, or NULL */
 
-	int manageDSAit = get_manageDSAit( op );
+	int manageDSAit = wants_manageDSAit( op );
 	char textbuf[SLAP_TEXT_BUFLEN];
 	size_t textlen = sizeof textbuf;
 	LDAPControl **preread_ctrl = NULL;
@@ -179,7 +179,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		 ( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
@@ -360,7 +360,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 
 	assert( op->orr_modlist != NULL );
 
-	if( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		if( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -450,7 +450,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		/* TODO: glue entry handling */
 	}
 
-	if( op->o_postread ) {
+	if ( wants_postread( op ) ) {
 		if( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -468,7 +468,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 		}
 	}
 
-	if( op->o_noop ) {
+	if ( wants_noop( op ) ) {
 		rs->sr_err = LDAP_X_NO_OPERATION;
 		goto return_results;
 	}
@@ -486,7 +486,7 @@ wt_modrdn( Operation *op, SlapReply *rs )
 
 	Debug(LDAP_DEBUG_TRACE,
 		  "wt_modrdn: rdn modified%s id=%08lx dn=\"%s\"\n",
-		  op->o_noop ? " (no-op)" : "",
+		  wants_noop( op ) ? " (no-op)" : "",
 		  dummy.e_id, op->o_req_dn.bv_val );
 
 	rs->sr_err = LDAP_SUCCESS;

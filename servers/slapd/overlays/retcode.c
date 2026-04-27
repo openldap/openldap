@@ -555,7 +555,7 @@ retcode_entry_response( Operation *op, SlapReply *rs, BackendInfo *bi, Entry *e 
 	char		*next;
 	int		disconnect = 0;
 
-	if ( get_manageDSAit( op ) ) {
+	if ( wants_manageDSAit( op ) ) {
 		return SLAP_CB_CONTINUE;
 	}
 

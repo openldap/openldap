@@ -2676,7 +2676,7 @@ syncprov_op_compare( Operation *op, SlapReply *rs )
 			goto return_results;
 		}
 
-		if ( get_assert( op ) &&
+		if ( wants_assert( op ) &&
 			( test_filter( op, &e, get_assertion( op ) ) != LDAP_COMPARE_TRUE ) )
 		{
 			rs->sr_err = LDAP_ASSERTION_FAILED;

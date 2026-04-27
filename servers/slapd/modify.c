@@ -334,7 +334,7 @@ fe_op_modify( Operation *op, SlapReply *rs )
 					goto cleanup;
 				}
 			}
-			if ( op->o_txnSpec ) {
+			if ( wants_txnSpec( op ) ) {
 				txn_preop( op, rs );
 				goto cleanup;
 			}
@@ -386,7 +386,7 @@ slap_mods_obsolete_check(
 	char *textbuf,
 	size_t textlen )
 {
-	if( get_relax( op ) ) return LDAP_SUCCESS;
+	if( wants_relax( op ) ) return LDAP_SUCCESS;
 
 	for ( ; ml != NULL; ml = ml->sml_next ) {
 		if ( is_at_obsolete( ml->sml_desc->ad_type ) &&
@@ -429,7 +429,7 @@ slap_mods_no_user_mod_check(
 			continue;
 		}
 
-		if ( get_relax( op ) ) {
+		if ( wants_relax( op ) ) {
 			if ( ml->sml_desc->ad_type->sat_flags & SLAP_AT_MANAGEABLE ) {
 				ml->sml_flags |= SLAP_MOD_MANAGING;
 				continue;

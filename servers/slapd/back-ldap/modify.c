@@ -65,7 +65,7 @@ ldap_back_modify(
 
 	isupdate = be_shadow_update( op );
 	for ( i = 0, ml = op->orm_modlist; ml; ml = ml->sml_next ) {
-		if ( !isupdate && !get_relax( op ) && ml->sml_desc->ad_type->sat_no_user_mod  )
+		if ( !isupdate && !wants_relax( op ) && ml->sml_desc->ad_type->sat_no_user_mod  )
 		{
 			continue;
 		}

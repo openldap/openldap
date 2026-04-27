@@ -51,7 +51,7 @@ wt_add( Operation *op, SlapReply *rs )
 	/* check entry's schema */
 	rs->sr_err = entry_schema_check(
 		op, op->ora_e,
-		get_relax(op), 1, NULL, &rs->sr_text, textbuf, textlen );
+		wants_relax(op), 1, NULL, &rs->sr_text, textbuf, textlen );
     if ( rs->sr_err != LDAP_SUCCESS ) {
         Debug( LDAP_DEBUG_TRACE,
 			   "wt_add: entry failed schema check: %s (%d)\n",
@@ -69,7 +69,7 @@ wt_add( Operation *op, SlapReply *rs )
         goto return_results;
     }
 
-    if ( get_assert( op ) &&
+    if ( wants_assert( op ) &&
 		 ( test_filter( op, op->ora_e, get_assertion( op ))
 		   != LDAP_COMPARE_TRUE ))
     {
@@ -330,7 +330,7 @@ wt_add( Operation *op, SlapReply *rs )
 	rs->sr_err = LDAP_SUCCESS;
 
 	/* post-read */
-	if( op->o_postread ) {
+	if ( wants_postread( op ) ) {
 		if( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -349,7 +349,7 @@ wt_add( Operation *op, SlapReply *rs )
 
 	Debug(LDAP_DEBUG_TRACE,
 		  "wt_add: added%s id=%08lx dn=\"%s\"\n",
-		  op->o_noop ? " (no-op)" : "",
+		  wants_noop( op ) ? " (no-op)" : "",
 		  op->ora_e->e_id, op->ora_e->e_dn );
 
 return_results:

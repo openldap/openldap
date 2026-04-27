@@ -52,7 +52,7 @@ dnssrv_back_referrals(
 		return LDAP_UNWILLING_TO_PERFORM;
 	}
 
-	if( get_manageDSAit( op ) ) {
+	if( wants_manageDSAit( op ) ) {
 		if( op->o_tag == LDAP_REQ_SEARCH ) {
 			return LDAP_SUCCESS;
 		}

@@ -161,7 +161,7 @@ int mdb_modify_internal(
 				mod->sm_desc->ad_cname.bv_val );
 
 do_add:
-			err = modify_add_values( e, mod, get_permissiveModify(op),
+			err = modify_add_values( e, mod, wants_permissiveModify(op),
 				text, textbuf, textlen );
 
 			if( softop ) {
@@ -226,7 +226,7 @@ mval_fail:					strncpy( textbuf, mdb_strerror( err ), textlen );
 				"mdb_modify_internal: delete %s\n",
 				mod->sm_desc->ad_cname.bv_val );
 do_del:
-			err = modify_delete_values( e, mod, get_permissiveModify(op),
+			err = modify_delete_values( e, mod, wants_permissiveModify(op),
 				text, textbuf, textlen );
 
 			if (softop) {
@@ -283,7 +283,7 @@ do_del:
 			Debug(LDAP_DEBUG_ARGS,
 				"mdb_modify_internal: replace %s\n",
 				mod->sm_desc->ad_cname.bv_val );
-			err = modify_replace_values( e, mod, get_permissiveModify(op),
+			err = modify_replace_values( e, mod, wants_permissiveModify(op),
 				text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
 				Debug(LDAP_DEBUG_ARGS, "mdb_modify_internal: %d %s\n",
@@ -331,7 +331,7 @@ do_del:
 			Debug(LDAP_DEBUG_ARGS,
 				"mdb_modify_internal: increment %s\n",
 				mod->sm_desc->ad_cname.bv_val );
-			err = modify_increment_values( e, mod, get_permissiveModify(op),
+			err = modify_increment_values( e, mod, wants_permissiveModify(op),
 				text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
 				Debug(LDAP_DEBUG_ARGS,
@@ -409,16 +409,16 @@ do_del:
 
 		/* check if modified attribute was indexed
 		 * but not in case of NOOP... */
-		if ( !op->o_noop ) {
+		if ( !wants_noop( op ) ) {
 			mdb_modify_idxflags( op, mod->sm_desc, ixcheck, e->e_attrs, save_attrs );
 		}
 	}
 
 	/* check that the entry still obeys the schema */
 	ap = NULL;
-	rc = entry_schema_check( op, e, get_relax(op), 0, &ap,
+	rc = entry_schema_check( op, e, wants_relax(op), 0, &ap,
 		text, textbuf, textlen );
-	if ( rc != LDAP_SUCCESS || op->o_noop ) {
+	if ( rc != LDAP_SUCCESS || wants_noop( op ) ) {
 		attrs_free( e->e_attrs );
 		/* clear the indexing flags */
 		for ( ap = save_attrs; ap != NULL; ap = ap->a_next ) {
@@ -439,7 +439,7 @@ do_del:
 	/* structuralObjectClass modified! */
 	if ( ap ) {
 		assert( ap->a_desc == slap_schema.si_ad_structuralObjectClass );
-		if ( !op->o_noop ) {
+		if ( !wants_noop( op ) ) {
 			mdb_modify_idxflags( op, slap_schema.si_ad_structuralObjectClass,
 				CHECK_ADD|CHECK_DEL, e->e_attrs, save_attrs );
 		}
@@ -580,7 +580,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	Entry		*e = NULL;
-	int		manageDSAit = get_manageDSAit( op );
+	int		manageDSAit = wants_manageDSAit( op );
 	char textbuf[SLAP_TEXT_BUFLEN];
 	size_t textlen = sizeof textbuf;
 	MDB_txn	*txn = NULL;
@@ -683,14 +683,14 @@ mdb_modify( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
 		goto return_results;
 	}
 
-	if( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		if( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -738,7 +738,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	if( op->o_postread ) {
+	if ( wants_postread( op ) ) {
 		if( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -762,7 +762,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 	if( moi == &opinfo ) {
 		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 		opinfo.moi_oe.oe_key = NULL;
-		if( op->o_noop ) {
+		if ( wants_noop( op ) ) {
 			mdb->mi_numads = numads;
 			mdb_txn_abort( txn );
 			rs->sr_err = LDAP_X_NO_OPERATION;
@@ -779,7 +779,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 	if( rs->sr_err != 0 ) {
 		Debug( LDAP_DEBUG_ANY,
 			LDAP_XSTRING(mdb_modify) ": txn_%s failed: %s (%d)\n",
-			op->o_noop ? "abort (no-op)" : "commit",
+			wants_noop( op ) ? "abort (no-op)" : "commit",
 			mdb_strerror(rs->sr_err), rs->sr_err );
 		rs->sr_err = LDAP_OTHER;
 		rs->sr_text = "commit failed";
@@ -789,7 +789,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 
 	Debug( LDAP_DEBUG_TRACE,
 		LDAP_XSTRING(mdb_modify) ": updated%s id=%08lx dn=\"%s\"\n",
-		op->o_noop ? " (no-op)" : "",
+		wants_noop( op ) ? " (no-op)" : "",
 		dummy.e_id, op->o_req_dn.bv_val );
 
 	rs->sr_err = LDAP_SUCCESS;

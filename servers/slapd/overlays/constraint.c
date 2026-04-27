@@ -891,7 +891,7 @@ constraint_add( Operation *op, SlapReply *rs )
 
 			/* No need to check if user asked to Relax this op and has MANAGE
 			 * access to the attribute */
-			if ( get_relax(op) && access_allowed( op, op->ora_e, a->a_desc,
+			if ( wants_relax(op) && access_allowed( op, op->ora_e, a->a_desc,
 						NULL, ACL_MANAGE, NULL ) ) {
 				continue;
 			}
@@ -998,7 +998,7 @@ constraint_check_count_violation( Operation *op, Modifications *m, Entry
 			}
 		}
 		if ( ce > cp->count ) {
-			if ( get_relax(op) && access_allowed( op, target_entry, cp->ap[j],
+			if ( wants_relax(op) && access_allowed( op, target_entry, cp->ap[j],
 						NULL, ACL_MANAGE, NULL ) ) {
 				continue;
 			}
@@ -1099,7 +1099,7 @@ constraint_update( Operation *op, SlapReply *rs )
 
 		/* No need to check if user asked to Relax this op and has MANAGE
 		 * access to the attribute */
-		if ( get_relax(op) && access_allowed( op, target_entry, m->sml_desc,
+		if ( wants_relax(op) && access_allowed( op, target_entry, m->sml_desc,
 					NULL, ACL_MANAGE, NULL ) ) {
 			continue;
 		}
@@ -1154,32 +1154,32 @@ constraint_update( Operation *op, SlapReply *rs )
 						switch ( mod->sm_op ) {
 						case LDAP_MOD_ADD:
 							err = modify_add_values( target_entry_copy,
-								mod, get_permissiveModify(op),
+								mod, wants_permissiveModify(op),
 								&text, textbuf, textlen );
 							break;
 
 						case LDAP_MOD_DELETE:
 							err = modify_delete_values( target_entry_copy,
-								mod, get_permissiveModify(op),
+								mod, wants_permissiveModify(op),
 								&text, textbuf, textlen );
 							break;
 
 						case LDAP_MOD_REPLACE:
 							err = modify_replace_values( target_entry_copy,
-								mod, get_permissiveModify(op),
+								mod, wants_permissiveModify(op),
 								&text, textbuf, textlen );
 							break;
 
 						case LDAP_MOD_INCREMENT:
 							err = modify_increment_values( target_entry_copy,
-								mod, get_permissiveModify(op),
+								mod, wants_permissiveModify(op),
 								&text, textbuf, textlen );
 							break;
 
 						case SLAP_MOD_SOFTADD:
  							mod->sm_op = LDAP_MOD_ADD;
 							err = modify_add_values( target_entry_copy,
-								mod, get_permissiveModify(op),
+								mod, wants_permissiveModify(op),
 								&text, textbuf, textlen );
  							mod->sm_op = SLAP_MOD_SOFTADD;
  							if ( err == LDAP_TYPE_OR_VALUE_EXISTS ) {
@@ -1190,7 +1190,7 @@ constraint_update( Operation *op, SlapReply *rs )
 						case SLAP_MOD_SOFTDEL:
  							mod->sm_op = LDAP_MOD_ADD;
 							err = modify_delete_values( target_entry_copy,
-								mod, get_permissiveModify(op),
+								mod, wants_permissiveModify(op),
 								&text, textbuf, textlen );
  							mod->sm_op = SLAP_MOD_SOFTDEL;
  							if ( err == LDAP_NO_SUCH_ATTRIBUTE ) {
@@ -1205,7 +1205,7 @@ constraint_update( Operation *op, SlapReply *rs )
 							}
  							mod->sm_op = LDAP_MOD_ADD;
 							err = modify_add_values( target_entry_copy,
-								mod, get_permissiveModify(op),
+								mod, wants_permissiveModify(op),
 								&text, textbuf, textlen );
  							mod->sm_op = SLAP_MOD_ADD_IF_NOT_PRESENT;
 							break;

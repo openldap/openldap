@@ -124,12 +124,12 @@ null_back_respond( Operation *op, SlapReply *rs, int rc )
 
 	/* this comes first, as in case of assertion failure
 	 * any further processing must stop */
-	if ( get_assert( op ) ) {
+	if ( wants_assert( op ) ) {
 		rs->sr_err = LDAP_ASSERTION_FAILED;
 		goto respond;
 	}
 
-	if ( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		Entry		e = { 0 };
 
 		switch ( op->o_tag ) {
@@ -164,7 +164,7 @@ null_back_respond( Operation *op, SlapReply *rs, int rc )
 		}
 	}
 
-	if ( op->o_postread ) {
+	if ( wants_postread( op ) ) {
 		Entry		e = { 0 };
 
 		switch ( op->o_tag ) {
@@ -205,7 +205,7 @@ null_back_respond( Operation *op, SlapReply *rs, int rc )
 		}
 	}
 
-	if ( op->o_noop ) {
+	if ( wants_noop( op ) ) {
 		switch ( op->o_tag ) {
 		case LDAP_REQ_ADD:
 		case LDAP_REQ_MODIFY:

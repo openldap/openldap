@@ -137,7 +137,7 @@ int wt_modify_internal(
 			Debug(LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: add %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
-			err = modify_add_values( e, mod, get_permissiveModify(op),
+			err = modify_add_values( e, mod, wants_permissiveModify(op),
 									 text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
 				Debug(LDAP_DEBUG_ARGS, "wt_modify_internal: %d %s\n",
@@ -154,7 +154,7 @@ int wt_modify_internal(
 			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: delete %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
-			err = modify_delete_values( e, mod, get_permissiveModify(op),
+			err = modify_delete_values( e, mod, wants_permissiveModify(op),
 										text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
 				Debug(LDAP_DEBUG_ARGS,
@@ -168,7 +168,7 @@ int wt_modify_internal(
 			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: replace %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
-			err = modify_replace_values( e, mod, get_permissiveModify(op),
+			err = modify_replace_values( e, mod, wants_permissiveModify(op),
 										 text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
 				Debug(LDAP_DEBUG_ARGS,
@@ -182,7 +182,7 @@ int wt_modify_internal(
 			Debug( LDAP_DEBUG_ARGS,
 				  "wt_modify_internal: increment %s\n",
 				  mod->sm_desc->ad_cname.bv_val );
-			err = modify_increment_values( e, mod, get_permissiveModify(op),
+			err = modify_increment_values( e, mod, wants_permissiveModify(op),
 										   text, textbuf, textlen );
 			if( err != LDAP_SUCCESS ) {
 				Debug( LDAP_DEBUG_ARGS,
@@ -201,7 +201,7 @@ int wt_modify_internal(
 			 */
 			mod->sm_op = LDAP_MOD_ADD;
 
-			err = modify_add_values( e, mod, get_permissiveModify(op),
+			err = modify_add_values( e, mod, wants_permissiveModify(op),
 				text, textbuf, textlen );
 
 			mod->sm_op = SLAP_MOD_SOFTADD;
@@ -225,7 +225,7 @@ int wt_modify_internal(
 			 */
 			mod->sm_op = LDAP_MOD_DELETE;
 
-			err = modify_delete_values( e, mod, get_permissiveModify(op),
+			err = modify_delete_values( e, mod, wants_permissiveModify(op),
 										text, textbuf, textlen );
 
 			mod->sm_op = SLAP_MOD_SOFTDEL;
@@ -257,7 +257,7 @@ int wt_modify_internal(
 			 */
 			mod->sm_op = LDAP_MOD_ADD;
 
-			err = modify_add_values( e, mod, get_permissiveModify(op),
+			err = modify_add_values( e, mod, wants_permissiveModify(op),
 									 text, textbuf, textlen );
 
 			mod->sm_op = SLAP_MOD_ADD_IF_NOT_PRESENT;
@@ -294,7 +294,7 @@ int wt_modify_internal(
 
 		/* check if modified attribute was indexed
 		 * but not in case of NOOP... */
-		if ( !op->o_noop ) {
+		if ( !wants_noop( op ) ) {
 			wt_modify_idxflags( op, mod->sm_desc, got_delete, e->e_attrs, save_attrs );
 		}
 
@@ -302,9 +302,9 @@ int wt_modify_internal(
 
 	/* check that the entry still obeys the schema */
 	ap = NULL;
-	rc = entry_schema_check( op, e, get_relax(op), 0, &ap,
+	rc = entry_schema_check( op, e, wants_relax(op), 0, &ap,
 		text, textbuf, textlen );
-	if ( rc != LDAP_SUCCESS || op->o_noop ) {
+	if ( rc != LDAP_SUCCESS || wants_noop( op ) ) {
 		attrs_free( e->e_attrs );
 		/* clear the indexing flags */
 		for ( ap = save_attrs; ap != NULL; ap = ap->a_next ) {
@@ -324,7 +324,7 @@ int wt_modify_internal(
 	/* structuralObjectClass modified! */
 	if ( ap ) {
 		assert( ap->a_desc == slap_schema.si_ad_structuralObjectClass );
-		if ( !op->o_noop ) {
+		if ( !wants_noop( op ) ) {
 			wt_modify_idxflags( op, slap_schema.si_ad_structuralObjectClass,
 								1, e->e_attrs, save_attrs );
 		}
@@ -447,7 +447,7 @@ wt_modify( Operation *op, SlapReply *rs )
 	struct wt_info *wi = (struct wt_info *) op->o_bd->be_private;
 	wt_ctx *wc = NULL;
 	Entry *e = NULL;
-	int		manageDSAit = get_manageDSAit( op );
+	int		manageDSAit = wants_manageDSAit( op );
 	char textbuf[SLAP_TEXT_BUFLEN];
 	size_t textlen = sizeof textbuf;
 	Entry		dummy = {0};
@@ -462,7 +462,7 @@ wt_modify( Operation *op, SlapReply *rs )
 	Debug( LDAP_DEBUG_ARGS, "wt_modify: %s\n", op->o_req_dn.bv_val );
 
 #ifdef LDAP_X_TXN
-	if( op->o_txnSpec && txn_preop( op, rs ))
+	if ( wants_txnSpec( op ) && txn_preop( op, rs ))
 		return rs->sr_err;
 #endif
 
@@ -563,14 +563,14 @@ retry:
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		 ( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
 		goto return_results;
 	}
 
-	if( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		if( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -628,7 +628,7 @@ retry:
 		goto return_results;
 	}
 
-	if( op->o_postread ) {
+	if ( wants_postread( op ) ) {
 		if( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -646,7 +646,7 @@ retry:
 		}
 	}
 
-	if( op->o_noop ) {
+	if ( wants_noop( op ) ) {
 		rs->sr_err = LDAP_X_NO_OPERATION;
 		goto return_results;
 	}
@@ -667,7 +667,7 @@ retry:
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "wt_modify: updated%s id=%08lx dn=\"%s\"\n",
-		   op->o_noop ? " (no-op)" : "",
+		   wants_noop( op ) ? " (no-op)" : "",
 		   dummy.e_id, op->o_req_dn.bv_val );
 
 	rs->sr_err = LDAP_SUCCESS;

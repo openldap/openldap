@@ -404,7 +404,7 @@ backsql_delete( Operation *op, SlapReply *rs )
 	backsql_entryID		e_id = { 0 };
 	Entry			d = { 0 }, p = { 0 }, *e = NULL;
 	struct berval		pdn = BER_BVNULL;
-	int			manageDSAit = get_manageDSAit( op );
+	int			manageDSAit = wants_manageDSAit( op );
 
 	Debug( LDAP_DEBUG_TRACE, "==>backsql_delete(): deleting entry \"%s\"\n",
 			op->o_req_ndn.bv_val );
@@ -460,7 +460,7 @@ backsql_delete( Operation *op, SlapReply *rs )
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 			( test_filter( op, &d, get_assertion( op ) )
 			  != LDAP_COMPARE_TRUE ) )
 	{
@@ -487,7 +487,7 @@ backsql_delete( Operation *op, SlapReply *rs )
 
 	case LDAP_COMPARE_TRUE:
 #ifdef SLAP_CONTROL_X_TREE_DELETE
-		if ( get_treeDelete( op ) ) {
+		if ( wants_treeDelete( op ) ) {
 			rs->sr_err = LDAP_SUCCESS;
 			break;
 		}
@@ -555,7 +555,7 @@ backsql_delete( Operation *op, SlapReply *rs )
 
 	e = &d;
 #ifdef SLAP_CONTROL_X_TREE_DELETE
-	if ( get_treeDelete( op ) ) {
+	if ( wants_treeDelete( op ) ) {
 		backsql_tree_delete( op, rs, dbh, &sth );
 		if ( rs->sr_err == LDAP_OTHER || rs->sr_err == LDAP_SUCCESS )
 		{
@@ -574,7 +574,7 @@ backsql_delete( Operation *op, SlapReply *rs )
 	if ( sth != SQL_NULL_HSTMT ) {
 		SQLUSMALLINT	CompletionType = SQL_ROLLBACK;
 	
-		if ( rs->sr_err == LDAP_SUCCESS && !op->o_noop ) {
+		if ( rs->sr_err == LDAP_SUCCESS && !wants_noop( op ) ) {
 			assert( e == NULL );
 			CompletionType = SQL_COMMIT;
 		}
@@ -597,7 +597,7 @@ done:;
 		}
 	}
 
-	if ( op->o_noop && rs->sr_err == LDAP_SUCCESS ) {
+	if ( wants_noop( op ) && rs->sr_err == LDAP_SUCCESS ) {
 		rs->sr_err = LDAP_X_NO_OPERATION;
 	}
 

@@ -52,7 +52,7 @@ mdb_add(Operation *op, SlapReply *rs )
 
 	/* check entry's schema */
 	rs->sr_err = entry_schema_check( op, op->ora_e,
-		get_relax(op), 1, NULL, &rs->sr_text, textbuf, textlen );
+		wants_relax(op), 1, NULL, &rs->sr_text, textbuf, textlen );
 	if ( rs->sr_err != LDAP_SUCCESS ) {
 		Debug( LDAP_DEBUG_TRACE,
 			LDAP_XSTRING(mdb_add) ": entry failed schema check: "
@@ -83,7 +83,7 @@ mdb_add(Operation *op, SlapReply *rs )
 		goto return_results;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, op->ora_e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
@@ -333,7 +333,7 @@ mdb_add(Operation *op, SlapReply *rs )
 	}
 
 	/* post-read */
-	if( op->o_postread ) {
+	if ( wants_postread( op ) ) {
 		if( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -355,7 +355,7 @@ mdb_add(Operation *op, SlapReply *rs )
 	if ( moi == &opinfo ) {
 		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 		opinfo.moi_oe.oe_key = NULL;
-		if ( op->o_noop ) {
+		if ( wants_noop( op ) ) {
 			mdb->mi_numads = numads;
 			mdb_txn_abort( txn );
 			rs->sr_err = LDAP_X_NO_OPERATION;
@@ -378,7 +378,7 @@ mdb_add(Operation *op, SlapReply *rs )
 
 	Debug(LDAP_DEBUG_TRACE,
 		LDAP_XSTRING(mdb_add) ": added%s id=%08lx dn=\"%s\"\n",
-		op->o_noop ? " (no-op)" : "",
+		wants_noop( op ) ? " (no-op)" : "",
 		op->ora_e->e_id, op->ora_e->e_dn );
 
 	rs->sr_text = NULL;

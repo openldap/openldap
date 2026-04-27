@@ -61,7 +61,7 @@ dnssrv_back_search(
 		goto done;
 	}
 
-	manageDSAit = get_manageDSAit( op );
+	manageDSAit = wants_manageDSAit( op );
 	/*
 	 * FIXME: we may return a referral if manageDSAit is not set
 	 */

@@ -505,7 +505,7 @@ send_ldap_controls( Operation *o, BerElement *ber, LDAPControl **c )
 
 #ifdef SLAP_CONTROL_X_SORTEDRESULTS
 	/* this is a hack to avoid having to modify op->s_ctrls */
-	if( o->o_sortedresults ) {
+	if ( wants_sortedresults( o ) ) {
 		BerElementBuffer berbuf;
 		BerElement *sber = (BerElement *) &berbuf;
 		LDAPControl sorted;
@@ -877,7 +877,7 @@ slap_send_ldap_result( Operation *op, SlapReply *rs )
 	assert( rs->sr_err != LDAP_PARTIAL_RESULTS );
 
 	if ( rs->sr_err == LDAP_REFERRAL ) {
-		if( op->o_domain_scope ) rs->sr_ref = NULL;
+		if ( wants_domainScope( op ) ) rs->sr_ref = NULL;
 
 		if( rs->sr_ref == NULL ) {
 			rs->sr_err = LDAP_NO_SUCH_OBJECT;
@@ -1596,7 +1596,7 @@ slap_send_search_reference( Operation *op, SlapReply *rs )
 		goto rel;
 	}
 
-	if( op->o_domain_scope ) {
+	if ( wants_domainScope( op ) ) {
 		Debug( LDAP_DEBUG_ANY,
 			"send_search_reference: domainScope control in (%s)\n", 
 			edn );

@@ -26,7 +26,7 @@ mdb_compare( Operation *op, SlapReply *rs )
 {
 	struct mdb_info *mdb = (struct mdb_info *) op->o_bd->be_private;
 	Entry		*e = NULL;
-	int		manageDSAit = get_manageDSAit( op );
+	int		manageDSAit = wants_manageDSAit( op );
 
 	MDB_txn		*rtxn;
 	mdb_op_info	opinfo = {{{0}}}, *moi = &opinfo;

@@ -758,7 +758,7 @@ mdb_opinfo_get( Operation *op, struct mdb_info *mdb, int rdonly, mdb_op_info **m
 			} else {
 				int flag = 0;
 #ifdef SLAP_CONTROL_X_LAZY_COMMIT
-				if ( get_lazyCommit( op ))
+				if ( wants_lazyCommit( op ))
 					flag |= MDB_NOMETASYNC;
 #endif
 				rc = mdb_txn_begin( mdb->mi_dbenv, NULL, flag, &moi->moi_txn );

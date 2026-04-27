@@ -220,7 +220,7 @@ fe_op_compare( Operation *op, SlapReply *rs )
 		goto cleanup;
 	}
 
-	if ( SLAP_SHADOW(op->o_bd) && get_dontUseCopy(op) ) {
+	if ( SLAP_SHADOW(op->o_bd) && wants_dontUseCopy(op) ) {
 		/* don't use shadow copy */
 		send_ldap_error( op, rs, LDAP_UNWILLING_TO_PERFORM,
 			"copy not used" );
@@ -366,7 +366,7 @@ int slap_compare_entry(
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rc = LDAP_ASSERTION_FAILED;

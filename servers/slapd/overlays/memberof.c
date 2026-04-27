@@ -664,7 +664,7 @@ memberof_op_add( Operation *op, SlapReply *rs )
 	save_ndn = op->o_ndn;
 
 	if ( MEMBEROF_DANGLING_CHECK( mo )
-			&& !get_relax( op )
+			&& !wants_relax( op )
 			&& is_entry_objectclass_or_sub( op->ora_e, mo->mo_oc_group ) )
 	{
 		op->o_dn = op->o_bd->be_rootdn;
@@ -774,7 +774,7 @@ memberof_op_add( Operation *op, SlapReply *rs )
 					NULL, NULL, 0, &e );
 			op->o_bd->bd_info = (BackendInfo *)on;
 			if ( rc != LDAP_SUCCESS ) {
-				if ( get_relax( op ) ) {
+				if ( wants_relax( op ) ) {
 					continue;
 				}
 
@@ -952,7 +952,7 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 
 
 		if ( MEMBEROF_DANGLING_CHECK( mo )
-				&& !get_relax( op ) )
+				&& !wants_relax( op ) )
 		{
 			op->o_dn = op->o_bd->be_rootdn;
 			op->o_ndn = op->o_bd->be_rootndn;
@@ -1100,7 +1100,7 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 							NULL, NULL, 0, &e );
 					op->o_bd->bd_info = (BackendInfo *)on;
 					if ( rc != LDAP_SUCCESS ) {
-						if ( get_relax( op ) ) {
+						if ( wants_relax( op ) ) {
 							continue;
 						}
 

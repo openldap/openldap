@@ -43,7 +43,7 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 	struct berval	*np_ndn = NULL;			/* newSuperior ndn */
 	struct berval	*new_parent_dn = NULL;	/* np_dn, p_dn, or NULL */
 
-	int		manageDSAit = get_manageDSAit( op );
+	int		manageDSAit = wants_manageDSAit( op );
 
 	ID nid, nsubs;
 	LDAPControl **preread_ctrl = NULL;
@@ -204,7 +204,7 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
@@ -390,7 +390,7 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 		goto return_results;
 	}
 
-	if( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		if( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -498,7 +498,7 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 		p = NULL;
 	}
 
-	if( op->o_postread ) {
+	if ( wants_postread( op ) ) {
 		if( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -520,7 +520,7 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 	if( moi == &opinfo ) {
 		LDAP_SLIST_REMOVE( &op->o_extra, &opinfo.moi_oe, OpExtra, oe_next );
 		opinfo.moi_oe.oe_key = NULL;
-		if( op->o_noop ) {
+		if( wants_noop( op ) ) {
 			mdb_txn_abort( txn );
 			rs->sr_err = LDAP_X_NO_OPERATION;
 			txn = NULL;
@@ -548,7 +548,7 @@ mdb_modrdn( Operation	*op, SlapReply *rs )
 	Debug(LDAP_DEBUG_TRACE,
 		LDAP_XSTRING(mdb_modrdn)
 		": rdn modified%s id=%08lx dn=\"%s\"\n",
-		op->o_noop ? " (no-op)" : "",
+		wants_noop( op ) ? " (no-op)" : "",
 		dummy.e_id, op->o_req_dn.bv_val );
 	rs->sr_text = NULL;
 	if( num_ctrls ) rs->sr_ctrls = ctrls;

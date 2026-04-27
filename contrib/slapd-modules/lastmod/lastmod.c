@@ -151,7 +151,7 @@ lastmod_compare( Operation *op, SlapReply *rs )
 
 	ldap_pvt_thread_mutex_lock( &lmi->lmi_entry_mutex );
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, lmi->lmi_e, get_assertion( op ) ) != LDAP_COMPARE_TRUE ) )
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;

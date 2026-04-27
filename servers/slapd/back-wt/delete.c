@@ -34,7 +34,7 @@ wt_delete( Operation *op, SlapReply *rs )
 	struct berval   pdn = {0, NULL};
 	Entry *e = NULL;
 	Entry *p = NULL;
-	int manageDSAit = get_manageDSAit( op );
+	int manageDSAit = wants_manageDSAit( op );
 	AttributeDescription *children = slap_schema.si_ad_children;
 	AttributeDescription *entry = slap_schema.si_ad_entry;
 
@@ -51,7 +51,7 @@ wt_delete( Operation *op, SlapReply *rs )
 	Debug( LDAP_DEBUG_ARGS, "==> wt_delete: %s\n",
 		   op->o_req_dn.bv_val );
 
-	if( op->o_txnSpec && txn_preop( op, rs ))
+	if ( wants_txnSpec( op ) && txn_preop( op, rs ))
 		return rs->sr_err;
 
 	ctrls[num_ctrls] = 0;
@@ -227,7 +227,7 @@ wt_delete( Operation *op, SlapReply *rs )
 		}
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		 ( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
@@ -257,7 +257,7 @@ wt_delete( Operation *op, SlapReply *rs )
 	}
 
 	/* pre-read */
-	if( op->o_preread ) {
+	if ( wants_preread( op ) ) {
 		if( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -375,7 +375,7 @@ wt_delete( Operation *op, SlapReply *rs )
 
 	Debug( LDAP_DEBUG_TRACE,
 		   "wt_delete: deleted%s id=%08lx dn=\"%s\"\n",
-		   op->o_noop ? " (no-op)" : "", e->e_id, op->o_req_dn.bv_val );
+		   wants_noop( op ) ? " (no-op)" : "", e->e_id, op->o_req_dn.bv_val );
 
 	rs->sr_err = LDAP_SUCCESS;
 	rs->sr_text = NULL;

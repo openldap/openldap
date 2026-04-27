@@ -1025,7 +1025,7 @@ asyncmeta_back_proxy_authz_ctrl(Operation *op,
 	}
 
 	if ( si->si_mode == LDAP_BACK_IDASSERT_LEGACY ) {
-		if ( op->o_proxy_authz ) {
+		if ( wants_proxy_authz( op ) ) {
 			/*
 			 * FIXME: we do not want to perform proxyAuthz
 			 * on behalf of the client, because this would
@@ -1083,7 +1083,7 @@ asyncmeta_back_proxy_authz_ctrl(Operation *op,
 		}
 	}
 
-	if ( op->o_proxy_authz ) {
+	if ( wants_proxy_authz( op ) ) {
 		/*
 		 * FIXME: we can:
 		 * 1) ignore the already set proxyAuthz control

@@ -986,7 +986,7 @@ backsql_add( Operation *op, SlapReply *rs )
 
 	slap_add_opattrs( op, &rs->sr_text, textbuf, textlen, 1 );
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, op->ora_e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		Debug( LDAP_DEBUG_TRACE, "   backsql_add(\"%s\"): "
@@ -1478,7 +1478,7 @@ done:;
 	if ( sth != SQL_NULL_HSTMT ) {
 		SQLUSMALLINT	CompletionType = SQL_ROLLBACK;
 
-		if ( rs->sr_err == LDAP_SUCCESS && !op->o_noop ) {
+		if ( rs->sr_err == LDAP_SUCCESS && !wants_noop( op ) ) {
 			assert( e == NULL );
 			CompletionType = SQL_COMMIT;
 		}
@@ -1522,7 +1522,7 @@ done:;
 		}
 	}
 
-	if ( op->o_noop && rs->sr_err == LDAP_SUCCESS ) {
+	if ( wants_noop( op ) && rs->sr_err == LDAP_SUCCESS ) {
 		rs->sr_err = LDAP_X_NO_OPERATION;
 	}
 

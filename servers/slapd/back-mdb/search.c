@@ -447,7 +447,7 @@ mdb_search( Operation *op, SlapReply *rs )
 	Debug( LDAP_DEBUG_TRACE, "=> " LDAP_XSTRING(mdb_search) "\n" );
 	attrs = op->oq_search.rs_attrs;
 
-	manageDSAit = get_manageDSAit( op );
+	manageDSAit = wants_manageDSAit( op );
 
 	rs->sr_err = mdb_opinfo_get( op, mdb, 1, &moi );
 	switch(rs->sr_err) {
@@ -636,7 +636,7 @@ dn2entry_retry:
 		goto done;
 	}
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 		( test_filter( op, e, get_assertion( op )) != LDAP_COMPARE_TRUE ))
 	{
 		rs->sr_err = LDAP_ASSERTION_FAILED;
@@ -974,7 +974,7 @@ notfound:
 					goto loop_continue;
 				}
 
-			} else if ( get_subentries( op ) &&
+			} else if ( wants_subentries( op ) &&
 				!get_subentries_visibility( op ))
 			{
 				/* only subentries are visible */
@@ -1383,7 +1383,7 @@ static int search_candidates(
 	 */
 	if (!oc_filter(op->oq_search.rs_filter, 1, &depth)
 		&& !get_subentries_visibility(op)) {
-		if( !get_manageDSAit(op) && !get_domainScope(op) ) {
+		if ( !wants_manageDSAit(op) && !wants_domainScope(op) ) {
 			/* match referral objects */
 			struct berval bv_ref = BER_BVC( "referral" );
 			rf.f_choice = LDAP_FILTER_EQUALITY;

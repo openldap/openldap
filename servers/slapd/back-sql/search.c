@@ -2087,7 +2087,7 @@ backsql_search( Operation *op, SlapReply *rs )
 	int			sres;
 	Entry			user_entry = { 0 },
 				base_entry = { 0 };
-	int			manageDSAit = get_manageDSAit( op );
+	int			manageDSAit = wants_manageDSAit( op );
 	time_t			stoptime = 0;
 	backsql_srch_info	bsi = { 0 };
 	backsql_entryID		*eid = NULL;
@@ -2197,7 +2197,7 @@ backsql_search( Operation *op, SlapReply *rs )
 	{
 		slap_mask_t	mask;
 		
-		if ( get_assert( op ) &&
+		if ( wants_assert( op ) &&
 				( test_filter( op, &base_entry, get_assertion( op ) )
 				  != LDAP_COMPARE_TRUE ) )
 		{

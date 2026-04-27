@@ -2560,7 +2560,7 @@ ldap_back_proxy_authz_ctrl(
 	}
 
 	if ( si->si_mode == LDAP_BACK_IDASSERT_LEGACY ) {
-		if ( op->o_proxy_authz ) {
+		if ( wants_proxy_authz( op ) ) {
 			/*
 			 * FIXME: we do not want to perform proxyAuthz
 			 * on behalf of the client, because this would
@@ -2618,7 +2618,7 @@ ldap_back_proxy_authz_ctrl(
 		}
 	}
 
-	if ( op->o_proxy_authz ) {
+	if ( wants_proxy_authz( op ) ) {
 		/*
 		 * FIXME: we can:
 		 * 1) ignore the already set proxyAuthz control

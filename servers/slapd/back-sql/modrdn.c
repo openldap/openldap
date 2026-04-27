@@ -47,7 +47,7 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 				p = { 0 },
 				n = { 0 },
 				*e = NULL;
-	int			manageDSAit = get_manageDSAit( op );
+	int			manageDSAit = wants_manageDSAit( op );
 	struct berval		*newSuperior = op->oq_modrdn.rs_newSup;
  
 	Debug( LDAP_DEBUG_TRACE, "==>backsql_modrdn() renaming entry \"%s\", "
@@ -108,7 +108,7 @@ backsql_modrdn( Operation *op, SlapReply *rs )
 		"   backsql_modrdn(): entry id=" BACKSQL_IDFMT "\n",
 		BACKSQL_IDARG(e_id.eid_id) );
 
-	if ( get_assert( op ) &&
+	if ( wants_assert( op ) &&
 			( test_filter( op, &r, get_assertion( op ) )
 			  != LDAP_COMPARE_TRUE ) )
 	{
@@ -460,14 +460,14 @@ done:;
 	if ( sth != SQL_NULL_HSTMT ) {
 		SQLUSMALLINT	CompletionType = SQL_ROLLBACK;
 	
-		if ( rs->sr_err == LDAP_SUCCESS && !op->o_noop ) {
+		if ( rs->sr_err == LDAP_SUCCESS && !wants_noop( op ) ) {
 			CompletionType = SQL_COMMIT;
 		}
 
 		SQLTransact( SQL_NULL_HENV, dbh, CompletionType );
 	}
 
-	if ( op->o_noop && rs->sr_err == LDAP_SUCCESS ) {
+	if ( wants_noop( op ) && rs->sr_err == LDAP_SUCCESS ) {
 		rs->sr_err = LDAP_X_NO_OPERATION;
 	}
 
