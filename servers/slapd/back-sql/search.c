@@ -1663,7 +1663,7 @@ backsql_srch_query( backsql_srch_info *bsi, struct berval *query )
 
 #ifndef BACKSQL_ARBITRARY_KEY
 	/* If paged results are in effect, ignore low ldap_entries.id numbers */
-	if ( get_pagedresults(bsi->bsi_op) > SLAP_CONTROL_IGNORED ) {
+	if ( wants_pagedresults(bsi->bsi_op) ) {
 		unsigned long lowid = 0;
 
 		/* Pick up the previous ldap_entries.id if the previous page ended in this objectClass */
@@ -1768,7 +1768,7 @@ backsql_oc_get_candidates( void *v_oc, void *v_bsi )
 
 #ifndef BACKSQL_ARBITRARY_KEY
 	/* If paged results have already completed this objectClass, skip it */
-	if ( get_pagedresults(op) > SLAP_CONTROL_IGNORED ) {
+	if ( wants_pagedresults(op) ) {
 		if ( oc->bom_id < PAGECOOKIE_TO_SQL_OC( ((PagedResultsState *)op->o_pagedresults_state)->ps_cookie ) )
 		{
 			return BACKSQL_AVL_CONTINUE;
@@ -2232,7 +2232,7 @@ backsql_search( Operation *op, SlapReply *rs )
 
 #ifndef BACKSQL_ARBITRARY_KEY
 	/* If paged results are in effect, check the paging cookie */
-	if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED ) {
+	if ( wants_pagedresults( op ) ) {
 		rs->sr_err = parse_paged_cookie( op, rs );
 		if ( rs->sr_err != LDAP_SUCCESS ) {
 			send_ldap_result( op, rs );
@@ -2513,7 +2513,7 @@ backsql_search( Operation *op, SlapReply *rs )
 		{
 #ifndef BACKSQL_ARBITRARY_KEY
 			/* If paged results are in effect, see if the page limit was exceeded */
-			if ( get_pagedresults(op) > SLAP_CONTROL_IGNORED ) {
+			if ( wants_pagedresults(op) ) {
 				if ( rs->sr_nentries >= ((PagedResultsState *)op->o_pagedresults_state)->ps_size )
 				{
 					e = NULL;
@@ -2572,7 +2572,7 @@ end_of_search:;
 send_results:;
 	if ( rs->sr_err != SLAPD_ABANDON ) {
 #ifndef BACKSQL_ARBITRARY_KEY
-		if ( get_pagedresults(op) > SLAP_CONTROL_IGNORED ) {
+		if ( wants_pagedresults(op) ) {
 			send_paged_response( op, rs, NULL );
 		} else
 #endif /* ! BACKSQL_ARBITRARY_KEY */
@@ -2780,7 +2780,7 @@ parse_paged_cookie( Operation *op, SlapReply *rs )
 	/* this function must be invoked only if the pagedResults
 	 * control has been detected, parsed and partially checked
 	 * by the frontend */
-	assert( get_pagedresults( op ) > SLAP_CONTROL_IGNORED );
+	assert( wants_pagedresults( op ) );
 
 	/* cookie decoding/checks deferred to backend... */
 	if ( ps->ps_cookieval.bv_len ) {

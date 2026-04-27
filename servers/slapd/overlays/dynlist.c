@@ -1704,7 +1704,7 @@ dynlist_search2resp( Operation *op, SlapReply *rs )
 		dynlist_filterinst_t *df = NULL;
 		int ndf = 0;
 
-		if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED )
+		if ( wants_pagedresults( op ) )
 			return SLAP_CB_CONTINUE;
 
 		/* Check for any unexpanded dynamic group entries that weren't picked up

@@ -579,7 +579,7 @@ variant_op_search( Operation *op, SlapReply *rs )
 	int variantInScope = 0, rc = SLAP_CB_CONTINUE,
 		nmatch = sizeof(pmatch) / sizeof(regmatch_t);
 
-	if ( ov->passReplication && ( op->o_sync > SLAP_CONTROL_IGNORED ) ) {
+	if ( ov->passReplication && wants_sync( op ) ) {
 		return SLAP_CB_CONTINUE;
 	}
 

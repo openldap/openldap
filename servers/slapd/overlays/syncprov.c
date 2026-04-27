@@ -987,7 +987,7 @@ syncprov_sendresp( Operation *op, resinfo *ri, syncops *so, int mode )
 
 	switch( mode ) {
 	case LDAP_SYNC_ADD:
-		if ( ri->ri_isref && so->s_op->o_managedsait <= SLAP_CONTROL_IGNORED ) {
+		if ( ri->ri_isref && !wants_manageDSAit( so->s_op ) ) {
 			rs.sr_ref = get_entry_referrals( op, rs.sr_entry );
 			rs.sr_err = send_search_reference( op, &rs );
 			ber_bvarray_free( rs.sr_ref );
@@ -1009,7 +1009,7 @@ syncprov_sendresp( Operation *op, resinfo *ri, syncops *so, int mode )
 		e_uuid.e_attrs = NULL;
 		e_uuid.e_name = ri->ri_dn;
 		e_uuid.e_nname = ri->ri_ndn;
-		if ( ri->ri_isref && so->s_op->o_managedsait <= SLAP_CONTROL_IGNORED ) {
+		if ( ri->ri_isref && !wants_manageDSAit( so->s_op ) ) {
 			struct berval bv = BER_BVNULL;
 			rs.sr_ref = &bv;
 			rs.sr_err = send_search_reference( op, &rs );
@@ -3162,7 +3162,7 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 	int minsid, maxsid;
 	int dirty = 0;
 
-	if ( op->o_sync > SLAP_CONTROL_IGNORED ) {
+	if ( wants_sync( op ) ) {
 		cb = op->o_tmpcalloc( 1, sizeof(slap_callback), op->o_tmpmemctx );
 		cb->sc_response = syncprov_search_cb;
 		cb->sc_cleanup = syncprov_search_cleanup;

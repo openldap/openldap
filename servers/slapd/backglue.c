@@ -176,7 +176,7 @@ glue_op_response ( Operation *op, SlapReply *rs )
 				/* Forget old pagedResults response if we're sending
 				 * a new one now
 				 */
-				if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED ) {
+				if ( wants_pagedresults( op ) ) {
 					int newpage = 0;
 					for ( k=0; k<i; k++ ) {
 						if ( !strcmp(rs->sr_ctrls[k]->ldctl_oid,
@@ -411,7 +411,7 @@ glue_op_search ( Operation *op, SlapReply *rs )
 	stoptime = slap_get_time () + op->ors_tlimit;
 
 	/* reset dummy cookie used to keep paged results going across databases */
-	if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED
+	if ( wants_pagedresults( op )
 		&& bvmatch( &((PagedResultsState *)op->o_pagedresults_state)->ps_cookieval, &gluecookie ) )
 	{
 		PagedResultsState *ps = op->o_pagedresults_state;
@@ -486,7 +486,7 @@ glue_op_search ( Operation *op, SlapReply *rs )
 			/* If we remembered which backend we were on before,
 			 * skip down to it now
 			 */
-			if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED &&
+			if ( wants_pagedresults( op ) &&
 				op->o_conn->c_pagedresults_state.ps_be &&
 				op->o_conn->c_pagedresults_state.ps_be != btmp )
 				continue;
@@ -573,7 +573,7 @@ glue_op_search ( Operation *op, SlapReply *rs )
 				goto end_of_loop;
 
 			case LDAP_SUCCESS:
-				if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED ) {
+				if ( wants_pagedresults( op ) ) {
 					PagedResultsState *ps = op->o_pagedresults_state;
 
 					/* Assume this backend can be forgotten now */

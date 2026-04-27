@@ -1078,8 +1078,7 @@ unique_add(
 	      op->o_req_dn.bv_val );
 
 	if ( be_shadow_update( op ) || (
-			get_relax(op) > SLAP_CONTROL_IGNORED
-			&& access_allowed( op, op->ora_e,
+			wants_relax( op ) && access_allowed( op, op->ora_e,
 				slap_schema.si_ad_entry, NULL,
 				ACL_MANAGE, NULL ) ) ) {
 		return rc;
@@ -1232,7 +1231,7 @@ unique_modify(
 	if ( be_shadow_update( op ) ) {
 		return rc;
 	}
-	if ( get_relax(op) > SLAP_CONTROL_IGNORED
+	if ( wants_relax(op)
 		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
 		&& e
 		&& access_allowed( op, e,
@@ -1372,7 +1371,7 @@ unique_modrdn(
 	if ( be_shadow_update( op ) ) {
 		return rc;
 	}
-	if ( get_relax(op) > SLAP_CONTROL_IGNORED
+	if ( wants_relax(op)
 		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
 		&& e
 		&& access_allowed( op, e,

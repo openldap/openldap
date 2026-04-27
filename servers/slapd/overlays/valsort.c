@@ -279,8 +279,7 @@ valsort_response( Operation *op, SlapReply *rs )
 	/* If this is not a search response, or it is a syncrepl response,
 	 * or the valsort control wants raw results, pass thru unmodified.
 	 */
-	if ( rs->sr_type != REP_SEARCH ||
-		( _SCM(op->o_sync) > SLAP_CONTROL_IGNORED ) ||
+	if ( rs->sr_type != REP_SEARCH || wants_sync( op ) ||
 		( op->o_ctrlflag[valsort_cid] & SLAP_CONTROL_DATA0))
 		return SLAP_CB_CONTINUE;
 		

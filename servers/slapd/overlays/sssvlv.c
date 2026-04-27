@@ -850,7 +850,7 @@ static int sssvlv_op_search(
 		goto leave;
 	}
 
-	ps = ( op->o_pagedresults > SLAP_CONTROL_IGNORED ) ?
+	ps = wants_pagedresults( op ) ?
 		(PagedResultsState*)(op->o_pagedresults_state) : NULL;
 	vc = op->o_ctrlflag[vlv_cid] > SLAP_CONTROL_IGNORED ?
 		op->o_controls[vlv_cid] : NULL;

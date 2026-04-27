@@ -217,7 +217,7 @@ null_back_respond( Operation *op, SlapReply *rs, int rc )
 		}
 	}
 
-	if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED ) {
+	if ( wants_pagedresults( op ) ) {
 		struct berval		cookie = BER_BVC( "" );
 
 		/* should not be here... */

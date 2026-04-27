@@ -1090,7 +1090,7 @@ limits_check( Operation *op, SlapReply *rs )
 		}
 
 		/* if paged results and slimit are requested */	
-		if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED &&
+		if ( wants_pagedresults( op ) &&
 			op->ors_slimit != SLAP_NO_LIMIT ) {
 			PagedResultsState *ps = op->o_pagedresults_state;
 			int total = op->ors_slimit - ps->ps_count;
@@ -1150,7 +1150,7 @@ limits_check( Operation *op, SlapReply *rs )
 		}
 
 		/* if paged results is requested */	
-		if ( get_pagedresults( op ) > SLAP_CONTROL_IGNORED ) {
+		if ( wants_pagedresults( op ) ) {
 			int	slimit = -2;
 			int	pr_total;
 			PagedResultsState *ps = op->o_pagedresults_state;
