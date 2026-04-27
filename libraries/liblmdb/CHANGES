@@ -6,6 +6,7 @@ LMDB 0.9.36 Engineering
 	ITS#8590 - suppress SIGPIPE on Mac OSX for mdb_copy/compact
 	ITS#8739 - don't use fdatasync on FreeBSD 11.0 and older
 	ITS#8824 - mdb_dump: cleanup check for MDB_SUCCESS
+	ITS#9388 - fix mdb_stat page counts for dupsort DBs
 	ITS#10054 - fix write of 2GB values
 	ITS#10108 - mdb_dump: fix comment
 	ITS#10454 - fix metapage sync on Mac OSX
