@@ -1992,6 +1992,7 @@ struct BackendDB {
 #define SLAP_REQUIRE_AUTHC		0x0004U	/* authentication before op */
 #define SLAP_REQUIRE_SASL		0x0008U	/* SASL before op  */
 #define SLAP_REQUIRE_STRONG		0x0010U	/* strong authentication before op */
+#define SLAP_REQUIRE_NONE		0x8000U	/* do not inherit require from frontend */
 
 	/* Required Security Strength Factor */
 	slap_ssf_set_t be_ssf_set;

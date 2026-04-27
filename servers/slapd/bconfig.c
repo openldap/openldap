@@ -3677,11 +3677,12 @@ config_disallows(ConfigArgs *c) {
 
 static int
 config_requires(ConfigArgs *c) {
-	slap_mask_t requires = frontendDB->be_requires;
+	slap_mask_t requires = 0, have_none = 0;
 	int i, argc = c->argc;
 	char **argv = c->argv;
 
 	slap_verbmasks requires_ops[] = {
+		{ BER_BVC("none"),		SLAP_REQUIRE_NONE },
 		{ BER_BVC("bind"),		SLAP_REQUIRE_BIND },
 		{ BER_BVC("LDAPv3"),		SLAP_REQUIRE_LDAP_V3 },
 		{ BER_BVC("authc"),		SLAP_REQUIRE_AUTHC },
@@ -3704,9 +3705,9 @@ config_requires(ConfigArgs *c) {
 	if ( strcasecmp( c->argv[ 1 ], "none" ) == 0 ) {
 		argv++;
 		argc--;
-		requires = 0;
+		have_none = c->be != frontendDB ? SLAP_REQUIRE_NONE : 0;
 	}
-	i = verbs_to_mask(argc, argv, requires_ops, &requires);
+	i = verbs_to_mask(argc, argv, requires_ops+1, &requires);
 	if ( i ) {
 		if (strcasecmp( c->argv[ i ], "none" ) == 0 ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ), "<%s> \"none\" (#%d) must be listed first", c->argv[0], i - 1 );
@@ -3719,7 +3720,7 @@ config_requires(ConfigArgs *c) {
 		}
 		return(1);
 	}
-	c->be->be_requires = requires;
+	c->be->be_requires = requires | have_none;
 	return(0);
 }
 

@@ -1123,7 +1123,11 @@ backend_check_restrictions(
 		}
 
 		restrictops |= op->o_bd->be_restrictops;
-		requires |= op->o_bd->be_requires;
+		if ( op->o_bd->be_requires & SLAP_REQUIRE_NONE ) {
+			requires = op->o_bd->be_requires & ~SLAP_REQUIRE_NONE;
+		} else {
+			requires |= op->o_bd->be_requires;
+		}
 		bssf = &op->o_bd->be_ssf_set.sss_ssf;
 		fssf = &ssfs.sss_ssf;
 		for ( i=0; i < (int)(sizeof(ssfs)/sizeof(slap_ssf_t)); i++ ) {
