@@ -2082,7 +2082,7 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 	 * the DB (and syncrepl clients not to commit our generated copy), callers
 	 * need to make sure they don't copy the control from their op if they need
 	 * it resolved anyway */
-	if ( op->o_managedsait != SLAP_CONTROL_NONE )
+	if ( wants_manageDSAit( op ) )
 		return SLAP_CB_CONTINUE;
 
 	/* No entry or attribute already set? Nothing to do */

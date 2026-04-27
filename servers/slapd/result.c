@@ -1212,7 +1212,7 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 					if ( !SLAP_OPATTRS( rs->sr_attr_flags ))
 						continue;
 					/* if DSA-specific and replicating, skip */
-					if ( op->o_sync != SLAP_CONTROL_NONE &&
+					if ( wants_sync( op ) &&
 						desc->ad_type->sat_usage == LDAP_SCHEMA_DSA_OPERATION )
 						continue;
 				}
@@ -1378,7 +1378,7 @@ slap_send_search_entry( Operation *op, SlapReply *rs )
 					continue;
 				}
 				/* if DSA-specific and replicating, skip */
-				if ( op->o_sync != SLAP_CONTROL_NONE &&
+				if ( wants_sync( op ) &&
 					desc->ad_type->sat_usage == LDAP_SCHEMA_DSA_OPERATION )
 					continue;
 			} else {

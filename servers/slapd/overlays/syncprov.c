@@ -3606,7 +3606,7 @@ syncprov_operational(
 	/* This prevents generating unnecessarily; frontend will strip
 	 * any statically stored copy.
 	 */
-	if ( op->o_sync != SLAP_CONTROL_NONE )
+	if ( wants_sync( op ) )
 		return SLAP_CB_CONTINUE;
 
 	if ( rs->sr_entry &&
