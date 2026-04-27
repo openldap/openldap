@@ -1135,28 +1135,23 @@ backend_check_restrictions(
 		}
 	}
 
+	opflag = SLAP_OP2RESTRICT(slap_req2op(op->o_tag));
 	switch( op->o_tag ) {
-	case LDAP_REQ_ADD:
-		opflag = SLAP_RESTRICT_OP_ADD;
-		updateop++;
-		break;
+	case LDAP_REQ_UNBIND:
+		opflag = 0;
+		/* FALLTHRU */
 	case LDAP_REQ_BIND:
-		opflag = SLAP_RESTRICT_OP_BIND;
 		session++;
 		break;
-	case LDAP_REQ_COMPARE:
-		opflag = SLAP_RESTRICT_OP_COMPARE;
-		break;
-	case LDAP_REQ_DELETE:
-		updateop++;
-		opflag = SLAP_RESTRICT_OP_DELETE;
-		break;
-	case LDAP_REQ_EXTENDED:
-		opflag = SLAP_RESTRICT_OP_EXTENDED;
 
+	case LDAP_REQ_SEARCH:
+	case LDAP_REQ_COMPARE:
+		break;
+
+	case LDAP_REQ_EXTENDED:
 		if( !opdata ) {
 			/* treat unspecified as a modify */
-			opflag = SLAP_RESTRICT_OP_MODIFY;
+			opflag |= SLAP_RESTRICT_OP_MODIFY;
 			updateop++;
 			break;
 		}
@@ -1184,26 +1179,16 @@ backend_check_restrictions(
 			break;
 		}
 
+		opflag |= SLAP_RESTRICT_OP_MODIFY;
+		/* FALLTHRU */
 		/* treat everything else as a modify */
-		opflag = SLAP_RESTRICT_OP_MODIFY;
+	case LDAP_REQ_ADD:
+	case LDAP_REQ_DELETE:
+	case LDAP_REQ_MODIFY:
+	case LDAP_REQ_RENAME:
 		updateop++;
 		break;
 
-	case LDAP_REQ_MODIFY:
-		updateop++;
-		opflag = SLAP_RESTRICT_OP_MODIFY;
-		break;
-	case LDAP_REQ_RENAME:
-		updateop++;
-		opflag = SLAP_RESTRICT_OP_RENAME;
-		break;
-	case LDAP_REQ_SEARCH:
-		opflag = SLAP_RESTRICT_OP_SEARCH;
-		break;
-	case LDAP_REQ_UNBIND:
-		session++;
-		opflag = 0;
-		break;
 	default:
 		rs->sr_text = "restrict operations internal error";
 		rs->sr_err = LDAP_OTHER;
