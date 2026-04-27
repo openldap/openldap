@@ -99,9 +99,6 @@ typedef struct sync_control {
 	int sr_rhint;
 } sync_control;
 
-#if 0 /* moved back to slap.h */
-#define	o_sync	o_ctrlflag[slap_cids.sc_LDAPsync]
-#endif
 /* o_sync_mode uses data bits of o_sync */
 #define	o_sync_mode	o_ctrlflag[slap_cids.sc_LDAPsync]
 

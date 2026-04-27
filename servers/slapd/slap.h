@@ -2772,75 +2772,99 @@ struct Operation {
 
 #define o_dontUseCopy			o_ctrlflag[slap_cids.sc_dontUseCopy]
 #define get_dontUseCopy(op)		_SCM((op)->o_dontUseCopy)
+#define wants_dontUseCopy(op)		(_SCM((op)->o_dontUseCopy) > SLAP_CONTROL_IGNORED)
 
 #define o_relax				o_ctrlflag[slap_cids.sc_relax]
 #define get_relax(op)		_SCM((op)->o_relax)
+#define wants_relax(op)		(_SCM((op)->o_relax) > SLAP_CONTROL_IGNORED)
 
 #define o_managedsait	o_ctrlflag[slap_cids.sc_manageDSAit]
 #define get_manageDSAit(op)				_SCM((op)->o_managedsait)
+#define wants_manageDSAit(op)				(_SCM((op)->o_managedsait) > SLAP_CONTROL_IGNORED)
 
 #define o_noop	o_ctrlflag[slap_cids.sc_noOp]
-#define o_proxy_authz	o_ctrlflag[slap_cids.sc_proxyAuthz]
-#define o_subentries	o_ctrlflag[slap_cids.sc_subentries]
+#define wants_noop(op)	(_SCM((op)->o_noop) > SLAP_CONTROL_IGNORED)
 
+#define o_proxy_authz	o_ctrlflag[slap_cids.sc_proxyAuthz]
+#define wants_proxy_authz(op)	(_SCM((op)->o_proxy_authz) > SLAP_CONTROL_IGNORED)
+
+#define o_subentries	o_ctrlflag[slap_cids.sc_subentries]
 #define get_subentries(op)				_SCM((op)->o_subentries)
+#define wants_subentries(op)				(_SCM((op)->o_subentries) > SLAP_CONTROL_IGNORED)
 #define	o_subentries_visibility	o_ctrlflag[slap_cids.sc_subentries]
 
 #define set_subentries_visibility(op)	((op)->o_subentries |= SLAP_CONTROL_DATA0)
 #define get_subentries_visibility(op)	(((op)->o_subentries & SLAP_CONTROL_DATA0) != 0)
 
 #define o_assert	o_ctrlflag[slap_cids.sc_assert]
-#define get_assert(op)					((int)(op)->o_assert)
+#define get_assert(op)					_SCM((op)->o_assert)
+#define wants_assert(op)				(_SCM((op)->o_assert) > SLAP_CONTROL_IGNORED)
 #define o_assertion	o_controls[slap_cids.sc_assert]
 #define get_assertion(op)				((op)->o_assertion)
 
 #define	o_valuesreturnfilter	o_ctrlflag[slap_cids.sc_valuesReturnFilter]
+#define wants_valuesreturnfilter(op)	(_SCM((op)->o_valuesreturnfilter) > SLAP_CONTROL_IGNORED)
 #define o_vrFilter	o_controls[slap_cids.sc_valuesReturnFilter]
 
 #define o_permissive_modify	o_ctrlflag[slap_cids.sc_permissiveModify]
-#define get_permissiveModify(op)		((int)(op)->o_permissive_modify)
+#define get_permissiveModify(op)		_SCM((op)->o_permissive_modify)
+#define wants_permissiveModify(op)		(_SCM((op)->o_permissive_modify) > SLAP_CONTROL_IGNORED)
 
 #define o_domain_scope	o_ctrlflag[slap_cids.sc_domainScope]
-#define get_domainScope(op)				((int)(op)->o_domain_scope)
+#define get_domainScope(op)				_SCM((op)->o_domain_scope)
+#define wants_domainScope(op)				(_SCM((op)->o_domain_scope) > SLAP_CONTROL_IGNORED)
 
 #ifdef SLAP_CONTROL_X_TREE_DELETE
 #define	o_tree_delete	o_ctrlflag[slap_cids.sc_treeDelete]
-#define get_treeDelete(op)				((int)(op)->o_tree_delete)
+#define get_treeDelete(op)				_SCM((op)->o_tree_delete)
+#define wants_treeDelete(op)				(_SCM((op)->o_tree_delete) > SLAP_CONTROL_IGNORED)
 #endif
 
 #define o_preread	o_ctrlflag[slap_cids.sc_preRead]
+#define get_preread(op)	_SCM((op)->o_preread)
+#define wants_preread(op)	(_SCM((op)->o_preread) > SLAP_CONTROL_IGNORED)
+
 #define o_postread	o_ctrlflag[slap_cids.sc_postRead]
+#define get_postread(op)	_SCM((op)->o_postread)
+#define wants_postread(op)	(_SCM((op)->o_postread) > SLAP_CONTROL_IGNORED)
 
 #define	o_preread_attrs	o_controls[slap_cids.sc_preRead]
 #define o_postread_attrs	o_controls[slap_cids.sc_postRead]
 
 #define o_pagedresults	o_ctrlflag[slap_cids.sc_pagedResults]
 #define o_pagedresults_state	o_controls[slap_cids.sc_pagedResults]
-#define get_pagedresults(op)			((int)(op)->o_pagedresults)
+#define get_pagedresults(op)			_SCM((op)->o_pagedresults)
+#define wants_pagedresults(op)			(_SCM((op)->o_pagedresults) > SLAP_CONTROL_IGNORED)
 
 #ifdef SLAP_CONTROL_X_SORTEDRESULTS
 #define o_sortedresults		o_ctrlflag[slap_cids.sc_sortedResults]
+#define wants_sortedresults(op)	(_SCM((op)->o_sortedresults) > SLAP_CONTROL_IGNORED)
 #endif
 
 #define o_txnSpec		o_ctrlflag[slap_cids.sc_txnSpec]
+#define wants_txnSpec(op)		(_SCM((op)->o_txnSpec) > SLAP_CONTROL_IGNORED)
 
 #ifdef SLAP_CONTROL_X_SESSION_TRACKING
 #define o_session_tracking	o_ctrlflag[slap_cids.sc_sessionTracking]
 #define o_tracked_sessions	o_controls[slap_cids.sc_sessionTracking]
-#define get_sessionTracking(op)			((int)(op)->o_session_tracking)
+#define get_sessionTracking(op)			_SCM((op)->o_session_tracking)
+#define wants_sessionTracking(op)			(_SCM((op)->o_session_tracking) > SLAP_CONTROL_IGNORED)
 #endif
 
 #ifdef SLAP_CONTROL_X_WHATFAILED
 #define o_whatFailed o_ctrlflag[slap_cids.sc_whatFailed]
 #define get_whatFailed(op)				_SCM((op)->o_whatFailed)
+#define wants_whatFailed(op)				(_SCM((op)->o_whatFailed) > SLAP_CONTROL_IGNORED)
 #endif
 
 #ifdef SLAP_CONTROL_X_LAZY_COMMIT
 #define o_lazyCommit o_ctrlflag[slap_cids.sc_lazyCommit]
 #define get_lazyCommit(op)				_SCM((op)->o_lazyCommit)
+#define wants_lazyCommit(op)				(_SCM((op)->o_lazyCommit) > SLAP_CONTROL_IGNORED)
 #endif
 
 #define o_sync			o_ctrlflag[slap_cids.sc_LDAPsync]
+#define wants_sync(op)		(_SCM((op)->o_sync) > SLAP_CONTROL_IGNORED)
 
 	AuthorizationInformation o_authz;
 
