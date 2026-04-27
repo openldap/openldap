@@ -4423,7 +4423,7 @@ mdb_env_write_meta(MDB_txn *txn)
 				goto fail;
 			}
 #if defined(__APPLE__)
-			if (MDB_FDATASYNC(env->me_mfd)) {
+			if (MDB_FDATASYNC(env->me_fd)) {
 				rc = ErrCode();
 				goto fail;
 			}
