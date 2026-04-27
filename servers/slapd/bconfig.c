@@ -4277,7 +4277,7 @@ config_ldif_resp( Operation *op, SlapReply *rs )
 						"%s=" SLAP_X_ORDERED_FMT "%s",
 						cfAd_database->ad_cname.bv_val, -1,
 						sc->ca->bi->bi_type);
-					op->o_noop = 1;
+					op->o_noop = SLAP_CONTROL_CRITICAL;
 					sc->frontend = config_build_entry( op, rs,
 						sc->cfb->cb_root, sc->ca, &rdn, &CFOC_DATABASE,
 						sc->ca->be->be_cf_ocs );
@@ -4312,7 +4312,7 @@ config_ldif_resp( Operation *op, SlapReply *rs )
 					"%s=" SLAP_X_ORDERED_FMT "%s",
 					cfAd_database->ad_cname.bv_val, 0,
 					sc->ca->bi->bi_type);
-				op->o_noop = 1;
+				op->o_noop = SLAP_CONTROL_CRITICAL;
 				sc->config = config_build_entry( op, rs, sc->cfb->cb_root,
 					sc->ca, &rdn, &CFOC_DATABASE, sc->ca->be->be_cf_ocs );
 				op->o_noop = i;
@@ -7619,7 +7619,7 @@ config_back_db_open( BackendDB *be, ConfigReply *cr )
 	op->o_ndn = op->o_bd->be_rootndn;
 
 	if ( !cfb->cb_use_ldif ) {
-		op->o_noop = 1;
+		op->o_noop = SLAP_CONTROL_CRITICAL;
 	}
 
 	/* If we read the config from back-ldif, do some quick sanity checks */
