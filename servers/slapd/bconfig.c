@@ -205,6 +205,7 @@ enum {
 	CFG_TLS_CACERT,
 	CFG_TLS_CERT,
 	CFG_TLS_KEY,
+	CFG_RESTRICTOP,
 
 	CFG_LAST
 };
@@ -626,6 +627,11 @@ static ConfigTable config_back_cf_table[] = {
 		&config_restrict, "( OLcfgGlAt:48 NAME 'olcRestrict' "
 			"EQUALITY caseIgnoreMatch "
 			"SYNTAX OMsDirectoryString )", NULL, NULL },
+	{ "restrictop",	NULL, 0, 0, 0, ARG_MAY_DB|ARG_MAGIC|CFG_RESTRICTOP,
+		&config_generic, "( OLcfgGlAt:105 NAME 'olcRestrictOp' "
+			"DESC 'Operation and Control Filter List' "
+			"EQUALITY caseIgnoreMatch "
+			"SYNTAX OMsDirectoryString X-ORDERED 'VALUES' )", NULL, NULL },
 	{ "reverse-lookup", "on|off", 2, 2, 0,
 #ifdef SLAPD_RLOOKUPS
 		ARG_ON_OFF, &use_reverse_lookup,
@@ -1041,7 +1047,7 @@ static ConfigOCs cf_ocs[] = {
 		 "olcAddContentAcl $ olcLastMod $ olcLastBind $ olcLastBindPrecision $ "
 		 "olcLimits $ olcMaxDerefDepth $ olcPlugin $ olcReadOnly $ olcReplica $ "
 		 "olcReplicaArgsFile $ olcReplicaPidFile $ olcReplicationInterval $ "
-		 "olcReplogFile $ olcRequires $ olcRestrict $ olcRootDN $ olcRootPW $ "
+		 "olcReplogFile $ olcRequires $ olcRestrict $ olcRestrictOp $ olcRootDN $ olcRootPW $ "
 		 "olcSchemaDN $ olcSecurity $ olcSizeLimit $ olcSyncUseSubentry $ olcSyncrepl $ "
 		 "olcTimeLimit $ olcUpdateDN $ olcUpdateRef $ olcMultiProvider $ "
 		 "olcMonitoring $ olcExtraAttrs $ olcLastBindSendAssert ) )",
@@ -1496,6 +1502,37 @@ config_generic(ConfigArgs *c) {
 			if ( !c->rvalue_vals ) rc = 1;
 			break;
 #endif
+		case CFG_RESTRICTOP: {
+			RestrictOp *r;
+			char *src, *dst, ibuf[11];
+			struct berval bv, abv;
+			for ( i=0, r=c->be->be_restrictop_rules; r; i++,r=r->r_next ) {
+				abv.bv_len = snprintf( ibuf, sizeof( ibuf ), SLAP_X_ORDERED_FMT, i );
+				if ( abv.bv_len >= sizeof( ibuf ) ) {
+					ber_bvarray_free_x( c->rvalue_vals, NULL );
+					c->rvalue_vals = NULL;
+					i = 0;
+					break;
+				}
+				restrictop_unparse( r, &bv );
+				abv.bv_val = ch_malloc( abv.bv_len + bv.bv_len + 1 );
+				AC_MEMCPY( abv.bv_val, ibuf, abv.bv_len );
+				/* Turn TAB / EOL into plain space */
+				for (src=bv.bv_val,dst=abv.bv_val+abv.bv_len; *src; src++) {
+					if (isspace((unsigned char)*src)) *dst++ = ' ';
+					else *dst++ = *src;
+				}
+				*dst = '\0';
+				if (dst[-1] == ' ') {
+					dst--;
+					*dst = '\0';
+				}
+				abv.bv_len = dst - abv.bv_val;
+				ber_bvarray_add( &c->rvalue_vals, &abv );
+			}
+			rc = (!i);
+			break;
+		}
 		case CFG_REWRITE:
 			rc = slap_sasl_rewrite_unparse( &c->rvalue_vals );
 			break;
@@ -1887,6 +1924,25 @@ config_generic(ConfigArgs *c) {
 						c->be->be_limits[ cnt ] = c->be->be_limits[ cnt + 1 ];
 					}
 				}
+			}
+			break;
+
+		case CFG_RESTRICTOP:
+			if ( c->valx < 0 ) {
+				restrictop_free( c->be->be_restrictop_rules );
+				c->be->be_restrictop_rules = NULL;
+			} else {
+				RestrictOp **prev, *r;
+				int i;
+				for ( i=0, prev = &c->be->be_restrictop_rules; i < c->valx;
+					i++ ) {
+					r = *prev;
+					prev = &r->r_next;
+				}
+				r = *prev;
+				*prev = r->r_next;
+				r->r_next = NULL;
+				restrictop_free( r );
 			}
 			break;
 
@@ -2628,6 +2684,18 @@ sortval_reject:
 			return rc;
 			}
 
+		case CFG_RESTRICTOP:
+			i = c->valx;
+			if ( c->valx == -1 ) {
+				RestrictOp *r;
+				i = 0;
+				for ( r=c->be->be_restrictop_rules; r; r = r->r_next )
+					i++;
+			}
+			if ( parse_restrictop( c, i ) ) {
+				return 1;
+			}
+			break;
 
 		default:
 			Debug( LDAP_DEBUG_ANY,

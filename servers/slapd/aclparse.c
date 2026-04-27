@@ -63,7 +63,6 @@ static struct berval aclbuf;
 
 static void		split(char *line, int splitchar, char **left, char **right);
 static void		access_append(Access **l, Access *a);
-static void		access_free( Access *a );
 static int		acl_usage(void);
 
 static void		acl_regex_normalized_dn(const char *src, struct berval *pat);
@@ -2366,7 +2365,7 @@ acl_append( AccessControl **l, AccessControl *a, int pos )
 	*l = a;
 }
 
-static void
+void
 access_free( Access *a )
 {
 	if ( !BER_BVISNULL( &a->a_dn_pat ) ) {
@@ -2890,6 +2889,75 @@ acl_unparse( AccessControl *a, struct berval *bv )
 	for ( b = a->acl_access; b != NULL; b = b->a_next ) {
 		ptr = access2text( b, ptr );
 	}
+	*ptr = '\0';
+	bv->bv_val = aclbuf.bv_val;
+	bv->bv_len = ptr - bv->bv_val;
+}
+
+void
+restrictop_unparse( RestrictOp *r, struct berval *bv )
+{
+	struct berval tmp = BER_BVNULL;
+	RestrictOpBy *by;
+	char *ptr;
+	int i;
+	slap_restrictop_t ops = r->r_ops;
+
+	if ( BER_BVISNULL( &aclbuf ) ) {
+		aclbuf.bv_val = ch_malloc( ACLBUF_CHUNKSIZE );
+		aclbuf.bv_len = ACLBUF_CHUNKSIZE;
+	}
+
+	bv->bv_len = 0;
+
+	ptr = aclbuf.bv_val;
+
+	if ( !BER_BVISNULL( &r->r_exop_orig ) ) {
+		assert( r->r_ops & SLAP_RESTRICT_OP_EXTENDED );
+		ops &= ~SLAP_RESTRICT_OP_EXTENDED;
+	}
+
+	mask_to_verbstring( slap_restrictable_ops, ops, ' ', &tmp );
+	ptr = acl_safe_strbvcopy( ptr, &tmp );
+	ch_free( tmp.bv_val );
+
+	if ( !BER_BVISNULL( &r->r_exop_orig ) ) {
+		ptr = acl_safe_strcopy( ptr, " extended=" );
+		ptr = acl_safe_strbvcopy( ptr, &r->r_exop_orig );
+	}
+
+	for ( i=0; i < r->r_ncontrols; i++ ) {
+		ptr = acl_safe_strcopy( ptr, " control=" );
+		ptr = acl_safe_strbvcopy( ptr, &r->r_control_orig[i] );
+	}
+
+	for ( by = r->r_by; by; by = by->rb_next ) {
+		ptr = acl_safe_strcopy( ptr, "\tby" );
+
+		ptr = acl_who2text( &by->rb_a, ptr );
+		if ( by->rb_action == SLAP_RESTRICT_OP_ALLOW ) {
+			ptr = acl_safe_strcopy( ptr, "allow" );
+		} else if ( by->rb_action == SLAP_RESTRICT_OP_REJECT ) {
+			ptr = acl_safe_strcopy( ptr, "reject" );
+		} else if ( by->rb_action == SLAP_RESTRICT_OP_DROP ) {
+			ptr = acl_safe_strcopy( ptr, "drop control=" );
+			ptr = acl_safe_strbvcopy( ptr, &by->rb_drop_oid );
+		} else if ( by->rb_action != SLAP_RESTRICT_OP_MISSING ) {
+			ptr = acl_safe_strcopy( ptr, "unknown-action" );
+		}
+
+		if ( by->rb_action == SLAP_RESTRICT_OP_MISSING &&
+				by->rb_a.a_type == ACL_BREAK ) {
+			ptr = acl_safe_strcopy( ptr, "break" );
+		} else if ( by->rb_a.a_type == ACL_BREAK ) {
+			ptr = acl_safe_strcopy( ptr, " break" );
+		} else if ( by->rb_a.a_type == ACL_CONTINUE ) {
+			ptr = acl_safe_strcopy( ptr, " continue" );
+		} else if ( by->rb_a.a_type != ACL_STOP ) {
+			ptr = acl_safe_strcopy( ptr, " unknown-control" );
+		}
+	}
+
 	*ptr = '\0';
 	bv->bv_val = aclbuf.bv_val;
 	bv->bv_len = ptr - bv->bv_val;

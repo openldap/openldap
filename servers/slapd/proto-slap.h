@@ -123,6 +123,7 @@ LDAP_SLAPD_F (slap_mask_t) str2accessmask LDAP_P(( const char *str ));
 LDAP_SLAPD_F (void) acl_unparse LDAP_P(( AccessControl*, struct berval* ));
 LDAP_SLAPD_F (void) acl_destroy LDAP_P(( AccessControl* ));
 LDAP_SLAPD_F (void) acl_free LDAP_P(( AccessControl *a ));
+LDAP_SLAPD_F (void) access_free LDAP_P(( Access *a ));
 
 
 /*
@@ -1609,6 +1610,14 @@ LDAP_SLAPD_F (int) get_alias_dn LDAP_P((
 	struct berval *ndn,
 	int *err,
 	const char **text ));
+
+/*
+ * restrictop.c
+ */
+LDAP_SLAPD_F (int) parse_restrictop LDAP_P(( struct config_args_s *c, int pos ));
+LDAP_SLAPD_F (void) restrictop_unparse LDAP_P(( RestrictOp *r, struct berval *bv ));
+LDAP_SLAPD_F (void) restrictop_free LDAP_P(( RestrictOp *r ));
+LDAP_SLAPD_F (int) restrictop_apply LDAP_P(( Operation *op, RestrictOp *r ));
 
 /*
  * result.c

@@ -1369,6 +1369,12 @@ typedef enum {
 } slap_restrictop_t;
 #define SLAP_OP2RESTRICT(op)   ((slap_restrictop_t)1U << (op))
 
+typedef enum slap_restrict_action_e {
+	SLAP_RESTRICT_OP_MISSING = 0,
+	SLAP_RESTRICT_OP_ALLOW,
+	SLAP_RESTRICT_OP_REJECT,
+	SLAP_RESTRICT_OP_DROP
+} slap_restrict_action_t;
 
 typedef struct AuthorizationInformation {
 	ber_tag_t	sai_method;			/* LDAP_AUTH_* from <ldap.h> */
@@ -1655,6 +1661,28 @@ typedef struct AclRegexMatches {
 	int val_count;
         regmatch_t val_data[MAXREMATCHES];
 } AclRegexMatches;
+
+typedef struct RestrictOpBy {
+	Access rb_a;
+	slap_restrict_action_t rb_action;
+
+	int		rb_drop_cid;
+	struct berval	rb_drop_oid;
+
+	struct RestrictOpBy	*rb_next;
+} RestrictOpBy;
+
+typedef struct RestrictOp {
+	slap_restrictop_t	r_ops;
+	struct berval		r_exop_oid, r_exop_orig;
+
+	int			*r_control_cids;
+	BerVarray		r_control_orig;
+	int			r_ncontrols;
+
+	RestrictOpBy		*r_by;
+	struct RestrictOp	*r_next;
+} RestrictOp;
 
 /*
  * Backend-info
@@ -2046,6 +2074,7 @@ struct BackendDB {
 	AccessControl *be_acl;	/* access control list for this backend	   */
 	slap_access_t	be_dfltaccess;	/* access given if no acl matches	   */
 	AttributeName	*be_extra_anlist;	/* attributes that need to be added to search requests (ITS#6513) */
+	RestrictOp *be_restrictop_rules; /* control and (ext)op filtering */
 
 	unsigned int be_lastbind_precision;
 

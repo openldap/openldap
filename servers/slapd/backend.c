@@ -470,6 +470,7 @@ void backend_destroy_one( BackendDB *bd, int dynamic )
 		free( bd->be_rootpw.bv_val );
 	}
 	acl_destroy( bd->be_acl );
+	restrictop_free( bd->be_restrictop_rules );
 	limits_destroy( bd->be_limits );
 	if ( bd->be_extra_anlist ) {
 		anlist_free( bd->be_extra_anlist, 1, NULL );
@@ -1097,6 +1098,7 @@ backend_check_restrictions(
 	slap_mask_t opflag;
 	slap_mask_t exopflag = 0;
 	slap_ssf_set_t ssfs, *ssf;
+	RestrictOp *r;
 	int updateop = 0;
 	int starttls = 0;
 	int session = 0;
@@ -1105,6 +1107,7 @@ backend_check_restrictions(
 	requires = frontendDB->be_requires;
 	ssfs = frontendDB->be_ssf_set;
 	ssf = &ssfs;
+	r = frontendDB->be_restrictop_rules;
 
 	if ( op->o_bd ) {
 		slap_ssf_t *fssf, *bssf;
@@ -1132,6 +1135,10 @@ backend_check_restrictions(
 		fssf = &ssfs.sss_ssf;
 		for ( i=0; i < (int)(sizeof(ssfs)/sizeof(slap_ssf_t)); i++ ) {
 			if ( bssf[i] ) fssf[i] = bssf[i];
+		}
+
+		if ( op->o_bd->be_restrictop_rules ) {
+			r = op->o_bd->be_restrictop_rules;
 		}
 	}
 
@@ -1388,6 +1395,11 @@ backend_check_restrictions(
 		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 		return rs->sr_err;
  	}
+
+	if ( r && restrictop_apply( op, r ) ) {
+		rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
+		return rs->sr_err;
+	}
 
 	rs->sr_err = LDAP_SUCCESS;
 	return rs->sr_err;

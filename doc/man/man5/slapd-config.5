@@ -1404,7 +1404,36 @@ is equivalent to
 The 
 .B extended
 keyword allows one to indicate the OID of the specific operation
-to be restricted.
+to be restricted. Unlike
+.IR olcRestrictOp ,
+this applies to everyone, including rootdn.
+.TP
+.B olcRestrictOp <oplist> [control=<oid>] (by <who> <allow|reject|drop control=<oid>> [stop|continue|break])+
+Specify rules what operation types and control combinations are allowed and by
+whom. If defined inside a database specification, restrictions apply only to
+that database and override any global ones. This option shares a lot of its
+syntax and intent with
+.I olcAccess
+rules
+.RB ( slapd.access (5)).
+They are processed in order and if a line matches, no further rules are
+considered unless a matching
+.B by
+clause specifies a
+.B break
+rule. The
+.B drop control=<oid>
+rule is notable that it will act as
+.B reject
+if the specified control is provided by the client and is marked critical,
+otherwise it masks that control, including from the following
+.I olcRestrictOp
+lines. Dropping a control might not completely avoid it having impact, this is
+implementation dependent as some control processing happens before this step.
+
+Operations are the same as in the
+.I olcRestrict
+keyword, which are tested first and apply indiscriminately.
 .TP
 .B olcSchemaDN: <dn>
 Specify the distinguished name for the subschema subentry that
