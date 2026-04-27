@@ -6651,6 +6651,18 @@ mdb_cursor_touch(MDB_cursor *mc)
 	return rc;
 }
 
+static void
+mdb_subdb_adjust(MDB_cursor *mc, MDB_db *old, MDB_db *new)
+{
+	int delta;
+
+	delta = new->md_branch_pages - old->md_branch_pages;
+	mc->mc_db->md_branch_pages += delta;
+
+	delta = new->md_leaf_pages - old->md_leaf_pages;
+	mc->mc_db->md_leaf_pages += delta;
+}
+
 /** Do not spill pages to disk if txn is getting full, may fail instead */
 #define MDB_NOSPILL	0x8000
 
@@ -6950,6 +6962,7 @@ prep_subDB:
 					flags |= F_DUPDATA|F_SUBDATA;
 					dummy.md_root = mp->mp_pgno;
 					sub_root = mp;
+					mc->mc_db->md_leaf_pages++;
 			}
 			if (mp != fp) {
 				MP_FLAGS(mp) = fp_flags | P_DIRTY;
@@ -7156,6 +7169,7 @@ put_sub:
 			rc = _mdb_cursor_put(&mc->mc_xcursor->mx_cursor, data, &xdata, xflags);
 			if (flags & F_SUBDATA) {
 				void *db = NODEDATA(leaf);
+				mdb_subdb_adjust(mc, db, &mc->mc_xcursor->mx_db);
 				memcpy(db, &mc->mc_xcursor->mx_db, sizeof(MDB_db));
 			}
 			insert_data = mc->mc_xcursor->mx_db.md_entries - ecount;
@@ -7253,6 +7267,7 @@ _mdb_cursor_del(MDB_cursor *mc, unsigned int flags)
 				if (leaf->mn_flags & F_SUBDATA) {
 					/* update subDB info */
 					void *db = NODEDATA(leaf);
+					mdb_subdb_adjust(mc, db, &mc->mc_xcursor->mx_db);
 					memcpy(db, &mc->mc_xcursor->mx_db, sizeof(MDB_db));
 				} else {
 					MDB_cursor *m2;
