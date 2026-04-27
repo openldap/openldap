@@ -147,9 +147,9 @@ autogroup_add_member_to_group( Operation *op, BerValue *dn, BerValue *ndn, autog
 	o.o_ndn = op->o_bd->be_rootndn;
 	o.o_req_dn = age->age_dn;
 	o.o_req_ndn = age->age_ndn;
-	o.o_permissive_modify = 1;
 	o.o_dont_replicate = 1;
 	o.orm_no_opattrs = 1;
+	o.o_permissive_modify = SLAP_CONTROL_CRITICAL;
 	o.o_managedsait = SLAP_CONTROL_CRITICAL;
 	o.o_relax = SLAP_CONTROL_CRITICAL;
 	o.o_abandon = 0;
@@ -206,9 +206,9 @@ autogroup_add_member_values_to_group( Operation *op, struct berval *dn, autogrou
 	o.o_ndn = op->o_bd->be_rootndn;
 	o.o_req_dn = age->age_dn;
 	o.o_req_ndn = age->age_ndn;
-	o.o_permissive_modify = 1;
 	o.o_dont_replicate = 1;
 	o.orm_no_opattrs = 1;
+	o.o_permissive_modify = SLAP_CONTROL_CRITICAL;
 	o.o_managedsait = SLAP_CONTROL_CRITICAL;
 	o.o_relax = SLAP_CONTROL_CRITICAL;
 	o.o_abandon = 0;
@@ -282,9 +282,9 @@ autogroup_delete_member_from_group( Operation *op, BerValue *dn, BerValue *ndn, 
 	o.o_ndn = op->o_bd->be_rootndn;
 	o.o_req_dn = age->age_dn;
 	o.o_req_ndn = age->age_ndn;
+	o.o_permissive_modify = SLAP_CONTROL_CRITICAL;
 	o.o_relax = SLAP_CONTROL_CRITICAL;
 	o.o_managedsait = SLAP_CONTROL_CRITICAL;
-	o.o_permissive_modify = 1;
 	o.o_dont_replicate = 1;
 	o.orm_no_opattrs = 1;
 	o.o_abandon = 0;
@@ -341,9 +341,9 @@ autogroup_delete_member_values_from_group( Operation *op, struct berval *dn, aut
 		o.o_ndn = op->o_bd->be_rootndn;
         o.o_req_dn = age->age_dn;
         o.o_req_ndn = age->age_ndn;
-        o.o_permissive_modify = 1;
 	o.o_dont_replicate = 1;
 	o.orm_no_opattrs = 1;
+	o.o_permissive_modify = SLAP_CONTROL_CRITICAL;
         o.o_managedsait = SLAP_CONTROL_CRITICAL;
         o.o_relax = SLAP_CONTROL_CRITICAL;
 		o.o_abandon = 0;
@@ -582,7 +582,7 @@ autogroup_add_members_from_filter( Operation *op, Entry *e, autogroup_entry_t *a
 		memset( o.o_ctrlflag, 0, sizeof(o.o_ctrlflag) );
 		o.o_relax = SLAP_CONTROL_CRITICAL;
 		o.o_managedsait = SLAP_CONTROL_NONCRITICAL;
-		o.o_permissive_modify = 1;
+		o.o_permissive_modify = SLAP_CONTROL_CRITICAL;
 		o.o_dont_replicate = 1;
 		o.orm_no_opattrs = 1;
 		o.o_abandon = 0;
