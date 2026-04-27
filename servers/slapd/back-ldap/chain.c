@@ -51,6 +51,7 @@
 
 #define o_chaining			o_ctrlflag[sc_chainingBehavior]
 #define get_chaining(op)		((op)->o_chaining & SLAP_CONTROL_MASK)
+#define wants_chaining(op)		(_SCM((op)->o_chaining) > SLAP_CONTROL_IGNORED)
 #define get_chainingBehavior(op)	((op)->o_chaining & (SLAP_CH_RESOLVE_MASK|SLAP_CH_CONTINUATION_MASK))
 #define get_resolveBehavior(op)		((op)->o_chaining & SLAP_CH_RESOLVE_MASK)
 #define get_continuationBehavior(op)	((op)->o_chaining & SLAP_CH_CONTINUATION_MASK)
@@ -162,7 +163,7 @@ chaining_control_add(
 	}
 
 	/* already present */
-	if ( get_chaining( op ) > SLAP_CONTROL_IGNORED ) {
+	if ( wants_chaining( op ) ) {
 		return 0;
 	}
 
@@ -303,7 +304,7 @@ ldap_chain_cb_search_response( Operation *op, SlapReply *rs )
 		}
 
 #ifdef LDAP_CONTROL_X_CHAINING_BEHAVIOR
-		if ( rs->sr_err == LDAP_REFERRAL && get_chaining( op ) > SLAP_CONTROL_IGNORED ) {
+		if ( rs->sr_err == LDAP_REFERRAL && wants_chaining( op ) ) {
 			switch ( get_continuationBehavior( op ) ) {
 			case SLAP_CH_RESOLVE_CHAINING_REQUIRED:
 				lb->lb_status = LDAP_CH_ERR;
@@ -372,7 +373,7 @@ retry:;
 			}
 
 #ifdef LDAP_CONTROL_X_CHAINING_BEHAVIOR
-			if ( get_chaining( op ) > SLAP_CONTROL_IGNORED ) {
+			if ( wants_chaining( op ) ) {
 				switch ( get_continuationBehavior( op ) ) {
 				case SLAP_CH_RESOLVE_CHAINING_REQUIRED:
 					lb->lb_status = LDAP_CH_ERR;
@@ -993,7 +994,7 @@ ldap_chain_response( Operation *op, SlapReply *rs )
 	}
 
 #ifdef LDAP_CONTROL_X_CHAINING_BEHAVIOR
-	if ( rs->sr_err == LDAP_REFERRAL && get_chaining( op ) > SLAP_CONTROL_IGNORED ) {
+	if ( rs->sr_err == LDAP_REFERRAL && wants_chaining( op ) ) {
 		switch ( get_resolveBehavior( op ) ) {
 		case SLAP_CH_RESOLVE_REFERRALS_PREFERRED:
 		case SLAP_CH_RESOLVE_REFERRALS_REQUIRED:
@@ -1005,7 +1006,7 @@ ldap_chain_response( Operation *op, SlapReply *rs )
 			break;
 		}
 
-	} else if ( rs->sr_type == REP_SEARCHREF && get_chaining( op ) > SLAP_CONTROL_IGNORED ) {
+	} else if ( rs->sr_type == REP_SEARCHREF && wants_chaining( op ) ) {
 		switch ( get_continuationBehavior( op ) ) {
 		case SLAP_CH_CONTINUATION_REFERRALS_PREFERRED:
 		case SLAP_CH_CONTINUATION_REFERRALS_REQUIRED:
