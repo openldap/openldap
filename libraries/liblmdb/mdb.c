@@ -7908,8 +7908,15 @@ more:
 				switch (flags) {
 				default:
 					if (!(mc->mc_db->md_flags & MDB_DUPFIXED)) {
+						unsigned int left = SIZELEFT(fp);
 						offset = EVEN(NODESIZE + sizeof(indx_t) +
 							data->mv_size);
+						/* if there's enough space, just use it */
+						if (offset < left)
+							offset = 0;
+						else
+						/* else grow by whatever we need */
+							offset -= left;
 						break;
 					}
 					offset = fp->mp_pad;
