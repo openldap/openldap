@@ -8505,10 +8505,19 @@ _mdb_cursor_put(MDB_cursor *mc, MDB_val *key, MDB_val *data,
 	 * early failures.
 	 */
 	if (flags & MDB_MULTIPLE) {
+		size_t tmp;
+		if (!data[1].mv_size)
+			return EINVAL;
+
 		dcount = data[1].mv_size;
 		data[1].mv_size = 0;
 		if (!F_ISSET(mc->mc_db->md_flags, MDB_DUPFIXED))
 			return MDB_INCOMPATIBLE;
+
+		/* check for overflow */
+		tmp = data[0].mv_size * dcount;
+		if (tmp/dcount != data[0].mv_size)
+			return MDB_BAD_VALSIZE;
 	}
 
 	nospill = flags & MDB_NOSPILL;
