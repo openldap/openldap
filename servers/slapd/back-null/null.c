@@ -151,7 +151,7 @@ null_back_respond( Operation *op, SlapReply *rs, int rc )
 					"<=- null_back_respond: pre-read "
 					"failed!\n" );
 
-				if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+				if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 					/* FIXME: is it correct to abort
 					 * operation if control fails? */
 					goto respond;
@@ -192,7 +192,7 @@ null_back_respond( Operation *op, SlapReply *rs, int rc )
 					"<=- null_back_respond: post-read "
 					"failed!\n" );
 
-				if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+				if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 					/* FIXME: is it correct to abort
 					 * operation if control fails? */
 					goto respond;

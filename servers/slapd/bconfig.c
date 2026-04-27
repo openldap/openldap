@@ -5925,7 +5925,7 @@ config_back_add( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_ANY, "config_back_add: "
 				"post-read failed \"%s\"\n",
 				op->ora_e->e_name.bv_val );
-			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 					* operation if control fails? */
 			}
@@ -6442,7 +6442,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_ANY, "config_back_modify: "
 					"pre-read failed \"%s\"\n",
 					ce->ce_entry->e_name.bv_val );
-			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
 				goto out;
@@ -6663,7 +6663,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 	}
 
 	/* If we have a backend, it will handle the control */
-	if ( !cfb->cb_use_ldif && preread > SLAP_CONTROL_IGNORED ) {
+	if ( !cfb->cb_use_ldif && _SCM(preread) > SLAP_CONTROL_IGNORED ) {
 		if ( preread_ctrl == NULL ) {
 			preread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;
@@ -6674,7 +6674,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_ANY, "config_back_modrdn: "
 					"pre-read failed \"%s\"\n",
 					ce->ce_entry->e_name.bv_val );
-			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
 				goto out;
@@ -6810,7 +6810,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 	}
 
 	if ( rs->sr_err == LDAP_SUCCESS && !cfb->cb_use_ldif &&
-			postread > SLAP_CONTROL_IGNORED ) {
+			_SCM(postread) > SLAP_CONTROL_IGNORED ) {
 		if ( postread_ctrl == NULL ) {
 			postread_ctrl = &ctrls[num_ctrls++];
 			ctrls[num_ctrls] = NULL;

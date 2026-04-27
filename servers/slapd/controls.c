@@ -1042,7 +1042,7 @@ slap_remove_control(
 {
 	int		i, j;
 
-	switch ( op->o_ctrlflag[ ctrl ] ) {
+	switch ( _SCM(op->o_ctrlflag[ ctrl ]) ) {
 	case SLAP_CONTROL_NONCRITICAL:
 		for ( i = 0, j = -1; op->o_ctrls[ i ] != NULL; i++ ) {
 			if ( strcmp( op->o_ctrls[ i ]->ldctl_oid,
@@ -1093,10 +1093,6 @@ slap_remove_control(
 			"critical control \"%s\" not supported.\n",
 			op->o_log_prefix, slap_known_controls[ ctrl ] );
 		break;
-
-	default:
-		/* handle all cases! */
-		assert( 0 );
 	}
 
 	return rs->sr_err;

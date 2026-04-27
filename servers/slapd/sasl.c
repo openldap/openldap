@@ -460,7 +460,7 @@ retry_dontUseCopy:;
 #ifdef SLAP_AUXPROP_DONTUSECOPY
 				if ( dontUseCopy ) {
 					save_dontUseCopy = op->o_dontUseCopy;
-					if ( !op->o_dontUseCopy ) {
+					if ( get_dontUseCopy( op ) == SLAP_CONTROL_NONE ) {
 						int cnt = 0;
 						save_ctrls = op->o_ctrls;
 						if ( op->o_ctrls ) {

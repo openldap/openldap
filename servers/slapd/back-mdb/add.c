@@ -344,7 +344,7 @@ mdb_add(Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_TRACE,
 				"<=- " LDAP_XSTRING(mdb_add) ": post-read "
 				"failed!\n" );
-			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
 				goto return_results;

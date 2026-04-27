@@ -267,7 +267,7 @@ wt_delete( Operation *op, SlapReply *rs )
 		{
 			Debug( LDAP_DEBUG_TRACE,
 				   "<== wt_delete: pre-read failed!\n" );
-			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
                  * operation if control fails? */
 				goto return_results;

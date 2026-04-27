@@ -2573,7 +2573,7 @@ pcache_chk_controls(
 	const char	*non = "";
 	const char	*stripped = "";
 
-	switch( op->o_pagedresults ) {
+	switch ( get_pagedresults( op ) ) {
 	case SLAP_CONTROL_NONCRITICAL:
 		non = "non-";
 		stripped = "; stripped";

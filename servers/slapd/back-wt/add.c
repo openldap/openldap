@@ -339,7 +339,7 @@ wt_add( Operation *op, SlapReply *rs )
 								 &slap_post_read_bv, postread_ctrl ) )
 		{
 			Debug( LDAP_DEBUG_TRACE, "<=- wt_add: post-read failed!\n" );
-			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
                  * operation if control fails? */
 				goto return_results;

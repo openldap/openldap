@@ -1432,7 +1432,7 @@ ldif_back_add( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_ANY, "ldif_back_add: "
 				"post-read failed \"%s\"\n",
 				e->e_name.bv_val );
-			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 					* operation if control fails? */
 				rc = rs->sr_err;
@@ -1497,7 +1497,7 @@ ldif_back_modify( Operation *op, SlapReply *rs )
 				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
 					"pre-read failed \"%s\"\n",
 					entry->e_name.bv_val );
-				if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+				if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 					/* FIXME: is it correct to abort
 					 * operation if control fails? */
 					rc = rs->sr_err;
@@ -1518,7 +1518,7 @@ ldif_back_modify( Operation *op, SlapReply *rs )
 				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
 					"post-read failed \"%s\"\n",
 					entry->e_name.bv_val );
-				if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+				if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 					/* FIXME: is it correct to abort
 					 * operation if control fails? */
 					rc = rs->sr_err;
@@ -1591,7 +1591,7 @@ ldif_back_delete( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_ANY, "ldif_back_delete: "
 				"pre-read failed \"%s\"\n",
 				e->e_name.bv_val );
-			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
 				rc = rs->sr_err;
@@ -1767,7 +1767,7 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
 					"pre-read failed \"%s\"\n",
 					entry->e_name.bv_val );
-				if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+				if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 					/* FIXME: is it correct to abort
 					 * operation if control fails? */
 					rc = rs->sr_err;
@@ -1797,7 +1797,7 @@ ldif_back_modrdn( Operation *op, SlapReply *rs )
 				Debug( LDAP_DEBUG_ANY, "ldif_back_modify: "
 					"post-read failed \"%s\"\n",
 					entry->e_name.bv_val );
-				if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+				if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 					/* FIXME: is it correct to abort
 					 * operation if control fails? */
 					rc = rs->sr_err;

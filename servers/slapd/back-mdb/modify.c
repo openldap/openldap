@@ -701,7 +701,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_TRACE,
 				"<=- " LDAP_XSTRING(mdb_modify) ": pre-read "
 				"failed!\n" );
-			if ( op->o_preread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_preread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
 				goto return_results;
@@ -749,7 +749,7 @@ mdb_modify( Operation *op, SlapReply *rs )
 			Debug( LDAP_DEBUG_TRACE,
 				"<=- " LDAP_XSTRING(mdb_modify)
 				": post-read failed!\n" );
-			if ( op->o_postread & SLAP_CONTROL_CRITICAL ) {
+			if ( get_postread( op ) == SLAP_CONTROL_CRITICAL ) {
 				/* FIXME: is it correct to abort
 				 * operation if control fails? */
 				goto return_results;
