@@ -1147,7 +1147,6 @@ apply_modify_to_entry(
 	SlapReply *rs,
 	char *textbuf )
 {
-	int rc = modlist ? LDAP_UNWILLING_TO_PERFORM : LDAP_SUCCESS;
 	int is_oc = 0;
 	Modification *mods;
 
@@ -1155,92 +1154,8 @@ apply_modify_to_entry(
 		return LDAP_INSUFFICIENT_ACCESS;
 	}
 
-	for (; modlist != NULL; modlist = modlist->sml_next) {
-		mods = &modlist->sml_mod;
-
-		if ( mods->sm_desc == slap_schema.si_ad_objectClass ) {
-			is_oc = 1;
-		}
-		switch (mods->sm_op) {
-		case LDAP_MOD_ADD:
-			rc = modify_add_values(entry, mods,
-				   wants_permissiveModify(op),
-				   &rs->sr_text, textbuf,
-				   SLAP_TEXT_BUFLEN );
-			break;
-
-		case LDAP_MOD_DELETE:
-			rc = modify_delete_values(entry, mods,
-				wants_permissiveModify(op),
-				&rs->sr_text, textbuf,
-				SLAP_TEXT_BUFLEN );
-			break;
-
-		case LDAP_MOD_REPLACE:
-			rc = modify_replace_values(entry, mods,
-				 wants_permissiveModify(op),
-				 &rs->sr_text, textbuf,
-				 SLAP_TEXT_BUFLEN );
-			break;
-
-		case LDAP_MOD_INCREMENT:
-			rc = modify_increment_values( entry,
-				mods, wants_permissiveModify(op),
-				&rs->sr_text, textbuf,
-				SLAP_TEXT_BUFLEN );
-			break;
-
-		case SLAP_MOD_SOFTADD:
-			mods->sm_op = LDAP_MOD_ADD;
-			rc = modify_add_values(entry, mods,
-				   wants_permissiveModify(op),
-				   &rs->sr_text, textbuf,
-				   SLAP_TEXT_BUFLEN );
-			mods->sm_op = SLAP_MOD_SOFTADD;
-			if (rc == LDAP_TYPE_OR_VALUE_EXISTS) {
-				rc = LDAP_SUCCESS;
-			}
-			break;
-
-		case SLAP_MOD_SOFTDEL:
-			mods->sm_op = LDAP_MOD_DELETE;
-			rc = modify_delete_values(entry, mods,
-				   wants_permissiveModify(op),
-				   &rs->sr_text, textbuf,
-				   SLAP_TEXT_BUFLEN );
-			mods->sm_op = SLAP_MOD_SOFTDEL;
-			if (rc == LDAP_NO_SUCH_ATTRIBUTE) {
-				rc = LDAP_SUCCESS;
-			}
-			break;
-
-		case SLAP_MOD_ADD_IF_NOT_PRESENT:
-			if ( attr_find( entry->e_attrs, mods->sm_desc ) ) {
-				rc = LDAP_SUCCESS;
-				break;
-			}
-			mods->sm_op = LDAP_MOD_ADD;
-			rc = modify_add_values(entry, mods,
-				   wants_permissiveModify(op),
-				   &rs->sr_text, textbuf,
-				   SLAP_TEXT_BUFLEN );
-			mods->sm_op = SLAP_MOD_ADD_IF_NOT_PRESENT;
-			break;
-		}
-		if(rc != LDAP_SUCCESS) break;
-	}
-
-	if ( rc == LDAP_SUCCESS ) {
-		rs->sr_text = NULL; /* Needed at least with SLAP_MOD_SOFTADD */
-		if ( is_oc ) {
-			entry->e_ocflags = 0;
-		}
-		/* check that the entry still obeys the schema */
-		rc = entry_schema_check( op, entry, 0, 0, NULL,
-			  &rs->sr_text, textbuf, SLAP_TEXT_BUFLEN );
-	}
-
-	return rc;
+	return modify_entry( op, entry, modlist, wants_permissiveModify(op), 1,
+		&rs->sr_text, textbuf, SLAP_TEXT_BUFLEN );
 }
 
 
