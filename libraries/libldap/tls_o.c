@@ -1147,6 +1147,8 @@ tlso_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 		X509_NAME_ENTRY *ne;
 		ASN1_OBJECT *obj;
 		ASN1_STRING *cn = NULL;
+		char *cnstr;
+		int cnlen;
 		int navas;
 
 		/* find the last CN */
@@ -1174,22 +1176,25 @@ no_cn:
 			}
 			ld->ld_error = LDAP_STRDUP(
 				_("TLS: unable to get CN from peer certificate"));
+		} else {
+			cnlen = ASN1_STRING_length( cn );
+			cnstr = (char *)ASN1_STRING_get0_data( cn );
+			if ( cnlen == nlen &&
+				strncasecmp( name, (char *) cnstr, nlen ) == 0 ) {
+				ret = LDAP_SUCCESS;
 
-		} else if ( cn->length == nlen &&
-			strncasecmp( name, (char *) cn->data, nlen ) == 0 ) {
-			ret = LDAP_SUCCESS;
+			} else if (( cnstr[0] == '*' ) && ( cnstr[1] == '.' )) {
+				char *domain = strchr(name, '.');
+				if( domain ) {
+					int dlen;
 
-		} else if (( cn->data[0] == '*' ) && ( cn->data[1] == '.' )) {
-			char *domain = strchr(name, '.');
-			if( domain ) {
-				int dlen;
+					dlen = nlen - (domain-name);
 
-				dlen = nlen - (domain-name);
-
-				/* Is this a wildcard match? */
-				if ((dlen == cn->length-1) &&
-					!strncasecmp(domain, (char *) &cn->data[1], dlen)) {
-					ret = LDAP_SUCCESS;
+					/* Is this a wildcard match? */
+					if ((dlen == cnlen-1) &&
+						!strncasecmp(domain, cnstr+1, dlen)) {
+						ret = LDAP_SUCCESS;
+					}
 				}
 			}
 		}
@@ -1197,7 +1202,7 @@ no_cn:
 		if( ret == LDAP_LOCAL_ERROR ) {
 			Debug3( LDAP_DEBUG_ANY, "TLS: hostname (%s) does not match "
 				"common name in certificate (%.*s).\n", 
-				name, cn->length, cn->data );
+				name, cnlen, cnstr );
 			ret = LDAP_CONNECT_ERROR;
 			if ( ld->ld_error ) {
 				LDAP_FREE( ld->ld_error );
