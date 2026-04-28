@@ -66,8 +66,10 @@ Makefile
 /include/lber_types.h
 /include/ldap_config.h
 /include/ldap_features.h
+/include/lib*-config.h
 /include/portable.h
 libraries/libl*/*test
+libraries/libl*/*.map
 libraries/libl*/*.pc
 libraries/libldap/testavl
 libraries/liblunicode/ucdata.c
