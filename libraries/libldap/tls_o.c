@@ -194,8 +194,8 @@ tlso_ca_list( char * bundle, char * dir, X509 *cert )
 		ldap_charray_free( dirs );
 	}
 	if ( cert ) {
-		X509_NAME *xn = X509_get_subject_name( cert );
-		xn = X509_NAME_dup( xn );
+		const X509_NAME *cxn = X509_get_subject_name( cert );
+		X509_NAME *xn = X509_NAME_dup( cxn );
 		if ( !ca_list )
 			ca_list = sk_X509_NAME_new_null();
 		if ( xn && ca_list )
@@ -751,7 +751,7 @@ tlso_session_my_dn( tls_session *sess, struct berval *der_dn )
 {
 	tlso_session *s = (tlso_session *)sess;
 	X509 *x;
-	X509_NAME *xn;
+	const X509_NAME *xn;
 
 	x = SSL_get_certificate( s );
 
@@ -788,7 +788,7 @@ tlso_session_peer_dn( tls_session *sess, struct berval *der_dn )
 {
 	tlso_session *s = (tlso_session *)sess;
 	X509 *x = tlso_get_cert( s );
-	X509_NAME *xn;
+	const X509_NAME *xn;
 
 	if ( !x )
 		return LDAP_INVALID_CREDENTIALS;
@@ -864,7 +864,7 @@ tlso_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 		X509_EXTENSION *ex;
 		STACK_OF(GENERAL_NAME) *alt;
 
-		ex = X509_get_ext(x, i);
+		ex = (X509_EXTENSION *)X509_get_ext(x, i);
 		alt = X509V3_EXT_d2i(ex);
 		if (alt) {
 			int n, len2 = 0;
@@ -967,10 +967,12 @@ tlso_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 	}
 
 	if (ret != LDAP_SUCCESS) {
-		X509_NAME *xn;
-		X509_NAME_ENTRY *ne;
+		const X509_NAME *xn;
+		const X509_NAME_ENTRY *ne;
 		ASN1_OBJECT *obj;
-		ASN1_STRING *cn = NULL;
+		const ASN1_STRING *cn = NULL;
+		char *cnstr;
+		int cnlen;
 		int navas;
 
 		/* find the last CN */
@@ -998,22 +1000,25 @@ no_cn:
 			}
 			ld->ld_error = LDAP_STRDUP(
 				_("TLS: unable to get CN from peer certificate"));
+		} else {
+			cnlen = ASN1_STRING_length( cn );
+			cnstr = (char *)ASN1_STRING_get0_data( cn );
+			if ( cnlen == nlen &&
+				strncasecmp( name, (char *) cnstr, nlen ) == 0 ) {
+				ret = LDAP_SUCCESS;
 
-		} else if ( cn->length == nlen &&
-			strncasecmp( name, (char *) cn->data, nlen ) == 0 ) {
-			ret = LDAP_SUCCESS;
+			} else if (( cnstr[0] == '*' ) && ( cnstr[1] == '.' )) {
+				char *domain = strchr(name, '.');
+				if( domain ) {
+					int dlen;
 
-		} else if (( cn->data[0] == '*' ) && ( cn->data[1] == '.' )) {
-			char *domain = strchr(name, '.');
-			if( domain ) {
-				int dlen;
+					dlen = nlen - (domain-name);
 
-				dlen = nlen - (domain-name);
-
-				/* Is this a wildcard match? */
-				if ((dlen == cn->length-1) &&
-					!strncasecmp(domain, (char *) &cn->data[1], dlen)) {
-					ret = LDAP_SUCCESS;
+					/* Is this a wildcard match? */
+					if ((dlen == cnlen-1) &&
+						!strncasecmp(domain, cnstr+1, dlen)) {
+						ret = LDAP_SUCCESS;
+					}
 				}
 			}
 		}
@@ -1021,7 +1026,7 @@ no_cn:
 		if( ret == LDAP_LOCAL_ERROR ) {
 			Debug3( LDAP_DEBUG_ANY, "TLS: hostname (%s) does not match "
 				"common name in certificate (%.*s).\n", 
-				name, cn->length, cn->data );
+				name, cnlen, cnstr );
 			ret = LDAP_CONNECT_ERROR;
 			if ( ld->ld_error ) {
 				LDAP_FREE( ld->ld_error );
@@ -1561,8 +1566,8 @@ tlso_verify_cb( int ok, X509_STORE_CTX *ctx )
 	X509 *cert;
 	int errnum;
 	int errdepth;
-	X509_NAME *subject;
-	X509_NAME *issuer;
+	const X509_NAME *subject;
+	const X509_NAME *issuer;
 	char *sname;
 	char *iname;
 	char *certerr = NULL;
