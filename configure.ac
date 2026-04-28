@@ -2057,7 +2057,6 @@ dnl ----------------------------------------------------------------
 dnl
 dnl Check for systemd (only if we have a server)
 dnl
-systemdsystemunitdir=
 if test $ol_enable_slapd = no && test $ol_enable_balancer != yes ; then
 	if test $ol_with_systemd != no ; then
 		AC_MSG_WARN([servers disabled, ignoring --with-systemd=$ol_with_systemd argument])
@@ -2082,6 +2081,8 @@ if test $ol_with_systemd = yes ; then
 			systemdsystemunitdir=/lib/systemd/system
 		fi
 	fi
+else
+	systemdsystemunitdir=
 fi
 AC_SUBST(systemdsystemunitdir)
 
