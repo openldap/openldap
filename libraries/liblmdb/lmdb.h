@@ -136,7 +136,7 @@
  *
  *	@author	Howard Chu, Symas Corporation.
  *
- *	@copyright Copyright 2011-2021 Howard Chu, Symas Corp. All rights reserved.
+ *	@copyright Copyright 2011-2026 Howard Chu, Symas Corp. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted only as authorized by the OpenLDAP
@@ -230,11 +230,11 @@ typedef int mdb_filehandle_t;
  *	@{
  */
 /** Library major version */
-#define MDB_VERSION_MAJOR	0
+#define MDB_VERSION_MAJOR	1
 /** Library minor version */
-#define MDB_VERSION_MINOR	9
+#define MDB_VERSION_MINOR	0
 /** Library patch version */
-#define MDB_VERSION_PATCH	90
+#define MDB_VERSION_PATCH	0
 
 /** Combine args a,b,c into a single integer for easy version comparisons */
 #define MDB_VERINT(a,b,c)	(((a) << 24) | ((b) << 16) | (c))
@@ -244,7 +244,7 @@ typedef int mdb_filehandle_t;
 	MDB_VERINT(MDB_VERSION_MAJOR,MDB_VERSION_MINOR,MDB_VERSION_PATCH)
 
 /** The release date of this library version */
-#define MDB_VERSION_DATE	"May 1, 2017"
+#define MDB_VERSION_DATE	"April 28, 2026"
 
 /** A stringifier for the version info */
 #define MDB_VERSTR(a,b,c,d)	"LMDB " #a "." #b "." #c ": (" d ")"
