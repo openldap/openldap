@@ -116,6 +116,7 @@ LDAP_SLAPD_F (void) connections_walk( ldap_pvt_thread_mutex_t *cq_mutex, lload_c
 LDAP_SLAPD_F (LloadListener *) lload_configure_listener( const char *url, LDAPURLDesc *lud );
 LDAP_SLAPD_F (int) lload_open_new_listener( LloadListener *lr );
 LDAP_SLAPD_F (int) lloadd_listeners_init( const char *urls );
+LDAP_SLAPD_F (void) lloadd_listeners_destroy( void );
 LDAP_SLAPD_F (int) lloadd_daemon_destroy( void );
 LDAP_SLAPD_F (int) lloadd_daemon( struct event_base *daemon_base );
 LDAP_SLAPD_F (LloadListener **) lloadd_get_listeners( void );

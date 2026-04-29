@@ -112,10 +112,15 @@ lload_global_destroy( void )
         ch_free( lloadd_identity.bv_val );
         BER_BVZERO( &lloadd_identity );
     }
+    lload_bindconf_free( &bindconf );
 
     lload_exop_destroy();
     ldap_tavl_free( lload_control_actions, (AVL_FREE)lload_restriction_free );
     ldap_tavl_free( lload_exop_actions, (AVL_FREE)lload_restriction_free );
+
+    lloadd_listeners_destroy();
+    /* All closed at shutdown but tools don't go through shutdown */
+    lload_tiers_destroy();
 
 #ifdef HAVE_TLS
     if ( lload_tls_backend_ld ) {
