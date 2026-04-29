@@ -89,7 +89,7 @@ static char *v2ref( BerVarray ref, const char *text )
 		}
 	}
 	
-	if ( text != NULL ) {
+	if ( text != NULL && *text != '\0' ) {
 		len = strlen( text );
 		if (text[len-1] != '\n') {
 		    i = 1;
@@ -107,7 +107,8 @@ static char *v2ref( BerVarray ref, const char *text )
 	strcpy( v2+len, "Referral:" );
 	len += sizeof("Referral:");
 
-	for( i=0; ref[i].bv_val != NULL; i++ ) {
+	for( i=0; !BER_BVISNULL( &ref[i] ) ; i++ ) {
+		if ( BER_BVISEMPTY( &ref[i] ) ) continue;
 		v2 = ch_realloc( v2, len + ref[i].bv_len + 1 );
 		v2[len-1] = '\n';
 		AC_MEMCPY(&v2[len], ref[i].bv_val, ref[i].bv_len );
