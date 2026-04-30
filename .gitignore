@@ -119,3 +119,4 @@ tests/schema
 tests/testdata
 tests/testrun
 tests/run
+tests/junit*

@@ -36,6 +36,7 @@ fi
 
 echo ">>>>> $(timer) Executing all LDAP tests for the Load Balancer"
 
+junit_setup "lloadd+$BACKEND"
 if [ -n "$NOEXIT" ]; then
     echo "Result    Test" > $TESTWD/results
 fi
@@ -62,23 +63,44 @@ for CMD in $SRCDIR/scripts/lloadd/test*; do
         [ -n "$TESTINST" ] && echo "$MSG" >&2
         echo "$MSG"
         START=`date +%s`
-        if [ -n "$TESTINST" ]; then
+        if [ -n "$JUNIT_OUTPUT" ]; then
+            # capture the output so we can paste it into the report
+            { $CMD 2>&1; echo $? > "$JUNIT_RC"; } | tee "$JUNIT_LOG"
+            RC=`cat "$JUNIT_RC"`
+        elif [ -n "$TESTINST" ]; then
             $CMD 2>&1
+            RC=$?
         else
             $CMD
+            RC=$?
         fi
-        RC=$?
         END=`date +%s`
 
         if test $RC -eq 0 ; then
             MSG=">>>>> $(timer) Finished $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds."
             [ -n "$TESTINST" ] && echo "$MSG" >&2
             echo "$MSG"
+            if [ -n "$JUNIT_OUTPUT" ]; then
+                printf '\t<testcase classname="%s" name="%s" time="%d"/>\n' \
+                    "$BACKEND" "$BCMD" "$(( $END - $START ))" \
+                    >> "$JUNIT_TMP"
+            fi
         else
             MSG=">>>>> $(timer) Failed   $BCMD for lloadd+$BACKEND after $(( $END - $START )) seconds"
             [ -n "$TESTINST" ] && echo "$MSG" >&2
             echo "$MSG"
             FAILCOUNT=`expr $FAILCOUNT + 1`
+
+            if [ -n "$JUNIT_OUTPUT" ]; then
+                {
+                    printf '\t<testcase classname="%s" name="%s" time="%d">\n' \
+                        "$BACKEND" "$BCMD" "$(( $END - $START ))"
+                    printf '\t\t<failure message="exited with %s">' "$RC"
+                    xml_escape < "$JUNIT_LOG"
+                    echo '		</failure>'
+                    echo '	</testcase>'
+                } >> "$JUNIT_TMP"
+            fi
 
             if [ -n "$NOEXIT" ]; then
                 echo "Continuing."
@@ -93,6 +115,14 @@ for CMD in $SRCDIR/scripts/lloadd/test*; do
         echo "$MSG"
         SKIPCOUNT=`expr $SKIPCOUNT + 1`
         RC="-"
+        if [ -n "$JUNIT_OUTPUT" ]; then
+            {
+                printf '\t<testcase classname="%s" name="%s" time="0">\n' \
+                    "$BACKEND" "$BCMD"
+                echo '		<skipped/>'
+                echo '	</testcase>'
+            } >> "$JUNIT_TMP"
+        fi
     fi
 
     if [ -n "$NOEXIT" ]; then
