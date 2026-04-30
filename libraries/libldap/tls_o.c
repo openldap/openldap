@@ -198,8 +198,8 @@ tlso_ca_list( char * bundle, char * dir, X509 *cert, STACK_OF(X509_NAME) *ca_lis
 		ldap_charray_free( dirs );
 	}
 	if ( cert ) {
-		X509_NAME *xn = X509_get_subject_name( cert );
-		xn = X509_NAME_dup( xn );
+		const X509_NAME *cxn = X509_get_subject_name( cert );
+		X509_NAME *xn = X509_NAME_dup( cxn );
 		if ( xn && ca_list ) {
 			sk_X509_NAME_push( ca_list, xn );
 		}
@@ -924,7 +924,7 @@ tlso_session_my_dn( tls_session *sess, struct berval *der_dn )
 {
 	tlso_session *s = (tlso_session *)sess;
 	X509 *x;
-	X509_NAME *xn;
+	const X509_NAME *xn;
 
 	x = SSL_get_certificate( s );
 
@@ -961,7 +961,7 @@ tlso_session_peer_dn( tls_session *sess, struct berval *der_dn )
 {
 	tlso_session *s = (tlso_session *)sess;
 	X509 *x = tlso_get_cert( s );
-	X509_NAME *xn;
+	const X509_NAME *xn;
 
 	if ( !x )
 		return LDAP_INVALID_CREDENTIALS;
@@ -1037,7 +1037,7 @@ tlso_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 	if (chkSAN) {
 	i = X509_get_ext_by_NID(x, NID_subject_alt_name, -1);
 	if (i >= 0) {
-		X509_EXTENSION *ex;
+		const X509_EXTENSION *ex;
 		STACK_OF(GENERAL_NAME) *alt;
 
 		ex = X509_get_ext(x, i);
@@ -1143,10 +1143,10 @@ tlso_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 	}
 
 	if (ret != LDAP_SUCCESS) {
-		X509_NAME *xn;
-		X509_NAME_ENTRY *ne;
+		const X509_NAME *xn;
+		const X509_NAME_ENTRY *ne;
 		ASN1_OBJECT *obj;
-		ASN1_STRING *cn = NULL;
+		const ASN1_STRING *cn = NULL;
 		char *cnstr;
 		int cnlen;
 		int navas;
@@ -1742,8 +1742,8 @@ tlso_verify_cb( int ok, X509_STORE_CTX *ctx )
 	X509 *cert;
 	int errnum;
 	int errdepth;
-	X509_NAME *subject;
-	X509_NAME *issuer;
+	const X509_NAME *subject;
+	const X509_NAME *issuer;
 	char *sname;
 	char *iname;
 	char *certerr = NULL;

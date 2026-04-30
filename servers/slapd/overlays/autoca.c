@@ -44,8 +44,12 @@
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000
 #include <openssl/rsa.h>
+#ifndef X509_get_notBefore
 #define X509_get_notBefore(x)	X509_getm_notBefore(x)
+#endif
+#ifndef X509_get_notAfter
 #define X509_get_notAfter(x)	X509_getm_notAfter(x)
+#endif
 #endif
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -272,7 +276,8 @@ typedef struct genargs {
 
 static int autoca_gencert( Operation *op, genargs *args )
 {
-	X509_NAME *subj_name, *issuer_name;
+	X509_NAME *subj_name;
+	const X509_NAME *issuer_name;
 	X509 *subj_cert;
 	struct berval derdn;
 	unsigned char *pp;
