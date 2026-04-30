@@ -49,6 +49,8 @@ build-openssl-heimdal-lloadd:
       - obj/tests/testrun/
       - obj/servers/
       - obj/libraries/
+    reports:
+      junit: obj/tests/junit*.xml
 
 build-gnutls-mit-standalone-lloadd:
   stage: build
@@ -75,6 +77,8 @@ build-gnutls-mit-standalone-lloadd:
       - obj/tests/testrun/
       - obj/servers/
       - obj/libraries/
+    reports:
+      junit: obj/tests/junit*.xml
 
 build-mbedtls-mit-lloadd:
   image: "debian:testing"
@@ -102,3 +106,5 @@ build-mbedtls-mit-lloadd:
       - obj/tests/testrun/
       - obj/servers/
       - obj/libraries/
+    reports:
+      junit: obj/tests/junit*.xml
