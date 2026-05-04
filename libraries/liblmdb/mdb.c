@@ -3645,7 +3645,7 @@ mdb_txn_id(MDB_txn *txn)
 int mdb_txn_flags(MDB_txn *txn, unsigned int *flags)
 {
 	if(!txn) return EINVAL;
-	flags = txn->mt_flags & MDB_RDONLY;
+	*flags = txn->mt_flags & MDB_RDONLY;
 	return MDB_SUCCESS;
 }
 
