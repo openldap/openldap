@@ -3638,15 +3638,15 @@ mdb_txn_env(MDB_txn *txn)
 mdb_size_t
 mdb_txn_id(MDB_txn *txn)
 {
-    if(!txn) return 0;
-    return txn->mt_txnid;
+	if(!txn) return 0;
+	return txn->mt_txnid;
 }
 
 int mdb_txn_flags(MDB_txn *txn, unsigned int *flags)
 {
-    if(!txn) return EINVAL;
-    *flags = txn->mt_flags & MDB_RDONLY;
-    return MDB_SUCCESS;
+	if(!txn) return EINVAL;
+	flags = txn->mt_flags & MDB_RDONLY;
+	return MDB_SUCCESS;
 }
 
 /** Export or close DBI handles opened in this txn. */
@@ -4330,9 +4330,9 @@ bad_write:
 	}
 #endif	/* _WIN32 */
 
-    if (!(env->me_flags & MDB_WRITEMAP)) {
-        /* Don't free pages when using writemap (can only get here in NOSYNC mode in Windows)
-         */
+	if (!(env->me_flags & MDB_WRITEMAP)) {
+		/* Don't free pages when using writemap (can only get here in NOSYNC mode in Windows)
+		 */
 		for (i = keep; ++i <= pagecount; ) {
 			dp = dl[i].mptr;
 			/* This is a page we skipped above */
@@ -7726,7 +7726,7 @@ mdb_node_read(MDB_cursor *mc, MDB_node *leaf, MDB_val *data)
 
 int
 mdb_get(MDB_txn *txn, MDB_dbi dbi,
-    MDB_val *key, MDB_val *data)
+	MDB_val *key, MDB_val *data)
 {
 	MDB_cursor	mc;
 	MDB_xcursor	mx;
@@ -7991,7 +7991,7 @@ mdb_cursor_prev(MDB_cursor *mc, MDB_val *key, MDB_val *data, MDB_cursor_op op)
 /** Set the cursor on a specific data item. */
 static int
 mdb_cursor_set(MDB_cursor *mc, MDB_val *key, MDB_val *data,
-    MDB_cursor_op op, int *exactp)
+	MDB_cursor_op op, int *exactp)
 {
 	int		 rc;
 	MDB_page	*mp;
@@ -8280,7 +8280,7 @@ mdb_cursor_last(MDB_cursor *mc, MDB_val *key, MDB_val *data)
 
 int
 mdb_cursor_get(MDB_cursor *mc, MDB_val *key, MDB_val *data,
-    MDB_cursor_op op)
+	MDB_cursor_op op)
 {
 	int		 rc;
 	int		 exact = 0;
@@ -8513,7 +8513,7 @@ mdb_subdb_adjust(MDB_cursor *mc, MDB_db *old, MDB_db *new)
 
 static int
 _mdb_cursor_put(MDB_cursor *mc, MDB_val *key, MDB_val *data,
-    unsigned int flags)
+	unsigned int flags)
 {
 	MDB_env		*env;
 	MDB_node	*leaf = NULL;
@@ -9055,7 +9055,7 @@ bad_sub:
 
 int
 mdb_cursor_put(MDB_cursor *mc, MDB_val *key, MDB_val *data,
-    unsigned int flags)
+	unsigned int flags)
 {
 	DKBUF;
 	DDBUF;
@@ -9282,7 +9282,7 @@ mdb_branch_size(MDB_env *env, MDB_val *key)
  */
 static int
 mdb_node_add(MDB_cursor *mc, indx_t indx,
-    MDB_val *key, MDB_val *data, pgno_t pgno, unsigned int flags)
+	MDB_val *key, MDB_val *data, pgno_t pgno, unsigned int flags)
 {
 	unsigned int	 i;
 	size_t		 node_size = NODESIZE;
@@ -10564,7 +10564,7 @@ fail:
 
 int
 mdb_del(MDB_txn *txn, MDB_dbi dbi,
-    MDB_val *key, MDB_val *data)
+	MDB_val *key, MDB_val *data)
 {
 	DKBUF;
 	DDBUF;
@@ -11061,7 +11061,7 @@ done:
 
 int
 mdb_put(MDB_txn *txn, MDB_dbi dbi,
-    MDB_val *key, MDB_val *data, unsigned int flags)
+	MDB_val *key, MDB_val *data, unsigned int flags)
 {
 	MDB_cursor mc;
 	MDB_xcursor mx;
