@@ -557,7 +557,7 @@ tlso_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char *
 						if ( is_server ) {
 							STACK_OF(X509_NAME) *ca_list = SSL_CTX_get_client_CA_list( ctx );
 							if ( ca_list ) {
-								X509_NAME *xn = X509_get_subject_name( cert );
+								X509_NAME *xn = (X509_NAME *)X509_get_subject_name( cert );
 								if ( xn )
 									xn = X509_NAME_dup( xn );
 								if ( xn )
@@ -1037,10 +1037,10 @@ tlso_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 	if (chkSAN) {
 	i = X509_get_ext_by_NID(x, NID_subject_alt_name, -1);
 	if (i >= 0) {
-		const X509_EXTENSION *ex;
+		X509_EXTENSION *ex;
 		STACK_OF(GENERAL_NAME) *alt;
 
-		ex = X509_get_ext(x, i);
+		ex = (X509_EXTENSION *)X509_get_ext(x, i);
 		alt = X509V3_EXT_d2i(ex);
 		if (alt) {
 			int n, len2 = 0;
