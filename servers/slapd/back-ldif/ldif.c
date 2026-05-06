@@ -390,7 +390,7 @@ static const ber_uint_t crctab[256] = {
 
 #define CRC1	crc = crctab[(crc ^ *buf++) & 0xff] ^ (crc >> 8)
 #define CRC8	CRC1; CRC1; CRC1; CRC1; CRC1; CRC1; CRC1; CRC1
-unsigned int
+static unsigned int
 crc32(const void *vbuf, int len)
 {
 	const unsigned char	*buf = vbuf;
