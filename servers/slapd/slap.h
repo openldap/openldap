@@ -1221,6 +1221,8 @@ struct Entry {
 	/* for use by the backend for any purpose */
 	void*	e_private;
 };
+#define SLAP_ENTRY_SCHEMA_CHECK 0x0001
+#define SLAP_ENTRY_SKIP_DYNAMIC 0x0002
 
 /*
  * A list of LDAPMods

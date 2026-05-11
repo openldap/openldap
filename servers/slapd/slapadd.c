@@ -74,7 +74,7 @@ typedef struct Trec {
 
 static Trec trec;
 static unsigned long sid = SLAP_SYNC_SID_MAX + 1;
-static int checkvals;
+static int flags;
 static int enable_meter;
 static lutil_meter_t meter;
 static const char *progname = "slapadd";
@@ -121,7 +121,7 @@ again:
 			prev_DN_strict = slap_DN_strict;
 			slap_DN_strict = 0;
 		}
-		e = str2entry2( buf, checkvals );
+		e = str2entry2( buf, flags );
 		if ( !dbnum ) {
 			slap_DN_strict = prev_DN_strict;
 		}
@@ -403,7 +403,10 @@ slapadd( int argc, char **argv )
 		}
 	}
 
-	checkvals = (slapMode & SLAP_TOOL_QUICK) ? 0 : 1;
+	flags = SLAP_ENTRY_SKIP_DYNAMIC;
+	if ( !(slapMode & SLAP_TOOL_QUICK) ) {
+		flags |= SLAP_ENTRY_SCHEMA_CHECK;
+	}
 
 	/* do not check values in quick mode */
 	if ( slapMode & SLAP_TOOL_QUICK ) {
