@@ -97,13 +97,13 @@ entry_init(void)
 Entry *
 str2entry( char *s )
 {
-	return str2entry2( s, 1 );
+	return str2entry2( s, SLAP_ENTRY_SCHEMA_CHECK );
 }
 
 #define bvcasematch(bv1, bv2)	(ber_bvstrcasecmp(bv1, bv2) == 0)
 
 Entry *
-str2entry2( char *s, int checkvals )
+str2entry2( char *s, int flags )
 {
 	int rc;
 	Entry		*e;
@@ -212,7 +212,7 @@ str2entry2( char *s, int checkvals )
 	}
 
 	/* Make sure all attributes with multiple values are contiguous */
-	if ( checkvals ) {
+	if ( flags & SLAP_ENTRY_SCHEMA_CHECK ) {
 		int j, k;
 		struct berval bv;
 		int fv;
@@ -273,6 +273,11 @@ str2entry2( char *s, int checkvals )
 						ad->ad_type->sat_syntax->ssyn_oid );
 					goto fail;
 				}
+
+				if ( (flags & SLAP_ENTRY_SKIP_DYNAMIC) && \
+						(ad->ad_type->sat_flags & SLAP_AT_DYNAMIC) ) {
+					continue;
+				}
 			}
 	
 			if (( ad_prev && ad != ad_prev ) || ( i == lines )) {
@@ -289,7 +294,8 @@ str2entry2( char *s, int checkvals )
 					a->a_nvals = NULL;
 				} else {
 					/* Duplicate attribute detected */
-					if ( checkvals && is_at_single_value( ad->ad_type ) ) {
+					if ( (flags & SLAP_ENTRY_SCHEMA_CHECK) && \
+							is_at_single_value( ad->ad_type ) ) {
 						Debug( LDAP_DEBUG_ANY,
 							"str2entry: single-value attributeType %s "
 							"presented under multiple names\n",
