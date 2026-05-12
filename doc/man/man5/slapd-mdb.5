@@ -216,6 +216,15 @@ allocations can have a major negative impact on server performance,
 but specifying too much stack will also consume a great deal of memory.
 Each search stack uses 512K bytes per level. The default stack depth
 is 16, thus 8MB per thread is used.
+.TP
+.BI crypto \ <module>
+Load an encryption module to use for encrypting the database. The
+LMDB source code includes an example encryption module. By default
+there is no encryption.
+.TP
+.BI passphrase \ <pass>
+The passphrase to use for encrypting the database. The \fBcrypto\fP
+module must also be configured.
 .SH ACCESS CONTROL
 The 
 .B mdb
