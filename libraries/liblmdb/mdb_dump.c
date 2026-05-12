@@ -21,10 +21,13 @@
 #include "lmdb.h"
 
 #ifdef _WIN32
-#define Z	"I"
+#include <windows.h>
+#define	MDB_STDOUT	GetStdHandle(STD_OUTPUT_HANDLE)
 #else
-#define Z	"z"
+#define	MDB_STDOUT	1
 #endif
+
+#define Yu	MDB_PRIy(u)
 
 #define PRINT	1
 static int mode;
@@ -80,7 +83,7 @@ static void text(MDB_val *v)
 	putchar('\n');
 }
 
-static void byte(MDB_val *v)
+static void dobyte(MDB_val *v)
 {
 	unsigned char *c, *end;
 
@@ -117,7 +120,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 	if (name)
 		printf("database=%s\n", name);
 	printf("type=btree\n");
-	printf("mapsize=%" Z "u\n", info.me_mapsize);
+	printf("mapsize=%"Yu"\n", info.me_mapsize);
 	if (info.me_mapaddr)
 		printf("mapaddr=%p\n", info.me_mapaddr);
 	printf("maxreaders=%u\n", info.me_maxreaders);
@@ -135,7 +138,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 	rc = mdb_cursor_open(txn, dbi, &mc);
 	if (rc) return rc;
 
-	while ((rc = mdb_cursor_get(mc, &key, &data, MDB_NEXT) == MDB_SUCCESS)) {
+	while ((rc = mdb_cursor_get(mc, &key, &data, MDB_NEXT)) == MDB_SUCCESS) {
 		if (gotsig) {
 			rc = EINTR;
 			break;
@@ -144,8 +147,8 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 			text(&key);
 			text(&data);
 		} else {
-			byte(&key);
-			byte(&data);
+			dobyte(&key);
+			dobyte(&data);
 		}
 	}
 	printf("DATA=END\n");
@@ -157,7 +160,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 
 static void usage(char *prog)
 {
-	fprintf(stderr, "usage: %s [-V] [-f output] [-l] [-n] [-p] [-a|-s subdb] dbpath\n", prog);
+	fprintf(stderr, "usage: %s [-V] [-f output] [-i txnid] [-l] [-n] [-L] [-p] [-v] [-m module [-w password]] [-a|-s subdb] dbpath\n", prog);
 	exit(EXIT_FAILURE);
 }
 
@@ -168,23 +171,29 @@ int main(int argc, char *argv[])
 	MDB_txn *txn;
 	MDB_dbi dbi;
 	char *prog = argv[0];
-	char *envname;
+	char *envname, *outname = NULL;
 	char *subname = NULL;
+	size_t txnid = 0;
 	int alldbs = 0, envflags = 0, list = 0;
+	char *module = NULL, *password = NULL, *errmsg;
+	void *mlm = NULL;
 
 	if (argc < 2) {
 		usage(prog);
 	}
 
-	/* -a: dump main DB and all subDBs
+	/* -a: dump all subDBs
 	 * -s: dump only the named subDB
 	 * -n: use NOSUBDIR flag on env_open
+	 * -n: use NOLOCK flag on env_open
 	 * -p: use printable characters
 	 * -f: write to file instead of stdout
+	 * -i: do incremental dump from txnid
+	 * -v: use previous snapshot
 	 * -V: print version and exit
 	 * (default) dump only the main DB
 	 */
-	while ((i = getopt(argc, argv, "af:lnps:V")) != EOF) {
+	while ((i = getopt(argc, argv, "af:i:lm:nLps:vw:V")) != EOF) {
 		switch(i) {
 		case 'V':
 			printf("%s\n", MDB_VERSION_STRING);
@@ -199,14 +208,23 @@ int main(int argc, char *argv[])
 			alldbs++;
 			break;
 		case 'f':
-			if (freopen(optarg, "w", stdout) == NULL) {
-				fprintf(stderr, "%s: %s: reopen: %s\n",
+			outname = optarg;
+			break;
+		case 'i':
+			if (sscanf(optarg, "%" Yu "i", &txnid) != 1 || !txnid) {
+				fprintf(stderr, "%s: %s: invalid txnid: %s\n",
 					prog, optarg, strerror(errno));
 				exit(EXIT_FAILURE);
 			}
 			break;
 		case 'n':
 			envflags |= MDB_NOSUBDIR;
+			break;
+		case 'v':
+			envflags |= MDB_PREVSNAPSHOT;
+			break;
+		case 'L':
+			envflags |= MDB_NOLOCK;
 			break;
 		case 'p':
 			mode |= PRINT;
@@ -215,6 +233,12 @@ int main(int argc, char *argv[])
 			if (alldbs)
 				usage(prog);
 			subname = optarg;
+			break;
+		case 'm':
+			module = optarg;
+			break;
+		case 'w':
+			password = optarg;
 			break;
 		default:
 			usage(prog);
@@ -240,6 +264,16 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	if (module) {
+		MDB_crypto_funcs *mcf;
+		mlm = mdb_modload(module, NULL, &mcf, &errmsg);
+		if (!mlm) {
+			fprintf(stderr, "Failed to load crypto module: %s\n", errmsg);
+			goto env_close;
+		}
+		mdb_modsetup(env, mcf, password);
+	}
+
 	if (alldbs || subname) {
 		mdb_env_set_maxdbs(env, 2);
 	}
@@ -250,15 +284,31 @@ int main(int argc, char *argv[])
 		goto env_close;
 	}
 
+	if (txnid) {
+		if (outname)
+			rc = mdb_env_incr_dump(env, outname, txnid);
+		else
+			rc = mdb_env_incr_dumpfd(env, MDB_STDOUT, txnid);
+		if (rc)
+			fprintf(stderr, "mdb_env_incr_dump failed, error %d %s\n", rc, mdb_strerror(rc));
+		goto env_close;
+	}
+
+	if (outname && freopen(outname, "w", stdout) == NULL) {
+		fprintf(stderr, "%s: %s: reopen: %s\n",
+			prog, outname, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
 	rc = mdb_txn_begin(env, NULL, MDB_RDONLY, &txn);
 	if (rc) {
 		fprintf(stderr, "mdb_txn_begin failed, error %d %s\n", rc, mdb_strerror(rc));
 		goto env_close;
 	}
 
-	rc = mdb_open(txn, subname, 0, &dbi);
+	rc = mdb_dbi_open(txn, subname, 0, &dbi);
 	if (rc) {
-		fprintf(stderr, "mdb_open failed, error %d %s\n", rc, mdb_strerror(rc));
+		fprintf(stderr, "mdb_dbi_open failed, error %d %s\n", rc, mdb_strerror(rc));
 		goto txn_abort;
 	}
 
@@ -273,27 +323,22 @@ int main(int argc, char *argv[])
 			goto txn_abort;
 		}
 		while ((rc = mdb_cursor_get(cursor, &key, NULL, MDB_NEXT_NODUP)) == 0) {
-			char *str;
 			MDB_dbi db2;
-			if (memchr(key.mv_data, '\0', key.mv_size))
+			if (!mdb_cursor_is_db(cursor))
 				continue;
 			count++;
-			str = malloc(key.mv_size+1);
-			memcpy(str, key.mv_data, key.mv_size);
-			str[key.mv_size] = '\0';
-			rc = mdb_open(txn, str, 0, &db2);
+			rc = mdb_dbi_open(txn, key.mv_data, 0, &db2);
 			if (rc == MDB_SUCCESS) {
 				if (list) {
-					printf("%s\n", str);
+					printf("%s\n", (char *)key.mv_data);
 					list++;
 				} else {
-					rc = dumpit(txn, db2, str);
+					rc = dumpit(txn, db2, key.mv_data);
 					if (rc)
 						break;
 				}
-				mdb_close(env, db2);
+				mdb_dbi_close(env, db2);
 			}
-			free(str);
 			if (rc) continue;
 		}
 		mdb_cursor_close(cursor);
@@ -314,6 +359,8 @@ txn_abort:
 	mdb_txn_abort(txn);
 env_close:
 	mdb_env_close(env);
+	if (mlm)
+		mdb_modunload(mlm);
 
 	return rc ? EXIT_FAILURE : EXIT_SUCCESS;
 }

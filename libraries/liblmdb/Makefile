@@ -8,7 +8,7 @@
 # platforms; you should not need to change any of these.
 # Read their descriptions in mdb.c if you do:
 #
-# - MDB_USE_POSIX_SEM
+# - MDB_USE_POSIX_MUTEX, MDB_USE_POSIX_SEM, MDB_USE_SYSV_SEM
 # - MDB_DSYNC
 # - MDB_FDATASYNC
 # - MDB_FDATASYNC_WORKS
@@ -24,9 +24,18 @@ W	= -W -Wall -Wno-unused-parameter -Wbad-function-cast -Wuninitialized
 THREADS = -pthread
 OPT = -O2 -g
 CFLAGS	= $(THREADS) $(OPT) $(W) $(XCFLAGS)
-LDLIBS	=
-SOLIBS	=
+LDFLAGS = $(THREADS)
+LDLIBS	= 
+SOLIBS	= 
 SOEXT	= .so
+LDL		= -ldl
+
+LIBVER	= 1
+ABIVER	= 0
+VEREXT	= $(LIBVER).$(ABIVER)
+LMDB_VERSION	= 1.0.0
+SOFULL	= $(SOEXT).$(VEREXT)
+
 prefix	= /usr/local
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
@@ -38,11 +47,20 @@ mandir = $(datarootdir)/man
 ########################################################################
 
 IHDRS	= lmdb.h
-ILIBS	= liblmdb.a liblmdb$(SOEXT)
-IPROGS	= mdb_stat mdb_copy mdb_dump mdb_load
-IDOCS	= mdb_stat.1 mdb_copy.1 mdb_dump.1 mdb_load.1
+ILIBS	= liblmdb.a
+ILIBS2	= liblmdb$(SOFULL)
+IPROGS	= mdb_stat mdb_copy mdb_dump mdb_load mdb_drop
+IDOCS	= mdb_stat.1 mdb_copy.1 mdb_dump.1 mdb_load.1 mdb_drop.1
 PROGS	= $(IPROGS) mtest mtest2 mtest3 mtest4 mtest5
-all:	$(ILIBS) $(PROGS)
+RPROGS	= mtest_remap mtest_enc mtest_enc2
+SOVER	= liblmdb$(SOEXT).$(LIBVER)
+VERSION_OPT	= -Wl,-soname,$(SOVER)
+# For MacOSX:
+#VERSION_OPT	= -Wl,-current_version,$(VEREXT)
+
+all:	$(ILIBS) $(ILIBS2) $(PROGS) lmdb.pc
+# Requires CPPFLAGS=-DMDB_VL32 and/or -DMDB_RPAGE_CACHE
+rall:	all $(RPROGS)
 
 install: $(ILIBS) $(IPROGS) $(IHDRS)
 	mkdir -p $(DESTDIR)$(bindir)
@@ -51,34 +69,55 @@ install: $(ILIBS) $(IPROGS) $(IHDRS)
 	mkdir -p $(DESTDIR)$(mandir)/man1
 	for f in $(IPROGS); do cp $$f $(DESTDIR)$(bindir); done
 	for f in $(ILIBS); do cp $$f $(DESTDIR)$(libdir); done
+	for f in $(ILIBS2); do cp $$f $(DESTDIR)$(libdir); \
+		i=`basename -s .$(ABIVER) $$f`; rm -f $(DESTDIR)$(libdir)/$$i; \
+		ln -s $$f $(DESTDIR)$(libdir)/$$i; \
+		i=`basename -s .$(LIBVER) $$i`; rm -f $(DESTDIR)$(libdir)/$$i; \
+		ln -s $$f $(DESTDIR)$(libdir)/$$i; done
 	for f in $(IHDRS); do cp $$f $(DESTDIR)$(includedir); done
 	for f in $(IDOCS); do cp $$f $(DESTDIR)$(mandir)/man1; done
 
 clean:
-	rm -rf $(PROGS) *.[ao] *.[ls]o *~ testdb
+	rm -rf $(PROGS) $(RPROGS) *.[ao] *.[ls]o *.so.* *~ testdb
 
 test:	all
 	rm -rf testdb && mkdir testdb
 	./mtest && ./mdb_stat testdb
 
-liblmdb.a:	mdb.o midl.o
-	$(AR) rs $@ mdb.o midl.o
+liblmdb.a:	mdb.o midl.o module.o
+	$(AR) rs $@ mdb.o midl.o module.o
 
-liblmdb$(SOEXT):	mdb.lo midl.lo
+liblmdb$(SOFULL):	mdb.lo midl.lo module.lo
 #	$(CC) $(LDFLAGS) -pthread -shared -Wl,-Bsymbolic -o $@ mdb.o midl.o $(SOLIBS)
-	$(CC) $(LDFLAGS) -pthread -shared -o $@ mdb.lo midl.lo $(SOLIBS)
+	$(CC) $(LDFLAGS) -shared $(VERSION_OPT) -o $@ mdb.lo midl.lo module.lo $(SOLIBS) $(LDL)
+	rm -f liblmdb$(SOEXT); ln -s $@ liblmdb$(SOEXT)
+	rm -f $(SOVER); ln -s $@ $(SOVER)
 
 mdb_stat: mdb_stat.o liblmdb.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDL)
 mdb_copy: mdb_copy.o liblmdb.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDL)
 mdb_dump: mdb_dump.o liblmdb.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDL)
 mdb_load: mdb_load.o liblmdb.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDL)
+mdb_drop: mdb_drop.o liblmdb.a
+	$(CC) $(LDFLAGS) -o $@ $^ $(LDL)
 mtest:    mtest.o    liblmdb.a
 mtest2:	mtest2.o liblmdb.a
 mtest3:	mtest3.o liblmdb.a
 mtest4:	mtest4.o liblmdb.a
 mtest5:	mtest5.o liblmdb.a
 mtest6:	mtest6.o liblmdb.a
+mtest_remap:  mtest_remap.o liblmdb.a
+mtest_enc:    mtest_enc.o chacha8.o liblmdb.a
+mtest_enc2:	  mtest_enc2.o liblmdb.a crypto.lm
+	$(CC) $(LDFLAGS) -pthread -o $@ mtest_enc2.o liblmdb.a $(LDL)
+
 mplay:	mplay.o liblmdb.a
+
+crypto.lm:	crypto.c
+	$(CC) -shared $(CFLAGS) -o $@ $^ -lsodium
 
 mdb.o: mdb.c lmdb.h midl.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c mdb.c
@@ -92,11 +131,27 @@ mdb.lo: mdb.c lmdb.h midl.h
 midl.lo: midl.c midl.h
 	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c midl.c -o $@
 
+module.lo: module.c lmdb.h
+	$(CC) $(CFLAGS) -fPIC $(CPPFLAGS) -c module.c -o $@
+
 %:	%.o
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(LDLIBS) -o $@
 
 %.o:	%.c lmdb.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
+
+lmdb.pc: Makefile
+	@echo "prefix=$(prefix)" > $@
+	@echo "exec_prefix=$(exec_prefix)" >>$@
+	@echo "includedir=$(includedir)" >>$@
+	@echo "libdir=$(libdir)" >>$@
+	@echo >>$@
+	@echo "Name: lmdb (OpenLDAP)" >>$@
+	@echo "Description: OpenLDAP Lightning Memory Mapped Database library" >>$@
+	@echo "URL: https://www.openldap.org" >>$@
+	@echo "Version: $(LMDB_VERSION)" >>$@
+	@echo "Cflags: $(THREADS) $(XCFLAGS)" >>$@
+	@echo "Libs: $(LDL)" >>$@
 
 COV_FLAGS=-fprofile-arcs -ftest-coverage
 COV_OBJS=xmdb.o xmidl.o

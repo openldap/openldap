@@ -34,23 +34,39 @@ int main(int argc,char * argv[])
 	const char *progname = argv[0], *act;
 	unsigned flags = MDB_RDONLY;
 	unsigned cpflags = 0;
+	char *module = NULL, *password = NULL;
+	void *mlm = NULL;
+	char *errmsg;
 
 	for (; argc > 1 && argv[1][0] == '-'; argc--, argv++) {
 		if (argv[1][1] == 'n' && argv[1][2] == '\0')
 			flags |= MDB_NOSUBDIR;
+		else if (argv[1][1] == 'L' && argv[1][2] == '\0')
+			flags |= MDB_NOLOCK;
+		else if (argv[1][1] == 'v' && argv[1][2] == '\0')
+			flags |= MDB_PREVSNAPSHOT;
 		else if (argv[1][1] == 'c' && argv[1][2] == '\0')
 			cpflags |= MDB_CP_COMPACT;
 		else if (argv[1][1] == 'V' && argv[1][2] == '\0') {
 			printf("%s\n", MDB_VERSION_STRING);
 			exit(0);
+		} else if (argv[1][1] == 'm' && argv[1][2] == '\0') {
+			module = argv[2];
+			argc--;
+			argv++;
+		} else if (argv[1][1] == 'w' && argv[1][2] == '\0') {
+			password = argv[2];
+			argc--;
+			argv++;
 		} else
 			argc = 0;
 	}
 
 	if (argc<2 || argc>3) {
-		fprintf(stderr, "usage: %s [-V] [-c] [-n] srcpath [dstpath]\n", progname);
+		fprintf(stderr, "usage: %s [-V] [-c] [-n] [-L] [-v] [-m module [-w password]] srcpath [dstpath]\n", progname);
 		exit(EXIT_FAILURE);
 	}
+
 
 #ifdef SIGPIPE
 	signal(SIGPIPE, sighandle);
@@ -64,6 +80,15 @@ int main(int argc,char * argv[])
 	act = "opening environment";
 	rc = mdb_env_create(&env);
 	if (rc == MDB_SUCCESS) {
+		if (module) {
+			MDB_crypto_funcs *mcf;
+			mlm = mdb_modload(module, NULL, &mcf, &errmsg);
+			if (!mlm) {
+				fprintf(stderr, "Failed to load crypto module: %s\n", errmsg);
+				exit(EXIT_FAILURE);
+			}
+			mdb_modsetup(env, mcf, password);
+		}
 		rc = mdb_env_open(env, argv[1], flags, 0600);
 	}
 	if (rc == MDB_SUCCESS) {
@@ -77,6 +102,8 @@ int main(int argc,char * argv[])
 		fprintf(stderr, "%s: %s failed, error %d (%s)\n",
 			progname, act, rc, mdb_strerror(rc));
 	mdb_env_close(env);
+	if (mlm)
+		mdb_modunload(mlm);
 
 	return rc ? EXIT_FAILURE : EXIT_SUCCESS;
 }

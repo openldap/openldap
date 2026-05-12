@@ -28,8 +28,6 @@
 #define CHECK(test, msg) ((test) ? (void)0 : ((void)fprintf(stderr, \
 	"%s:%d: %s: %s\n", __FILE__, __LINE__, msg, mdb_strerror(rc)), abort()))
 
-#define MDB_SCNy(t)	"z" #t
-
 #define SCMP(s)	s, (sizeof(s)-1)
 char inbuf[8192];
 char *dbuf, *kbuf;
@@ -284,7 +282,7 @@ void child()
 		} else if (!strncmp(ptr, SCMP("mdb_env_set_mapsize"))) {
 			void *tenv;
 			envpair *ep;
-			size_t mapsize;
+			mdb_size_t mapsize;
 			sscanf(ptr+SOFF("mdb_env_set_mapsize"), "%p, %"MDB_SCNy(u), &tenv, &mapsize);
 			ep = findenv(tenv);
 			E(mdb_env_set_mapsize(ep->renv, mapsize));
