@@ -368,6 +368,10 @@ is_dn:		bv.bv_len = in->bv_len - ( bv.bv_val - in->bv_val );
 				if ( rc != LDAP_SUCCESS ) {
 					return rc;
 				}
+				if (ad->ad_type->sat_syntax != slap_schema.si_syn_distinguishedName &&
+					!is_at_syntax( ad->ad_type, SLAPD_NAMEUID_SYNTAX )) {
+					return LDAP_INVALID_SYNTAX;
+				}
 			}
 
 			if ( oc_bvfind( &group_oc ) == NULL ) {
