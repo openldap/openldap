@@ -345,7 +345,7 @@ static ConfigTable config_back_cf_table[] = {
     { "sockbuf_max_pending_client", "max", 2, 2, 0,
         ARG_BER_LEN_T|ARG_MAGIC|CFG_MAXBUF_PENDING,
         &config_generic,
-        "( OLcfgBkAt:41.1 "
+        "( OLcfgBkAt:13.41 "
             "NAME 'olcBkLloadSockbufMaxPendingClient' "
             "DESC 'The maximum amount of buffer space available per connection' "
             "EQUALITY integerMatch "
