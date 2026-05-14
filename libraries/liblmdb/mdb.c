@@ -273,7 +273,7 @@ union semun {
 /* On older compilers, use a separate section */
 # ifdef __GNUC__
 #  ifdef __APPLE__
-#   define      ESECT   __attribute__ ((section("__TEXT,text_env")))
+#   define      ESECT   __attribute__ ((section("__TEXT,text_env,regular,pure_instructions")))
 #  else
 #   define      ESECT   __attribute__ ((section("text_env")))
 #  endif
