@@ -184,6 +184,10 @@ typedef enum {
     LLOAD_FEATURE_PAUSE = 1 << 2,
 } lload_features_t;
 
+#define LLOAD_FEATURES_DEFAULT ( \
+    LLOAD_FEATURE_PROXYAUTHZ | \
+    0 )
+
 #define LLOAD_FEATURE_SUPPORTED_MASK ( \
     LLOAD_FEATURE_PROXYAUTHZ | \
     0 )

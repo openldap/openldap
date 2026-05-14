@@ -77,8 +77,10 @@ char *slapd_args_file = NULL;
 static struct timeval timeout_api_tv, timeout_net_tv,
         timeout_write_tv = { 10, 0 };
 
-lload_features_t lload_features;
+lload_features_t lload_features = LLOAD_FEATURES_DEFAULT;
 int lload_write_coherence = 0;
+
+static lload_features_t features_requested, features_disabled;
 
 ber_len_t sockbuf_max_incoming_client = LLOAD_SB_MAX_INCOMING_CLIENT;
 ber_len_t sockbuf_max_incoming_upstream = LLOAD_SB_MAX_INCOMING_UPSTREAM;
@@ -158,6 +160,8 @@ enum {
     CFG_MAXBUF_UPSTREAM,
     CFG_MAXBUF_PENDING,
     CFG_FEATURE,
+    CFG_FEATURE_ENABLE,
+    CFG_FEATURE_DISABLE,
     CFG_THREADQS,
     CFG_TLS_ECNAME,
     CFG_TLS_CACERT,
@@ -394,9 +398,24 @@ static ConfigTable config_back_cf_table[] = {
     { "feature", "name", 2, 0, 0,
         ARG_MAGIC|CFG_FEATURE,
         &config_feature,
+        NULL, NULL, NULL
+    },
+    { "enable", "name", 2, 2, 0,
+        ARG_MAGIC|CFG_FEATURE_ENABLE,
+        &config_feature,
         "( OLcfgBkAt:13.10 "
-            "NAME 'olcBkLloadFeature' "
+            "NAME ( 'olcBkLloadFeatureEnable' 'olcBkLloadFeature' ) "
             "DESC 'Lload features enabled' "
+            "EQUALITY caseIgnoreMatch "
+            "SYNTAX OMsDirectoryString )",
+        NULL, NULL
+    },
+    { "disable", "name", 2, 2, 0,
+        ARG_MAGIC|CFG_FEATURE_DISABLE,
+        &config_feature,
+        "( OLcfgBkAt:13.42 "
+            "NAME 'olcBkLloadFeatureDisable' "
+            "DESC 'Lload features disabled' "
             "EQUALITY caseIgnoreMatch "
             "SYNTAX OMsDirectoryString )",
         NULL, NULL
@@ -818,7 +837,8 @@ static ConfigOCs lloadocs[] = {
             "$ olcBkLloadSockbufMaxUpstream "
             "$ olcBkLloadMaxPDUPerCycle "
             "$ olcBkLloadIOTimeout ) "
-        "MAY ( olcBkLloadFeature "
+        "MAY ( olcBkLloadFeatureEnable "
+            "$ olcBkLloadFeatureDisable "
             "$ olcBkLloadTcpBuffer "
             "$ olcBkLloadTLSCACertificateFile "
             "$ olcBkLloadTLSCACertificatePath "
@@ -2092,11 +2112,24 @@ config_feature( ConfigArgs *c )
         { BER_BVC("read_pause"), LLOAD_FEATURE_PAUSE },
         { BER_BVNULL, 0 }
     };
+    lload_features_t *fp;
     slap_mask_t mask = 0;
     int i;
 
+    switch ( c->type ) {
+        case CFG_FEATURE:
+        case CFG_FEATURE_ENABLE:
+            fp = &features_requested;
+            break;
+        case CFG_FEATURE_DISABLE:
+            fp = &features_disabled;
+            break;
+        default:
+            return 1;
+    }
+
     if ( c->op == SLAP_CONFIG_EMIT ) {
-        return mask_to_verbs( features, lload_features, &c->rvalue_vals );
+        return mask_to_verbs( features, *fp, &c->rvalue_vals );
     }
 
     lload_change.type = LLOAD_CHANGE_MODIFY;
@@ -2109,11 +2142,13 @@ config_feature( ConfigArgs *c )
     if ( c->op == LDAP_MOD_DELETE ) {
         if ( !c->line ) {
             /* Last value has been deleted */
-            lload_features = 0;
+            *fp = 0;
         } else {
             i = verb_to_mask( c->line, features );
-            lload_features &= ~features[i].mask;
+            *fp &= ~features[i].mask;
         }
+        lload_features = (LLOAD_FEATURES_DEFAULT & ~features_disabled) | \
+                         features_requested;
         return 0;
     }
 
@@ -2136,7 +2171,23 @@ config_feature( ConfigArgs *c )
         }
     }
 
-    lload_features |= mask;
+    if ( features_requested & features_disabled ) {
+        lload_features_t overlap = features_requested & features_disabled;
+        for ( i = 1; i < c->argc; i++ ) {
+            int j = verb_to_mask( c->argv[i], features );
+            if ( features[j].mask & overlap ) {
+                snprintf( c->cr_msg, sizeof(c->cr_msg),
+                        "requested to both enable and disable feature %s",
+                        c->argv[i] );
+                Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+            }
+        }
+        return 1;
+    }
+
+    *fp |= mask;
+    lload_features = (LLOAD_FEATURES_DEFAULT & ~features_disabled) | \
+                     features_requested;
     return 0;
 }
 
