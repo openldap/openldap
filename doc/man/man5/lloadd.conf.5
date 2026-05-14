@@ -135,7 +135,7 @@ thread system as a hint.  The default is not to provide any hint.
 .\" .B iotimeout
 .\" option.
 .TP
-.B feature <feature> [...]
+.B enable <feature>
 Switch additional features supported by the LDAP Load Balancer on.
 Supported features are:
 .RS
@@ -148,7 +148,7 @@ the proxy authorization control (RFC 4370). No control is added to the
 operation if initiated by a client whose bound identity matches the identity
 configured in
 .B bindconf
-(no normalisation of the DN is attempted).
+(no normalisation of the DN is attempted). This feature is enabled by default.
 
 If SASL binds are issued by clients and this feature is enabled, backend
 servers need to support LDAP Who Am I? extended operation for the Load Balancer
@@ -165,6 +165,12 @@ to detect the correct authorization identity.
 .PD
 .RE
 .RE
+.TP
+.B disable <feature>
+Switch features supported by the LDAP Load Balancer off. See features listed in
+the
+.B enable
+option for a list.
 .TP
 .B include <filename>
 Read additional configuration information from the given file before
