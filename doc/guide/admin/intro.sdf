@@ -347,19 +347,6 @@ really have a "directory".
 Existing commercial LDAP server implementations that use a relational database 
 are either from the first kind or the third. I don't know of any implementation 
 that uses a relational database to do inefficiently what LMDB does efficiently.
-For those who are interested in "third way" (exposing EXISTING data from RDBMS 
-as LDAP tree, having some limitations compared to classic LDAP model, but making 
-it possible to interoperate between LDAP and SQL applications):
-
-OpenLDAP includes back-sql - the backend that makes it possible. It uses ODBC + 
-additional metainformation about translating LDAP queries to SQL queries in your 
-RDBMS schema, providing different levels of access - from read-only to full 
-access depending on RDBMS you use, and your schema.
-
-For more information on concept and limitations, see {{slapd-sql}}(5) man page, 
-or the {{SECT: Backends}} section. There are also several examples for several 
-RDBMSes in {{F:back-sql/rdbms_depend/*}} subdirectories. 
-
 
 H2: What is slapd and what can it do?
 
@@ -420,8 +407,7 @@ database operations.  Because these two pieces communicate via a
 well-defined {{TERM:C}} {{TERM:API}}, you can write your own
 customized modules which extend {{slapd}} in numerous ways.  Also,
 a number of {{programmable database}} modules are provided.  These
-allow you to expose external data sources to {{slapd}} using popular
-programming languages ({{PRD:Perl}}, and {{TERM:SQL}}).
+allow you to expose external data sources to {{slapd}}.
 
 {{B:Threads}}: {{slapd}} is threaded for high performance.  A single
 multi-threaded {{slapd}} process handles all incoming requests using

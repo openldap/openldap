@@ -3,9 +3,6 @@ verify basic functionality of the LDAP libraries and slapd.
 
 	To run all of the tests, type "make test".
 	To run MDB tests, type "make mdb".
-	To run SQL tests, define SLAPD_USE_SQL=<rdbms> and type
-		"make sql"; define SLAPD_USE_SQLWRITE=yes
-		to enable write tests as well.
 	To run WT tests, type "make wt".
 	To run regression tests, type "make regressions"
 

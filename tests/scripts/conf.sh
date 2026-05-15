@@ -34,8 +34,6 @@ sed -e "s/@BACKEND@/${BACKEND}/"			\
 	-e "s/^#${AC_meta}#//"				\
 	-e "s/^#${AC_asyncmeta}#//"			\
 	-e "s/^#${AC_relay}#//"				\
-	-e "s/^#${AC_sql}#//"				\
-	-e "s/^#${RDBMS}#//"			\
 	-e "s/^#${AC_accesslog}#//"			\
 	-e "s/^#${AC_dds}#//"				\
 	-e "s/^#${AC_deref}#//"				\

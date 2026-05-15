@@ -26,21 +26,17 @@ test tests:
 
 # test all backends
 alltests: tests
-	@$(MAKE) sql
 	@$(MAKE) ldif
 	@$(MAKE) wt
 
 # parallel test targets
-partests: pmdb plloadd psql pldif pwt
+partests: pmdb plloadd pldif pwt
 
 pmdb:
 	@$(MAKE) mdb TESTINST=0 > testout.0
 
 plloadd:
 	@$(MAKE) lloadd TESTINST=1 > testout.1
-
-psql:
-	@$(MAKE) sql TESTINST=2 > testout.2
 
 pldif:
 	@$(MAKE) ldif TESTINST=3 > testout.3
@@ -55,14 +51,6 @@ mdb-no:
 mdb-yes mdb-mod: FORCE
 	@echo "Initiating LDAP tests for MDB..."
 	@$(RUN) -b mdb all
-
-sql test-sql:	sql-$(BUILD_SQL)
-sql-no:
-	@echo "run configure with --enable-sql to run SQL tests"
-
-sql-yes sql-mod:	FORCE
-	@echo "Initiating LDAP tests for SQL..."
-	@$(RUN) -b sql sql-all
 
 ldif test-ldif: FORCE
 	@echo "Initiating LDAP tests for LDIF..."

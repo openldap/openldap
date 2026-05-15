@@ -2205,7 +2205,6 @@ config_fp_parse_line(ConfigArgs *c)
 		"acl-bind", "acl-method", "idassert-bind",  /* in back-ldap */
 		"acl-passwd", "bindpw",  /* in back-<ldap/meta> */
 		"pseudorootpw",  /* in back-meta */
-		"dbpasswd",  /* in back-sql */
 		NULL
 	};
 	static char *const raw[] = {

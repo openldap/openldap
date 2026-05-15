@@ -538,12 +538,6 @@
 /* if you have spawnlp() */
 #undef HAVE_SPAWNLP
 
-/* Define to 1 if you have the <sqlext.h> header file. */
-#undef HAVE_SQLEXT_H
-
-/* Define to 1 if you have the <sql.h> header file. */
-#undef HAVE_SQL_H
-
 /* Define to 1 if you have the <stddef.h> header file. */
 #undef HAVE_STDDEF_H
 

@@ -322,8 +322,6 @@ OL_ARG_ENABLE_BK(relay, [relay backend],
 	yes, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE_BK(sock, [sock backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE_BK(sql, [sql backend],
-	no, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE_BK(wt, [WiredTiger backend],
 	no, [no yes mod], ol_enable_backends)dnl
 
@@ -564,10 +562,6 @@ SLAPD_DYNAMIC_BACKENDS=
 SLAPD_PERL_LDFLAGS=
 MOD_PERL_LDFLAGS=
 PERL_CPPFLAGS=
-
-SLAPD_SQL_LDFLAGS=
-SLAPD_SQL_LIBS=
-SLAPD_SQL_INCLUDES=
 
 SASL_LIBS=
 TLS_LIBS=
@@ -1915,77 +1909,6 @@ if test $ol_enable_syslog != no ; then
 fi
 
 dnl ----------------------------------------------------------------
-dnl SQL
-ol_link_sql=no
-if test $ol_enable_sql != no ; then
-	AC_CHECK_HEADERS(sql.h sqlext.h,[],[
-		AC_MSG_ERROR([could not locate SQL headers])
-	])
-
-	sql_LIBS="$LIBS"
-	LIBS="$LTHREAD_LIBS $LIBS"
-
-	if test $ol_with_odbc = auto ; then
-		ol_with_odbc="iodbc unixodbc odbc32"
-	fi
-
-	for odbc in $ol_with_odbc ; do
-		if test $ol_link_sql = no ; then
-			case $odbc in
-			iodbc)
-				AC_CHECK_LIB(iodbc, SQLDriverConnect, [have_iodbc=yes], [have_iodbc=no])
-				if test $have_iodbc = yes ; then
-					ol_link_sql="-liodbc"
-				fi
-				;;
-
-			unixodbc)
-				AC_CHECK_LIB(odbc, SQLDriverConnect, [have_odbc=yes], [have_odbc=no])
-				if test $have_odbc = yes ; then
-					ol_link_sql="-lodbc"
-				fi
-				;;
-
-			odbc32)
-				AC_CHECK_LIB(odbc32, SQLDriverConnect, [have_odbc32=yes], [have_odbc32=no])
-				
-				dnl The windows API uses __stdcall which cannot be detected by AC_CHECK_LIB
-				if test $have_odbc32 = no ; then
-					AC_MSG_CHECKING([for SQLDriverConnect in -lodbc32 with windows.h])
-					save_LIBS="$LIBS"
-					LIBS="$LIBS -lodbc32"
-					AC_LINK_IFELSE([AC_LANG_PROGRAM([[#include <windows.h>
-					#include <sqlext.h>
-						]], [[
-						SQLDriverConnect(NULL,NULL,NULL,0,NULL,0,NULL,0);
-						]])],[have_odbc32=yes], [have_odbc32=no])
-					LIBS="$save_LIBS"
-					AC_MSG_RESULT($have_odbc32)
-				fi
-				
-				if test $have_odbc32 = yes ; then
-					ol_link_sql="-lodbc32"
-				fi
-				;;
-
-			*)
-				AC_MSG_ERROR([unknown ODBC library])
-				;;
-			esac
-		fi
-	done
-
-	LIBS="$sql_LIBS"
-
-	if test $ol_link_sql != no ; then
-		SLAPD_SQL_LIBS="$ol_link_sql"
-
-	elif test $ol_enable_sql != auto ; then
-		AC_MSG_ERROR([could not locate suitable ODBC library])
-	fi
-fi
-
-dnl ----------------------------------------------------------------
 dnl WiredTiger
 ol_link_wt=no
 if test $ol_enable_wt != no ; then
@@ -2561,9 +2484,6 @@ fi
 if test "$ol_link_perl" = no ; then
 	ol_enable_perl=no
 fi
-if test "$ol_link_sql" = no ; then
-	ol_enable_sql=no
-fi
 if test "$ol_link_wt" = no ; then
 	ol_enable_wt=no
 fi
@@ -2830,10 +2750,6 @@ AC_SUBST(ARGON2_LIBS)
 AC_SUBST(SLAPD_SLP_LIBS)
 AC_SUBST(SLAPD_GMP_LIBS)
 
-AC_SUBST(SLAPD_SQL_LDFLAGS)
-AC_SUBST(SLAPD_SQL_LIBS)
-AC_SUBST(SLAPD_SQL_INCLUDES)
-
 AC_SUBST(WT_CFLAGS)
 AC_SUBST(WT_LIBS)
 
@@ -2878,7 +2794,6 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk]
 [servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk]
 [servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk]
-[servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk]
 [servers/slapd/back-wt/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-wt/Makefile.in:build/mod.mk]
 [servers/slapd/slapi/Makefile:build/top.mk:servers/slapd/slapi/Makefile.in:build/lib.mk:build/lib-shared.mk]
 [servers/slapd/overlays/Makefile:build/top.mk:servers/slapd/overlays/Makefile.in:build/lib.mk]
