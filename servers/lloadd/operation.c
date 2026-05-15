@@ -157,7 +157,7 @@ operation_init( LloadConnection *c, BerElement *ber )
         goto fail;
     }
 
-    if ( !op->o_client_msgid ) {
+    if ( op->o_client_msgid <= 0 ) {
         goto fail;
     }
 
