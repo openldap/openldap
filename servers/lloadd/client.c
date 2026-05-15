@@ -40,7 +40,8 @@ request_abandon( LloadConnection *c, LloadOperation *op )
 
     op->o_res = LLOAD_OP_COMPLETED;
 
-    if ( ber_decode_int( &op->o_request, &needle.o_client_msgid ) ) {
+    if ( ber_decode_int( &op->o_request, &needle.o_client_msgid ) ||
+            needle.o_client_msgid <= 0 ) {
         Debug( LDAP_DEBUG_STATS, "request_abandon: "
                 "connid=%lu msgid=%d invalid integer sent in abandon request\n",
                 c->c_connid, op->o_client_msgid );
@@ -48,6 +49,13 @@ request_abandon( LloadConnection *c, LloadOperation *op )
         OPERATION_UNLINK(op);
         CONNECTION_LOCK_DESTROY(c);
         return -1;
+    }
+
+    if ( op->o_client_msgid == needle.o_client_msgid ) {
+        Debug( LDAP_DEBUG_STATS, "request_abandon: "
+                "connid=%lu msgid=%d requests abandon of itself\n",
+                c->c_connid, op->o_client_msgid );
+        goto done;
     }
 
     CONNECTION_LOCK(c);
