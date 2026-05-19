@@ -65,8 +65,8 @@ also the basis of backglue, which allows separate databases to be searched as
 if they were a single naming context.
 
 Very often, one needs to add just a tiny feature onto an otherwise "normal"
-database. The usual way to achieve this was to use a programmable backend (like
-back-perl) to preprocess various requests and then forward them back into slapd
+database. The usual way to achieve this was to use a programmable backend (like back-sock)
+to preprocess various requests and then forward them back into slapd
 to be handled by the real database. While this technique works, it is fairly
 inefficient because it involves many transitions from network to slapd and back
 again. The overlay concept introduced in OpenLDAP 2.2 allows code to be

@@ -1089,7 +1089,6 @@ nops
 PDUs
 baseObject
 bvecadd
-perl
 inplace
 lossy
 pers

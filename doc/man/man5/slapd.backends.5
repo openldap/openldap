@@ -76,13 +76,6 @@ It serves up user account information from the system
 .BR passwd (5)
 file.
 .TP
-.B perl
-This backend embeds a
-.BR perl (1)
-interpreter into slapd.
-It runs Perl subroutines to implement LDAP operations.
-This backend is deprecated.
-.TP
 .B relay
 This backend is experimental.
 It redirects LDAP operations to another database
@@ -117,7 +110,6 @@ default slapd configuration directory
 .BR slapd\-monitor (5),
 .BR slapd\-null (5),
 .BR slapd\-passwd (5),
-.BR slapd\-perl (5),
 .BR slapd\-relay (5),
 .BR slapd\-wt (5),
 .BR slapd.conf (5),
