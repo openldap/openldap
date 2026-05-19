@@ -371,7 +371,6 @@ meta	Metadirectory backend
 monitor	Monitor backend
 null	Null backend
 passwd	Provides read-only access to {{passwd}}(5)
-perl	Perl Programmable backend
 relay	Relay backend
 sock	Socket backend
 sql	SQL Programmable backend

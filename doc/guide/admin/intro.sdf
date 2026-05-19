@@ -419,9 +419,9 @@ with LDAP clients; and modules which handle specific tasks such as
 database operations.  Because these two pieces communicate via a
 well-defined {{TERM:C}} {{TERM:API}}, you can write your own
 customized modules which extend {{slapd}} in numerous ways.  Also,
-a number of {{programmable database}} modules are provided.  These
-allow you to expose external data sources to {{slapd}} using popular
-programming languages ({{PRD:Perl}}, and {{TERM:SQL}}).
+a {{programmable database}} module back-sock is provided.  This
+allows you to expose external data sources to {{slapd}} using arbitrary
+programming languages.
 
 {{B:Threads}}: {{slapd}} is threaded for high performance.  A single
 multi-threaded {{slapd}} process handles all incoming requests using

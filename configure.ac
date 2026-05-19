@@ -316,8 +316,6 @@ OL_ARG_ENABLE_BK(null, [null backend],
 	no, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE_BK(passwd, [passwd backend],
 	no, [no yes mod], ol_enable_backends)dnl
-OL_ARG_ENABLE_BK(perl, [perl backend],
-	no, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE_BK(relay, [relay backend],
 	yes, [no yes mod], ol_enable_backends)dnl
 OL_ARG_ENABLE_BK(sock, [sock backend],
@@ -561,10 +559,6 @@ SLAPD_MODULES_CPPFLAGS=
 SLAPD_STATIC_BACKENDS="back-ldif back-monitor"
 SLAPD_DYNAMIC_BACKENDS=
 
-SLAPD_PERL_LDFLAGS=
-MOD_PERL_LDFLAGS=
-PERL_CPPFLAGS=
-
 SLAPD_SQL_LDFLAGS=
 SLAPD_SQL_LIBS=
 SLAPD_SQL_INCLUDES=
@@ -659,45 +653,6 @@ fi
 
 AC_PROG_MAKE_SET
 LT_INIT(dlopen, win32-dll)
-
-dnl ----------------------------------------------------------------
-dnl Perl
-ol_link_perl=no
-if test $ol_enable_perl != no ; then
-	AC_PATH_PROG(PERLBIN, perl, /usr/bin/perl)
-
-	if test "no$PERLBIN" = "no" ; then
-		if test $ol_enable_perl = yes ; then
-			AC_MSG_ERROR([could not locate perl])
-		fi
-
-	else
-		PERL_CPPFLAGS=""
-		for opt in `$PERLBIN -MExtUtils::Embed -e ccopts`; do
-			case "$opt" in
-			"-flto=auto" | "-Wall" )
-				continue;;
-			esac
-			PERL_CPPFLAGS="$PERL_CPPFLAGS $opt"
-		done
-		PERL_LDFLAGS=""
-		for opt in `$PERLBIN -MExtUtils::Embed -e ldopts`; do
-			case "$opt" in
-			"-lc" )
-				continue;;
-			esac
-			PERL_LDFLAGS="$PERL_LDFLAGS $opt"
-		done
-
-		if test x"$ol_enable_perl" = "xyes" ; then
-			SLAPD_PERL_LDFLAGS="$PERL_LDFLAGS"
-		else
-			MOD_PERL_LDFLAGS="$PERL_LDFLAGS"
-		fi
-		dnl should check perl version
-		ol_link_perl=yes
-	fi
-fi
 
 AC_PROG_CPP
 OL_MSVC
@@ -2558,9 +2513,6 @@ if test "$ol_link_modules" != no ; then
 	SLAPD_MODULES_LDFLAGS="-dlopen self"
 fi
 
-if test "$ol_link_perl" = no ; then
-	ol_enable_perl=no
-fi
 if test "$ol_link_sql" = no ; then
 	ol_enable_sql=no
 fi
@@ -2814,10 +2766,6 @@ AC_SUBST(SLAPD_STATIC_OVERLAYS)
 AC_SUBST(SLAPD_DYNAMIC_OVERLAYS)
 AC_SUBST(SLAPD_DYNAMIC_PWMODS)
 
-AC_SUBST(PERL_CPPFLAGS)
-AC_SUBST(SLAPD_PERL_LDFLAGS)
-AC_SUBST(MOD_PERL_LDFLAGS)
-
 AC_SUBST(SASL_LIBS)
 AC_SUBST(TLS_LIBS)
 AC_SUBST(WITH_TLS_TYPE)
@@ -2875,7 +2823,6 @@ AC_CONFIG_FILES([Makefile:build/top.mk:Makefile.in:build/dir.mk]
 [servers/slapd/back-monitor/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-monitor/Makefile.in:build/mod.mk]
 [servers/slapd/back-null/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-null/Makefile.in:build/mod.mk]
 [servers/slapd/back-passwd/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-passwd/Makefile.in:build/mod.mk]
-[servers/slapd/back-perl/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-perl/Makefile.in:build/mod.mk]
 [servers/slapd/back-relay/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-relay/Makefile.in:build/mod.mk]
 [servers/slapd/back-sock/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-sock/Makefile.in:build/mod.mk]
 [servers/slapd/back-sql/Makefile:build/top.mk:servers/slapd/modules.mk:servers/slapd/back-sql/Makefile.in:build/mod.mk]

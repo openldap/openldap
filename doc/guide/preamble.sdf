@@ -103,7 +103,6 @@ Name|Long|Jump
 ANSI|American National Standards Institute|https://www.ansi.org/
 BSI|British Standards Institute|https://www.bsigroup.com/en-GB/
 COSINE|Co-operation and Open Systems Interconnection in Europe
-CPAN|Comprehensive Perl Archive Network|https://www.cpan.org/
 Cyrus|Project Cyrus|https://www.cyrusimap.org/
 FSF|Free Software Foundation|https://www.fsf.org/
 GNU|GNU Not Unix Project|https://www.gnu.org/
@@ -141,7 +140,6 @@ OpenLDAP FAQ|https://www.openldap.org/faq/
 OpenLDAP ITS|https://bugs.openldap.org/
 OpenLDAP Software|https://www.openldap.org/software/
 OpenSSL|https://www.openssl.org/
-Perl|https://www.perl.org/
 SDF|https://metacpan.org/release/sdf
 UMLDAP|https://web.archive.org/web/20160302011357/http://www.umich.edu/~dirsvcs/ldap/ldap.html
 !endblock

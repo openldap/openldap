@@ -404,23 +404,6 @@ H3: Further Information
 
 {{slapd-passwd}}(5)
 
-H2: Perl
-
-H3: Overview
-
-The Perl backend to {{slapd}}(8) works by embedding a {{perl}}(1) interpreter 
-into {{slapd}}(8). Any perl database section of the configuration file 
-{{slapd.conf}}(5) must then specify what Perl module to use. Slapd then creates 
-a new Perl object that handles all the requests for that particular instance of the backend.
-
-H3: back-perl Configuration
-
-LATER
-
-H3: Further Information
-
-{{slapd-perl}}(5)
-
 H2: Relay
 
 
