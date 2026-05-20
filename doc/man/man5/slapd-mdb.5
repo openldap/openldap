@@ -58,6 +58,15 @@ flushed, some number of transactions may be lost.
 By default, a full data flush/sync is performed when each
 transaction is committed.
 .TP
+.B dbpagesize \ <bytes>
+Specify the page size to use for the database, in bytes. The default
+depends on the underlying filesystem's block size (typically 4096 or 8192).
+The value must be a power of two and the maximum is 65536.
+This setting usually should not need to be changed,
+but setting a larger pagesize also increases the maximum length of keys
+so it may be useful to support longer values when \fBmultival\fP is used.
+This setting only takes effect when a database is being newly created.
+.TP
 .BI directory \ <directory>
 Specify the directory where the LMDB files containing this database and
 associated indexes live.

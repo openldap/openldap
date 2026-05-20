@@ -71,6 +71,12 @@ static ConfigTable mdbcfg[] = {
 			"DESC 'Disable synchronous database writes' "
 			"EQUALITY booleanMatch "
 			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
+	{ "dbpagesize", "size", 2, 2, 0, ARG_UINT|ARG_OFFSET,
+		(void *)offsetof(struct mdb_info, mi_pagesize),
+			"( OLcfgDbAt:1.15 NAME 'olcDbPageSize' "
+			"DESC 'Page size in bytes, in range 256-65536' "
+			"EQUALITY integerMatch "
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL, NULL },
 	{ "envflags", "flags", 2, 0, 0, ARG_MAGIC|MDB_ENVFLAGS,
 		mdb_cf_gen, "( OLcfgDbAt:12.3 NAME 'olcDbEnvFlags' "
 			"DESC 'Database environment flags' "
@@ -153,7 +159,7 @@ static ConfigOCs mdbocs[] = {
 		"MAY ( olcDbCheckpoint $ olcDbEnvFlags "
 		"$ olcDbNoSync $ olcDbIndex $ olcDbMaxReaders $ olcDbMaxSize "
 		"$ olcDbMode $ olcDbSearchStack $ olcDbMaxEntrySize $ olcDbRtxnSize "
-		"$ olcDbMultival "
+		"$ olcDbMultival $ olcDbPageSize "
 #ifdef MDB_ENCRYPT
 		"$ olcDbCryptoModule $ olcDbPassphrase "
 #endif
