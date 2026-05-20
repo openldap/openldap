@@ -691,15 +691,17 @@ client_reset( LloadConnection *c )
     if ( restricted && restricted < LLOAD_OP_RESTRICTED_ISOLATE ) {
         if ( c->c_backend ) {
             assert( c->c_restricted <= LLOAD_OP_RESTRICTED_BACKEND );
-            assert( c->c_restricted_inflight == 0 );
+            assert( c->c_restricted_inflight <= executing );
             c->c_backend = NULL;
             c->c_restricted_at = 0;
+            c->c_restricted_inflight = 0;
         } else {
             assert( c->c_restricted == LLOAD_OP_RESTRICTED_UPSTREAM );
             assert( c->c_linked_upstream != NULL );
             linked_upstream = c->c_linked_upstream;
             c->c_linked_upstream = NULL;
         }
+        c->c_restricted = LLOAD_OP_NOT_RESTRICTED;
     }
     CONNECTION_UNLOCK(c);
 
