@@ -121,6 +121,8 @@ struct mdb_info {
 		/* less than this many values in an attr goes
 		 * back into main blob */
 
+	int mi_pagesize;
+
 	MDB_dbi	mi_dbis[MDB_NDB];
 	AttributeDescription *mi_ads[MDB_MAXADS];
 	int mi_adxs[MDB_MAXADS];
