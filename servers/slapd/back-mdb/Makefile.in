@@ -18,7 +18,7 @@ SRCS = init.c tools.c config.c \
 	extended.c operational.c \
 	attr.c index.c key.c filterindex.c \
 	dn2entry.c dn2id.c id2entry.c idl.c \
-	nextid.c monitor.c module.c
+	nextid.c monitor.c
 
 OBJS = init.lo tools.lo config.lo \
 	add.lo bind.lo compare.lo delete.lo modify.lo modrdn.lo search.lo \
