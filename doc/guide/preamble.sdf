@@ -6,14 +6,14 @@
 # Preamble for all OpenLDAP SDF documents
 #
 
-!default VERSION 2.X
+!default VERSION 2.7
 
 #
 # Paths are relative to the main subdirectories
 #
 
 !define DOC_AUTHOR	"The OpenLDAP Project <{{URL:https://www.openldap.org/}}>"
-!define DOC_NAME    "OpenLDAP Software 2.X"
+!define DOC_NAME    "OpenLDAP Software 2.7"
 !define DOC_TYPE    "Guide"
 
 !define DOC_LOGO	"../images/LDAPlogo.gif"
@@ -103,6 +103,7 @@ Name|Long|Jump
 ANSI|American National Standards Institute|https://www.ansi.org/
 BSI|British Standards Institute|https://www.bsigroup.com/en-GB/
 COSINE|Co-operation and Open Systems Interconnection in Europe
+CPAN|Comprehensive Perl Archive Network|https://www.cpan.org/
 Cyrus|Project Cyrus|https://www.cyrusimap.org/
 FSF|Free Software Foundation|https://www.fsf.org/
 GNU|GNU Not Unix Project|https://www.gnu.org/
