@@ -151,7 +151,7 @@ lmdb.pc: Makefile
 	@echo "URL: https://www.openldap.org" >>$@
 	@echo "Version: $(LMDB_VERSION)" >>$@
 	@echo "Cflags: $(THREADS) $(XCFLAGS)" >>$@
-	@echo "Libs: $(LDL)" >>$@
+	@echo "Libs: -llmdb $(LDL) $(THREADS)" >>$@
 
 COV_FLAGS=-fprofile-arcs -ftest-coverage
 COV_OBJS=xmdb.o xmidl.o
