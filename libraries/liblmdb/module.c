@@ -1,4 +1,5 @@
-/* module.c - helper for dynamically loading crypto module */
+/**	@file module.c
+ *	@brief helper for dynamically loading crypto module */
 /*
  * Copyright 2020-2021 Howard Chu, Symas Corp.
  * All rights reserved.
