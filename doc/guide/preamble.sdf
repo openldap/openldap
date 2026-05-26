@@ -6,7 +6,7 @@
 # Preamble for all OpenLDAP SDF documents
 #
 
-!default VERSION 2.X
+!default VERSION "2.X"
 
 #
 # Paths are relative to the main subdirectories
