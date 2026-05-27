@@ -4785,7 +4785,9 @@ retry_add:;
 			op->o_bd = si->si_wbe;
 retry_modrdn:;
 			rs_reinit( &rs_modify, REP_RESULT );
+			op->orm_no_opattrs = 1;
 			rc = op->o_bd->be_modrdn( op, &rs_modify );
+			op->orm_no_opattrs = 0;
 
 			/* NOTE: noSuchObject should result because the new superior
 			 * has not been added yet (ITS#6472) */
