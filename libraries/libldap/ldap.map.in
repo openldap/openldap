@@ -502,6 +502,7 @@ OPENLDAP_2.200
     ldap_pvt_thread_cond_wait;
     ldap_pvt_thread_create;
     ldap_pvt_thread_destroy;
+    ldap_pvt_thread_detach;
     ldap_pvt_thread_exit;
     ldap_pvt_thread_get_concurrency;
     ldap_pvt_thread_initialize;

@@ -506,6 +506,7 @@ typedef void ldap_debug_thread_t;
 #define init_thread_info()	{}
 #define with_thread_info_lock(statements) { statements; }
 #define thread_info_detached(t)	0
+#define thread_info_set_detach(t)	0
 #define add_thread_info(msg, thr, det)	((void) 0)
 #define remove_thread_info(tinfo, msg)	((void) 0)
 #define get_thread_info(thread, msg)	NULL
@@ -548,6 +549,7 @@ static ldap_int_thread_mutex_t  thread_info_mutex;
 }
 
 #define thread_info_detached(t) ((t)->detached)
+#define thread_info_set_detach(t)	(t)->detached = 1
 
 static void
 add_thread_info(
@@ -818,6 +820,35 @@ ldap_pvt_thread_create(
 		adjust_count( Idx_unexited_thread, +1 );
 		if( !detach )
 			adjust_count( Idx_unjoined_thread, +1 );
+	}
+	return rc;
+}
+
+int
+ldap_pvt_thread_detach( ldap_pvt_thread_t thread )
+{
+	int rc;
+	ldap_debug_thread_t *t = NULL;
+	ERROR_IF( !threading_enabled, "ldap_pvt_thread_detach" );
+	if( tracethreads ) {
+		char buf[40], buf2[40];
+		fprintf( stderr, "== thr_debug: Detaching thread %s in thread %s ==\n",
+			thread_name( buf, sizeof(buf), thread ),
+			thread_name( buf2, sizeof(buf2), ldap_pvt_thread_self() ) );
+	}
+	if( threadID )
+		with_thread_info_lock( {
+			t = get_thread_info( thread, "ldap_pvt_thread_detach" );
+			ERROR_IF( thread_info_detached( t ), "ldap_pvt_thread_detach" );
+		} );
+	rc = ldap_int_thread_detach( thread );
+	if( rc ) {
+		ERROR( rc, "ldap_pvt_thread_detach" );
+	} else {
+		if( threadID )
+			with_thread_info_lock(
+				thread_info_set_detach( t ) );
+		adjust_count( Idx_unjoined_thread, -1 );
 	}
 	return rc;
 }
@@ -1171,18 +1202,19 @@ ldap_pvt_thread_rdwr_active( ldap_pvt_thread_rdwr_t *rwlock )
 #ifdef LDAP_THREAD_POOL_IMPLEMENTATION
 
 int
-ldap_pvt_thread_pool_init(
+ldap_pvt_thread_pool_init_q(
 	ldap_pvt_thread_pool_t *tpool,
 	int max_threads,
-	int max_pending )
+	int max_pending,
+	int num_queues )
 {
 	int rc;
 	if( !options_done )
 		get_options();
 	ERROR_IF( !threading_enabled, "ldap_pvt_thread_pool_init" );
-	rc = ldap_int_thread_pool_init( tpool, max_threads, max_pending );
+	rc = ldap_int_thread_pool_init_q( tpool, max_threads, max_pending, num_queues );
 	if( rc ) {
-		ERROR( rc, "ldap_pvt_thread_pool_init" );
+		ERROR( rc, "ldap_pvt_thread_pool_init_q" );
 	} else {
 		adjust_count( Idx_tpool, +1 );
 	}

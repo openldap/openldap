@@ -74,6 +74,7 @@
 #define	ldap_pvt_thread_set_concurrency	ldap_int_thread_set_concurrency
 #define	ldap_pvt_thread_create			ldap_int_thread_create
 #define	ldap_pvt_thread_exit			ldap_int_thread_exit
+#define	ldap_pvt_thread_detach			ldap_int_thread_detach
 #define	ldap_pvt_thread_join			ldap_int_thread_join
 #define	ldap_pvt_thread_kill			ldap_int_thread_kill
 #define	ldap_pvt_thread_yield			ldap_int_thread_yield
@@ -112,7 +113,7 @@
 #ifdef LDAP_THREAD_DEBUG_WRAP			/* see ldap_pvt_thread.h */
 #define	ldap_pvt_thread_pool_t			ldap_int_thread_pool_t
 #endif
-#define	ldap_pvt_thread_pool_init		ldap_int_thread_pool_init
+#define	ldap_pvt_thread_pool_init_q		ldap_int_thread_pool_init_q
 #define	ldap_pvt_thread_pool_submit		ldap_int_thread_pool_submit
 #define	ldap_pvt_thread_pool_maxthreads	ldap_int_thread_pool_maxthreads
 #define	ldap_pvt_thread_pool_backload	ldap_int_thread_pool_backload
@@ -148,6 +149,7 @@
 #undef	ldap_pvt_thread_set_concurrency
 #undef	ldap_pvt_thread_create
 #undef	ldap_pvt_thread_exit
+#undef	ldap_pvt_thread_detach
 #undef	ldap_pvt_thread_join
 #undef	ldap_pvt_thread_kill
 #undef	ldap_pvt_thread_yield
@@ -178,7 +180,7 @@
 #undef	ldap_pvt_thread_rdwr_active
 /* LDAP_THREAD_POOL_IMPLEMENTATION: */
 #undef	ldap_pvt_thread_pool_t
-#undef	ldap_pvt_thread_pool_init
+#undef	ldap_pvt_thread_pool_init_q
 #undef	ldap_pvt_thread_pool_submit
 #undef	ldap_pvt_thread_pool_maxthreads
 #undef	ldap_pvt_thread_pool_backload
