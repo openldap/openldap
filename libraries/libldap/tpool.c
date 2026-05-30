@@ -132,6 +132,9 @@ struct ldap_int_thread_poolq_s {
 	int ltp_active_count;		/* Active, not paused/idle tasks */
 	int ltp_open_count;			/* Number of threads */
 	int ltp_starting;			/* Currently starting threads */
+
+	int ltp_last_valid;			/* ltp_last was set */
+	ldap_pvt_thread_t ltp_last;	/* Last thread to exit */
 };
 
 struct ldap_int_thread_pool_s {
@@ -433,7 +436,7 @@ ldap_pvt_thread_pool_submit2 (
 		pq->ltp_open_count++;
 
 		if (0 != ldap_pvt_thread_create(
-			&thr, 1, ldap_int_thread_pool_wrapper, pq))
+			&thr, 0, ldap_int_thread_pool_wrapper, pq))
 		{
 			/* couldn't create thread.  back out of
 			 * ltp_open_count and check for even worse things.
@@ -894,6 +897,10 @@ ldap_pvt_thread_pool_close ( ldap_pvt_thread_pool_t *tpool, int run_pending )
 			LDAP_SLIST_REMOVE_HEAD(&pq->ltp_free_list, ltt_next.l);
 			LDAP_FREE(task);
 		}
+		if (pq->ltp_last_valid) {
+			pq->ltp_last_valid = 0;
+			ldap_pvt_thread_join(pq->ltp_last, NULL);
+		}
 		ldap_pvt_thread_mutex_unlock(&pq->ltp_mutex);
 	}
 
@@ -1074,11 +1081,17 @@ ldap_int_thread_pool_wrapper (
 
 	pq->ltp_open_count--;
 	if (pq->ltp_open_count == 0) {
-		if (pool->ltp_finishing)
+		if (pool->ltp_finishing) {
 			/* let pool_destroy know we're all done */
+			pq->ltp_last = ctx.ltu_id;
+			pq->ltp_last_valid = 1;
 			ldap_pvt_thread_cond_signal(&pq->ltp_cond);
-		else
+		} else {
+			ldap_pvt_thread_detach(ctx.ltu_id);
 			freeme = 1;
+		}
+	} else {
+		ldap_pvt_thread_detach(ctx.ltu_id);
 	}
 
 	if (pool_lock)
