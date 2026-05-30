@@ -52,6 +52,7 @@ ldap_int_thread_initialize( void )
 int
 ldap_int_thread_destroy( void )
 {
+	pth_attr_destroy(joined_attr);
 	pth_attr_destroy(detach_attr);
 	pth_kill();
 	return 0;
@@ -73,6 +74,17 @@ void
 ldap_pvt_thread_exit( void *retval )
 {
 	pth_exit( retval );
+}
+
+int
+ldap_pvt_thread_detach( ldap_pvt_thread_t thread )
+{
+	pth_attr_t attr = pth_attr_of( thread );
+	if ( attr ) {
+		pth_attr_set( attr, PTH_ATTR_JOINABLE, FALSE );
+		pth_attr_destroy( attr );
+	}
+	return attr == NULL ? errno : 0;
 }
 
 int ldap_pvt_thread_join( ldap_pvt_thread_t thread, void **thread_return )

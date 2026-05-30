@@ -69,7 +69,17 @@ ldap_pvt_thread_create( ldap_pvt_thread_t * thread,
 void 
 ldap_pvt_thread_exit( void *retval )
 {
-	thr_exit( NULL );
+	thr_exit( retval );
+}
+
+int
+ldap_pvt_thread_detach( ldap_pvt_thread_t thread )
+{
+	/* there is no way to change the detach state of an existing thread
+	 * so if it was created joinable, someone must clean it up with
+	 * thr_join otherwise its thread ID is leaked.
+	 */
+	return 0;
 }
 
 int ldap_pvt_thread_join( ldap_pvt_thread_t thread, void **thread_return )

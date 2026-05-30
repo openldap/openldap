@@ -82,6 +82,9 @@ LDAP_F( void )
 ldap_pvt_thread_exit LDAP_P(( void *retval ));
 
 LDAP_F( int )
+ldap_pvt_thread_detach LDAP_P(( ldap_pvt_thread_t thread ));
+
+LDAP_F( int )
 ldap_pvt_thread_join LDAP_P(( ldap_pvt_thread_t thread, void **status ));
 
 LDAP_F( int )

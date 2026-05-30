@@ -203,6 +203,12 @@ ldap_pvt_thread_exit( void *retval )
 	pthread_exit( retval );
 }
 
+int
+ldap_pvt_thread_detach( ldap_pvt_thread_t thread )
+{
+	return ERRVAL( pthread_detach( thread ));
+}
+
 int 
 ldap_pvt_thread_join( ldap_pvt_thread_t thread, void **thread_return )
 {

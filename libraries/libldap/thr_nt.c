@@ -38,6 +38,7 @@ typedef struct ldap_int_thread_s {
 static ldap_int_thread_s tids[NT_MAX_THREADS];
 static int ntids;
 
+static ldap_pvt_thread_mutex_t tid_mutex;
 
 /* mingw compiler very sensitive about getting prototypes right */
 typedef unsigned __stdcall thrfunc_t(void *);
@@ -45,12 +46,14 @@ typedef unsigned __stdcall thrfunc_t(void *);
 int
 ldap_int_thread_initialize( void )
 {
+	ldap_pvt_thread_mutex_init( &tid_mutex );
 	return 0;
 }
 
 int
 ldap_int_thread_destroy( void )
 {
+	ldap_pvt_thread_mutex_destroy( &tid_mutex );
 	return 0;
 }
 
@@ -80,9 +83,11 @@ ldap_pvt_thread_create( ldap_pvt_thread_t * thread,
 
 	if ( thd ) {
 		*thread = (ldap_pvt_thread_t) tid;
+		ldap_pvt_thread_mutex_lock( &tid_mutex );
 		tids[ntids].tid = tid;
 		tids[ntids].thd = thd;
 		ntids++;
+		ldap_pvt_thread_mutex_unlock( &tid_mutex );
 		rc = 0;
 	}
 	return rc;
@@ -91,27 +96,59 @@ ldap_pvt_thread_create( ldap_pvt_thread_t * thread,
 void 
 ldap_pvt_thread_exit( void *retval )
 {
-	_endthread( );
+	_endthreadex( (unsigned int)retval );
 }
 
-int 
-ldap_pvt_thread_join( ldap_pvt_thread_t thread, void **thread_return )
+static int
+ldap_pvt_thread_pop( ldap_pvt_thread_t thread, HANDLE *thd )
 {
-	DWORD status;
-	int i;
+	int i, rc = -1;
 
-	for (i=0; i<ntids; i++) {
+	ldap_pvt_thread_mutex_lock( &tid_mutex );
+	for ( i=0; i<ntids; i++ ) {
 		if ( tids[i].tid == thread )
 			break;
 	}
-	if ( i > ntids ) return -1;
-
-	status = WaitForSingleObject( tids[i].thd, INFINITE );
-	for (; i<ntids; i++) {
-		tids[i] = tids[i+1];
+	if ( i<ntids ) {
+		*thd = tids[i].thd;
+		for (; i<ntids; i++) {
+			tids[i] = tids[i+1];
+		}
+		ntids--;
+		rc = 0;
 	}
-	ntids--;
-	return status == WAIT_FAILED ? -1 : 0;
+	ldap_pvt_thread_mutex_unlock( &tid_mutex );
+	return rc;
+}
+
+int
+ldap_pvt_thread_detach( ldap_pvt_thread_t thread )
+{
+	HANDLE thd;
+	int rc = ldap_pvt_thread_pop( thread, &thd );
+
+	if ( !rc )
+		CloseHandle( thd );
+	return rc;
+}
+
+int
+ldap_pvt_thread_join( ldap_pvt_thread_t thread, void **thread_return )
+{
+	HANDLE thd;
+	int rc = ldap_pvt_thread_pop( thread, &thd );
+
+	if ( !rc ) {
+		DWORD status = WaitForSingleObject( thd, INFINITE );
+		if ( thread_return ) {
+			DWORD exitcode;
+			GetExitCodeThread( thd, &exitcode );
+			*thread_return = (void *)exitcode;
+		}
+		CloseHandle( thd );
+		rc = status == WAIT_FAILED ? -1 : 0;
+	}
+	return rc;
 }
 
 int 
