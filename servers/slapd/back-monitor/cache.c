@@ -311,6 +311,7 @@ retry:;
 				 * leave the private data around; specifically,
 				 * callbacks need be freed by someone else */
 
+				ldap_pvt_thread_mutex_unlock( &mp->mp_mutex );
 				ldap_pvt_thread_mutex_destroy( &mp->mp_mutex );
 				mp->mp_next = NULL;
 				mp->mp_children = NULL;
