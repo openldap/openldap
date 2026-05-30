@@ -99,6 +99,7 @@
 #	endif
 
 #undef EWOULDBLOCK
+#undef ENOTCONN
 #undef EINPROGRESS
 #undef ETIMEDOUT
 #define EWOULDBLOCK WSAEWOULDBLOCK
