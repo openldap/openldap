@@ -15,7 +15,10 @@
 
 umask 077
 
-TESTWD=`pwd`
+case "$OS" in
+Windows*)	TESTWD=`pwd -W` ;;
+*)	TESTWD=`pwd` ;;
+esac
 
 if [ -z "$STARTTIME" ]; then
     STARTTIME=$(date +%s)
