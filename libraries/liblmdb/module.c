@@ -34,7 +34,7 @@ mdb_modload(const char *file, const char *name, MDB_crypto_funcs **mcf_ptr, char
 	{
 		HINSTANCE mlm = LoadLibrary(file);
 		if (mlm) {
-			hookfunc = GetProcAddress(mlm, name);
+			hookfunc = (MDB_crypto_hooks *)GetProcAddress(mlm, name);
 			if (hookfunc)
 				*mcf_ptr = hookfunc();
 			else {
@@ -43,7 +43,7 @@ mdb_modload(const char *file, const char *name, MDB_crypto_funcs **mcf_ptr, char
 				mlm = NULL;
 			}
 		} else {
-			*errmsg = GetLastError();
+			*errmsg = "GetProcAddress failed"; /* GetLastError(); */
 		}
 		ret = (void *)mlm;
 	}
