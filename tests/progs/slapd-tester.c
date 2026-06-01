@@ -1135,7 +1135,7 @@ fork_child( char *prog, char **args )
 
 	wait4kids( maxkids );
 
-	rc = _spawnvp( _P_NOWAIT, prog, args );
+	rc = _spawnvp( _P_NOWAIT, prog, (const char *const *)args );
 
 	if ( rc == -1 ) {
 		tester_perror( "_spawnvp", NULL );

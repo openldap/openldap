@@ -71,7 +71,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from, ber_socklen_t *salen ) {
 	peername[0] = '\0';
 
 	do {
-		ret = tcp_read( SLAP_FD2SOCK( sfd ), &pph, sizeof(pph) );
+		ret = tcp_read( SLAP_FD2SOCK( sfd ), (char *)&pph, sizeof(pph) );
 	} while ( ret == -1 && errno == EINTR );
 
 	if ( ret == -1 ) {
@@ -127,7 +127,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from, ber_socklen_t *salen ) {
 		}
 
 		do {
-			ret = tcp_read( SLAP_FD2SOCK (sfd), &ppa, addr_len );
+			ret = tcp_read( SLAP_FD2SOCK (sfd), (char *)&ppa, addr_len );
 		} while ( ret == -1 && errno == EINTR );
 
 		if ( ret == -1 ) {
@@ -204,7 +204,7 @@ proxyp( ber_socket_t sfd, Sockaddr *from, ber_socklen_t *salen ) {
 		}
 
 		do {
-			ret = tcp_read( SLAP_FD2SOCK (sfd), &proxyp_options, pph_len );
+			ret = tcp_read( SLAP_FD2SOCK (sfd), (char *)&proxyp_options, pph_len );
 		} while ( ret == -1 && errno == EINTR );
 
 		if ( ret == -1 ) {
