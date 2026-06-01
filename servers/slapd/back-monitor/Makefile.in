@@ -42,8 +42,5 @@ LIBBASE = back_monitor
 XINCPATH = -I.. -I$(srcdir)/.. -I$(srcdir)/../slapi
 XDEFS = $(MODULES_CPPFLAGS)
 
-all-local-lib:	../.backend
-
-../.backend: lib$(LIBBASE).a
-	@touch $@
+all-local-lib:	libobj.a
 

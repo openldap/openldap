@@ -34,8 +34,5 @@ LIBBASE = back_ldif
 XINCPATH = -I.. -I$(srcdir)/..
 XDEFS = $(MODULES_CPPFLAGS)
 
-all-local-lib:	../.backend
-
-../.backend: lib$(LIBBASE).a
-	@touch $@
+all-local-lib:	libobj.a
 
