@@ -11773,8 +11773,12 @@ mdb_env_incr_dump(MDB_env *env, const char *path, size_t txnid)
 int ESECT
 mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 {
+#ifdef _WIN32
+	DWORD rsize, rlen;
+#else
 	size_t rsize;
 	ssize_t rlen;
+#endif
 	char buf[PAGEHDRSZ], *ptr;
 	MDB_page *rp = (MDB_page *)buf, *mp;
 
