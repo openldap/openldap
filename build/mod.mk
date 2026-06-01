@@ -17,7 +17,7 @@
 #
 
 LIBRARY = $(LIBBASE).la
-LIBSTAT = lib$(LIBBASE).a
+LIBSTAT = libobj.a
 
 MKDEPFLAG = -l
 

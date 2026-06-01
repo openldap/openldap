@@ -39,8 +39,5 @@ LIBBASE = back_perl
 XINCPATH = -I.. -I$(srcdir)/..
 XDEFS = $(PERL_CPPFLAGS) $(MODULES_CPPFLAGS)
 
-all-local-lib:	../.backend
-
-../.backend: lib$(LIBBASE).a
-	@touch $@
+all-local-lib: libobj.a
 

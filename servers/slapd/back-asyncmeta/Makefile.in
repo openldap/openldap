@@ -44,7 +44,5 @@ LIBBASE = back_asyncmeta
 XINCPATH = -I.. -I$(srcdir)/..
 XDEFS = $(MODULES_CPPFLAGS)
 
-all-local-lib:	../.backend
+all-local-lib:	libobj.a
 
-../.backend: lib$(LIBBASE).a
-	@touch $@

@@ -47,10 +47,7 @@ LIBBASE = back_mdb
 XINCPATH = -I.. -I$(srcdir)/.. -I$(MDB_SUBDIR)
 XDEFS = $(MODULES_CPPFLAGS)
 
-all-local-lib:	../.backend
-
-../.backend: lib$(LIBBASE).a
-	@touch $@
+all-local-lib:	libobj.a
 
 mdb.lo:	$(MDB_SUBDIR)/mdb.c
 	$(LTCOMPILE_MOD) $(MDB_SUBDIR)/mdb.c

@@ -15,7 +15,7 @@
 
 SLAPTOOLS=slapadd slapcat slapdn slapindex slapmodify slappasswd slaptest slapauth slapacl slapschema
 PROGRAMS=slapd $(SLAPTOOLS)
-XPROGRAMS=sslapd libbackends.a .backend liboverlays.a
+XPROGRAMS=sslapd libbackends.a liboverlays.a
 XSRCS=version.c
 
 SUBDIRS=back-* slapi overlays pwmods
@@ -66,6 +66,7 @@ SLAP_DIR=
 SLAPD_STATIC_DEPENDS=@SLAPD_NO_STATIC@ libbackends.a liboverlays.a
 SLAPD_STATIC_BACKENDS=@SLAPD_STATIC_BACKENDS@
 SLAPD_DYNAMIC_BACKENDS=@SLAPD_DYNAMIC_BACKENDS@
+SLAPD_STATIC_TARGETS:=$(SLAPD_STATIC_BACKENDS:%=%/libobj.a)
 
 SLAPI_LIBS=@LIBSLAPI@ @SLAPI_LIBS@
 
@@ -273,9 +274,11 @@ slapd: $(SLAPD_DEPENDS) @LIBSLAPI@
 sslapd: version.o
 	$(LTLINK) -static -o $@ $(OBJS) version.o $(LIBS) $(WRAP_LIBS)
 
-dummy $(SLAPD_DYNAMIC_BACKENDS): slapd
+dummy $(SLAPD_DYNAMIC_BACKENDS): slapd FORCE
 	cd $@ && $(MAKE) $(MFLAGS) all
-	@touch $@
+
+$(SLAPD_STATIC_TARGETS): FORCE
+	cd $(@D) && $(MAKE) $(MFLAGS) all
 
 dynamic_overlays: slapd
 	cd overlays && $(MAKE) $(MFLAGS) dynamic
@@ -287,23 +290,10 @@ dynamic_pwmods: slapd
 # In Windows, dynamic backends have to be built after slapd. For this
 # reason, we only build static backends now and dynamic backends later.
 #
-.backend: FORCE
-	@if test -n "$(SLAPD_STATIC_BACKENDS)"; then \
-	    echo "building static backends..."; \
-	    for i in XX $(SLAPD_STATIC_BACKENDS); do \
-	    	if test $$i != XX; then \
-		    echo " "; echo "  cd $$i && $(MAKE) $(MFLAGS) all"; \
-		    ( cd $$i && $(MAKE) $(MFLAGS) all ); \
-		    if test $$? != 0; then exit 1; fi; \
-		fi; \
-	    done; \
-	    echo " "; \
-	fi
-
-libbackends.a: .backend
+libbackends.a: $(SLAPD_STATIC_TARGETS)
 	@$(RM) -r tmp
 	@$(MKDIR) tmp
-	@-for i in back-*/*.a; do \
+	@-for i in $?; do \
 		( \
 		  cd tmp; \
 		  $(AR) x ../$$i; \
@@ -311,13 +301,12 @@ libbackends.a: .backend
 		  for j in *.o; do \
 			mv $$j $${pre}$$j; \
 		  done; \
-		  $(AR) ruv libbackends.a *.o 2>&1 | grep -v truncated; \
+		  $(AR) ruv ../libbackends.a *.o 2>&1 | grep -v truncated; \
 		  $(RM) *.o __.SYMDEF  ________64ELEL_ ; \
 		  echo "added backend library $$i"; \
 		  echo ""; \
 		); \
 	done
-	@mv -f tmp/libbackends.a ./libbackends.a
 	@$(RM) -r tmp
 	@if test ! -z "$(RANLIB)" ; then \
 		$(RANLIB) libbackends.a; \
