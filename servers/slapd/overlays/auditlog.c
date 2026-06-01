@@ -134,9 +134,11 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 
 	/* Open file with optional non-blocking mode */
 	flags = O_WRONLY | O_CREAT | O_APPEND;
+#ifdef O_NONBLOCK
 	if ( ad->ad_nonblocking ) {
 		flags |= O_NONBLOCK;
 	}
+#endif
 
 	fd = open(ad->ad_logfile, flags, 0666);
 	if ( fd == -1 ) goto done;
