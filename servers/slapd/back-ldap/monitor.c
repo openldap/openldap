@@ -30,6 +30,7 @@
 #include <ac/errno.h>
 #include <sys/stat.h>
 #include "lutil.h"
+#include "slap.h"
 #include "back-ldap.h"
 
 #include "slap-config.h"
