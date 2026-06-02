@@ -8021,7 +8021,7 @@ syncrepl_config( ConfigArgs *c )
 					 * happen when running on the cn=config DB.
 					 */
 					if ( si->si_re ) {
-						if ( si->si_be == c->ca_op->o_bd ||
+						if ( si->si_be == c->ca_op->o_bd->bd_self ||
 								ldap_pvt_thread_mutex_trylock( &si->si_mutex )) {
 							isrunning = 1;
 						} else {
