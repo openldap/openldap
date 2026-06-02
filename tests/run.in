@@ -51,7 +51,7 @@ AC_OS_WINDOWS=@OS_WINDOWS@
 
 export AC_lloadd \
 	AC_WITH_SASL AC_WITH_TLS AC_WITH_MODULES_ENABLED AC_ACI_ENABLED \
-	AC_LIBS_DYNAMIC AC_WITH_TLS AC_TLS_TYPE
+	AC_LIBS_DYNAMIC AC_WITH_TLS AC_TLS_TYPE AC_OS_WINDOWS
 
 if test ! -x ../servers/slapd/slapd ; then
 	echo "Could not locate slapd(8)"
