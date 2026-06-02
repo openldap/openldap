@@ -203,32 +203,20 @@ CONN_BEGINS=`date +%s`
 CONN_EXPIRES=`expr $CONN_BEGINS + $TIMEOUT`
 echo "Create private connection towards remote LDAP (time_t now=$CONN_BEGINS timeout=$CONN_EXPIRES)"
 
-# Create fifos that are used to pass searches from the test case to ldapsearch
-rm -f $TESTDIR/ldapsearch1.fifo $TESTDIR/ldapsearch2.fifo
-mkfifo $TESTDIR/ldapsearch1.fifo $TESTDIR/ldapsearch2.fifo
-
 # Execute ldapsearch on background and have it read searches from the fifo
-$LDAPSEARCH -b "dc=idle-timeout,$BASEDN" \
+(echo 'objectclass=*'; sleep 4) | $LDAPSEARCH -b "dc=idle-timeout,$BASEDN" \
         -D "cn=Barbara Jensen,ou=Information Technology Division,dc=idle-timeout,$BASEDN" \
         -H $URI2 \
         -w "bjensen" \
-        -f $TESTDIR/ldapsearch1.fifo >> $TESTOUT 2>&1 &
+        -f - >> $TESTOUT 2>&1 &
 LDAPSEARCHPIDS=$!
 
-$LDAPSEARCH -b "dc=conn-ttl,$BASEDN" \
+(echo 'objectclass=*'; sleep 4) | $LDAPSEARCH -b "dc=conn-ttl,$BASEDN" \
         -D "cn=Barbara Jensen,ou=Information Technology Division,dc=conn-ttl,$BASEDN" \
         -H $URI2 \
         -w "bjensen" \
-        -f $TESTDIR/ldapsearch2.fifo >> $TESTOUT 2>&1 &
+        -f - >> $TESTOUT 2>&1 &
 LDAPSEARCHPIDS="$LDAPSEARCHPIDS $!"
-
-# Open fifos as file descriptor
-exec 3>$TESTDIR/ldapsearch1.fifo
-exec 4>$TESTDIR/ldapsearch2.fifo
-
-# Trigger LDAP connections towards the proxy by executing a search
-echo 'objectclass=*' >&3
-echo 'objectclass=*' >&4
 
 # wait for ldapsearches (running as background processes) to execute search operations
 sleep 2
@@ -288,12 +276,6 @@ if test $RC != 1 ; then
     test $KILLSERVERS != no && kill -HUP $KILLPIDS $LDAPSEARCHPIDS
     exit $RC
 fi
-
-# Close the file descriptors associated with the fifos.
-# This will trigger EOF to ldapsearch which will cause it to exit.
-exec 3>&-
-exec 4>&-
-
 
 ##############################################################################
 #
