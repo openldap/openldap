@@ -1238,7 +1238,7 @@ int  mdb_txn_prepare(MDB_txn *txn);
 	 * preceding #mdb_txn_commit() and this call.
 	 * @param[in] env An environment handle returned by #mdb_env_create().
 	 * @param[in] txnid The ID of the transaction to rollback, obtained from
-	 * #mdb_txnid() on the previous transaction.
+	 * #mdb_txn_id() on the previous transaction.
 	 * @return A non-zero error value on failure and 0 on success. Some possible
 	 * errors are:
 	 * <ul>
@@ -1910,10 +1910,10 @@ void mdb_modunload(void *handle);
 	 * This is just a wrapper around #mdb_env_set_encrypt() to ease use of
 	 * dynamically loaded crypto functions.
 	 * @param[in] env An environment handle returned by #mdb_env_create()
-	 * @param[in] funcs The crypto hooks retrieved by #mdb_modload().
+	 * @param[in] mcf_ptr The crypto hooks retrieved by #mdb_modload().
 	 * @param[in] passphrase The secret used to generate the encryption key for the environment.
 	 */
-void mdb_modsetup(MDB_env *env, MDB_crypto_funcs *cf, const char *passphrase);
+void mdb_modsetup(MDB_env *env, MDB_crypto_funcs *mcf_ptr, const char *passphrase);
 
 /**	@} */
 
