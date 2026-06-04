@@ -1,0 +1,104 @@
+/*
+ * Copyright 2026 Howard Chu, Symas Corp.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted only as authorized by the OpenLDAP
+ * Public License.
+ *
+ * A copy of this license is available in the file LICENSE in the
+ * top-level directory of the distribution or, alternatively, at
+ * <http://www.OpenLDAP.org/license.html>.
+ */
+/** @page upgrading Upgrading From Release 0.9
+
+The on-disk file format has changed in LMDB 1.0 and versions 0.9
+and 1.0 are mutually incompatible. You must use v0.9 #mdb_dump
+to export your old DBs, and import with v1.0 #mdb_load if you
+want to migrate your existing data to use LMDB 1.0. There is
+no support in LMDB 1.0 for operating directly on v0.9 DB files.
+Including such support would only bloat the library so it will
+not be done.
+
+@section features New Features
+
+New features in LMDB 1.0 include:
+	\li support for incremental backup
+	\li support for page-level checksums and encryption
+	\li support for DB on raw block devices
+	\li support for 2-phase commit
+	\li support for page sizes up to 64KB
+
+plus other minor additions to the API.
+
+@subsection backup Incremental Backup
+
+One of the changes to the disk format is the addition of the
+txnID to the page headers. This means every page now explicitly
+identifies which txn wrote it. The incremental backup function
+utilizes this feature and copies only pages with txnIDs newer
+than a given value. The <a href="man1/mdb_dump_1.html">mdb_dump</a>
+and <a href="man1/mdb_load_1.html">mdb_load</a> tools can be used
+to invoke this feature from the commandline. The #mdb_env_incr_dumpfd()
+and #mdb_env_incr_loadfd() functions can be used to perform an
+incremental backup or restore programmatically.
+
+@subsection encryption Page-Level Checksums and Encryption
+
+Page-level checksums and/or encryption can be enabled, to allow
+detection of corruption or tampering in the data, or to provide
+encryption-at-rest. These features can be enabled independently
+or together, using #mdb_env_set_checksum() and #mdb_env_set_encrypt().
+Simple checksumming can be used to detect corrupted data storage.
+The checksum support also allows for an optional key, for use
+with keyed hashes (e.g. HMAC) for protection against malicious
+tampering. The encryption support can use basic ciphers for
+simple encryption, or authenticated encryption mechanisms for
+encryption with built in integrity protection. The page number
+and txnID are used as the initialization vector (IV) for ciphers
+which need them.
+
+While the above two functions can be used directly on an environment,
+there is a dynamic module interface that's the preferred mechanism,
+because it will allow the command line tools to operate on encrypted
+environments as well. @ref crypto 
+An example of how to use the module interface
+is provided in crypto.c in the LMDB source.
+
+@subsection blockdev Raw Block Devices
+
+On Linux and other systems that support mmap on block devices,
+LMDB can be used directly on these devices, avoiding the overhead
+of any filesystem. Many modern filesystems now use copy-on-write
+mechanisms, just like LMDB, and it is redundant to do this in
+both the DB and the filesystem. Using the raw block device means
+that writes are always synchronous, so there is no need to do
+any fsyncs when committing a transaction. LMDB support for
+block devices is implicit; if you specify a block device as the
+path in mdb_env_open() LMDB will just do the right thing. It
+will act as if #MDB_NOSUBDIR was specified, and the lockfile it
+creates will just be the pathname with "-lock" appended.
+
+@subsection twophase Two Phase Commit
+
+Supporting two-phase commit (2PC) allows LMDB to be integrated
+with distributed transaction coordinators. The new function
+mdb_txn_prepare() is used to prepare a transaction, which then
+can be finalized with mdb_txn_commit() (as usual). In the rare
+case where a transaction was successfully committed but needs
+to be rolled back due to failures elsewhere in a distributed
+system, mdb_env_rollback() may be used. In LMDB, preparing a
+transaction just means writing all of the transaction's data
+except for the final metapage update, which is still just done
+in the final commit.
+
+@subsection pagesize Larger Page Sizes
+
+The page size LMDB uses can now be set explicitly, instead of
+just using the OS's page size. While Linux still defaults to
+4KB pages, larger pages may yield better performance, depending
+on the data being stored. Also, e.g. Apple Silicon machines use
+16KB pages by default. Page sizes up to 64KB are supported, and
+can be set using mdb_env_set_pagesize().
+
+*/

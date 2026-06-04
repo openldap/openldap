@@ -15,6 +15,8 @@
  *	database integrity cannot be corrupted by stray pointer writes from
  *	application code.
  *
+ *	<B>See @ref upgrading if you used LMDB 0.9 previously.</b>
+ *
  *	The library is fully thread-aware and supports concurrent read/write
  *	access from multiple processes and threads. Data pages use a copy-on-
  *	write strategy so no active data pages are ever overwritten, which
