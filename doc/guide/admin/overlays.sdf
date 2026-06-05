@@ -894,7 +894,7 @@ a policy object to use if none other is specified in a user's object.
 >       [...additional database configuration directives go here...]
 >       
 >       overlay ppolicy
->       ppolicy_default "cn=default,ou=policies,dc=example,dc=com"
+>       ppolicy_rules require_password=yes policy_dn="cn=default,ou=policies,dc=example,dc=com"
 
 
 Now we need a container for the policy objects. In our example the password 
@@ -958,12 +958,15 @@ There are two ways password policy can be applied to individual objects:
 
 1. The pwdPolicySubentry in a user's object - If a user's object has a
 pwdPolicySubEntry attribute specifying the DN of a policy object, then 
-the policy defined by that object is applied.
+the policy defined by that object is applied. This is discouraged.
 
-2. Default password policy - If there is no specific pwdPolicySubentry set
-for an object, and the password policy module was configured with the DN of a
-default policy object and if that object exists, then the policy defined in
-that object is applied.
+2a. Password policy selection rules - A policy or a decision that no policy
+should be applied can be described as a set of rules.
+
+2b. Default password policy - If there is no specific pwdPolicySubentry set
+for an object, the policy selection rules run out without a decision, and the
+password policy module was configured with the DN of a default policy object
+and if that object exists, then the policy defined in that object is applied.
 
 Please see {{slapo-ppolicy(5)}} for a complete explanation of its features.
 
