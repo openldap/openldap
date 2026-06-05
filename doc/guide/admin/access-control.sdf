@@ -55,8 +55,9 @@ access line is:
 >        [set=<setspec>]
 >        [aci=<attrname>]
 >    <access> ::= [self]{<level>|<priv>}
->    <level> ::= none | disclose | auth | compare | search | read | write | manage
->    <priv> ::= {=|+|-}{m|w|r|s|c|x|d|0}+
+>    <level> ::= none | disclose | auth | compare | search | read | write |
+>        add | delete | increment | manage
+>    <priv> ::= {=|+|-}{m|w|a|z|i|r|s|c|x|d|0}+
 >    <control> ::= [stop | continue | break]
 
 where the <what> part selects the entries and/or attributes to which
@@ -393,8 +394,9 @@ The general form of the olcAccess configuration is:
 >        [set=<setspec>]
 >        [aci=<attrname>]
 >    <access> ::= [self]{<level>|<priv>}
->    <level> ::= none | disclose | auth | compare | search | read | write | manage
->    <priv> ::= {=|+|-}{m|w|r|s|c|x|d|0}+
+>    <level> ::= none | disclose | auth | compare | search | read | write |
+>        add | delete | increment | manage
+>    <priv> ::= {=|+|-}{m|w|a|z|i|r|s|c|x|d|0}+
 >    <control> ::= [stop | continue | break]
 
 where the <what> part selects the entries and/or attributes to which
