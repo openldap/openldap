@@ -2,4 +2,30 @@
 # Copyright 2007-2026 The OpenLDAP Foundation, All Rights Reserved.
 # COPYING RESTRICTIONS APPLY, see COPYRIGHT.
 
-H1: Development branch, ignored
+H1: Upgrading from 2.6.x
+
+This section documents the steps necessary to upgrade from the latest OpenLDAP
+2.6.x version.
+
+The standard upgrade procedure documented in {{SECT:Maintenance}} must be
+completed prior to the steps documented in this section.
+
+H2: ppolicy overlay
+
+Starting with OpenLDAP 2.7, it is now possible to express password policy
+selection with rule based definitions. As such, setting the pwdPolicySubentry
+attribute by hand is discouraged. It is now essentially a virtual attribute
+that represents the active policy as configured via the rule based definitions.
+
+H2: lloadd proxyauthz feature
+
+The feature/olcBkLloadFeature option has now been split into enable/disable
+keywords to allow for features to have a default on/off state. The current
+"feature" keyword is still supported and means broadly the same as "enable",
+but it is highly recommended to migrate usage to the new keyword set.
+
+Additionally, the default proxyauthz feature flag has changed from disabled in
+2.6 to enabled in 2.7. This setting should only be set to disabled in
+environments where the backend implementation does not understand the control.
+In all other situations this is a potential security gap and the full
+ramifications of disabling it must be carefully considered.
