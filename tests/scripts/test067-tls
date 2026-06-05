@@ -213,6 +213,19 @@ else
 	echo "failed correctly with error code ($RC)"
 fi
 
+echo -n "Using ldapsearch on $SURI2 with reqcert TRY and no CA cert.  Should fail..."
+$LDAPSEARCH -o tls_reqcert=try -b "cn=Subschema" -s base -H $SURIP2 \
+	'(&(objectClasses=top)(objectClasses=2.5.6.0))' cn objectClass \
+	>> $SEARCHOUT  2>&1
+RC=$?
+if test $RC = 0 ; then
+	echo "ldapsearch (ldaps) succeeded when it should have failed($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+else
+	echo "failed correctly with error code ($RC)"
+fi
+
 echo -n "Using ldapsearch on $SURI2 with CA cert and reqcert HARD..."
 $LDAPSEARCH -o tls_cacert=$TESTDIR/tls/ca/certs/testsuiteCA.crt -o tls_reqcert=hard -b "cn=Subschema" -s base -H $SURIP2 \
 	'(&(objectClasses=top)(objectClasses=2.5.6.0))' cn objectClass \

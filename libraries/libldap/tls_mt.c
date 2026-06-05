@@ -50,6 +50,7 @@ typedef struct tlsmt_ctx {
 	mbedtls_x509_crt ca_chain;
 	unsigned long verify_depth;
 	int refcount;
+	int reqcert;
 #ifdef LDAP_R_COMPILE
 	ldap_pvt_thread_mutex_t ref_mutex;
 #endif
@@ -328,6 +329,7 @@ tlsmt_ctx_init( struct ldapoptions *lo, struct ldaptls *lt, int is_server, char 
 		}
 	}
 
+	ctx->reqcert = lo->ldo_tls_require_cert;
 	switch ( lo->ldo_tls_require_cert ) {
 		case LDAP_OPT_X_TLS_NEVER :
 			mbedtls_ssl_conf_authmode( ssl_config, MBEDTLS_SSL_VERIFY_NONE );
@@ -372,8 +374,20 @@ static int
 tlsmt_session_accept( tls_session *sess )
 {
 	tlsmt_session *s = (tlsmt_session *)sess;
+	int ret = mbedtls_ssl_handshake( &(s->ssl_ctx) );
 
-	return mbedtls_ssl_handshake( &(s->ssl_ctx) );
+	/*
+	 * ITS#10517: In case of TLS_DEMAND+, we set VERIFY_REQUIRED and
+	 * certificate validation is handled above, but for TRY we use
+	 * VERIFY_OPTIONAL and are expected to check the result ourselves.
+	 */
+	if ( ret == 0 && s->config->reqcert == LDAP_OPT_X_TLS_TRY &&
+			mbedtls_ssl_get_peer_cert( &(s->ssl_ctx) ) != NULL &&
+			mbedtls_ssl_get_verify_result( &(s->ssl_ctx) ) != 0 ) {
+		return MBEDTLS_ERR_X509_CERT_VERIFY_FAILED;
+	}
+
+	return ret;
 }
 
 static int
