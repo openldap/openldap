@@ -40,10 +40,13 @@ access line is:
 >    <what> ::= * |
 >        [dn[.<basic-style>]=<regex> | dn.<scope-style>=<DN>]
 >        [filter=<ldapfilter>] [attrs=<attrlist>]
+>        [op=<opspec>] [control=<OID>]
 >    <basic-style> ::= regex | exact
 >    <scope-style> ::= base | one | subtree | children
 >    <attrlist> ::= <attr> [val[.<basic-style>]=<regex>] | <attr> , <attrlist>
 >    <attr> ::= <attrname> | entry | children
+>    <opspec> ::= bind | search | modify | add | delete | rename | compare |
+>       extended | <OID>
 >    <who> ::= * | [anonymous | users | self
 >            | dn[.<basic-style>]=<regex> | dn.<scope-style>=<DN>]
 >        [dnattr=<attrname>]
@@ -149,6 +152,23 @@ access to entry's {{EX:entry}} attribute AND have {{EX:write}}
 access to both the old parent's and new parent's {{EX:children}}
 attributes.  The complete examples at the end of this section should
 help clear things up.
+
+>   to op=search
+>   to op=extended
+>   to op=<OID>
+
+The rule only applies in the context of a specified operation being processed,
+or a specific extended operation if <OID> is specified. Note that
+{{EX:objectIdentifier}} macros in schemas such as those provided in
+{{EX:core.schema}} can be used as a stand in. Nore that this is not useful to
+completely block access to a specific operation type or control, for that,
+refer to the {{restrictop}} keyword documented later in this chapter.
+
+>   to control=<OID>
+
+As with {{EX:op=<OID>}, the rule only applies if the control specified by the
+macro-expanded OID applies to the operation and in many circumstances,
+{{restrictop}} keyword is more appropriate.
 
 Lastly, there is a special entry selector {{EX:"*"}} that is used to
 select any entry.  It is used when no other {{EX:<what>}}
@@ -379,10 +399,13 @@ The general form of the olcAccess configuration is:
 >    <what> ::= * |
 >        [dn[.<basic-style>]=<regex> | dn.<scope-style>=<DN>]
 >        [filter=<ldapfilter>] [attrs=<attrlist>]
+>        [op=<opspec>] [control=<OID>]
 >    <basic-style> ::= regex | exact
 >    <scope-style> ::= base | one | subtree | children
 >    <attrlist> ::= <attr> [val[.<basic-style>]=<regex>] | <attr> , <attrlist>
 >    <attr> ::= <attrname> | entry | children
+>    <opspec> ::= bind | search | modify | add | delete | rename | compare |
+>       extended | <OID>
 >    <who> ::= * | [anonymous | users | self
 >            | dn[.<basic-style>]=<regex> | dn.<scope-style>=<DN>]
 >        [dnattr=<attrname>]
@@ -775,6 +798,96 @@ which is exactly what was intended.
 For more details on how to use the {{EX:access}} directive,
 consult the {{Advanced Access Control}} chapter.
 !endif
+
+
+H2: Access control to specific operations and controls
+
+Similar to the {{EX:access}} and {{EX:olcAccess}} it is possible to control who
+can issue certain operations, or attach which controls. As this happens very
+early on during operation processing, this is the only reliable way to limit
+access to certain operation/control combinations that are not otherwise
+influenced by ACL processing.
+
+Same as with ACLs do not add the rootdn to the by clauses, restrictop rules are
+not processed for operations submitted by the rootdn of the target database.
+
+The general form of the restrictop configuration is:
+
+>    <restrictop directive> ::= restrictop <opspec>+ [control=<OID>]+
+>        {by <who> <action> [<control>] }+
+>    <olcRestrictOp directive> ::= olcRestrictOp: <opspec>+ [control=<OID>]+
+>        {by <who> <action> [<control>] }+
+>    <opspec> ::= all | read | write | bind | search | modify | add |
+>        delete | rename | compare | extended | extended=<OID>
+>    <basic-style> ::= regex | exact
+>    <scope-style> ::= base | one | subtree | children
+>    <who> ::= * | [anonymous | users | self
+>            | dn[.<basic-style>]=<regex> | dn.<scope-style>=<DN>]
+>        [dnattr=<attrname>]
+>        [group[/<objectclass>[/<attrname>][.<basic-style>]]=<regex>]
+>        [peername[.<basic-style>]=<regex>]
+>        [sockname[.<basic-style>]=<regex>]
+>        [domain[.<basic-style>]=<regex>]
+>        [sockurl[.<basic-style>]=<regex>]
+>        [set=<setspec>]
+>        [aci=<attrname>]
+>    <action> ::= allow | reject | drop control=<OID>
+>    <control> ::= [stop | continue | break]
+
+Where {{EX:<OID>}} could be a literal OID of a control/extended operation or an
+OID macro. For example, {{EX:core.schema}} file distributed by the project
+already defines macros for most known controls and extended operations.
+
+When evaluating whether some requester should be allowed to issue a request or
+attach a control, slapd picks the restrictop directives provided in the
+database selected to perform this operation (or the directives specified on the
+frontend database if none configured) and tries to process them in order until
+it reaches a clear decision. That decision could be either matching a
+{{EX:<who>}} rule with an explicit or implicit {{EX:stop}}, running out of
+{{EX:<who>}} rules in a directive or running out of directives.
+
+The last {{EX:<action>}} keyword that applied marks the final decision for this
+operation. The {{EX:allow}} decision allows this operation to continue
+processing as normal, whereas {{EX:reject}} will deny this operation with
+{{unwillingToPerform}}. The {{EX:drop control=<OID>}} action is special: if
+that control was provided by the client and marked critical, it acts as
+{{EX:reject}}, otherwise is effectively disabled for the operation and the
+{{EX:allow}} decision is rememberd instead. If the control was not specified at
+all, again, it acts as {{EX:allow}}.
+
+This opens up various capabilities. A few examples:
+
+>    olcRestrictOp: all control=relax
+>        by group=cn=admins,ou=group,dc=example,dc=com allow
+>        by * reject
+
+This rule disallows anyone but specified admins from attaching the Relax
+control. Note that OID macros are case sensitive so {{EX:control=Relax}} would
+not be accepted.
+
+>    restrictop search control=sync control=manageDSAiT
+>        by * allow
+>    restrictop search control=sync by * reject
+
+This somewhat silly rule disallows the use of syncrepl clients that forget to
+attach a manageDSAiT control. With good clients, the first rule matches and the
+{{EX:by * allow}} carries an implicit {{EX:stop}}, which ends processing there
+and then. If a syncrepl control was specified but manageDSAiT was not,
+processing continues to the second rule which forbids this request.
+
+Take note that if these were the only rules in the list, no other operations
+would be permitted either. Just like with ACLs, it is as if the following
+implicitly existed at the end of the list:
+
+>    restrictop all by * reject
+
+By default however no restrictions are set up on the database or the frontend,
+which implies that everything is allowed.
+
+>    olcRestrictOp: rename by * reject
+>    olcRestrictOp: extended=txnStart by * reject
+
+Similarly requests can be limited on a per-operation basis.
 
 
 H2: Access Control Common Examples
