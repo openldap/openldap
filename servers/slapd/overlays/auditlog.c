@@ -134,7 +134,7 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 
 	/* Open file with optional non-blocking mode */
 	flags = O_WRONLY | O_CREAT | O_APPEND;
-#ifdef O_NONBLOCK
+#ifndef _WIN32
 	if ( ad->ad_nonblocking ) {
 		flags |= O_NONBLOCK;
 	}
@@ -148,6 +148,14 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 		close(fd);
 		goto done;
 	}
+
+#ifdef _WIN32
+	if ( ad->ad_nonblocking ) {
+		intptr_t fh = _get_osfhandle( fd );
+		DWORD mode = PIPE_NOWAIT;
+		SetNamedPipeHandleState( (HANDLE)fh, &mode, NULL, NULL );
+	}
+#endif
 
 	stamp = slap_get_time();
 	fprintf(f, "# %s %ld %s%s%s %s conn=%ld\n",
