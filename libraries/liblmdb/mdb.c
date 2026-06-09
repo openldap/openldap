@@ -1169,7 +1169,11 @@ typedef struct MDB_dovpage {
 #endif
 
 	/** The number of overflow pages needed to store the given size. */
-#define OVPAGES(size, psize)	((PAGEHDRSZ-1 + (size)) / (psize) + 1)
+#if MDB_RPAGE_CACHE
+#define OVPAGES(env, size)	((PAGEHDRSZ-1 + (size) + (env)->me_sumsize + (env)->me_esumsize) / ((env)->me_psize) + 1)
+#else
+#define OVPAGES(env, size)	((PAGEHDRSZ-1 + (size)) / (env->me_psize) + 1)
+#endif
 
 	/** Link in #MDB_txn.%mt_loose_pgs list.
 	 *  Kept outside the page header, which is needed when reusing the page.
@@ -8852,7 +8856,7 @@ current:
 		if (F_ISSET(leaf->mn_flags, F_BIGDATA)) {
 			MDB_page *omp;
 			MDB_ovpage ovp;
-			int ovpages, dpages = OVPAGES(data->mv_size, env->me_psize);
+			int ovpages, dpages = OVPAGES(env, data->mv_size);
 
 			memcpy(&ovp, olddata.mv_data, sizeof(ovp));
 			if ((rc2 = MDB_PAGE_GET(mc, ovp.op_pgno, ovp.op_pages, &omp)) != 0)
@@ -9331,7 +9335,7 @@ mdb_node_add(MDB_cursor *mc, indx_t indx,
 			/* Data already on overflow page. */
 			node_size += sizeof(MDB_ovpage);
 		} else if (node_size + data->mv_size > mc->mc_txn->mt_env->me_nodemax) {
-			int ovpages = OVPAGES(data->mv_size, mc->mc_txn->mt_env->me_psize);
+			int ovpages = OVPAGES(mc->mc_txn->mt_env, data->mv_size);
 			int rc;
 			/* Put data on overflow page. */
 			DPRINTF(("data size is %"Z"u, node would be %"Z"u, put data on overflow page",
