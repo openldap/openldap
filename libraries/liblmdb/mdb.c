@@ -1655,7 +1655,7 @@ struct MDB_env {
 	HANDLE		me_lfd;		/**< The lock file */
 	HANDLE		me_mfd;		/**< For writing and syncing the meta pages */
 #ifdef _WIN32
-#ifdef MDB_RPAGE_CACHE
+#if MDB_RPAGE_CACHE
 	HANDLE		me_fmh;		/**< File Mapping handle */
 #endif
 	HANDLE		me_ovfd;	/**< Overlapped/async with write-through file handle */
@@ -5527,7 +5527,7 @@ mdb_env_open2(MDB_env *env, int prev)
 		env->me_psize = meta.mm_psize;
 	}
 	env->me_pagespace = env->me_psize - PAGEHDRSZ
-#ifdef MDB_RPAGE_CACHE
+#if MDB_RPAGE_CACHE
 		- env->me_sumsize - env->me_esumsize
 #endif
 	;
@@ -11136,6 +11136,10 @@ mdb_env_copythr(void *arg)
 	char *ptr;
 	int toggle = 0, rc;
 	mdb_size_t wsize;
+#if MDB_RPAGE_CACHE
+	char *pagebuf = NULL;
+	char *ovpage = NULL;
+#endif
 #ifdef _WIN32
 	DWORD len, w2;
 #else
@@ -11157,6 +11161,16 @@ mdb_env_copythr(void *arg)
 #endif
 #endif
 
+#if MDB_RPAGE_CACHE
+	if (my->mc_env->me_encfunc) {
+		pagebuf = malloc(my->mc_env->me_psize);
+		if (!pagebuf) {
+			my->mc_error = ENOMEM;
+			goto skip;
+		}
+	}
+#endif
+
 	pthread_mutex_lock(&my->mc_mutex);
 	for(;;) {
 		while (!my->mc_new)
@@ -11165,6 +11179,36 @@ mdb_env_copythr(void *arg)
 			break;
 		wsize = my->mc_wlen[toggle];
 		ptr = my->mc_wbuf[toggle];
+#if MDB_RPAGE_CACHE
+		if (my->mc_env->me_sumfunc || my->mc_env->me_encfunc) {
+			char *mptr;
+			for (mptr = ptr; mptr < ptr+wsize; mptr += my->mc_env->me_psize) {
+				if (((MDB_page *)mptr)->mp_pgno < NUM_METAS)
+					continue;
+				if (my->mc_env->me_sumfunc)
+					mdb_page_set_checksum(my->mc_env, (MDB_page *)mptr, my->mc_env->me_psize);
+				if (my->mc_env->me_encfunc) {
+					memcpy(pagebuf, mptr, my->mc_env->me_psize);
+					mdb_page_encrypt(my->mc_env, (MDB_page *)pagebuf, (MDB_page *)mptr, my->mc_env->me_psize);
+				}
+			}
+			if (my->mc_olen[toggle]) {
+				if (my->mc_env->me_sumfunc)
+					mdb_page_set_checksum(my->mc_env, (MDB_page *)my->mc_over[toggle], my->mc_olen[toggle]);
+				if (my->mc_env->me_encfunc) {
+					ovpage = malloc(my->mc_olen[toggle]);
+					if (!ovpage) {
+						rc = my->mc_error = ENOMEM;
+						goto skip;
+					}
+					mdb_page_encrypt(my->mc_env, (MDB_page *)my->mc_over[toggle], (MDB_page *)ovpage,
+						my->mc_olen[toggle]);
+					free(my->mc_over[toggle]);
+					my->mc_over[toggle] = ovpage;
+				}
+			}
+		}
+#endif
 again:
 		rc = MDB_SUCCESS;
 		while (wsize > 0 && !my->mc_error) {
@@ -11193,6 +11237,13 @@ again:
 			my->mc_olen[toggle] = 0;
 			goto again;
 		}
+#if MDB_RPAGE_CACHE
+skip:
+		if (ovpage) {
+			free(ovpage);
+			ovpage = NULL;
+		}
+#endif
 		my->mc_wlen[toggle] = 0;
 		toggle ^= 1;
 		/* Return the empty buffer to provider */
@@ -11200,6 +11251,10 @@ again:
 		pthread_cond_signal(&my->mc_cond);
 	}
 	pthread_mutex_unlock(&my->mc_mutex);
+#if MDB_RPAGE_CACHE
+	if (pagebuf)
+		free(pagebuf);
+#endif
 	return (THREAD_RET)0;
 }
 
@@ -11261,6 +11316,7 @@ mdb_env_cwalk(mdb_copy *my, pgno_t *pg, int flags)
 
 	for (i=0; i<mc.mc_top; i++) {
 		mdb_page_copy((MDB_page *)ptr, mc.mc_pg[i], my->mc_env->me_psize);
+		MDB_PAGE_UNREF(my->mc_txn, mc.mc_pg[i]);
 		mc.mc_pg[i] = (MDB_page *)ptr;
 		ptr += my->mc_env->me_psize;
 	}
@@ -11286,6 +11342,7 @@ mdb_env_cwalk(mdb_copy *my, pgno_t *pg, int flags)
 						if (mp != leaf) {
 							mc.mc_pg[mc.mc_top] = leaf;
 							mdb_page_copy(leaf, mp, my->mc_env->me_psize);
+							MDB_PAGE_UNREF(my->mc_txn, mp);
 							mp = leaf;
 							ni = NODEPTR(mp, i);
 						}
@@ -11300,22 +11357,46 @@ mdb_env_cwalk(mdb_copy *my, pgno_t *pg, int flags)
 								goto done;
 							toggle = my->mc_toggle;
 						}
-						mo = (MDB_page *)(my->mc_wbuf[toggle] + my->mc_wlen[toggle]);
-						memcpy(mo, omp, my->mc_env->me_psize);
 						ovp.op_pgno = my->mc_next_pgno;
-						mo->mp_pgno = ovp.op_pgno;
-						mo->mp_txnid = 1;
 						ovp.op_txnid = 1;
 						memcpy(NODEDATA(ni), &ovp, sizeof(ovp));
 						my->mc_next_pgno += ovp.op_pages;
-						my->mc_wlen[toggle] += my->mc_env->me_psize;
-						if (ovp.op_pages > 1) {
-							my->mc_olen[toggle] = my->mc_env->me_psize * (ovp.op_pages - 1);
-							my->mc_over[toggle] = (char *)omp + my->mc_env->me_psize;
+						/* if it's a large overflow page, we want to keep it contiguous
+						 * if we need to do checksum or encryption on it. Otherwise we
+						 * can just modify the leading page and copy the tail separately.
+						 */
+						if ((MDB_REMAPPING(my->mc_env->me_flags) || my->mc_env->me_sumfunc) && ovp.op_pages > 1) {
+							size_t ovlen = ovp.op_pages * my->mc_env->me_psize;
+							mo = malloc(ovlen);
+							if (!mo) {
+								rc = ENOMEM;
+								goto done;
+							}
+							mdb_page_copy(mo, omp, ovlen);
+							mo->mp_pgno = ovp.op_pgno;
+							mo->mp_txnid = 1;
+							my->mc_over[toggle] = (char *)mo;
+							my->mc_olen[toggle] = ovlen;
+							MDB_PAGE_UNREF(my->mc_txn, omp);
 							rc = mdb_env_cthr_toggle(my, 1);
 							if (rc)
 								goto done;
 							toggle = my->mc_toggle;
+						} else {
+							mo = (MDB_page *)(my->mc_wbuf[toggle] + my->mc_wlen[toggle]);
+							memcpy(mo, omp, my->mc_env->me_psize);
+							mo->mp_pgno = ovp.op_pgno;
+							mo->mp_txnid = 1;
+							my->mc_wlen[toggle] += my->mc_env->me_psize;
+							MDB_PAGE_UNREF(my->mc_txn, omp);
+							if (ovp.op_pages > 1) {
+								my->mc_olen[toggle] = my->mc_env->me_psize * (ovp.op_pages - 1);
+								my->mc_over[toggle] = (char *)omp + my->mc_env->me_psize;
+								rc = mdb_env_cthr_toggle(my, 1);
+								if (rc)
+									goto done;
+								toggle = my->mc_toggle;
+							}
 						}
 					} else if (ni->mn_flags & F_SUBDATA) {
 						MDB_db db;
@@ -11324,6 +11405,7 @@ mdb_env_cwalk(mdb_copy *my, pgno_t *pg, int flags)
 						if (mp != leaf) {
 							mc.mc_pg[mc.mc_top] = leaf;
 							mdb_page_copy(leaf, mp, my->mc_env->me_psize);
+							MDB_PAGE_UNREF(my->mc_txn, mp);
 							mp = leaf;
 							ni = NODEPTR(mp, i);
 						}
@@ -11356,6 +11438,7 @@ again:
 					 * we must proceed all the way down to its first leaf.
 					 */
 					mdb_page_copy(mc.mc_pg[mc.mc_top], mp, my->mc_env->me_psize);
+					MDB_PAGE_UNREF(my->mc_txn, mp);
 					goto again;
 				} else
 					mc.mc_pg[mc.mc_top] = mp;
@@ -11370,6 +11453,7 @@ again:
 		}
 		mo = (MDB_page *)(my->mc_wbuf[toggle] + my->mc_wlen[toggle]);
 		mdb_page_copy(mo, mp, my->mc_env->me_psize);
+		MDB_PAGE_UNREF(my->mc_txn, mp);
 		mo->mp_pgno = my->mc_next_pgno++;
 		mo->mp_txnid = 1;
 		my->mc_wlen[toggle] += my->mc_env->me_psize;
