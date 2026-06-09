@@ -6439,8 +6439,10 @@ mdb_env_close_active(MDB_env *env, int excl)
 	if (env->me_rpages) {
 		MDB_ID3L el = env->me_rpages;
 		unsigned int x;
-		for (x=1; x<=el[0].mid; x++)
+		for (x=1; x<=el[0].mid; x++) {
 			munmap(el[x].mptr, el[x].mcnt * env->me_psize);
+			free(el[x].menc);
+		}
 		free(el);
 	}
 	}
@@ -7110,8 +7112,10 @@ retry:
 					id3.mid = pg0;
 					if (env->me_encfunc || env->me_sumfunc) {
 						rc = mdb_rpage_encsum(env, &id3, rem, numpgs);
-						if (rc)
+						if (rc) {
+							free(id3.menc);
 							goto fail;
+						}
 						el[x].muse = id3.muse;
 					}
 					pthread_mutex_unlock(&env->me_rpmutex);
@@ -7178,8 +7182,10 @@ fail:
 		}
 		if (env->me_encfunc || env->me_sumfunc) {
 			rc = mdb_rpage_encsum(env, &id3, rem, numpgs);
-			if (rc)
+			if (rc) {
+				free(id3.menc);
 				goto fail;
+			}
 		}
 		mdb_mid3l_insert(el, &id3);
 		pthread_mutex_unlock(&env->me_rpmutex);
