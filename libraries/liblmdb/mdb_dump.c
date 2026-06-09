@@ -154,6 +154,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 	printf("DATA=END\n");
 	if (rc == MDB_NOTFOUND)
 		rc = MDB_SUCCESS;
+	mdb_cursor_close(mc);
 
 	return rc;
 }
