@@ -3498,8 +3498,6 @@ mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **ret)
 		 */
 		if (parent->mt_flags & MDB_TXN_RDONLY)
 			return EINVAL;
-		if (parent->mt_flags & MDB_TXN_BLOCKED)
-			return MDB_BAD_TXN;
 		if ((parent->mt_flags & MDB_TXN_WRITEMAP) && !(flags & MDB_RDONLY))
 			return EINVAL;
 		pthread_mutex_lock(&parent->mt_child_mutex);
@@ -3508,6 +3506,8 @@ mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **ret)
 			flags &= ~MDB_TXN_HAS_CHILD;
 		}
 		pthread_mutex_unlock(&parent->mt_child_mutex);
+		if (flags & MDB_TXN_BLOCKED)
+			return (flags & MDB_TXN_RDONLY) ? EINVAL : MDB_BAD_TXN;
 		/* Child txns save MDB_pgstate and use own copy of cursors */
 		size = env->me_maxdbs * (sizeof(MDB_db)+sizeof(MDB_cursor *)+1);
 		size += tsize = sizeof(MDB_ntxn);
