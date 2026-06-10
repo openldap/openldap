@@ -3496,15 +3496,16 @@ mdb_txn_begin(MDB_env *env, MDB_txn *parent, unsigned int flags, MDB_txn **ret)
 		 * if the nested txn is a write txn there may only be 1, no writemap;
 		 * if the nested txn is a read txn there may be arbitrarily many.
 		 */
+		if (parent->mt_flags & MDB_TXN_RDONLY)
+			return EINVAL;
+		if (parent->mt_flags & MDB_TXN_BLOCKED)
+			return MDB_BAD_TXN;
+		if ((parent->mt_flags & MDB_TXN_WRITEMAP) && !(flags & MDB_RDONLY))
+			return EINVAL;
 		pthread_mutex_lock(&parent->mt_child_mutex);
 		flags |= parent->mt_flags;
 		if (parent->mt_child && F_ISSET(parent->mt_child->mt_flags, MDB_RDONLY) && F_ISSET(flags, MDB_RDONLY)) {
 			flags &= ~MDB_TXN_HAS_CHILD;
-		}
-		if ((F_ISSET(flags, MDB_WRITEMAP) && !F_ISSET(flags, MDB_RDONLY)) || F_ISSET(flags, MDB_TXN_BLOCKED)) {
-			flags = parent->mt_flags;
-			pthread_mutex_unlock(&parent->mt_child_mutex);
-			return (flags & MDB_TXN_RDONLY) ? EINVAL : MDB_BAD_TXN;
 		}
 		pthread_mutex_unlock(&parent->mt_child_mutex);
 		/* Child txns save MDB_pgstate and use own copy of cursors */
