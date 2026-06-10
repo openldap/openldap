@@ -11608,6 +11608,13 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 	ssize_t len;
 	size_t w2;
 #endif
+#if MDB_RPAGE_CACHE
+#ifdef _WIN32
+	LARGE_INTEGER	off;
+#else
+	off_t	off;
+#endif
+#endif
 
 	/* Do the lock/unlock of the reader mutex before starting the
 	 * write txn.  Otherwise other read txns could block writers.
@@ -11665,10 +11672,25 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 		if (w3 > fsize)
 			w3 = fsize;
 	}
+#if MDB_RPAGE_CACHE
+	if (MDB_REMAPPING(env->me_flags)) {
+		off = wsize;
+	}
+#endif
 	wsize = w3 - wsize;
 	while (wsize > 0) {
 		w2 = (wsize > MAX_WRITE) ? MAX_WRITE : wsize;
+#if MDB_RPAGE_CACHE
+		if (MDB_REMAPPING(env->me_flags)) {
+			MAP(rc, env, ptr, w2, off);
+		}
+#endif
 		DO_WRITE(rc, fd, ptr, w2, len);
+#if MDB_RPAGE_CACHE
+		if (MDB_REMAPPING(env->me_flags)) {
+			munmap(ptr, w2);
+		}
+#endif
 		if (!rc) {
 			rc = ErrCode();
 			break;
@@ -11676,6 +11698,11 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 			rc = MDB_SUCCESS;
 			ptr += len;
 			wsize -= len;
+#if MDB_RPAGE_CACHE
+			if (MDB_REMAPPING(env->me_flags)) {
+				off += len;
+			}
+#endif
 			continue;
 		} else {
 			rc = MDB_SHORT_WRITE;
