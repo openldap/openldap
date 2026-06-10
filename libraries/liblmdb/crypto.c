@@ -57,7 +57,15 @@ static int mcf_encfunc(const MDB_val *src, MDB_val *dst, const MDB_val *key, int
 	if (encdec) {
 		rc = ENC(dst, src, key[2].mv_data, key[0].mv_data, iv);
 	} else {
-		rc = DEC(dst, src, key[2].mv_data, key[0].mv_data, iv);
+		if (key[2].mv_size)
+			rc = DEC(dst, src, key[2].mv_data, key[0].mv_data, iv);
+		else {
+			/* Decrypting without MAC check: only used when decrypting page
+			 * headers during incremental load.
+			 */
+			rc = crypto_stream_chacha20_ietf_xor_ic(dst->mv_data, src->mv_data,
+				src->mv_size, iv, 1, key[0].mv_data);
+		}
 	}
 	return rc;
 }
