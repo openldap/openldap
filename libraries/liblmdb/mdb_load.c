@@ -361,6 +361,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'i':
 			incr = 1;
+			mode |= NOHDR;
 			break;
 		case 'n':
 			envflags |= MDB_NOSUBDIR;
@@ -417,7 +418,6 @@ int main(int argc, char *argv[])
 	}
 
 	if (incr) {
-		envflags |= MDB_WRITEMAP;
 		rc = mdb_env_open(env, envname, envflags, 0664);
 		if (rc)
 			goto openfail;

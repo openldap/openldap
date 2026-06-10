@@ -112,7 +112,11 @@ mtest6:	mtest6.o liblmdb.a
 mtest_remap:  mtest_remap.o liblmdb.a
 mtest_enc:    mtest_enc.o chacha8.o liblmdb.a
 mtest_enc2:	  mtest_enc2.o liblmdb.a crypto.lm
-	$(CC) $(LDFLAGS) -pthread -o $@ mtest_enc2.o liblmdb.a $(LDL)
+	$(CC) $(LDFLAGS) -pthread -o $@ $@.o liblmdb.a $(LDL)
+mtest_enc3:	  mtest_enc3.o liblmdb.a crypto.lm
+	$(CC) $(LDFLAGS) -pthread -o $@ $@.o liblmdb.a $(LDL)
+mtest_enc4:	  mtest_enc4.o liblmdb.a crypto.lm
+	$(CC) $(LDFLAGS) -pthread -o $@ $@.o liblmdb.a $(LDL)
 
 mplay:	mplay.o liblmdb.a
 

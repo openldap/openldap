@@ -6907,10 +6907,11 @@ mdb_rpage_encsum(MDB_env *env, MDB_ID3 *id3, unsigned rem, int numpgs)
  * @param[in] pg0 the page number for the page to retrieve.
  * @param[in] numpgs number of database pages (can be > 1 for overflow pages)
  * @param[out] ret address of a pointer where the page's address will be stored.
+ * @param[out] enc address of a pointer where the encrypted page's address will be stored.
  * @return 0 on success, non-zero on failure.
  */
 static int
-mdb_rpage_get(MDB_txn *txn, pgno_t pg0, int numpgs, MDB_page **ret)
+mdb_rpage_get(MDB_txn *txn, pgno_t pg0, int numpgs, MDB_page **ret, MDB_page **enc)
 {
 	MDB_env *env = txn->mt_env;
 	MDB_page *p;
@@ -7211,6 +7212,9 @@ ok:
 	}
 #endif
 	*ret = p;
+	if (enc && env->me_encfunc) {
+		*enc = (MDB_page *)(id3.mptr + rem * env->me_psize);
+	}
 	return rc;
 }
 
@@ -7394,7 +7398,7 @@ mdb_page_get(MDB_cursor *mc, pgno_t pgno,
 mapped:
 #if MDB_RPAGE_CACHE
 	if (MDB_REMAPPING(txn->mt_env->me_flags)) {
-		int rc = mdb_rpage_get(txn, pgno, numpgs, &p);
+		int rc = mdb_rpage_get(txn, pgno, numpgs, &p, NULL);
 		if (rc) {
 			txn->mt_flags |= MDB_TXN_ERROR;
 			return rc;
@@ -11610,9 +11614,9 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 #endif
 #if MDB_RPAGE_CACHE
 #ifdef _WIN32
-	LARGE_INTEGER	off;
+	LARGE_INTEGER	off = 0;
 #else
-	off_t	off;
+	off_t	off = 0;
 #endif
 #endif
 
@@ -11770,11 +11774,16 @@ mdb_env_copy(MDB_env *env, const char *path)
 int ESECT
 mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 {
-	int rc;
-	MDB_page *mp, *mend;
+	int rc, npgs;
+	MDB_page *mp;
+#if MDB_RPAGE_CACHE
+	MDB_page *m2;
+#endif
 	MDB_txn *txn;
 	mdb_size_t wsize;
 	char *buf = NULL;
+	pgno_t pg;
+	MDB_cursor mc;
 #ifdef _WIN32
 	DWORD len, w2;
 #else
@@ -11840,15 +11849,33 @@ mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 	ALIGNED_FREE(buf);
 	buf = NULL;
 
-	mp = (MDB_page *)((char *)env->me_map + 2*env->me_psize);
-	mend = (MDB_page *)((char *)env->me_map + txn->mt_next_pgno * env->me_psize);
-	while (mp < mend) {
+	/* dummy cursor for mdb_page_get() */
+	mdb_cursor_init(&mc, txn, MAIN_DBI, NULL);
+	pg = 2;
+	while (pg < txn->mt_next_pgno) {
+		if ((rc = MDB_PAGE_GET(&mc, pg, 1, &mp)) != 0)
+			goto leave;
 		wsize = env->me_psize;
-		if (IS_OVERFLOW(mp))
+		npgs = 1;
+		if (IS_OVERFLOW(mp)) {
+			npgs = mp->mp_pages;
 			wsize *= mp->mp_pages;
+		}
+#if MDB_RPAGE_CACHE
+		if (MDB_REMAPPING(env->me_flags)) {
+			mdb_page_unref(txn, mp);
+			rc = mdb_rpage_get(txn, pg, npgs, &mp, &m2);
+			if (rc)
+				goto leave;
+		}
+#endif
 		if (mp->mp_txnid > txnid) {
 			mdb_size_t w3 = wsize;
 			char *ptr = (char *)mp;
+#if MDB_RPAGE_CACHE
+			if (env->me_encfunc)
+				ptr = (char *)m2;
+#endif
 			while (w3 > 0) {
 				w2 = (w3 > MAX_WRITE) ? MAX_WRITE : w3;
 				DO_WRITE(rc, fd, ptr, w2, len);
@@ -11866,7 +11893,8 @@ mdb_env_incr_dumpfd(MDB_env *env, HANDLE fd, size_t txnid)
 				}
 			}
 		}
-		mp = (MDB_page *)((char *)mp + wsize);
+		MDB_PAGE_UNREF(txn, mp);
+		pg += npgs;
 	}
 
 leave:
@@ -11900,20 +11928,32 @@ int ESECT
 mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 {
 #ifdef _WIN32
-	DWORD rsize, rlen;
+	DWORD rsize, rlen, w2;
+	LARGE_INTEGER off;
 #else
-	size_t rsize;
+	size_t rsize, w2;
 	ssize_t rlen;
+	off_t off;
 #endif
-	char buf[PAGEHDRSZ], *ptr;
-	MDB_page *rp = (MDB_page *)buf, *mp;
+	char buf[PAGEHDRSZ], *ptr, *pbuf;
+	MDB_page *rp;
+	pgno_t pg, prevpg = 0;
+	int numpgs, numprev = 0;
+	int rc = 0;
 
-	if (!(env->me_flags & MDB_WRITEMAP))
-		return EINVAL;
+	pbuf = malloc(env->me_psize);
+	if (!pbuf)
+		return ENOMEM;
+
+#ifdef _WIN32
+		SetFilePointerEx(env->me_fd, 0, NULL, FILE_BEGIN);
+#else
+		lseek(env->me_fd, 0, SEEK_SET);
+#endif
 
 	for (;;) {
 #ifdef _WIN32
-		int rc = ReadFile(fd, buf, sizeof(buf), &rlen, NULL) ? (int)rlen : -1;
+		rc = ReadFile(fd, buf, sizeof(buf), &rlen, NULL) ? (int)rlen : -1;
 		if (rc == -1 && ErrCode() == ERROR_HANDLE_EOF)
 			rc = 0;
 #else
@@ -11922,12 +11962,42 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 		if (rlen != sizeof(buf))
 			break;
 		rsize = env->me_psize;
-		if (IS_OVERFLOW(rp))
+		rp = (MDB_page *)buf;
+		pg = rp->mp_pgno;
+#if MDB_RPAGE_CACHE
+		/* decrypt the header if needed */
+		if (env->me_encfunc && pg > 1) {
+			MDB_val in, out, enckeys[3];
+			int xsize = sizeof(pgno_t) + sizeof(txnid_t);
+			in.mv_size = PAGEHDRSZ - xsize;
+			in.mv_data = buf + xsize;
+			out.mv_size = in.mv_size;
+			out.mv_data = pbuf + xsize;
+			enckeys[0] = env->me_enckey;
+			enckeys[1].mv_size = xsize;
+			enckeys[1].mv_data = buf;
+			enckeys[2].mv_size = 0;
+			enckeys[2].mv_data = pbuf + xsize; /* dummy */
+			env->me_encfunc(&in, &out, enckeys, 0);
+			rp = (MDB_page *)pbuf;
+		}
+#endif
+		numpgs = 1;
+		if (IS_OVERFLOW(rp)) {
+			numpgs = rp->mp_pages;
 			rsize *= rp->mp_pages;
+			if (rp->mp_pages > 1) {
+				ptr = realloc(pbuf, rsize);
+				if (!ptr) {
+					free(pbuf);
+					return ENOMEM;
+				}
+				pbuf = ptr;
+			}
+		}
+		memcpy(pbuf, buf, sizeof(buf));
 		rsize -= rlen;
-		mp = (MDB_page *)(env->me_map + rp->mp_pgno * env->me_psize);
-		ptr = METADATA(mp);
-		memcpy(mp, rp, sizeof(buf));
+		ptr = pbuf + sizeof(buf);
 		while (rsize > 0) {
 #ifdef _WIN32
 			rc = ReadFile(fd, ptr, rsize, &rlen, NULL) ? (int)rlen : -1;
@@ -11941,8 +12011,39 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 			ptr += rlen;
 			rsize -= rlen;
 		}
+		off = (pg-prevpg-numprev) * env->me_psize;
+		rsize = numpgs * env->me_psize;
+		if (off) {
+#ifdef _WIN32
+			SetFilePointerEx(env->me_fd, off, NULL, FILE_CURRENT);
+#else
+			lseek(env->me_fd, off, SEEK_CUR);
+#endif
+		}
+		ptr = pbuf;
+		while (rsize > 0) {
+			w2 = (rsize > MAX_WRITE) ? MAX_WRITE: rsize;
+			DO_WRITE(rc, env->me_fd, ptr, w2, rlen);
+			if (!rc) {
+				rc = ErrCode();
+				break;
+			} else if (rlen > 0) {
+				rc = MDB_SUCCESS;
+				ptr += rlen;
+				rsize -= rlen;
+				continue;
+			} else {
+				rc = MDB_SHORT_WRITE;
+				break;
+			}
+		}
+		if (rc)
+			break;
+		numprev = numpgs;
+		prevpg = pg;
 	}
-	return MDB_SUCCESS;
+	free(pbuf);
+	return rc;
 }
 
 int ESECT
