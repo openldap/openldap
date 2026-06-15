@@ -60,7 +60,8 @@ on a database that uses custom compare functions.
 Read from the specified file instead of from the standard input.
 .TP
 .BR \-i
-Load an incremental backup.
+Load an incremental backup. The target environment must not be used
+by anything else while this runs.
 .TP
 .BR \-n
 Load an LMDB environment which does not use subdirectories.

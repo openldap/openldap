@@ -102,6 +102,12 @@ is invoked without including the
 option when reloading those records, the new databases will likely be
 damaged beyond repair, permitting neither record storage nor retrieval.
 
+Incremental backup on encrypted databases requires the encryption mechanism
+to allow partial decryption of a page. This is because decryption of the
+page header is required in order to check if a page is an overflow page.
+If the encryption mechanism fails when decrypting only a page header,
+then the backup is unusable and cannot be restored.
+
 .SH "SEE ALSO"
 .BR mdb_load (1)
 .SH AUTHOR
