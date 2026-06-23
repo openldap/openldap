@@ -162,8 +162,10 @@ typedef struct syncprov_info_t {
 	int		si_nopres;	/* Skip present phase */
 	int		si_usehint;	/* use reload hint */
 	int		si_active;	/* True if there are active mods */
+#ifdef USE_SI_DIRTY		/* disabled due to ITS#10026 */
 	int		si_dirty;	/* True if the context is dirty, i.e changes
 						 * have been made without updating the csn. */
+#endif
 	time_t	si_chklast;	/* time of last checkpoint */
 	Avlnode	*si_mods;	/* entries being modified */
 	sessionlog	*si_logs;
@@ -2474,8 +2476,10 @@ syncprov_new_ctxcsn( opcookie *opc, syncprov_info_t *si, int csn_changed, int nu
 			csn_changed = 1;
 		}
 	}
+#ifdef USE_SI_DIRTY
 	if ( csn_changed )
 		si->si_dirty = 0;
+#endif
 	ldap_pvt_thread_rdwr_wunlock( &si->si_csn_rwlock );
 
 	if ( csn_changed ) {
@@ -2617,7 +2621,9 @@ syncprov_op_response( Operation *op, SlapReply *rs )
 				}
 			}
 		}
+#ifdef USE_SI_DIRTY
 		si->si_dirty = !csn_changed;
+#endif
 		ldap_pvt_thread_rdwr_wunlock( &si->si_csn_rwlock );
 
 added:
@@ -3169,7 +3175,7 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 	int i, *sids, numcsns;
 	struct berval mincsn, maxcsn;
 	int minsid, maxsid;
-	int dirty = 0;
+	int dirty = 1;		/* ITS#10026: assume context is always dirty */
 
 	if ( op->o_sync > SLAP_CONTROL_IGNORED ) {
 		cb = op->o_tmpcalloc( 1, sizeof(slap_callback), op->o_tmpmemctx );
@@ -3221,6 +3227,8 @@ syncprov_op_search( Operation *op, SlapReply *rs )
 					"both our DB and client empty, ignoring NO_SUCH_OBJECT\n",
 					op->o_log_prefix );
 			rs->sr_err = LDAP_SUCCESS;
+			/* an empty context can't be dirty */
+			dirty = 0;
 		}
 
 		if ( rs->sr_err != LDAP_SUCCESS ) {
@@ -3282,7 +3290,9 @@ aband:
 		ctxcsn = NULL;
 		sids = NULL;
 	}
+#ifdef USE_SI_DIRTY
 	dirty = si->si_dirty;
+#endif
 	ldap_pvt_thread_rdwr_runlock( &si->si_csn_rwlock );
 
 	/* If we have a cookie, handle the PRESENT lookups */
