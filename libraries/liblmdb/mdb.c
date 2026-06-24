@@ -6716,11 +6716,12 @@ _mdb_cursor_put(MDB_cursor *mc, MDB_val *key, MDB_val *data,
 	if (key->mv_size-1 >= ENV_MAXKEY(env))
 		return MDB_BAD_VALSIZE;
 
+	if (mc->mc_db->md_flags & MDB_DUPSORT) {
+		if (!data->mv_size || data->mv_size > ENV_MAXKEY(env))
+			return MDB_BAD_VALSIZE;
+	}
 #if SIZE_MAX > MAXDATASIZE
-	if (data->mv_size-1 >= ((mc->mc_db->md_flags & MDB_DUPSORT) ? ENV_MAXKEY(env) : MAXDATASIZE))
-		return MDB_BAD_VALSIZE;
-#else
-	if ((mc->mc_db->md_flags & MDB_DUPSORT) && data->mv_size-1 >= ENV_MAXKEY(env))
+	if (data->mv_size > MAXDATASIZE)
 		return MDB_BAD_VALSIZE;
 #endif
 
