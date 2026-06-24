@@ -402,7 +402,7 @@ remoteauth_cf_gen( ConfigArgs *c )
 					break;
 				case REMOTE_AUTH_TLS:
 					for ( i=1; i < c->argc; i++ ) {
-						if ( bindconf_tls_parse( c->argv[i], &ad->ad_tls ) ) {
+						if ( bindconf_tls_parse( c, c->argv[i], &ad->ad_tls ) ) {
 							rc = 1;
 							break;
 						}

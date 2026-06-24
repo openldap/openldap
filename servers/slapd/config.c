@@ -1351,7 +1351,7 @@ static slap_cf_aux_table bindkey[] = {
  */
 
 int
-slap_cf_aux_table_parse( const char *word, void *dst, slap_cf_aux_table *tab0, LDAP_CONST char *tabmsg )
+slap_cf_aux_table_parse( ConfigArgs *c, const char *word, void *dst, slap_cf_aux_table *tab0, LDAP_CONST char *tabmsg )
 {
 	int rc = SLAP_CONF_UNKNOWN;
 	slap_cf_aux_table *tab;
@@ -1369,12 +1369,23 @@ slap_cf_aux_table_parse( const char *word, void *dst, slap_cf_aux_table *tab0, L
 			switch ( tab->type ) {
 			case 's':
 				cptr = (char **)((char *)dst + tab->off);
+				if ( *cptr != NULL ) {
+dupset:
+					if ( !c->cr_msg[0] ) {
+						snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"Error: %s already set in %s", word, tabmsg );
+						Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					}
+					return 1;
+				}
 				*cptr = ch_strdup( val );
 				rc = 0;
 				break;
 
 			case 'b':
 				bptr = (struct berval *)((char *)dst + tab->off);
+				if ( !BER_BVISNULL( bptr ))
+					goto dupset;
 				if ( tab->aux != NULL ) {
 					struct berval	dn;
 					slap_mr_normalize_func *normalize = (slap_mr_normalize_func *)tab->aux;
@@ -1607,10 +1618,10 @@ slap_tls_get_config( LDAP *ld, int opt, char **val )
 }
 
 int
-bindconf_tls_parse( const char *word, slap_bindconf *bc )
+bindconf_tls_parse( ConfigArgs *c, const char *word, slap_bindconf *bc )
 {
 #ifdef HAVE_TLS
-	if ( slap_cf_aux_table_parse( word, bc, aux_TLS, "tls config" ) == 0 ) {
+	if ( slap_cf_aux_table_parse( c, word, bc, aux_TLS, "tls config" ) == 0 ) {
 		bc->sb_tls_do_init = 1;
 		return 0;
 	}
@@ -1628,15 +1639,16 @@ bindconf_tls_unparse( slap_bindconf *bc, struct berval *bv )
 }
 
 int
-bindconf_parse( const char *word, slap_bindconf *bc )
+bindconf_parse( ConfigArgs *c, const char *word, slap_bindconf *bc )
 {
+	c->cr_msg[0] = '\0';
 #ifdef HAVE_TLS
 	/* Detect TLS config changes explicitly */
-	if ( bindconf_tls_parse( word, bc ) == 0 ) {
+	if ( bindconf_tls_parse( c, word, bc ) == 0 ) {
 		return 0;
 	}
 #endif
-	return slap_cf_aux_table_parse( word, bc, bindkey, "bind config" );
+	return slap_cf_aux_table_parse( c, word, bc, bindkey, "bind config" );
 }
 
 int
