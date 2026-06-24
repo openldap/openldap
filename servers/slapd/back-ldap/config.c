@@ -877,12 +877,14 @@ slap_idassert_parse( ConfigArgs *c, slap_idassert_t *si )
 				return 1;
 			}
 
-		} else if ( bindconf_parse( c->argv[ i ], &si->si_bc ) ) {
-			snprintf( c->cr_msg, sizeof( c->cr_msg ),
-				"\"%s <args>\": "
-				"unable to parse field \"%s\"",
-				c->argv[0], c->argv[ i ] );
-			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+		} else if ( bindconf_parse( c, c->argv[ i ], &si->si_bc ) ) {
+			if ( !c->cr_msg[0] ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"\"%s <args>\": "
+					"unable to parse field \"%s\"",
+					c->argv[0], c->argv[ i ] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			}
 			return 1;
 		}
 	}
@@ -1706,7 +1708,7 @@ done_url:;
 		li->li_flags |= tls_mode[i].mask;
 		if ( c->argc > 2 ) {
 			for ( i=2; i<c->argc; i++ ) {
-				if ( bindconf_tls_parse( c->argv[i], &li->li_tls ))
+				if ( bindconf_tls_parse( c, c->argv[i], &li->li_tls ))
 					return 1;
 			}
 			bindconf_tls_defaults( &li->li_tls );
@@ -1721,7 +1723,7 @@ done_url:;
 
 	case LDAP_BACK_CFG_ACL_BIND:
 		for ( i = 1; i < c->argc; i++ ) {
-			if ( bindconf_parse( c->argv[ i ], &li->li_acl ) ) {
+			if ( bindconf_parse( c, c->argv[ i ], &li->li_acl ) ) {
 				return 1;
 			}
 		}
@@ -1838,7 +1840,7 @@ done_url:;
 				continue;
 			}
 
-			if ( slap_cf_aux_table_parse( c->argv[ i ], li->li_timeout, timeout_table, "slapd-ldap timeout" ) ) {
+			if ( slap_cf_aux_table_parse( c, c->argv[ i ], li->li_timeout, timeout_table, "slapd-ldap timeout" ) ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg),
 					"unable to parse timeout \"%s\"",
 					c->argv[ i ] );

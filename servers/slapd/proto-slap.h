@@ -505,7 +505,7 @@ LDAP_SLAPD_F (int) overlay_callback_after_backover LDAP_P((
 /*
  * bconfig.c
  */
-LDAP_SLAPD_F (int) slap_cf_aux_table_parse LDAP_P(( const char *word, void *bc, slap_cf_aux_table *tab0, LDAP_CONST char *tabmsg ));
+LDAP_SLAPD_F (int) slap_cf_aux_table_parse LDAP_P(( struct config_args_s *c, const char *word, void *bc, slap_cf_aux_table *tab0, LDAP_CONST char *tabmsg ));
 LDAP_SLAPD_F (int) slap_cf_aux_table_unparse LDAP_P(( void *bc, struct berval *bv, slap_cf_aux_table *tab0 ));
 
 /*
@@ -721,11 +721,11 @@ LDAP_SLAPD_F (int) slap_tls_get_config LDAP_P((
 	LDAP *ld, int opt, char **val ));
 LDAP_SLAPD_F (void) bindconf_tls_defaults LDAP_P(( slap_bindconf *bc ));
 LDAP_SLAPD_F (int) bindconf_tls_parse LDAP_P((
-	const char *word,  slap_bindconf *bc ));
+	struct config_args_s *c, const char *word,  slap_bindconf *bc ));
 LDAP_SLAPD_F (int) bindconf_tls_unparse LDAP_P((
 	slap_bindconf *bc, struct berval *bv ));
 LDAP_SLAPD_F (int) bindconf_parse LDAP_P((
-	const char *word,  slap_bindconf *bc ));
+	struct config_args_s *c, const char *word,  slap_bindconf *bc ));
 LDAP_SLAPD_F (int) bindconf_unparse LDAP_P((
 	slap_bindconf *bc, struct berval *bv ));
 LDAP_SLAPD_F (int) bindconf_tls_set LDAP_P((

@@ -2329,7 +2329,7 @@ meta_back_cf_gen( ConfigArgs *c )
 			}
 
 			for ( i = 2; i < c->argc; i++ ) {
-				if ( bindconf_tls_parse( c->argv[i], &mt->mt_tls ))
+				if ( bindconf_tls_parse( c, c->argv[i], &mt->mt_tls ))
 					return 1;
 			}
 			bindconf_tls_defaults( &mt->mt_tls );
@@ -2465,7 +2465,7 @@ meta_back_cf_gen( ConfigArgs *c )
 				continue;
 			}
 
-			if ( slap_cf_aux_table_parse( c->argv[ i ], mc->mc_timeout, timeout_table, "slapd-meta timeout" ) ) {
+			if ( slap_cf_aux_table_parse( c, c->argv[ i ], mc->mc_timeout, timeout_table, "slapd-meta timeout" ) ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg),
 					"unable to parse timeout \"%s\"",
 					c->argv[ i ] );
