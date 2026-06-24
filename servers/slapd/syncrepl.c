@@ -7165,13 +7165,15 @@ parse_syncrepl_line(
 					STRLENOF( LAZY_COMMIT ) ) )
 		{
 			si->si_lazyCommit = 1;
-		} else if ( !bindconf_parse( c->argv[i], &si->si_bindconf ) ) {
+		} else if ( !bindconf_parse( c, c->argv[i], &si->si_bindconf ) ) {
 			si->si_got |= GOT_BINDCONF;
 		} else {
-			snprintf( c->cr_msg, sizeof( c->cr_msg ),
-				"Error: parse_syncrepl_line: "
-				"unable to parse \"%s\"\n", c->argv[ i ] );
-			Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			if ( !c->cr_msg[0] ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"Error: parse_syncrepl_line: "
+					"unable to parse \"%s\"\n", c->argv[ i ] );
+				Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+			}
 			return -1;
 		}
 	}
