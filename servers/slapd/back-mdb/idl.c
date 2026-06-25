@@ -260,6 +260,8 @@ static int mdb_idl_delete( ID *ids, ID id )
 	return 0;
 }
 
+#ifndef MDB_JUST_TESTING_IDLS
+
 static char *
 mdb_show_key(
 	char		*buf,
@@ -703,6 +705,8 @@ fail:
 	return rc;
 }
 
+#endif /* MDB_JUST_TESTING_IDLS */
+
 
 /*
  * idl_intersection - return a = a intersection b
@@ -753,10 +757,22 @@ mdb_idl_intersection(
 	/* If a range completely covers the list, the result is
 	 * just the list.
 	 */
-	if ( MDB_IDL_IS_RANGE( b )
-		&& MDB_IDL_RANGE_FIRST( b ) <= MDB_IDL_FIRST( a )
-		&& MDB_IDL_RANGE_LAST( b ) >= MDB_IDL_LLAST( a ) ) {
-		goto done;
+	if ( MDB_IDL_IS_RANGE( b )) {
+		idmin = MDB_IDL_RANGE_FIRST( b );
+		idmax = MDB_IDL_RANGE_LAST( b );
+		if ( idmin <= MDB_IDL_FIRST( a ) && idmax >= MDB_IDL_LAST( a ) )
+			goto done;
+		/* The range overlaps the list. The result is just the
+		 * elements of the list within the range.
+		 */
+		cursorc = 0;
+		cursora = idmin;
+		ida = mdb_idl_first( a, &cursora );
+		while( ida <= idmax ) {
+			a[++cursorc] = ida;
+			ida = mdb_idl_next( a, &cursora );
+		}
+		goto new_a;
 	}
 
 	/* Fine, do the intersection one element at a time.
@@ -767,7 +783,7 @@ mdb_idl_intersection(
 	idb = mdb_idl_first( b, &cursorb );
 	cursorc = 0;
 
-	while( ida <= idmax || idb <= idmax ) {
+	while( cursora <= a[0] && cursorb <= b[0] ) {
 		if( ida == idb ) {
 			a[++cursorc] = ida;
 			ida = mdb_idl_next( a, &cursora );
@@ -778,6 +794,7 @@ mdb_idl_intersection(
 			idb = mdb_idl_next( b, &cursorb );
 		}
 	}
+new_a:
 	a[0] = cursorc;
 done:
 	if (swap)
