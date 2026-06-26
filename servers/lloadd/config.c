@@ -1323,7 +1323,7 @@ config_backend( ConfigArgs *c )
     b->b_tier = tier;
 
     for ( i = 1; i < c->argc; i++ ) {
-        if ( lload_backend_parse( c->argv[i], b ) ) {
+        if ( lload_backend_parse( c, c->argv[i], b ) ) {
             if ( !tier->t_type.tier_backend_config ||
                     tier->t_type.tier_backend_config( tier, b, c->argv[i] ) ) {
                 Debug( LDAP_DEBUG_ANY, "config_backend: "
@@ -1387,7 +1387,7 @@ config_bindconf( ConfigArgs *c )
     lload_change.flags.daemon |= LLOAD_DAEMON_MOD_BINDCONF;
 
     for ( i = 1; i < c->argc; i++ ) {
-        if ( lload_bindconf_parse( c->argv[i], &bindconf ) ) {
+        if ( lload_bindconf_parse( c, c->argv[i], &bindconf ) ) {
             Debug( LDAP_DEBUG_ANY, "config_bindconf: "
                     "error parsing backend configuration item '%s'\n",
                     c->argv[i] );
@@ -3002,6 +3002,7 @@ static slap_cf_aux_table bindkey[] = {
 
 int
 lload_cf_aux_table_parse(
+        ConfigArgs *c,
         const char *word,
         void *dst,
         slap_cf_aux_table *tab0,
@@ -3023,12 +3024,23 @@ lload_cf_aux_table_parse(
             switch ( tab->type ) {
                 case 's':
                     cptr = (char **)( (char *)dst + tab->off );
+                    if ( *cptr != NULL ) {
+dupset:
+                        if ( !c->cr_msg[0] ) {
+                            snprintf( c->cr_msg, sizeof( c->cr_msg ),
+                                    "Error: %s already set in %s", word, tabmsg );
+                            Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+                        }
+                        return 1;
+                    }
                     *cptr = ch_strdup( val );
                     rc = 0;
                     break;
 
                 case 'b':
                     bptr = (struct berval *)( (char *)dst + tab->off );
+                    if ( !BER_BVISNULL( bptr ) )
+                        goto dupset;
                     assert( tab->aux == NULL );
                     ber_str2bv( val, 0, 1, bptr );
                     rc = 0;
@@ -3381,10 +3393,10 @@ lload_bindconf_tls_set( slap_bindconf *bc, LDAP *ld )
 #endif
 
 int
-lload_bindconf_tls_parse( const char *word, slap_bindconf *bc )
+lload_bindconf_tls_parse( ConfigArgs *c, const char *word, slap_bindconf *bc )
 {
 #ifdef HAVE_TLS
-    if ( lload_cf_aux_table_parse( word, bc, aux_TLS, "tls config" ) == 0 ) {
+    if ( lload_cf_aux_table_parse( c, word, bc, aux_TLS, "tls config" ) == 0 ) {
         bc->sb_tls_do_init = 1;
         return 0;
     }
@@ -3393,21 +3405,21 @@ lload_bindconf_tls_parse( const char *word, slap_bindconf *bc )
 }
 
 int
-lload_backend_parse( const char *word, LloadBackend *b )
+lload_backend_parse( ConfigArgs *c, const char *word, LloadBackend *b )
 {
-    return lload_cf_aux_table_parse( word, b, backendkey, "backend config" );
+    return lload_cf_aux_table_parse( c, word, b, backendkey, "backend config" );
 }
 
 int
-lload_bindconf_parse( const char *word, slap_bindconf *bc )
+lload_bindconf_parse( ConfigArgs *c, const char *word, slap_bindconf *bc )
 {
 #ifdef HAVE_TLS
     /* Detect TLS config changes explicitly */
-    if ( lload_bindconf_tls_parse( word, bc ) == 0 ) {
+    if ( lload_bindconf_tls_parse( c, word, bc ) == 0 ) {
         return 0;
     }
 #endif
-    return lload_cf_aux_table_parse( word, bc, bindkey, "bind config" );
+    return lload_cf_aux_table_parse( c, word, bc, bindkey, "bind config" );
 }
 
 int
