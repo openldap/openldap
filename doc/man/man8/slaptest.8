@@ -62,7 +62,11 @@ If neither option is specified, slaptest will attempt to read the
 default config directory before trying to use the default
 config file. If a valid config directory exists then the
 default config file is ignored. If dry-run mode is also specified,
-no conversion will occur.
+no conversion will occur. Note: this conversion may fail if
+used on a fresh config where the configured backends haven't
+been created yet. In that case, use
+.BR slapcat (8)
+to do the conversion instead.
 .TP
 .BI \-n \ dbnum
 Just open and test the \fIdbnum\fR-th database listed in the
