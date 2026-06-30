@@ -10,6 +10,14 @@ This section documents the steps necessary to upgrade from the latest OpenLDAP
 The standard upgrade procedure documented in {{SECT:Maintenance}} must be
 completed prior to the steps documented in this section.
 
+H2: mdb backend
+
+The underlying MDB database engine was upgraded to the LMDB 1.0 series in
+OpenLDAP 2.7. Due to a file format change, it is mandatory for existing
+{{slapd-mdb}}(5) databases to be exported prior to upgrade using an OpenLDAP
+2.6 slapcat binary. The exported databases must be reloaded using an OpenLDAP
+2.7 slapadd after OpenLDAP has been upgraded.
+
 H2: ppolicy overlay
 
 Starting with OpenLDAP 2.7, it is now possible to express password policy
