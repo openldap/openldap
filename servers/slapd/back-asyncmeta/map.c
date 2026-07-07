@@ -164,7 +164,7 @@ asyncmeta_dn_massage(
 	assert( res );
 
 	BER_BVZERO(res);
-	if ( dn == NULL )
+	if ( dn == NULL || BER_BVISNULL(dn) )
 		return;
 
 	/* no suffix massage configured */
