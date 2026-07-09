@@ -2376,6 +2376,15 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 			newestcsn = ctxcsn[i];
 		}
 	}
+
+	if ( BER_BVISNULL( &oldestcsn ) ) {
+		/*
+		 * ITS#10535 If ctxcsn covers srs->sr_state.ctxcsn, then they are equal
+		 * and oldestcsn/newestcsn are not set. Also we have nothing to send
+		 * either, just skip
+		 */
+		return LDAP_SUCCESS;
+	}
 	assert( !BER_BVISEMPTY( &oldestcsn ) && !BER_BVISEMPTY( &newestcsn ) &&
 			ber_bvcmp( &oldestcsn, &newestcsn ) < 0 );
 	slap_sl_free( minsids, op->o_tmpmemctx );
