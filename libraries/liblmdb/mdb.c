@@ -1529,9 +1529,8 @@ struct MDB_txn {
 #define MDB_TXN_HAS_CHILD	0x10		/**< txn has an #MDB_txn.%mt_child */
 #define MDB_TXN_DIRTYNUM	0x20		/**< dirty list uses nump list */
 #define MDB_TXN_PREPARE		0x40		/**< prepare txn, don't fully commit */
-#define MDB_TXN_DROPPED		0x80		/**< main DBI has been dropped, env will reset */
 	/** most operations on the txn are currently illegal */
-#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE|MDB_TXN_DROPPED)
+#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE)
 /** @} */
 	unsigned int	mt_flags;		/**< @ref mdb_txn */
 	/** #dirty_list room: Array size - \#dirty pages visible to this txn.
@@ -12521,33 +12520,67 @@ int mdb_drop(MDB_txn *txn, MDB_dbi dbi, int del)
 
 	MDB_TRACE(("%u, %d", dbi, del));
 
-	/* Dropping the main DBI empties/resets the entire environment.
-	 * Can't do it if any other DBIs are still open. Can only commit
-	 * or abort after this.
+	/* Dropping the main DBI must check if named DBs were in use.
+	 * Can't drop it if any other DBIs are still open.
 	 */
 	if (dbi == MAIN_DBI) {
 		MDB_dbi i;
+		MDB_val key, data;
+		MDB_node *node;
+
+		/* Cannot mix named databases with some mainDB flags. If these
+		 * are set, there are no named DBs.
+		 */
+		if (txn->mt_dbs[MAIN_DBI].md_flags & (MDB_DUPSORT|MDB_INTEGERKEY))
+			goto plain;
+
 		for (i = CORE_DBS; i<txn->mt_numdbs; i++) {
 			if (txn->mt_dbflags[i] & DB_VALID)
 				return MDB_DBIS_BUSY;
 		}
-		for (i = 0; i<CORE_DBS; i++) {
-			txn->mt_dbflags[i] |= DB_DIRTY;
-			txn->mt_dbs[i].md_depth = 0;
-			txn->mt_dbs[i].md_branch_pages = 0;
-			txn->mt_dbs[i].md_leaf_pages = 0;
-			txn->mt_dbs[i].md_overflow_pages = 0;
-			txn->mt_dbs[i].md_entries = 0;
-			txn->mt_dbs[i].md_root = P_INVALID;
+
+		/* Are there any named DBs? We can't rely on env->me_maxdbs
+		 * being set. We have to check if a node is actually a DB.
+		 * When named DBs are in use, the mainDB must not contain any
+		 * other user data. So all records in the mainDB should be
+		 * DB records, so we only need to check the first one.
+		 */
+		rc = mdb_cursor_open(txn, dbi, &mc);
+		if (rc)
+			return rc;
+		rc = mdb_cursor_first(mc, &key, &data);
+		if (rc) {
+			mdb_cursor_close(mc);
+			if (rc == MDB_NOTFOUND) /* already empty */
+				return MDB_SUCCESS;
+			return rc;
 		}
-		txn->mt_flags |= MDB_TXN_DIRTY|MDB_TXN_DROPPED;
-		return MDB_SUCCESS;
+		node = NODEPTR(mc->mc_pg[mc->mc_top], mc->mc_ki[mc->mc_top]);
+		if ((node->mn_flags & (F_DUPDATA|F_SUBDATA)) != F_SUBDATA) {
+			/* it's not a named DB. just do a normal drop. */
+			goto plain2;
+		}
+		do {
+			rc = mdb_dbi_open(txn, key.mv_data, 0, &i);
+			if (rc) {
+				if (rc != MDB_NOTFOUND)
+					goto leave;
+				goto plain2;
+			}
+			rc = mdb_drop(txn, i, 1);
+			if (rc)
+				goto leave;
+			rc = mdb_cursor_first(mc, &key, &data);
+		} while (!rc);
+		goto plain2;
 	}
 
+plain:
 	rc = mdb_cursor_open(txn, dbi, &mc);
 	if (rc)
 		return rc;
 
+plain2:
 	rc = mdb_drop0(mc, mc->mc_db->md_flags & MDB_DUPSORT);
 	/* Invalidate the dropped DB's cursors */
 	for (m2 = txn->mt_cursors[dbi]; m2; m2 = m2->mc_next)
