@@ -3108,11 +3108,11 @@ mdb_env_sync0(MDB_env *env, int force, pgno_t numpgs)
 	int rc = 0;
 	if (env->me_flags & MDB_RDONLY)
 		return MDB_IS_READONLY;
-	if (force || !(env->me_flags & MDB_NOSYNC)
+	if (force || (!(env->me_flags & MDB_NOSYNC)
 #ifdef _WIN32	/* Sync is normally achieved in Windows by doing WRITE_THROUGH writes */
 		&& (env->me_flags & MDB_WRITEMAP)
 #endif
-		) {
+		)) {
 		if (env->me_flags & MDB_WRITEMAP) {
 			int flags = ((env->me_flags & MDB_MAPASYNC) && !force)
 				? MS_ASYNC : MS_SYNC;
@@ -6925,15 +6925,19 @@ mdb_rpage_get(MDB_txn *txn, pgno_t pg0, int numpgs, MDB_page **ret, MDB_page **e
 	LARGE_INTEGER off;
 	SIZE_T len;
 #define SET_OFF(off,val)	off.QuadPart = val
+#define ADD_OFF(off,val)	off.QuadPart += val
+#define CHK_OFF(off)		off.QuadPart
 #define MAP(rc,env,addr,len,off)	\
 	addr = NULL; \
-	rc = NtMapViewOfSection(env->me_fmh, GetCurrentProcess(), &addr, 0, \
+	rc = NtMapViewOfSection(env->me_fmh, GetCurrentProcess(), (void **)&addr, 0, \
 		len, &off, &len, ViewUnmap, (env->me_flags & MDB_RDONLY) ? 0 : MEM_RESERVE, PAGE_READONLY); \
 	if (rc) rc = mdb_nt2win32(rc)
 #else
 	off_t off;
 	size_t len;
 #define SET_OFF(off,val)	off = val
+#define ADD_OFF(off,val)	off += val
+#define CHK_OFF(off)		off
 #define MAP(rc,env,addr,len,off)	\
 	addr = mmap(NULL, len, PROT_READ, MAP_SHARED, env->me_fd, off); \
 	rc = (addr == MAP_FAILED) ? errno : 0
@@ -11613,7 +11617,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 #endif
 #if MDB_RPAGE_CACHE
 #ifdef _WIN32
-	LARGE_INTEGER	off = 0;
+	LARGE_INTEGER	off = {0};
 #else
 	off_t	off = 0;
 #endif
@@ -11677,7 +11681,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 	}
 #if MDB_RPAGE_CACHE
 	if (MDB_REMAPPING(env->me_flags)) {
-		off = wsize;
+		SET_OFF(off, wsize);
 	}
 #endif
 	wsize = w3 - wsize;
@@ -11703,7 +11707,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 			wsize -= len;
 #if MDB_RPAGE_CACHE
 			if (MDB_REMAPPING(env->me_flags)) {
-				off += len;
+				ADD_OFF(off,len);
 			}
 #endif
 			continue;
@@ -11928,7 +11932,7 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 {
 #ifdef _WIN32
 	DWORD rsize, rlen, w2;
-	LARGE_INTEGER off;
+	LARGE_INTEGER off = {0};
 #else
 	size_t rsize, w2;
 	ssize_t rlen;
@@ -11945,7 +11949,7 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 		return ENOMEM;
 
 #ifdef _WIN32
-		SetFilePointerEx(env->me_fd, 0, NULL, FILE_BEGIN);
+		SetFilePointerEx(env->me_fd, off, NULL, FILE_BEGIN);
 #else
 		lseek(env->me_fd, 0, SEEK_SET);
 #endif
@@ -12010,9 +12014,9 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 			ptr += rlen;
 			rsize -= rlen;
 		}
-		off = (pg-prevpg-numprev) * env->me_psize;
+		SET_OFF(off, (pg-prevpg-numprev) * env->me_psize);
 		rsize = numpgs * env->me_psize;
-		if (off) {
+		if (CHK_OFF(off)) {
 #ifdef _WIN32
 			SetFilePointerEx(env->me_fd, off, NULL, FILE_CURRENT);
 #else
