@@ -415,7 +415,9 @@ ber_get_stringbvl( BerElement *ber, bgbvr *b )
 		}
 
 		ber->ber_ptr = orig;
-		ber->ber_tag = *(unsigned char *) orig;
+		ber->ber_tag = ( orig < ber->ber_end ) ?
+			*(unsigned char *)orig :
+			LBER_DEFAULT;
 	}
 
 	b->siz = i;
