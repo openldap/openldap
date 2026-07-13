@@ -972,11 +972,10 @@ ppolicy_rule_parse( policy_rule **prp, ConfigArgs *c )
 				goto done;
 			}
 
-			if ( !strcasecmp(c->argv[1], "true") ||
-					!strcasecmp(c->argv[1], "yes") ) {
+			if ( !strcasecmp(value, "true") || !strcasecmp(value, "yes") ) {
 				pr->require_password = 1;
-			} else if ( !strcasecmp(c->argv[1], "false") ||
-					!strcasecmp(c->argv[1], "no") ) {
+			} else if ( !strcasecmp(value, "false") ||
+					!strcasecmp(value, "no") ) {
 				pr->require_password = 0;
 			} else {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ),
