@@ -1995,7 +1995,7 @@ result_done:
 					syncUUIDs = NULL;
 					rc = ber_scanf( ber, "[W]", &syncUUIDs );
 					ber_scanf( ber, /*"{"*/ "}" );
-					if ( rc != LBER_ERROR ) {
+					if ( rc != LBER_ERROR && syncUUIDs ) {
 						if ( refreshDeletes ) {
 							syncrepl_del_nonpresent( op, si, syncUUIDs,
 								&syncCookie, m );
@@ -4145,6 +4145,10 @@ presentlist_insert(
 	struct berval *syncUUID )
 {
 	char *val;
+
+	if ( syncUUID->bv_len != UUIDLEN ) {
+		return 1;
+	}
 
 #ifdef HASHUUID
 	Avlnode **av;
