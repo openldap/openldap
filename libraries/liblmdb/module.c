@@ -5,8 +5,8 @@
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted only as authorized by the Symas
- * Dual-Use License.
+ * modification, are permitted only as authorized by the OpenLDAP
+ * Public License.
  *
  * A copy of this license is available in the file LICENSE in the
  * source distribution.
