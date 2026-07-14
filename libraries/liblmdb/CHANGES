@@ -1,6 +1,9 @@
 LMDB 1.0 Change Log
 
 LMDB 1.0.1 Engineering
+	ITS#10534 - update mdb_env_get_maxkeysize() doc
+	ITS#10536 - re-fix mdb_drop(MAIN_DBI)
+	ITS#10540 - cleanup outdated license notices
 
 LMDB 1.0.0 Release (2026/06/30)
 	Many fixes/enhancements
