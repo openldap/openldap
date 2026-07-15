@@ -695,7 +695,7 @@ static txnid_t mdb_debug_start;
 	 *	This macro should normally be left alone or set to 0.
 	 *	Note that a database with big keys or dupsort data cannot be
 	 *	reliably modified by a liblmdb which uses a smaller max.
-	 *	The default is 511 for backwards compat, or 0 when #MDB_DEVEL.
+	 *	The default was 511 for LMDB 0.9, or 0 when #MDB_DEVEL.
 	 *
 	 *	Other values are allowed, for backwards compat.  However:
 	 *	A value bigger than the computed max can break if you do not
@@ -707,7 +707,7 @@ static txnid_t mdb_debug_start;
 	 *	#MDB_DUPSORT data items must fit on a node in a regular page.
 	 */
 #ifndef MDB_MAXKEYSIZE
-#define MDB_MAXKEYSIZE	 ((MDB_DEVEL) ? 0 : 511)
+#define MDB_MAXKEYSIZE	 0
 #endif
 
 	/**	The maximum size of a key we can write to the environment. */
