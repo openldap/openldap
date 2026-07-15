@@ -4,3 +4,125 @@
 
 H1: Changes Since Previous Release
 
+The following sections attempt to summarize the new features and changes in OpenLDAP
+software since the 2.6.x release and the OpenLDAP Admin Guide.
+
+
+H2: New Features and Enhancements in 2.7
+
+H3: New Features in libldap
+
+* DNS SRV record support now also supports ldaps.
+
+* Options LDAP_OPT_X_TLS_URIS, LDAP_OPT_X_TLS_CACERTURIS: allow
+certificates and keys to be read from URIs. This enables support
+for TPM chips, smartcards, or Hardware Security Modules.
+
+* Support for LDAP_OPT_REFHOPLIMIT in ldap.conf: previously the
+option was only accessible via explicit ldap_set_option() calls. 
+
+* Support for fractional seconds in timeouts in ldaprc: previously
+the ldaprc parser only supported integer seconds.
+
+* Debug messages now include timestamp and thread ID.
+
+* Better error reporting during connection failures: error
+codes distinguish hostname lookup failures from network
+connection failures.
+
+* Support for mbedTLS. Another TLS library with smaller footprint
+than OpenSSL and better support than GnuTLS.
+
+* Documented the ldap_pvt_put_filter() function, which has been
+available as a non-standard OpenLDAP-specific function since
+OpenLDAP 2.1.
+
+H3: New Features in slapadd
+
+* The option -o remove-sids= has been added for stripping obsolete
+server IDs while importing an LDIF file.
+
+* slapadd will now implicitly strip dynamic attributes while
+importing an LDIF file.
+
+H3: New Access Control Features
+
+* There is now an explicit "increment" permission for ACLs.
+
+* ACLs can now be applied to operations and controls.
+
+* A new restrictop keyword can be used to limit combinations of
+operations and controls.
+
+H3: New lloadd Configuration Support
+
+* The listen setting can now be modified at runtime.
+
+* The feature keyword has been split into separate enable and disable keywords.
+
+H3: Enhanced syncrepl stats Logging 
+
+* Some syncrepl consumer logging has been added to STATS log level.
+
+H3: ppolicy Overlay Enhancements
+
+* Added support for dynamic policy selection.
+
+* Added support for per-policy default password hashes.
+
+* Added support for rehashing of passwords on Simple Bind.
+
+H3: OTP Overlay Enhancements
+
+* Added support for LDAP Compare operation.
+
+H3: back-asyncmeta Enhancements
+
+* Improved target connection management.
+
+H3: back-mdb Enhancements
+
+* Now using LMDB 1.0.
+
+* Added support for page-level database encryption and/or checksums.
+
+* Added support for configurable page size, up to 64KB. Using larger pages allows
+using longer RDNs and multival values.
+
+H3: Updated LMDB to version 1.0
+
+* Added support for page-level checksums and encryption.
+
+* Added support for incremental backup.
+
+* Added support for DB storage on raw block devices.
+
+* Added support for 2-phase commit.
+
+* Added support for configurable page sizes up to 64KB.
+
+* Allow multiple read-only child txns for a write txn
+
+
+H3: General slapd enhancements
+
+* Index keys use 64 bit hashes by default now instead of 32 bit.
+
+H2: Deprecated Features
+
+H3: GnuTLS
+
+* No longer recommended, scheduled to be removed in 2.8.
+
+
+H2: Obsolete Features Removed from 2.7
+
+These features were strongly deprecated in 2.6 and removed in 2.7.
+
+H3: back-perl and back-sql
+
+* back-perl has been superseded by back-sock. 
+
+* back-sql lacks an official maintainer and had to be removed from the release.
+If someone from the community is willing to maintain it, back-sql could be
+restored in a future release series.
