@@ -3393,6 +3393,8 @@ mdb_page_flush(MDB_txn *txn, int keep)
 	MDB_page	*dp = NULL;
 #ifdef _WIN32
 	OVERLAPPED	ov;
+	char *wdp;
+	size_t w2;
 #else
 	struct iovec iov[MDB_COMMIT_PAGES];
 	ssize_t		wpos = 0, wsize = 0, wres;
@@ -3445,14 +3447,21 @@ mdb_page_flush(MDB_txn *txn, int keep)
 		 * system call.
 		 */
 		DPRINTF(("committing page %"Z"u", pgno));
-		memset(&ov, 0, sizeof(ov));
-		ov.Offset = pos & 0xffffffff;
-		ov.OffsetHigh = pos >> 16 >> 16;
-		if (!WriteFile(env->me_fd, dp, size, NULL, &ov)) {
-			rc = ErrCode();
-			DPRINTF(("WriteFile: %d", rc));
-			return rc;
-		}
+		wdp = (char *)dp;
+		do {
+			w2 = (size > MAX_WRITE) ? MAX_WRITE : size;
+			memset(&ov, 0, sizeof(ov));
+			ov.Offset = pos & 0xffffffff;
+			ov.OffsetHigh = pos >> 16 >> 16;
+			if (!WriteFile(env->me_fd, wdp, w2, NULL, &ov)) {
+				rc = ErrCode();
+				DPRINTF(("WriteFile: %d", rc));
+				return rc;
+			}
+			wdp += w2;
+			pos += w2;
+			size -= w2;
+		} while (size);
 #else
 		/* Write up to MDB_COMMIT_PAGES dirty pages at a time. */
 		if (pos!=next_pos || n==MDB_COMMIT_PAGES || wsize+size>MAX_WRITE) {
