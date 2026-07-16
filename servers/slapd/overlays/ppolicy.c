@@ -2111,9 +2111,6 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 
 			if ( !BER_BVISNULL( &pr->object_pat ) ) {
 				if ( pr->object_style == ACL_STYLE_REGEX ) {
-					Debug( LDAP_DEBUG_TRACE, "ppolicy_operational: %s nsub: %d\n",
-							pr->object_pat.bv_val, (int)pr->object_regex.re_nsub );
-
 					memset( matches, 0, sizeof(AclRegexMatches) );
 					matches->dn_count = sizeof(matches->dn_data) / sizeof(matches->dn_data[0]);
 
@@ -2209,9 +2206,16 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 				op->o_bd = bd = select_backend( &policy_ndn, 0 );
 				if ( op->o_bd && be_entry_get_rw( op, &policy_ndn,
 							oc_pwdPolicy, NULL, 0, &pe ) == LDAP_SUCCESS ) {
+					Debug( LDAP_DEBUG_TRACE, "%s ppolicy_operational: "
+							"selected candidate policy %s\n",
+							op->o_log_prefix, policy_ndn.bv_val );
 					ber_bvreplace( &value, &pe->e_nname );
 					be_entry_release_r( op, pe );
 				} else {
+					Debug( LDAP_DEBUG_TRACE, "%s ppolicy_operational: "
+							"selected candidate does not name an existing "
+							"policy %s\n",
+							op->o_log_prefix, policy_ndn.bv_val );
 					op->o_bd = bd_orig;
 					goto skip;
 				}
@@ -2285,8 +2289,10 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 		rc = backend_attribute( op, e, &op->o_req_ndn,
 				ad_pwdPolicySubentry, &vals, ACL_NONE );
 		if ( rc || vals == NULL ) {
-			Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
-				"got rc=%d getting value for policySubEntry\n", rc );
+			if ( rc != LDAP_NO_SUCH_ATTRIBUTE ) {
+				Debug( LDAP_DEBUG_ANY, "ppolicy_get: "
+					"got rc=%d getting value for pwdPolicySubEntry\n", rc );
+			}
 			goto defaultpol;
 		}
 		freeval = 1;
@@ -2294,7 +2300,7 @@ ppolicy_get( Operation *op, Entry *e, PassPolicy *pp )
 		vals = a->a_nvals;
 		if (vals[0].bv_val == NULL) {
 			Debug( LDAP_DEBUG_ANY,
-				"ppolicy_get: NULL value for policySubEntry\n" );
+				"ppolicy_get: NULL value for pwdPolicySubEntry\n" );
 			goto defaultpol;
 		}
 	}
