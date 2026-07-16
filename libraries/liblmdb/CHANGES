@@ -13,6 +13,7 @@ LMDB 0.9.36 Engineering
 	ITS#10454 - fix metapage sync on Mac OSX
 	ITS#10504 - silence linker waarning on Mac OSX
 	ITS#10522 - reject 0-length values in DUPSORT DBs
+	ITS#10538 - fix large writes on Windows
 
 LMDB 0.9.35 Release (2026/01/27)
     ITS#10434 - Fix typo affecting Mac OSX
