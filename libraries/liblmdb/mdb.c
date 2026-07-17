@@ -415,7 +415,10 @@ typedef HANDLE mdb_mutex_t, mdb_mutexref_t;
 #else
 #define MDB_PROCESS_QUERY_LIMITED_INFORMATION 0x1000
 #endif
-#else
+#ifndef MDB_USE_WRITE_THROUGH
+#define MDB_USE_WRITE_THROUGH	FILE_FLAG_WRITE_THROUGH /** define to 0 to revert to buffered write behavior */
+#endif
+#else	/* _WIN32 */
 #define THREAD_RET	void *
 #define THREAD_CREATE(thr,start,arg)	pthread_create(&thr,NULL,start,arg)
 #define THREAD_FINISH(thr)	pthread_join(thr,NULL)
@@ -3111,7 +3114,7 @@ mdb_env_sync0(MDB_env *env, int force, pgno_t numpgs)
 	if (env->me_flags & MDB_RDONLY)
 		return MDB_IS_READONLY;
 	if (force || (!(env->me_flags & MDB_NOSYNC)
-#ifdef _WIN32	/* Sync is normally achieved in Windows by doing WRITE_THROUGH writes */
+#if defined(_WIN32) && MDB_USE_WRITE_THROUGH	/* Sync is normally achieved in Windows by doing WRITE_THROUGH writes */
 		&& (env->me_flags & MDB_WRITEMAP)
 #endif
 		)) {
@@ -5386,7 +5389,7 @@ mdb_fopen(const MDB_env *env, MDB_name *fname,
 	case MDB_O_OVERLAPPED: 	/* for unbuffered asynchronous writes (write-through mode)*/
 		acc = GENERIC_WRITE;
 		disp = OPEN_EXISTING;
-		attrs = FILE_FLAG_OVERLAPPED|FILE_FLAG_WRITE_THROUGH;
+		attrs = FILE_FLAG_OVERLAPPED|MDB_USE_WRITE_THROUGH;
 		break;
 	case MDB_O_RDONLY:			/* read-only datafile */
 		acc = GENERIC_READ;
