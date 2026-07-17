@@ -6,6 +6,7 @@ LMDB 1.0.1 Engineering
 	ITS#10538 - fix large writes on Windows
 	ITS#10539 - Windows build fixes
 	ITS#10540 - cleanup outdated license notices
+	ITS#10542 - Windows buffered/writethru write behavior
 
 LMDB 1.0.0 Release (2026/06/30)
 	Many fixes/enhancements
