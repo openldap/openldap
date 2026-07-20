@@ -228,7 +228,7 @@ do_random( struct tester_conn_args *config, char *sbase, char *filter,
 			do_read( config, values[ r ], &ld,
 				srchattrs, noattrs, nobind, 1, force );
 		}
-		free( values );
+		ldap_charray_free( values );
 		break;
 
 	default:
