@@ -5819,8 +5819,8 @@ dn_callback(
 									old->a_vals[0].bv_val );
 								return LDAP_SUCCESS;
 							}
-							memcpy( dni->oldcsn, old->a_vals[0].bv_val,
-									old->a_vals[0].bv_len+1 );
+							memcpy( dni->oldcsn, old->a_nvals[0].bv_val,
+									old->a_nvals[0].bv_len+1 );
 						}
 					}
 
