@@ -415,7 +415,10 @@ typedef HANDLE mdb_mutex_t, mdb_mutexref_t;
 #else
 #define MDB_PROCESS_QUERY_LIMITED_INFORMATION 0x1000
 #endif
-#else
+#ifndef MDB_USE_WRITE_THROUGH
+#define MDB_USE_WRITE_THROUGH	FILE_FLAG_WRITE_THROUGH /** define to 0 to revert to buffered write behavior */
+#endif
+#else	/* _WIN32 */
 #define THREAD_RET	void *
 #define THREAD_CREATE(thr,start,arg)	pthread_create(&thr,NULL,start,arg)
 #define THREAD_FINISH(thr)	pthread_join(thr,NULL)
@@ -1529,9 +1532,8 @@ struct MDB_txn {
 #define MDB_TXN_HAS_CHILD	0x10		/**< txn has an #MDB_txn.%mt_child */
 #define MDB_TXN_DIRTYNUM	0x20		/**< dirty list uses nump list */
 #define MDB_TXN_PREPARE		0x40		/**< prepare txn, don't fully commit */
-#define MDB_TXN_DROPPED		0x80		/**< main DBI has been dropped, env will reset */
 	/** most operations on the txn are currently illegal */
-#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE|MDB_TXN_DROPPED)
+#define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE)
 /** @} */
 	unsigned int	mt_flags;		/**< @ref mdb_txn */
 	/** #dirty_list room: Array size - \#dirty pages visible to this txn.
@@ -2864,8 +2866,10 @@ mdb_page_alloc(MDB_cursor *mc, int num, MDB_page **mp)
 #if defined(_WIN32)
 	if (!MDB_REMAPPING(env->me_flags) && !(env->me_flags & MDB_RDONLY)) {
 		void *p;
+		SIZE_T sz = env->me_psize;
+		sz *= num;
 		p = (MDB_page *)(env->me_map + env->me_psize * pgno);
-		p = VirtualAlloc(p, env->me_psize * num, MEM_COMMIT,
+		p = VirtualAlloc(p, sz, MEM_COMMIT,
 			(env->me_flags & MDB_WRITEMAP) ? PAGE_READWRITE:
 			PAGE_READONLY);
 		if (!p) {
@@ -3109,11 +3113,11 @@ mdb_env_sync0(MDB_env *env, int force, pgno_t numpgs)
 	int rc = 0;
 	if (env->me_flags & MDB_RDONLY)
 		return MDB_IS_READONLY;
-	if (force || !(env->me_flags & MDB_NOSYNC)
-#ifdef _WIN32	/* Sync is normally achieved in Windows by doing WRITE_THROUGH writes */
+	if (force || (!(env->me_flags & MDB_NOSYNC)
+#if defined(_WIN32) && MDB_USE_WRITE_THROUGH	/* Sync is normally achieved in Windows by doing WRITE_THROUGH writes */
 		&& (env->me_flags & MDB_WRITEMAP)
 #endif
-		) {
+		)) {
 		if (env->me_flags & MDB_WRITEMAP) {
 			int flags = ((env->me_flags & MDB_MAPASYNC) && !force)
 				? MS_ASYNC : MS_SYNC;
@@ -4114,8 +4118,9 @@ mdb_page_flush(MDB_txn *txn, int keep)
 	MDB_page	*dp = NULL;
 #ifdef _WIN32
 	OVERLAPPED	*ov, *this_ov;
-	MDB_page	*wdp;
-	int async_i = 0;
+	char 	*wdp;
+	size_t w2;
+	int async_i = 0, opages = 0;
 	HANDLE fd = (env->me_flags & MDB_NOSYNC) ? env->me_fd : env->me_ovfd;
 #else
 	struct iovec iov[MDB_COMMIT_PAGES];
@@ -4124,6 +4129,9 @@ mdb_page_flush(MDB_txn *txn, int keep)
 	ssize_t		wsize = 0, wres;
 	MDB_OFF_T	wpos = 0, next_pos = 1; /* impossible pos, so pos != next_pos */
 	int			n = 0;
+
+	if (!pagecount)
+		return MDB_SUCCESS;
 
 	j = i = keep;
 
@@ -4136,6 +4144,10 @@ mdb_page_flush(MDB_txn *txn, int keep)
 	for (n=1; n<=pagecount; n++) {
 		dp = dl[n].mptr;
 		dl_nump[n] = IS_OVERFLOW(dp) ? dp->mp_pages : 1;
+#ifdef _WIN32
+		if (IS_OVERFLOW(dp) && dp->mp_pages > MAX_WRITE / env->me_psize)
+			opages += dp->mp_pages / (MAX_WRITE / env->me_psize);
+#endif
 	}
 	n = 0;
 	txn->mt_flags |= MDB_TXN_DIRTYNUM;
@@ -4143,7 +4155,7 @@ mdb_page_flush(MDB_txn *txn, int keep)
 #ifdef _WIN32
 	if (pagecount - keep >= env->me_ovs) {
 		/* ran out of room in ov array, and re-malloc, copy handles and free previous */
-		int ovs = (pagecount - keep) * 1.5; /* provide extra padding to reduce number of re-allocations */
+		int ovs = (pagecount - keep) * 1.5 + opages; /* provide extra padding to reduce number of re-allocations */
 		int new_size = ovs * sizeof(OVERLAPPED);
 		ov = malloc(new_size);
 		if (ov == NULL)
@@ -4201,36 +4213,42 @@ retry_write:
 				rc = 0;
 				/* Write previous page(s) */
 #ifdef _WIN32
-				this_ov = &ov[async_i];
-				/* Clear status, and keep hEvent, we reuse that */
-				this_ov->Internal = 0;
-				this_ov->Offset = wpos & 0xffffffff;
-				this_ov->OffsetHigh = wpos >> 16 >> 16;
-				if (!F_ISSET(env->me_flags, MDB_NOSYNC) && !this_ov->hEvent) {
-					HANDLE event = CreateEvent(NULL, FALSE, FALSE, NULL);
-					if (!event) {
+				do {
+					w2 = (wsize > MAX_WRITE) ? MAX_WRITE : wsize;
+					this_ov = &ov[async_i];
+					/* Clear status, and keep hEvent, we reuse that */
+					this_ov->Internal = 0;
+					this_ov->Offset = wpos & 0xffffffff;
+					this_ov->OffsetHigh = wpos >> 16 >> 16;
+					if (!F_ISSET(env->me_flags, MDB_NOSYNC) && !this_ov->hEvent) {
+						HANDLE event = CreateEvent(NULL, FALSE, FALSE, NULL);
+						if (!event) {
+							rc = ErrCode();
+							DPRINTF(("CreateEvent: %s", strerror(rc)));
+							return rc;
+						}
+						this_ov->hEvent = event;
+					}
+					if (!WriteFile(fd, wdp, w2, NULL, this_ov)) {
 						rc = ErrCode();
-						DPRINTF(("CreateEvent: %s", strerror(rc)));
-						return rc;
+						if (rc != ERROR_IO_PENDING) {
+							DPRINTF(("WriteFile: %d", rc));
+							return rc;
+						}
+						rc = 0;
 					}
-					this_ov->hEvent = event;
-				}
-				if (!WriteFile(fd, wdp, wsize, NULL, this_ov)) {
-					rc = ErrCode();
-					if (rc != ERROR_IO_PENDING) {
-						DPRINTF(("WriteFile: %d", rc));
-						return rc;
-					}
-					rc = 0;
-				}
-				async_i++;
+					wsize -= w2;
+					wpos += w2;
+					wdp += w2;
+					async_i++;
+				} while (wsize);
 #else /* _WIN32 */
 				if (n == 1) {
 					while (wsize > MAX_WRITE) {
 						wsize -= MAX_WRITE;
 						wres = pwrite(fd, iov[0].iov_base, MAX_WRITE, wpos);
 						if (wres != MAX_WRITE)
-							goto bad_write;;
+							goto bad_write;
 						wpos += MAX_WRITE;
 						iov[0].iov_base += MAX_WRITE;
 					}
@@ -4292,7 +4310,7 @@ bad_write:
 		}
 #endif
 #ifdef _WIN32
-		wdp = dp;
+		wdp = (char *)dp;
 #else
 		iov[n].iov_len = size;
 		iov[n].iov_base = (char *)dp;
@@ -5371,7 +5389,7 @@ mdb_fopen(const MDB_env *env, MDB_name *fname,
 	case MDB_O_OVERLAPPED: 	/* for unbuffered asynchronous writes (write-through mode)*/
 		acc = GENERIC_WRITE;
 		disp = OPEN_EXISTING;
-		attrs = FILE_FLAG_OVERLAPPED|FILE_FLAG_WRITE_THROUGH;
+		attrs = FILE_FLAG_OVERLAPPED|MDB_USE_WRITE_THROUGH;
 		break;
 	case MDB_O_RDONLY:			/* read-only datafile */
 		acc = GENERIC_READ;
@@ -6926,15 +6944,19 @@ mdb_rpage_get(MDB_txn *txn, pgno_t pg0, int numpgs, MDB_page **ret, MDB_page **e
 	LARGE_INTEGER off;
 	SIZE_T len;
 #define SET_OFF(off,val)	off.QuadPart = val
+#define ADD_OFF(off,val)	off.QuadPart += val
+#define CHK_OFF(off)		off.QuadPart
 #define MAP(rc,env,addr,len,off)	\
 	addr = NULL; \
-	rc = NtMapViewOfSection(env->me_fmh, GetCurrentProcess(), &addr, 0, \
+	rc = NtMapViewOfSection(env->me_fmh, GetCurrentProcess(), (void **)&addr, 0, \
 		len, &off, &len, ViewUnmap, (env->me_flags & MDB_RDONLY) ? 0 : MEM_RESERVE, PAGE_READONLY); \
 	if (rc) rc = mdb_nt2win32(rc)
 #else
 	off_t off;
 	size_t len;
 #define SET_OFF(off,val)	off = val
+#define ADD_OFF(off,val)	off += val
+#define CHK_OFF(off)		off
 #define MAP(rc,env,addr,len,off)	\
 	addr = mmap(NULL, len, PROT_READ, MAP_SHARED, env->me_fd, off); \
 	rc = (addr == MAP_FAILED) ? errno : 0
@@ -7213,7 +7235,7 @@ ok:
 #endif
 	*ret = p;
 	if (enc && env->me_encfunc) {
-		*enc = (MDB_page *)(id3.mptr + rem * env->me_psize);
+		*enc = (MDB_page *)((char *)id3.mptr + rem * env->me_psize);
 	}
 	return rc;
 }
@@ -11614,7 +11636,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 #endif
 #if MDB_RPAGE_CACHE
 #ifdef _WIN32
-	LARGE_INTEGER	off = 0;
+	LARGE_INTEGER	off = {0};
 #else
 	off_t	off = 0;
 #endif
@@ -11678,7 +11700,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 	}
 #if MDB_RPAGE_CACHE
 	if (MDB_REMAPPING(env->me_flags)) {
-		off = wsize;
+		SET_OFF(off, wsize);
 	}
 #endif
 	wsize = w3 - wsize;
@@ -11704,7 +11726,7 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 			wsize -= len;
 #if MDB_RPAGE_CACHE
 			if (MDB_REMAPPING(env->me_flags)) {
-				off += len;
+				ADD_OFF(off,len);
 			}
 #endif
 			continue;
@@ -11929,7 +11951,7 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 {
 #ifdef _WIN32
 	DWORD rsize, rlen, w2;
-	LARGE_INTEGER off;
+	LARGE_INTEGER off = {0};
 #else
 	size_t rsize, w2;
 	ssize_t rlen;
@@ -11946,7 +11968,7 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 		return ENOMEM;
 
 #ifdef _WIN32
-		SetFilePointerEx(env->me_fd, 0, NULL, FILE_BEGIN);
+		SetFilePointerEx(env->me_fd, off, NULL, FILE_BEGIN);
 #else
 		lseek(env->me_fd, 0, SEEK_SET);
 #endif
@@ -12011,9 +12033,9 @@ mdb_env_incr_loadfd(MDB_env *env, HANDLE fd)
 			ptr += rlen;
 			rsize -= rlen;
 		}
-		off = (pg-prevpg-numprev) * env->me_psize;
+		SET_OFF(off, (pg-prevpg-numprev) * env->me_psize);
 		rsize = numpgs * env->me_psize;
-		if (off) {
+		if (CHK_OFF(off)) {
 #ifdef _WIN32
 			SetFilePointerEx(env->me_fd, off, NULL, FILE_CURRENT);
 #else
@@ -12521,33 +12543,67 @@ int mdb_drop(MDB_txn *txn, MDB_dbi dbi, int del)
 
 	MDB_TRACE(("%u, %d", dbi, del));
 
-	/* Dropping the main DBI empties/resets the entire environment.
-	 * Can't do it if any other DBIs are still open. Can only commit
-	 * or abort after this.
+	/* Dropping the main DBI must check if named DBs were in use.
+	 * Can't drop it if any other DBIs are still open.
 	 */
 	if (dbi == MAIN_DBI) {
 		MDB_dbi i;
+		MDB_val key, data;
+		MDB_node *node;
+
+		/* Cannot mix named databases with some mainDB flags. If these
+		 * are set, there are no named DBs.
+		 */
+		if (txn->mt_dbs[MAIN_DBI].md_flags & (MDB_DUPSORT|MDB_INTEGERKEY))
+			goto plain;
+
 		for (i = CORE_DBS; i<txn->mt_numdbs; i++) {
 			if (txn->mt_dbflags[i] & DB_VALID)
 				return MDB_DBIS_BUSY;
 		}
-		for (i = 0; i<CORE_DBS; i++) {
-			txn->mt_dbflags[i] |= DB_DIRTY;
-			txn->mt_dbs[i].md_depth = 0;
-			txn->mt_dbs[i].md_branch_pages = 0;
-			txn->mt_dbs[i].md_leaf_pages = 0;
-			txn->mt_dbs[i].md_overflow_pages = 0;
-			txn->mt_dbs[i].md_entries = 0;
-			txn->mt_dbs[i].md_root = P_INVALID;
+
+		/* Are there any named DBs? We can't rely on env->me_maxdbs
+		 * being set. We have to check if a node is actually a DB.
+		 * When named DBs are in use, the mainDB must not contain any
+		 * other user data. So all records in the mainDB should be
+		 * DB records, so we only need to check the first one.
+		 */
+		rc = mdb_cursor_open(txn, dbi, &mc);
+		if (rc)
+			return rc;
+		rc = mdb_cursor_first(mc, &key, &data);
+		if (rc) {
+			mdb_cursor_close(mc);
+			if (rc == MDB_NOTFOUND) /* already empty */
+				return MDB_SUCCESS;
+			return rc;
 		}
-		txn->mt_flags |= MDB_TXN_DIRTY|MDB_TXN_DROPPED;
-		return MDB_SUCCESS;
+		node = NODEPTR(mc->mc_pg[mc->mc_top], mc->mc_ki[mc->mc_top]);
+		if ((node->mn_flags & (F_DUPDATA|F_SUBDATA)) != F_SUBDATA) {
+			/* it's not a named DB. just do a normal drop. */
+			goto plain2;
+		}
+		do {
+			rc = mdb_dbi_open(txn, key.mv_data, 0, &i);
+			if (rc) {
+				if (rc != MDB_NOTFOUND)
+					goto leave;
+				goto plain2;
+			}
+			rc = mdb_drop(txn, i, 1);
+			if (rc)
+				goto leave;
+			rc = mdb_cursor_first(mc, &key, &data);
+		} while (!rc);
+		goto plain2;
 	}
 
+plain:
 	rc = mdb_cursor_open(txn, dbi, &mc);
 	if (rc)
 		return rc;
 
+plain2:
 	rc = mdb_drop0(mc, mc->mc_db->md_flags & MDB_DUPSORT);
 	/* Invalidate the dropped DB's cursors */
 	for (m2 = txn->mt_cursors[dbi]; m2; m2 = m2->mc_next)
