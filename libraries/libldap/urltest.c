@@ -41,6 +41,7 @@ main(int argc, char *argv[])
 {
 	const char	*url,
 			*scope = NULL;
+	char *descstr;
 	LDAPURLDesc	*lud;
 	enum {
 		IS_LDAP = 0,
@@ -122,7 +123,10 @@ main(int argc, char *argv[])
 		}
 	}
 
-	fprintf( stdout, "URL: %s\n", ldap_url_desc2str( lud ));
+	descstr = ldap_url_desc2str( lud );
+	fprintf( stdout, "URL: %s\n", descstr );
+	free( descstr );
+	ldap_free_urldesc( lud );
 
 	return EXIT_SUCCESS;
 }
