@@ -35,6 +35,7 @@ OpenLDAP 2.6.14 Engineering
 		ITS#10510
 		ITS#10514
 		ITS#10516
+		ITS#10524
 
 OpenLDAP 2.6.13 Release (2026/03/09)
 	Fixed liblber ber_bvreplace_x potential NULL dereference (ITS#10438)
