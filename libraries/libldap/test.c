@@ -475,6 +475,7 @@ main( int argc, char **argv )
 			for ( i = 0; exdn != NULL && exdn[i] != NULL; i++ ) {
 				printf( "\t%s\n", exdn[i] );
 			}
+			ldap_value_free( exdn );
 			break;
 
 		case 'g':	/* set next msgid */
