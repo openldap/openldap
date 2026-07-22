@@ -2383,6 +2383,7 @@ syncprov_play_accesslog( Operation *op, SlapReply *rs, sync_control *srs,
 		 * and oldestcsn/newestcsn are not set. Also we have nothing to send
 		 * either, just skip
 		 */
+		be_entry_release_rw( &fop, e, 0 );
 		return LDAP_SUCCESS;
 	}
 	assert( !BER_BVISEMPTY( &oldestcsn ) && !BER_BVISEMPTY( &newestcsn ) &&
