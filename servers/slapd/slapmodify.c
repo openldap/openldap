@@ -496,39 +496,23 @@ slapmodify( int argc, char **argv )
 			}
 
 			a = attr_find( e->e_attrs, slap_schema.si_ad_entryUUID );
-			if ( a != NULL ) {
-				if ( a->a_vals != a->a_nvals ) {
-					SLAP_FREE( a->a_nvals[0].bv_val );
-					SLAP_FREE( a->a_nvals );
-				}
-				SLAP_FREE( a->a_vals[0].bv_val );
-				SLAP_FREE( a->a_vals );
-				a->a_vals = NULL;
-				a->a_nvals = NULL;
-				a->a_numvals = 0;
+			if ( a == NULL ) {
+				vals[0].bv_len = lutil_uuidstr( uuidbuf, sizeof( uuidbuf ) );
+				vals[0].bv_val = uuidbuf;
+				attr_merge_normalize_one( e, slap_schema.si_ad_entryUUID, vals, NULL );
 			}
-			vals[0].bv_len = lutil_uuidstr( uuidbuf, sizeof( uuidbuf ) );
-			vals[0].bv_val = uuidbuf;
-			attr_merge_normalize_one( e, slap_schema.si_ad_entryUUID, vals, NULL );
 
 			a = attr_find( e->e_attrs, slap_schema.si_ad_creatorsName );
 			if ( a == NULL ) {
 				vals[0] = name;
 				nvals[0] = nname;
 				attr_merge( e, slap_schema.si_ad_creatorsName, vals, nvals );
-
-			} else {
-				ber_bvreplace( &a->a_vals[0], &name );
-				ber_bvreplace( &a->a_nvals[0], &nname );
 			}
 
 			a = attr_find( e->e_attrs, slap_schema.si_ad_createTimestamp );
 			if ( a == NULL ) {
 				vals[0] = timestamp;
 				attr_merge( e, slap_schema.si_ad_createTimestamp, vals, NULL );
-
-			} else {
-				ber_bvreplace( &a->a_vals[0], &timestamp );
 			}
 
 			a = attr_find( e->e_attrs, slap_schema.si_ad_entryCSN );
