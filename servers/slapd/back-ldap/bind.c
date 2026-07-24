@@ -3131,6 +3131,7 @@ ldap_back_conn_prune( ldapinfo_t *li )
 						Debug( LDAP_DEBUG_TRACE,
 							"ldap_back_conn_prune: tainting expired connection lc=%p\n",
 							lc );
+						(void)ldap_back_conn_delete( li, lc );
 						LDAP_BACK_CONN_TAINTED_SET( lc );
 					}
 				} else if ( next_timeout == -1 || conn_expires < next_timeout ) {
