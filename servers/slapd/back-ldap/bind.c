@@ -151,6 +151,9 @@ ldap_back_prepare_conn( ldapconn_t *lc, Operation *op, SlapReply *rs,
 static int
 ldap_back_conndnlc_cmp( const void *c1, const void *c2 );
 
+static time_t
+ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc, int schedule );
+
 static void
 ldap_back_conn_prune( ldapinfo_t *li );
 
@@ -1116,10 +1119,9 @@ retry_lock:
 
 	} else {
 		int	expiring = 0;
+		time_t expiry = ldap_back_conn_expire_time( li, lc, 0 );
 
-		if ( ( li->li_idle_timeout != 0 && op->o_time > lc->lc_time + li->li_idle_timeout )
-			|| ( li->li_conn_ttl != 0 && op->o_time > lc->lc_create_time + li->li_conn_ttl ) )
-		{
+		if ( expiry > -1 && expiry < op->o_time ) {
 			expiring = 1;
 
 			/* let it be used, but taint/delete it so that 
@@ -3074,16 +3076,21 @@ ldap_back_conn_expire_fn( void *ctx, void *arg )
 
 /* Pick which expires first: connection TTL or idle timeout */
 static time_t
-ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc) {
-	if ( li->li_conn_ttl != 0 && li->li_idle_timeout != 0 ) {
-		return ( lc->lc_create_time + li->li_conn_ttl ) < ( lc->lc_time + li->li_idle_timeout ) ?
-			( lc->lc_create_time + li->li_conn_ttl ) : ( lc->lc_time + li->li_idle_timeout );
-	} else if ( li->li_conn_ttl != 0 ) {
-		return lc->lc_create_time + li->li_conn_ttl;
-	} else if ( li->li_idle_timeout != 0 ) {
-		return lc->lc_time + li->li_idle_timeout;
+ldap_back_conn_expire_time( ldapinfo_t *li, ldapconn_t *lc, int schedule ) {
+	time_t expiry = -1;
+
+	if ( li->li_conn_ttl != 0 ) {
+		expiry = lc->lc_create_time + li->li_conn_ttl;
 	}
-	return -1;
+	if ( li->li_idle_timeout != 0 && ( schedule || lc->lc_refcnt == 0 ) ) {
+		time_t idle_threshold = lc->lc_time + li->li_idle_timeout;
+		if ( expiry < 0 || idle_threshold < expiry ) {
+			expiry = idle_threshold;
+		}
+	}
+	Debug( LDAP_DEBUG_TRACE, "ldap_back_conn_expire_time lc=%p expire=%ld\n",
+			lc, expiry );
+	return expiry;
 }
 
 /*
@@ -3108,18 +3115,24 @@ ldap_back_conn_prune( ldapinfo_t *li )
 	time_t		now = slap_get_time();
 	time_t 		next_timeout = -1; /* -1 means uninitialized */
 	TAvlnode	*edge;
-	int		c;
+	ldapconn_t	*lc = NULL;
+	int		c, idle_candidates = 0;
 
 	ldap_pvt_thread_mutex_lock( &li->li_conninfo.lai_mutex );
 
 	for ( c = LDAP_BACK_PCONN_FIRST; c < LDAP_BACK_PCONN_LAST; c++ ) {
-		ldapconn_t *lc = LDAP_TAILQ_FIRST( &li->li_conn_priv[ c ].lic_priv );
+		lc = LDAP_TAILQ_FIRST( &li->li_conn_priv[ c ].lic_priv );
 
 		while ( lc ) {
 			ldapconn_t *next = LDAP_TAILQ_NEXT( lc, lc_q );
 
 			if ( !LDAP_BACK_CONN_TAINTED( lc ) ) {
-				time_t conn_expires = ldap_back_conn_expire_time( li, lc );
+				time_t conn_expires = ldap_back_conn_expire_time( li, lc, 0 );
+				if ( conn_expires == -1 ) {
+					idle_candidates++;
+					lc = next;
+					continue;
+				}
 
 				if ( now >= conn_expires ) {
 					if ( lc->lc_refcnt == 0 ) {
@@ -3147,10 +3160,15 @@ ldap_back_conn_prune( ldapinfo_t *li )
 	edge = ldap_tavl_end( li->li_conninfo.lai_tree, TAVL_DIR_LEFT );
 	while ( edge ) {
 		TAvlnode *next = ldap_tavl_next( edge, TAVL_DIR_RIGHT );
-		ldapconn_t *lc = (ldapconn_t *)edge->avl_data;
+		lc = (ldapconn_t *)edge->avl_data;
 
 		if ( !LDAP_BACK_CONN_TAINTED( lc ) ) {
-			time_t conn_expires = ldap_back_conn_expire_time( li, lc );
+			time_t conn_expires = ldap_back_conn_expire_time( li, lc, 0 );
+			if ( conn_expires == -1 ) {
+				idle_candidates++;
+				edge = next;
+				continue;
+			}
 
 			if ( now >= conn_expires ) {
 				if ( lc->lc_refcnt == 0 ) {
@@ -3168,11 +3186,18 @@ ldap_back_conn_prune( ldapinfo_t *li )
 				next_timeout = conn_expires;
 			}
 		}
-
 		edge = next;
 	}
 
 	ldap_pvt_thread_mutex_unlock( &li->li_conninfo.lai_mutex );
+
+	if ( idle_candidates && next_timeout == -1 && li->li_idle_timeout ) {
+		/*
+		 * We have no ttl and all connections are busy or tainted already, this
+		 * is the first time a connection can legitimately become idle.
+		 */
+		next_timeout = now + li->li_idle_timeout;
+	}
 
 	/* Reschedule for next timeout or cancel the task */
 	ldap_pvt_thread_mutex_lock( &slapd_rq.rq_mutex );
@@ -3220,7 +3245,7 @@ ldap_back_schedule_conn_expiry( ldapinfo_t *li, ldapconn_t *lc ) {
 			"ldap_back_conn_expire_timer" );
 
 		li->li_conn_expire_task->interval.tv_sec =
-			ldap_back_conn_expire_time( li, lc ) - slap_get_time();
+			ldap_back_conn_expire_time( li, lc, 1 ) - slap_get_time();
 		ldap_pvt_runqueue_resched( &slapd_rq, li->li_conn_expire_task, 0 );
 		Debug( LDAP_DEBUG_TRACE,
 			"ldap_back_conn_prune: scheduled connection expiry timer to %ld sec\n",
