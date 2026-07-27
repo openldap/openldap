@@ -9302,7 +9302,7 @@ mdb_branch_size(MDB_env *env, MDB_val *key)
 		/* sz -= key->size - sizeof(MDB_ovpage); */
 	}
 
-	return sz + sizeof(indx_t);
+	return EVEN(sz + sizeof(indx_t));
 }
 
 /** Add a node to the page pointed to by the cursor.
@@ -10812,7 +10812,6 @@ mdb_page_split(MDB_cursor *mc, MDB_val *newkey, MDB_val *newdata, pgno_t newpgno
 				nsize = mdb_leaf_size(env, newkey, newdata);
 			else
 				nsize = mdb_branch_size(env, newkey);
-			nsize = EVEN(nsize);
 
 			/* grab a page to hold a temporary copy */
 			copy = mdb_page_malloc(mc->mc_txn, 1, 1);
@@ -10864,14 +10863,13 @@ mdb_page_split(MDB_cursor *mc, MDB_val *newkey, MDB_val *newdata, pgno_t newpgno
 						node = NULL;
 					} else {
 						node = (MDB_node *)((char *)mp + copy->mp_ptrs[i] + PAGEBASE);
-						psize += NODESIZE + NODEKSZ(node) + sizeof(indx_t);
+						psize += NODESIZE + EVEN(NODEKSZ(node)) + sizeof(indx_t);
 						if (IS_LEAF(mp)) {
 							if (F_ISSET(node->mn_flags, F_BIGDATA))
 								psize += sizeof(MDB_ovpage);
 							else
-								psize += NODEDSZ(node);
+								psize += EVEN(NODEDSZ(node));
 						}
-						psize = EVEN(psize);
 					}
 					if (psize > pmax || i == k-j) {
 						split_indx = i + (j<0);
