@@ -4666,9 +4666,14 @@ mdb_env_rollback(MDB_env *env, mdb_size_t txnid)
 	else {
 		MDB_txn txn = {0};
 		MDB_db dbs[2] = {0};
+		MDB_dbi i;
 		txn.mt_env = env;
 		txn.mt_dbs = dbs;
+		dbs[FREE_DBI].md_pad = metas[newest]->mm_dbs[FREE_DBI].md_pad;
+		dbs[FREE_DBI].md_flags = metas[newest]->mm_dbs[FREE_DBI].md_flags;
 		rc = mdb_env_write_meta(&txn);
+		for (i=0; i<env->me_numdbs; i++)
+			env->me_dbflags[i] = DB_STALE;
 	}
 	if (env->me_txns) {
 		if (rc == MDB_SUCCESS)
