@@ -9,6 +9,7 @@ LMDB 1.0.1 Engineering
 	ITS#10540 - cleanup outdated license notices
 	ITS#10542 - Windows buffered/writethru write behavior
 	ITS#10551 - fix mdb_page_split nodesize calculation
+	ITS#10553 - Another Windows build fix
 
 LMDB 1.0.0 Release (2026/06/30)
 	Many fixes/enhancements
