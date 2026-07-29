@@ -4668,6 +4668,9 @@ mdb_env_rollback(MDB_env *env, mdb_size_t txnid)
 		MDB_db dbs[2] = {0};
 		txn.mt_env = env;
 		txn.mt_dbs = dbs;
+		txn.mt_txnid = txnid & 1;
+		dbs[FREE_DBI].md_pad = metas[newest]->mm_dbs[FREE_DBI].md_pad;
+		dbs[FREE_DBI].md_flags = metas[newest]->mm_dbs[FREE_DBI].md_flags;
 		rc = mdb_env_write_meta(&txn);
 	}
 	if (env->me_txns) {
@@ -11627,7 +11630,8 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 	mdb_size_t wsize, w3;
 	char *ptr;
 #ifdef _WIN32
-	DWORD len, w2;
+	DWORD len;
+	SIZE_T w2;
 #else
 	ssize_t len;
 	size_t w2;
