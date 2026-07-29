@@ -11632,7 +11632,8 @@ mdb_env_copyfd0(MDB_env *env, HANDLE fd)
 	mdb_size_t wsize, w3;
 	char *ptr;
 #ifdef _WIN32
-	DWORD len, w2;
+	DWORD len;
+	SIZE_T w2;
 #else
 	ssize_t len;
 	size_t w2;
