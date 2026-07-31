@@ -203,7 +203,11 @@ ldap_explode_dn( LDAP_CONST char *dn, int notypes )
 	}
 
 	for ( iRDN = 0; tmpDN[ iRDN ]; iRDN++ ) {
-		ldap_rdn2str( tmpDN[ iRDN ], &values[ iRDN ], flag );
+		if ( ldap_rdn2str( tmpDN[ iRDN ], &values[ iRDN ], flag )) {
+			LDAP_VFREE( values );
+			ldap_dnfree( tmpDN );
+			return NULL;
+		}
 	}
 	ldap_dnfree( tmpDN );
 	values[ iRDN ] = NULL;
@@ -227,12 +231,12 @@ ldap_explode_rdn( LDAP_CONST char *rdn, int notypes )
 	 * dn can be parsed
 	 */
 	if ( ldap_str2rdn( rdn, &tmpRDN, (char **) &p, LDAP_DN_FORMAT_LDAP ) 
-			!= LDAP_SUCCESS ) {
+			!= LDAP_SUCCESS || tmpRDN == NULL ) {
 		return( NULL );
 	}
 
 	for ( iAVA = 0; tmpRDN[ iAVA ]; iAVA++ ) ;
-	values = LDAP_MALLOC( sizeof( char * ) * ( 1 + iAVA ) );
+	values = LDAP_CALLOC( 1, sizeof( char * ) * ( 1 + iAVA ) );
 	if ( values == NULL ) {
 		ldap_rdnfree( tmpRDN );
 		return( NULL );
@@ -2399,7 +2403,7 @@ static int
 strval2ADstrlen( struct berval *val, unsigned flags, ber_len_t *len )
 {
 	ber_len_t	l, cl;
-	char		*p;
+	char		*p, *end;
 
 	assert( val != NULL );
 	assert( len != NULL );
@@ -2409,7 +2413,8 @@ strval2ADstrlen( struct berval *val, unsigned flags, ber_len_t *len )
 		return( 0 );
 	}
 
-	for ( l = 0, p = val->bv_val; p[ 0 ]; p += cl ) {
+	end = val->bv_val + val->bv_len;
+	for ( l = 0, p = val->bv_val; p < end && *p; p += cl ) {
 		cl = LDAP_UTF8_CHARLEN2( p, cl );
 		if ( cl == 0 ) {
 			/* illegal utf-8 char */
@@ -2420,6 +2425,9 @@ strval2ADstrlen( struct berval *val, unsigned flags, ber_len_t *len )
 			l += cl;
 		}
 	}
+	/* truncated character */
+	if ( p > end )
+		return -1;
 
 	*len = l;
 
