@@ -1124,8 +1124,11 @@ syncprov_qtask( void *ctx, void *arg )
 		return NULL;
 	}
 
-	/* if an error occurred, or no responses left, task is no longer queued */
-	so->s_flags &= ~PS_TASK_QUEUED;
+	/* getting here means there were errors or there's nothing left
+	 * to do, so this task will no longer be queued. But wait to
+	 * reset the flag until we know we're not dropping the op
+	 * ourselves.
+	 */
 
 	flag = FS_UNLINK;
 
@@ -1138,6 +1141,8 @@ syncprov_qtask( void *ctx, void *arg )
 	/* decrement use count... */
 	frc = syncprov_free_syncop( so, flag );
 	if ( frc == FSR_NOTFREE ) {
+		/* we're not dropping the op, but it is no longer queued. */
+		so->s_flags &= ~PS_TASK_QUEUED;
 		ldap_pvt_thread_mutex_unlock( &so->s_mutex );
 	}
 
