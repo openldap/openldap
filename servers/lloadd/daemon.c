@@ -55,7 +55,10 @@
 #define LDAPI_MOD_URLEXT "x-mod"
 #endif /* LDAP_PF_LOCAL */
 
-#ifndef BALANCER_MODULE
+#ifdef BALANCER_MODULE
+#define IS_SERVER	(slapMode & SLAP_SERVER_MODE)
+#else
+#define IS_SERVER	1
 #ifdef LDAP_PF_INET6
 int slap_inet4or6 = AF_UNSPEC;
 #else /* ! INETv6 */
@@ -495,6 +498,9 @@ lload_open_listener(
                 continue;
         }
 
+		/* skip actual socket setup in tool mode */
+		if ( IS_SERVER )
+		{	/* Begin socket setup */
         s = socket( (*sal)->sa_family, socktype, 0 );
         if ( s == AC_SOCKET_INVALID ) {
             int err = sock_errno();
@@ -597,6 +603,8 @@ lload_open_listener(
             sal++;
             continue;
         }
+
+		}	/* End socket setup */
 
         switch ( (*sal)->sa_family ) {
 #ifdef LDAP_PF_LOCAL
