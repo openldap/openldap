@@ -1722,7 +1722,7 @@ str2result(
 	int	rc;
 	char	*c;
 
-	*code = LDAP_SUCCESS;
+	*code = LDAP_OTHER;
 	*matched = NULL;
 	*info = NULL;
 
