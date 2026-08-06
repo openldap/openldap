@@ -290,6 +290,15 @@ fail:
 	return 0;
 }
 
+void
+slap_set_logprefix( void )
+{
+	if ( syslog_prefix ) {
+		splen = sprintf( syslog_prefix, "%s %s %s[%d]: ", ( logfile_format == LFMT_RFC3339_UTC ) ?
+			RFC3339_STAMP : SYSLOG_STAMP, global_host, serverName, getpid() );
+	}
+}
+
 const char *
 logfile_name()
 {
@@ -851,8 +860,7 @@ reset:
 			len = strlen( global_host ) + 1 + strlen( serverName ) + 1 + sizeof(("[123456789]:")) +
 				(( logfile_format == LFMT_RFC3339_UTC) ? sizeof( RFC3339_STAMP ) : sizeof( SYSLOG_STAMP ));
 			syslog_prefix = ch_malloc( len );
-			splen = sprintf( syslog_prefix, "%s %s %s[%d]: ", ( logfile_format == LFMT_RFC3339_UTC ) ?
-				RFC3339_STAMP : SYSLOG_STAMP, global_host, serverName, getpid() );
+			slap_set_logprefix();
 			}
 			break;
 
