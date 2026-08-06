@@ -1249,6 +1249,7 @@ slap_parse_debug_unknowns LDAP_P(( void ));
 LDAP_SLAPD_F (void)
 slap_check_unknown_level LDAP_P(( char *levelstr, int level ));
 LDAP_SLAPD_V(ldap_pvt_thread_mutex_t) logfile_mutex;
+LDAP_SLAPD_V(ldap_pvt_thread_mutex_t) logname_mutex;
 LDAP_SLAPD_V(int) slap_debug_orig;
 LDAP_SLAPD_V (char *)	serverName;
 

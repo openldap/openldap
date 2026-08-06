@@ -260,6 +260,7 @@ int main( int argc, char **argv )
 
 	(void) ldap_pvt_thread_initialize();
 	ldap_pvt_thread_mutex_init( &logfile_mutex );
+	ldap_pvt_thread_mutex_init( &logname_mutex );
 
 #ifdef HAVE_TLS
 	rc = ldap_create( &slap_tls_ld );
@@ -957,6 +958,7 @@ stop:
 #endif
 
 	ldap_pvt_thread_mutex_destroy( &logfile_mutex );
+	ldap_pvt_thread_mutex_destroy( &logname_mutex );
 	MAIN_RETURN(rc);
 }
 
