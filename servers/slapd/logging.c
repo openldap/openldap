@@ -65,6 +65,7 @@ char *serverName;
 int slap_debug_orig;
 
 ldap_pvt_thread_mutex_t logfile_mutex;
+ldap_pvt_thread_mutex_t logname_mutex;
 
 static off_t logfile_fsize;
 static time_t logfile_fcreated;
@@ -145,6 +146,7 @@ slap_debug_print( const char *data )
 			if ( rotate ) {
 				int rc, savefd;
 				strcpy( logpaths[0]+logpathlen, ".tmp" );
+				ldap_pvt_thread_mutex_lock( &logname_mutex );
 				if ( rename( logfile_path, logpaths[0] )) {
 					rc = errno;
 					if ( !logfile_rotfail ) {
@@ -158,26 +160,29 @@ slap_debug_print( const char *data )
 						logfile_rotfail = 1;
 					}
 					rotate = 0;	/* don't bother since it will fail */
+					ldap_pvt_thread_mutex_unlock( &logname_mutex );
 				} else {
 					logfile_rotfail = 0;
 				}
-				savefd = logfile_fd;
-				logfile_fd = -1;
-				if (( rc = logfile_open( logfile_path ))) {
-					logfile_fd = savefd;
-					if ( !logfile_openfail ) {
-						char buf[BUFSIZ];
-						char ebuf[128];
-						int len = snprintf(buf, sizeof( buf ), "ERROR! logfile couldn't be reopened, err=%d \"%s\"\n",
-							rc, AC_STRERROR_R( rc, ebuf, sizeof(ebuf) ));
-						if ( !logfile_only )
-							!write( 2, buf, len );
-						!write( logfile_fd, buf, len );
-						logfile_openfail = 1;
+				if ( rotate ) {	/* only reopen if rename succeeded */
+					savefd = logfile_fd;
+					logfile_fd = -1;
+					if (( rc = logfile_open( logfile_path ))) {
+						logfile_fd = savefd;
+						if ( !logfile_openfail ) {
+							char buf[BUFSIZ];
+							char ebuf[128];
+							int len = snprintf(buf, sizeof( buf ), "ERROR! logfile couldn't be reopened, err=%d \"%s\"\n",
+								rc, AC_STRERROR_R( rc, ebuf, sizeof(ebuf) ));
+							if ( !logfile_only )
+								!write( 2, buf, len );
+							!write( logfile_fd, buf, len );
+							logfile_openfail = 1;
+						}
+					} else {
+						close( savefd );
+						logfile_openfail = 0;
 					}
-				} else {
-					close( savefd );
-					logfile_openfail = 0;
 				}
 			}
 		}
@@ -235,6 +240,7 @@ slap_debug_print( const char *data )
 		}
 		sprintf( logpaths[0]+logpathlen, ".tmp" );
 		rename( logpaths[0], logpaths[1] );
+		ldap_pvt_thread_mutex_unlock( &logname_mutex );
 	}
 }
 
