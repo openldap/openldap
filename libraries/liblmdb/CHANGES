@@ -1,7 +1,22 @@
 LMDB 0.9 Change Log
 
+LMDB 0.9.36 Release (2026/08/06)
+	ITS#7772 - limit sub-page growth when re-adding existing data
+	ITS#8335 - more input validation for put(MDB_MULTIPLE)
+	ITS#8386 - be a bit more precise that mdb_get retrieves data in intro.doc
+	ITS#8590 - suppress SIGPIPE on Mac OSX for mdb_copy/compact
+	ITS#8739 - don't use fdatasync on FreeBSD 11.0 and older
+	ITS#8824 - mdb_dump: cleanup check for MDB_SUCCESS
+	ITS#9388 - fix mdb_stat page counts for dupsort DBs
+	ITS#10054 - fix write of 2GB values
+	ITS#10108 - mdb_dump: fix comment
+	ITS#10454 - fix metapage sync on Mac OSX
+	ITS#10504 - silence linker warning on Mac OSX
+	ITS#10522 - reject 0-length values in DUPSORT DBs
+	ITS#10538 - fix large writes on Windows
+
 LMDB 0.9.35 Release (2026/01/27)
-    ITS#10434 - Fix typo affecting Mac OSX
+	ITS#10434 - Fix typo affecting Mac OSX
 
 LMDB 0.9.34 Release (2026/01/26)
 	ITS#9564 - fix race condition freeing spilled pages at end of transaction

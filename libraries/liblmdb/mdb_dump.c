@@ -135,7 +135,7 @@ static int dumpit(MDB_txn *txn, MDB_dbi dbi, char *name)
 	rc = mdb_cursor_open(txn, dbi, &mc);
 	if (rc) return rc;
 
-	while ((rc = mdb_cursor_get(mc, &key, &data, MDB_NEXT) == MDB_SUCCESS)) {
+	while ((rc = mdb_cursor_get(mc, &key, &data, MDB_NEXT)) == MDB_SUCCESS) {
 		if (gotsig) {
 			rc = EINTR;
 			break;
@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
 		usage(prog);
 	}
 
-	/* -a: dump main DB and all subDBs
+	/* -a: dump all subDBs
 	 * -s: dump only the named subDB
 	 * -n: use NOSUBDIR flag on env_open
 	 * -p: use printable characters
