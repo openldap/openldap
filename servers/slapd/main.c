@@ -779,6 +779,7 @@ unhandled_option:;
 			_exit( rc );
 		} else {
 			close( waitfds[0] );
+			slap_set_logprefix();
 		}
 	}
 #endif /* HAVE_WINSOCK */
