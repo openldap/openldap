@@ -31,8 +31,7 @@
 #include "back-sock.h"
 
 /*
- * FIXME: make a RESULT section compulsory from the socket response.
- * Otherwise, a partial/aborted response is treated as 'success'.
+ * Note: str2result treats a partial/aborted response as failure, LDAP_OTHER.
  * This is a divergence from the back-shell protocol, but makes things
  * more robust.
  */
