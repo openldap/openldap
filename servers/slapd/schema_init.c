@@ -3807,7 +3807,6 @@ checkTime( struct berval *in, struct berval *out )
 
 	assert( in != NULL );
 	assert( !BER_BVISNULL( in ) );
-	assert( !BER_BVISEMPTY( in ) );
 
 	if ( in->bv_len < STRLENOF( "YYmmddHHMMSSZ" ) ) {
 		return -1;
