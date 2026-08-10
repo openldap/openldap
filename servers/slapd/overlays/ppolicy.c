@@ -1448,10 +1448,10 @@ make_pwd_history_value( char *timebuf, struct berval *bv, Attribute *pa )
          * length), the remaining octets of the actual password
          * are deemed to be binary data.
          */
-	AC_MEMCPY( str + nlen, pa->a_nvals[0].bv_val, pa->a_nvals[0].bv_len );
-	nlen += pa->a_nvals[0].bv_len;
-	bv->bv_val = ch_malloc( nlen + 1 );
+	bv->bv_val = ch_malloc( nlen + 1 + pa->a_nvals[0].bv_len );
 	AC_MEMCPY( bv->bv_val, str, nlen );
+	AC_MEMCPY( bv->bv_val + nlen, pa->a_nvals[0].bv_val, pa->a_nvals[0].bv_len );
+	nlen += pa->a_nvals[0].bv_len;
 	bv->bv_val[nlen] = '\0';
 	bv->bv_len = nlen;
 }
