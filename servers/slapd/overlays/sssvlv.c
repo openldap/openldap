@@ -1055,7 +1055,7 @@ static int build_key(
 	AttributeDescription *ad = NULL;
 	const char *text;
 
-	if (( tag = ber_scanf( ber, "{" )) == LBER_ERROR ) {
+	if (( tag = ber_skip_tag( ber, &len )) != LBER_SEQUENCE ) {
 		rs->sr_text = "serverSort control: decoding error";
 		rs->sr_err = LDAP_PROTOCOL_ERROR;
 		return rs->sr_err;
@@ -1085,7 +1085,7 @@ static int build_key(
 		}
 	}
 
-	if (( tag = ber_scanf( ber, "}" )) == LBER_ERROR ) {
+	if (( tag = ber_peek_tag( ber, &len )) != LBER_DEFAULT ) {
 		rs->sr_text = "serverSort control: decoding error";
 		rs->sr_err = LDAP_PROTOCOL_ERROR;
 		return rs->sr_err;
