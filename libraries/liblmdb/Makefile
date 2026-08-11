@@ -33,7 +33,6 @@ LDL		= -ldl
 LIBVER	= 1
 ABIVER	= 0
 VEREXT	= $(LIBVER).$(ABIVER)
-LMDB_VERSION	= 1.0.0
 SOFULL	= $(SOEXT).$(VEREXT)
 
 prefix	= /usr/local
@@ -144,7 +143,7 @@ module.lo: module.c lmdb.h
 %.o:	%.c lmdb.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $<
 
-lmdb.pc: Makefile
+lmdb.pc: Makefile mdb_stat
 	@echo "prefix=$(prefix)" > $@
 	@echo "exec_prefix=$(exec_prefix)" >>$@
 	@echo "includedir=$(includedir)" >>$@
@@ -153,7 +152,8 @@ lmdb.pc: Makefile
 	@echo "Name: lmdb (OpenLDAP)" >>$@
 	@echo "Description: OpenLDAP Lightning Memory Mapped Database library" >>$@
 	@echo "URL: https://www.openldap.org" >>$@
-	@echo "Version: $(LMDB_VERSION)" >>$@
+	@LMDB_VERSION=`./mdb_stat -V | awk '{sub(":","",$$2); print $$2}'`; \
+	echo "Version: $$LMDB_VERSION" >>$@
 	@echo "Cflags: $(THREADS) $(XCFLAGS)" >>$@
 	@echo "Libs: -llmdb $(LDL) $(THREADS)" >>$@
 
