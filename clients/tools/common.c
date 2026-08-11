@@ -70,7 +70,7 @@ ber_len_t	ldif_wrap = 0;
 char		*prog = NULL;
 
 /* connection */
-char		*ldapuri = NULL;
+char		*ldapuri = NULL, *texturi;
 int		use_tls = 0;
 int		protocol = -1;
 int		version = 0;
@@ -239,7 +239,7 @@ st_value( LDAP *ld, struct berval *value )
 #ifdef LDAP_PF_INET6
 				else if ( sa.ss_family == AF_INET6 ) {
 					struct sockaddr_in6 *sai = (struct sockaddr_in6 *)&sa;
-					ip = inet_ntop( AF_INET6, &sai->sin6_addr, ip6buf, sizeof( ip6buf ));
+					ip = (char *)inet_ntop( AF_INET6, &sai->sin6_addr, ip6buf, sizeof( ip6buf ));
 				}
 #endif
 			}
@@ -1361,15 +1361,16 @@ dnssrv_free:;
 			ber_memvfree( (void **)urls );
 		}
 
+		texturi = ldapuri != NULL ? ldapuri : "<DEFAULT>";
 		if ( verbose ) {
 			fprintf( stderr, "ldap_initialize( %s )\n",
-				ldapuri != NULL ? ldapuri : "<DEFAULT>" );
+				texturi );
 		}
 		rc = ldap_initialize( &ld, ldapuri );
 		if( rc != LDAP_SUCCESS ) {
 			fprintf( stderr,
 				"Could not create LDAP session handle for URI=%s (%d): %s\n",
-				ldapuri, rc, ldap_err2string(rc) );
+				texturi, rc, ldap_err2string(rc) );
 			exit( EXIT_FAILURE );
 		}
 
@@ -1416,11 +1417,11 @@ dnssrv_free:;
 		rc = ldap_connect( ld );
 		if( rc != LDAP_SUCCESS ) {
 			static const char connectErr[] = "Could not connect to URI";
-			char *msg = malloc( strlen( ldapuri ) + sizeof(connectErr) + 2 );
+			char *msg = malloc( strlen( texturi ) + sizeof(connectErr) + 2 );
 			if ( msg )
-				sprintf(msg, "%s=%s", connectErr, ldapuri );
+				sprintf(msg, "%s=%s", connectErr, texturi );
 			else
-				msg = connectErr;
+				msg = (char *)connectErr;
 			tool_perror2( ld, msg );
 			if ( msg != connectErr ) free( msg );
 			tool_exit( ld, EXIT_FAILURE );
