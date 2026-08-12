@@ -152,7 +152,7 @@ lmdb.pc: Makefile mdb_stat
 	@echo "Name: lmdb (OpenLDAP)" >>$@
 	@echo "Description: OpenLDAP Lightning Memory Mapped Database library" >>$@
 	@echo "URL: https://www.openldap.org" >>$@
-	@LMDB_VERSION=`./mdb_stat -V | awk '{sub(":","",$$2); print $$2}'`; \
+	@LMDB_VERSION=`./mdb_stat -V | sed -e 's/LMDB //' -e 's/:.*//'`; \
 	echo "Version: $$LMDB_VERSION" >>$@
 	@echo "Cflags: $(THREADS) $(XCFLAGS)" >>$@
 	@echo "Libs: -llmdb $(LDL) $(THREADS)" >>$@
