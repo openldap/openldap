@@ -2432,6 +2432,8 @@ asyncmeta_back_cf_gen( ConfigArgs *c )
 
 		}
 		mc->mc_conn_ttl = (time_t)t;
+
+		t = 1;
 		if ( ( c->argv[ 2 ] != NULL ) && lutil_parse_time( c->argv[ 2 ], &t ) ) {
 			snprintf( c->cr_msg, sizeof( c->cr_msg ),
 				"unable to parse conn ttl reset interval \"%s\"",
