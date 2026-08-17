@@ -121,8 +121,6 @@ request_process( LloadConnection *client, LloadOperation *op )
             if ( ber_skip_element( control_ber, &needle.oid ) == LBER_ERROR ) {
                 res = LDAP_PROTOCOL_ERROR;
                 message = "invalid control";
-
-                operation_send_reject( op, res, message, 1 );
                 goto fail;
             }
 
@@ -143,8 +141,6 @@ request_process( LloadConnection *client, LloadOperation *op )
     if ( op->o_restricted == LLOAD_OP_RESTRICTED_REJECT ) {
         res = LDAP_UNWILLING_TO_PERFORM;
         message = "extended operation or control disallowed";
-
-        operation_send_reject( op, res, message, 1 );
         goto fail;
     }
 
@@ -203,7 +199,6 @@ request_process( LloadConnection *client, LloadOperation *op )
                 "connid=%lu, msgid=%d no available connection found\n",
                 op->o_client_connid, op->o_client_msgid );
 
-        operation_send_reject( op, res, message, 1 );
         goto fail;
     }
     CONNECTION_ASSERT_LOCKED(upstream);
@@ -332,12 +327,15 @@ request_process( LloadConnection *client, LloadOperation *op )
     return rc;
 
 fail:
+    /* We have not committed any restrictions in the end */
+    op->o_restricted = LLOAD_OP_NOT_RESTRICTED;
+
     if ( upstream ) {
         CONNECTION_LOCK_DESTROY(upstream);
 
-        /* We have not committed any restrictions in the end */
-        op->o_restricted = LLOAD_OP_NOT_RESTRICTED;
         operation_send_reject( op, LDAP_OTHER, "internal error", 0 );
+    } else {
+        operation_send_reject( op, res, message, 1 );
     }
 
     OPERATION_UNLINK(op);
