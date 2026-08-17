@@ -1424,7 +1424,8 @@ detach_linked_backend_cb( LloadConnection *client, LloadBackend *b )
 
     client->c_restricted = LLOAD_OP_NOT_RESTRICTED;
     client->c_restricted_at = 0;
-    client->c_restricted_inflight = 0;
+    client->c_backend = NULL;
+    /* c_restricted_inflight is adjusted through backend_reset later */
 
     return rc;
 }
