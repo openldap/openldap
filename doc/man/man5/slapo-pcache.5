@@ -312,7 +312,12 @@ access privileges, and the "real" access control is delegated to the proxy's ACL
 Beware that since only the cached fraction of the real datum is available
 to the cache, it may not be possible to enforce the same access rules that
 are defined on the remote server.
-When security is a concern, cached proxy access must be carefully tailored.
+When security is a concern, cached proxy access must be carefully tailored. Also,
+referral chasing may cause inconsistencies in the remote and cached data. It is
+unsafe to cache results from a remote server if arbitrary users can create referrals
+on the remote server. Sites must carefully consider whether to enable or disable
+automatic referral chasing in the proxy backend.
+
 .SH FILES
 
 .TP
