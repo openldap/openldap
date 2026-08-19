@@ -127,6 +127,9 @@ do_modify(
 		}
 	}
 
+	Debug( LDAP_DEBUG_STATS|LDAP_DEBUG_STATS2, "%s MOD dn=\"%s\"\n",
+		op->o_log_prefix, op->o_req_dn.bv_val );
+
 	if ( LogTest( LDAP_DEBUG_STATS2 ) ) {
 		Modifications *prevmod = NULL;
 
@@ -167,9 +170,6 @@ do_modify(
 	} else if ( LogTest( LDAP_DEBUG_STATS ) ) {
 		char abuf[BUFSIZ/2], *ptr = abuf;
 		int len = 0;
-
-		Debug( LDAP_DEBUG_STATS, "%s MOD dn=\"%s\"\n",
-			op->o_log_prefix, op->o_req_dn.bv_val );
 
 		for ( tmp = op->orm_modlist; tmp != NULL; tmp = tmp->sml_next ) {
 			if (len + 1 + tmp->sml_type.bv_len > sizeof(abuf)) {
