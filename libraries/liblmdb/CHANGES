@@ -2,7 +2,8 @@ LMDB 1.0 Change Log
 
 LMDB 1.0.2 Engineering
 	ITS#10569 - fix version in lmdb.pc
-	ITS310572 - more upgrade notes
+	ITS#10572 - more upgrade notes
+	ITS#10575 - Windows WRITEMAP fix
 
 LMDB 1.0.1 Release (2026/08/06)
 	ITS#10529 - invalidate DBIs in rollback
