@@ -1,6 +1,7 @@
 OpenLDAP 2.7 Change Log
 
 OpenLDAP 2.7.1 Engineering
+	Fixed slapo-ppolicy handling of old passwords (ITS#10565)
 	Minor Cleanup
 		ITS#10564
 
