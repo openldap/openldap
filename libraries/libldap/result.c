@@ -675,6 +675,11 @@ nextresp2:
 	if ( tag == LBER_ERROR ) {
 		ld->ld_errno = LDAP_DECODING_ERROR;
 		ber_free( ber, 1 );
+		if ( id > 0 ) {
+			/* id == 0 is for unsolicited responses, which have no
+			 * corresponding request */
+			ldap_return_request( ld, lr, 0 );
+		}
 		return( -1 );
 	}
 
