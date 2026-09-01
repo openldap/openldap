@@ -368,6 +368,11 @@ enum sc_io_state {
     LLOAD_C_READ_PAUSE = 1 << 1,    /* We want to pause reading until the client
                                      * has sufficiently caught up with what we
                                      * sent */
+    LLOAD_C_WRITE_NEEDS_READ = 1 << 2,
+                                    /* We were told to stop writing until the
+                                     * connection state has settled (usually
+                                     * TLS related) - read_cb must be enabled!
+                                     */
 };
 
 /* Tracking whether an operation might cause a client to restrict which

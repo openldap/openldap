@@ -70,6 +70,8 @@ handle_pdus( void *ctx, void *arg )
 {
     LloadConnection *c = arg;
     int pdus_handled = 0;
+    enum sc_io_state pause_check = (lload_features & LLOAD_FEATURE_PAUSE) ?
+        LLOAD_C_WRITE_NEEDS_READ|LLOAD_C_READ_PAUSE : LLOAD_C_WRITE_NEEDS_READ;
     epoch_t epoch;
 
     /* A reference was passed on to us */
@@ -106,8 +108,7 @@ handle_pdus( void *ctx, void *arg )
         c->c_currentber = ber;
 
         checked_lock( &c->c_io_mutex );
-        if ( (lload_features & LLOAD_FEATURE_PAUSE) &&
-                (c->c_io_state & LLOAD_C_READ_PAUSE) ) {
+        if ( c->c_io_state & pause_check ) {
             goto pause;
         }
         tag = ber_get_next( c->c_sb, &len, ber );
@@ -144,14 +145,19 @@ handle_pdus( void *ctx, void *arg )
     }
 
     checked_lock( &c->c_io_mutex );
-    if ( !(lload_features & LLOAD_FEATURE_PAUSE) ||
-            !(c->c_io_state & LLOAD_C_READ_PAUSE) ) {
-        event_add( c->c_read_event, c->c_read_timeout );
+pause:
+    if ( (c->c_io_state & pause_check) != LLOAD_C_READ_PAUSE ) {
+        struct timeval *timeout = c->c_read_timeout;
+
+        if ( c->c_io_state & LLOAD_C_WRITE_NEEDS_READ ) {
+            timeout = lload_write_timeout;
+        }
+
+        event_add( c->c_read_event, timeout );
         Debug( LDAP_DEBUG_CONNS, "handle_pdus: "
                 "re-enabled read event on connid=%lu\n",
                 c->c_connid );
     }
-pause:
     c->c_io_state &= ~LLOAD_C_READ_HANDOVER;
     checked_unlock( &c->c_io_mutex );
 
@@ -216,6 +222,21 @@ connection_read_cb( evutil_socket_t s, short what, void *arg )
     c->c_currentber = ber;
 
     checked_lock( &c->c_io_mutex );
+    if ( c->c_io_state & LLOAD_C_WRITE_NEEDS_READ ) {
+        checked_unlock( &c->c_io_mutex );
+        connection_write_cb( s, 0, arg );
+        checked_lock( &c->c_io_mutex );
+        if ( !IS_ALIVE( c, c_live ) || (c->c_io_state & LLOAD_C_READ_PAUSE) ) {
+            if ( !(c->c_io_state & LLOAD_C_WRITE_NEEDS_READ) ) {
+                /* Safe to delete ourselves (deadlock-wise) and avoids a race
+                 * with concurrent connection_write_cb */
+                event_del( c->c_read_event );
+            }
+            checked_unlock( &c->c_io_mutex );
+            goto out;
+        }
+    }
+
     assert( !(c->c_io_state & LLOAD_C_READ_HANDOVER) );
     tag = ber_get_next( c->c_sb, &len, ber );
     pause = c->c_io_state & LLOAD_C_READ_PAUSE;
@@ -267,13 +288,21 @@ connection_read_cb( evutil_socket_t s, short what, void *arg )
         /* If we're overloaded or configured as such, process one and resume in
          * the next cycle. */
         int rc = c->c_pdu_cb( c );
+        enum sc_io_state pause_check = (lload_features & LLOAD_FEATURE_PAUSE) ?
+            LLOAD_C_WRITE_NEEDS_READ|LLOAD_C_READ_PAUSE :
+            LLOAD_C_WRITE_NEEDS_READ;
 
         checked_lock( &c->c_io_mutex );
         c->c_io_state &= ~LLOAD_C_READ_HANDOVER;
         if ( rc == LDAP_SUCCESS &&
-                ( !(lload_features & LLOAD_FEATURE_PAUSE) ||
-                        !(c->c_io_state & LLOAD_C_READ_PAUSE) ) ) {
-            event_add( c->c_read_event, c->c_read_timeout );
+                (c->c_io_state & pause_check) != LLOAD_C_READ_PAUSE ) {
+            struct timeval *timeout = c->c_read_timeout;
+
+            if ( c->c_io_state & LLOAD_C_WRITE_NEEDS_READ ) {
+                timeout = lload_write_timeout;
+            }
+
+            event_add( c->c_read_event, timeout );
         }
         checked_unlock( &c->c_io_mutex );
         goto out;
@@ -350,26 +379,51 @@ connection_write_cb( evutil_socket_t s, short what, void *arg )
             goto done;
         }
 
-        if ( !(c->c_io_state & LLOAD_C_READ_PAUSE) ) {
-            Debug( LDAP_DEBUG_CONNS, "connection_write_cb: "
-                    "connection connid=%lu blocked on writing, marking "
-                    "paused\n",
-                    c->c_connid );
-        }
-        c->c_io_state |= LLOAD_C_READ_PAUSE;
+        if ( ber_sockbuf_ctrl( c->c_sb, LBER_SB_OPT_NEEDS_READ, NULL ) ) {
+            if ( !(c->c_io_state & LLOAD_C_WRITE_NEEDS_READ) ) {
+                Debug( LDAP_DEBUG_CONNS, "connection_write_cb: "
+                        "connection connid=%lu blocked on reading "
+                        "with%s a read pause, marking paused\n",
+                        c->c_connid,
+                        (c->c_io_state & LLOAD_C_READ_PAUSE) ? "" : "out" );
+            }
+            c->c_io_state |= LLOAD_C_WRITE_NEEDS_READ;
 
-        /* TODO: Do not reset write timeout unless we wrote something */
-        event_add( c->c_write_event, lload_write_timeout );
+            if ( !(c->c_io_state & LLOAD_C_READ_HANDOVER) ) {
+                /* We are still writing -> lload_write_timeout */
+                event_add( c->c_read_event, lload_write_timeout );
+            }
+        } else {
+            if ( !(c->c_io_state & LLOAD_C_READ_PAUSE) ) {
+                Debug( LDAP_DEBUG_CONNS, "connection_write_cb: "
+                        "connection connid=%lu blocked on writing, marking "
+                        "paused\n",
+                        c->c_connid );
+            }
+            c->c_io_state |= LLOAD_C_READ_PAUSE;
+            c->c_io_state &= ~LLOAD_C_WRITE_NEEDS_READ;
+
+            /* TODO: Do not reset write timeout unless we wrote something */
+            event_add( c->c_write_event, lload_write_timeout );
+        }
     } else {
+        enum sc_io_state old_state = c->c_io_state;
         c->c_pendingber = NULL;
+
+        c->c_io_state &= ~LLOAD_C_WRITE_NEEDS_READ;
         if ( c->c_io_state & LLOAD_C_READ_PAUSE ) {
             c->c_io_state ^= LLOAD_C_READ_PAUSE;
             Debug( LDAP_DEBUG_CONNS, "connection_write_cb: "
                     "Unpausing connection connid=%lu\n",
                     c->c_connid );
-            if ( !(c->c_io_state & LLOAD_C_READ_HANDOVER) ) {
-                event_add( c->c_read_event, c->c_read_timeout );
+        }
+
+        if ( c->c_io_state != old_state &&
+                !(c->c_io_state & LLOAD_C_READ_HANDOVER) ) {
+            if ( !c->c_read_timeout ) {
+                event_remove_timer( c->c_read_event );
             }
+            event_add( c->c_read_event, c->c_read_timeout );
         }
     }
     checked_unlock( &c->c_io_mutex );
