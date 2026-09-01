@@ -1628,12 +1628,16 @@ tlso_sb_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 	errno = WSAGetLastError();
 #endif
 	err = SSL_get_error( p->session, ret );
+
+	sbiod->sbiod_sb->sb_trans_needs_read = 0;
+	sbiod->sbiod_sb->sb_trans_needs_write = 0;
 	if (err == SSL_ERROR_WANT_READ ) {
 		sbiod->sbiod_sb->sb_trans_needs_read = 1;
 		sock_errset(EWOULDBLOCK);
+	} else if ( err == SSL_ERROR_WANT_WRITE ) {
+		sbiod->sbiod_sb->sb_trans_needs_write = 1;
+		sock_errset(EWOULDBLOCK);
 	}
-	else
-		sbiod->sbiod_sb->sb_trans_needs_read = 0;
 	return ret;
 }
 
@@ -1655,12 +1659,15 @@ tlso_sb_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 	errno = WSAGetLastError();
 #endif
 	err = SSL_get_error( p->session, ret );
+
+	sbiod->sbiod_sb->sb_trans_needs_read = 0;
+	sbiod->sbiod_sb->sb_trans_needs_write = 0;
 	if (err == SSL_ERROR_WANT_WRITE ) {
 		sbiod->sbiod_sb->sb_trans_needs_write = 1;
 		sock_errset(EWOULDBLOCK);
-
-	} else {
-		sbiod->sbiod_sb->sb_trans_needs_write = 0;
+	} else if ( err == SSL_ERROR_WANT_READ ) {
+		sbiod->sbiod_sb->sb_trans_needs_read = 1;
+		sock_errset(EWOULDBLOCK);
 	}
 	return ret;
 }

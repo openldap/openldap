@@ -940,13 +940,16 @@ tlsmt_sb_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 
 	int ret = mbedtls_ssl_read( &(p->session->ssl_ctx), buf, len);
 
-	if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE ) {
+	sbiod->sbiod_sb->sb_trans_needs_read = 0;
+	sbiod->sbiod_sb->sb_trans_needs_write = 0;
+	if ( ret == MBEDTLS_ERR_SSL_WANT_READ ) {
 		sbiod->sbiod_sb->sb_trans_needs_read = 1;
 		sock_errset(EWOULDBLOCK);
 		return 0;
-	}
-	else {
-		sbiod->sbiod_sb->sb_trans_needs_read = 0;
+	} else if ( ret == MBEDTLS_ERR_SSL_WANT_WRITE ) {
+		sbiod->sbiod_sb->sb_trans_needs_write = 1;
+		sock_errset(EWOULDBLOCK);
+		return 0;
 	}
 
 	return ret;
@@ -962,14 +965,19 @@ tlsmt_sb_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 
 	int ret = mbedtls_ssl_write( &(p->session->ssl_ctx), buf, len);
 
-	if (ret == MBEDTLS_ERR_SSL_WANT_READ || ret == MBEDTLS_ERR_SSL_WANT_WRITE ) {
+	sbiod->sbiod_sb->sb_trans_needs_read = 0;
+	sbiod->sbiod_sb->sb_trans_needs_write = 0;
+	if ( ret == MBEDTLS_ERR_SSL_WANT_WRITE ) {
 		sbiod->sbiod_sb->sb_trans_needs_write = 1;
 		sock_errset(EWOULDBLOCK);
 		return 0;
 	}
-	else {
-		sbiod->sbiod_sb->sb_trans_needs_write = 0;
+	else if ( ret == MBEDTLS_ERR_SSL_WANT_READ ) {
+		sbiod->sbiod_sb->sb_trans_needs_read = 1;
+		sock_errset(EWOULDBLOCK);
+		return 0;
 	}
+
 	return ret;
 }
 

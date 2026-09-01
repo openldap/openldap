@@ -1175,22 +1175,19 @@ tlsg_sb_read( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 	p = (struct tls_data *)sbiod->sbiod_pvt;
 
 	ret = gnutls_record_recv ( p->session->session, buf, len );
-	switch (ret) {
-	case GNUTLS_E_INTERRUPTED:
-	case GNUTLS_E_AGAIN:
-		sbiod->sbiod_sb->sb_trans_needs_read = 1;
+
+	sbiod->sbiod_sb->sb_trans_needs_read = 0;
+	sbiod->sbiod_sb->sb_trans_needs_write = 0;
+	if ( tlsg_session_upflags( sbiod->sbiod_sb, (tls_session *)p->session, ret ) ) {
 		sock_errset(EWOULDBLOCK);
 		ret = 0;
-		break;
-	case GNUTLS_E_REHANDSHAKE:
+	} else if ( ret == GNUTLS_E_REHANDSHAKE ) {
 		for ( ret = gnutls_handshake ( p->session->session );
 		      ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN;
 		      ret = gnutls_handshake ( p->session->session ) );
 		sbiod->sbiod_sb->sb_trans_needs_read = 1;
+		sock_errset(EWOULDBLOCK);
 		ret = 0;
-		break;
-	default:
-		sbiod->sbiod_sb->sb_trans_needs_read = 0;
 	}
 	return ret;
 }
@@ -1208,12 +1205,11 @@ tlsg_sb_write( Sockbuf_IO_Desc *sbiod, void *buf, ber_len_t len)
 
 	ret = gnutls_record_send ( p->session->session, (char *)buf, len );
 
-	if ( ret == GNUTLS_E_INTERRUPTED || ret == GNUTLS_E_AGAIN ) {
-		sbiod->sbiod_sb->sb_trans_needs_write = 1;
+	sbiod->sbiod_sb->sb_trans_needs_read = 0;
+	sbiod->sbiod_sb->sb_trans_needs_write = 0;
+	if ( tlsg_session_upflags( sbiod->sbiod_sb, (tls_session *)p->session, ret ) ) {
 		sock_errset(EWOULDBLOCK);
 		ret = 0;
-	} else {
-		sbiod->sbiod_sb->sb_trans_needs_write = 0;
 	}
 	return ret;
 }
