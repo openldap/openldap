@@ -862,6 +862,7 @@ tlso_session_connect( LDAP *ld, tls_session *sess, const char *name_in )
 			return -1;
 	}
 #endif
+	ERR_clear_error();
 	/* Caller expects 0 = success, OpenSSL returns 1 = success */
 	rc = SSL_connect( s ) - 1;
 	return rc;
