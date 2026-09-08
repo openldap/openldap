@@ -28,6 +28,8 @@ New features in LMDB 1.0 include:
 	\li support for DB on raw block devices
 	\li support for 2-phase commit
 	\li support for page sizes up to 64KB
+	\li support for read txns nested under write txns
+	\li support for dynamic key size limits
 
 plus other minor additions to the API.
 
@@ -100,5 +102,22 @@ just using the OS's page size. While Linux still defaults to
 on the data being stored. Also, e.g. Apple Silicon machines use
 16KB pages by default. Page sizes up to 64KB are supported, and
 can be set using mdb_env_set_pagesize().
+
+@subsection Nested Read-Only Transactions
+
+Write transactions can now open an arbitrary number of child
+read-only transactions instead of just a child write transaction.
+The choice is exclusive, a write transaction can have either one
+child write transaction, or a number of read-only transactions.
+
+Read-only transactions still may not have any child transactions.
+
+@subsection Dynamic Key Size Limits
+
+In 0.9 the maximum key size was hardcoded to 512 bytes but is now
+determined dynamically based on the page size of the environment.
+Since the page size can be set arbitrarily, the max keysize is only
+known after mdb_env_open() completes. Thus mdb_env_get_maxkeysize()
+must only be called after mdb_env_open().
 
 */
