@@ -237,7 +237,6 @@ memberof_saveMember_cb( Operation *op, SlapReply *rs )
 		mc->foundit = 1;
 
 		assert( rs->sr_entry != NULL );
-		assert( rs->sr_entry->e_attrs != NULL );
 
 		a = attr_find( rs->sr_entry->e_attrs, mc->ad );
 		if ( a != NULL ) {
