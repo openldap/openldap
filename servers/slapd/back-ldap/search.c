@@ -731,6 +731,7 @@ ldap_build_entry(
 		int				i;
 		slap_syntax_validate_func	*validate;
 		slap_syntax_transform_func	*pretty;
+		Attribute *existing;
 
 		attr = attr_alloc( NULL );
 		if ( attr == NULL ) {
@@ -911,8 +912,29 @@ ldap_build_entry(
 			attr->a_flags |= SLAP_ATTR_SORTED_VALS;
 		}
 
-		*attrp = attr;
-		attrp = &attr->a_next;
+		if ( (existing = attr_find( ent->e_attrs, attr->a_desc )) ) {
+			/*
+			 * Sender violates RFC4511's "Attributes are returned at most once
+			 * in an entry.", merge into the original if possible (dups etc.).
+			 *
+			 * Also move values, don't copy.
+			 */
+			assert( existing->a_flags == attr->a_flags );
+			existing->a_flags |= SLAP_ATTR_DONT_FREE_DATA;
+			if ( attr_valadd( existing, attr->a_vals,
+						attr->a_nvals != attr->a_vals ? attr->a_nvals : NULL,
+						attr->a_numvals ) ) {
+				existing->a_flags = attr->a_flags;
+				attr_free( attr );
+				goto next_attr;
+			}
+			existing->a_flags = attr->a_flags;
+			attr->a_flags |= SLAP_ATTR_DONT_FREE_DATA;
+			attr_free( attr );
+		} else {
+			*attrp = attr;
+			attrp = &attr->a_next;
+		}
 
 next_attr:;
 	}
