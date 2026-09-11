@@ -259,6 +259,7 @@ OPENLDAP_2.200
     ldap_pvt_csnstr;
     ldap_pvt_ctime;
     ldap_pvt_discard;
+    ldap_pvt_filter_depth;
     ldap_pvt_filter_value_unescape;
     ldap_pvt_find_wildcard;
 #if ( defined( HAVE_GETADDRINFO ) || defined( HAVE_GETNAMEINFO ) ) \

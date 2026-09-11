@@ -222,6 +222,36 @@ ldap_pvt_find_wildcard( const char *s )
 	return (char *) s;
 }
 
+/* Count how deeply nested a filter is.
+ * A simple filter with no nesting at all is considered depth=0.
+ */
+int
+ldap_pvt_filter_depth( const char *s )
+{
+	int depth = 0, max = 0;
+
+	if ( *s != '(' )
+		return 0;
+
+	for( ; *s; s++ ) {
+		switch( *s ) {
+		case '(':
+			depth++;
+			if (depth > max)
+				max = depth;
+			break;
+		case ')':
+			depth--;
+			break;
+		case '\\':
+			if ( !s[1] )
+				break;
+			s++;
+		}
+	}
+	return max-1;
+}
+
 /* unescape filter value */
 /* support both LDAP v2 and v3 escapes */
 /* output can include nul characters! */

@@ -50,6 +50,11 @@ str2filter_x( Operation *op, const char *str )
 		return NULL;
 	}
 
+	if ( ldap_pvt_filter_depth( str ) > slap_max_filter_depth ) {
+		Debug( LDAP_DEBUG_FILTER, "filter nesting exceeds slap_max_filter_depth\n" );
+		return NULL;
+	}
+
 	ber_init2( ber, NULL, LBER_USE_DER );
 	if ( op->o_tmpmemctx ) {
 		ber_set_option( ber, LBER_OPT_BER_MEMCTX, &op->o_tmpmemctx );

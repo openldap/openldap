@@ -38,6 +38,9 @@ LDAP_F( int ) ldap_pvt_put_filter LDAP_P((
 	BerElement *ber,
 	const char *str ));
 
+LDAP_F( int ) ldap_pvt_filter_depth LDAP_P((
+	const char *str ));
+
 LDAP_END_DECL
 
 #endif /* _OPENLDAP_H */
