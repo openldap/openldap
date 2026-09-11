@@ -288,7 +288,7 @@ int ldap_domain2hostlist(
     len = res_query(request, C_IN, T_SRV, reply, sizeof(reply));
 #endif
     if (len >= 0) {
-	unsigned char *p;
+	unsigned char *p, *rend = reply + len;
 	char host[DNSBUFSIZ];
 	int status;
 	u_short port, priority, weight;
@@ -307,20 +307,22 @@ int ldap_domain2hostlist(
 	p += sizeof(HEADER);
 #endif
 
-	status = dn_expand(reply, reply + len, p, host, sizeof(host));
+	status = dn_expand(reply, rend, p, host, sizeof(host));
 	if (status < 0) {
 	    goto out;
 	}
 	p += status;
 	p += 4;
 
-	while (p < reply + len) {
+	while (p < rend) {
 	    int type, class, ttl, size;
-	    status = dn_expand(reply, reply + len, p, host, sizeof(host));
+	    status = dn_expand(reply, rend, p, host, sizeof(host));
 	    if (status < 0) {
 		goto out;
 	    }
 	    p += status;
+	    if ( rend - p < 10 )
+		goto out;
 	    type = (p[0] << 8) | p[1];
 	    p += 2;
 	    class = (p[0] << 8) | p[1];
@@ -330,9 +332,11 @@ int ldap_domain2hostlist(
 	    size = (p[0] << 8) | p[1];
 	    p += 2;
 	    if (type == T_SRV) {
-		status = dn_expand(reply, reply + len, p + 6, host, sizeof(host));
+		if (( size < 6 ) || ( p + 6 >= rend ))
+			goto out;
+		status = dn_expand(reply, rend, p + 6, host, sizeof(host));
 		if (status < 0) {
-		    goto out;
+			goto out;
 		}
 
 		/* Get priority weight and port */
@@ -360,7 +364,7 @@ add_size:;
 	    p += size;
 	}
 	if (!hostent_head) goto out;
-    qsort(hostent_head, hostent_count, sizeof(srv_record), srv_cmp);
+	qsort(hostent_head, hostent_count, sizeof(srv_record), srv_cmp);
 
 	if (!srv_seed)
 		srv_srand(time(0L));
