@@ -405,6 +405,29 @@ lutil_strncopy(
 	return a;
 }
 
+/* strecopy is like strcpy except it returns a pointer to the trailing NUL of
+ * the result string. This allows fast construction of catenated strings
+ * without the overhead of strlen/strcat. And unlike strncpy it doesn't
+ * require continual recomputation of remaining buffer size.
+ */
+char *
+lutil_strecopy(
+	char *a,
+	const char *b,
+	const char *end
+)
+{
+	if (!a || !b || !end)
+		return a;
+
+	while (*b && a < end)
+		*a++ = *b++;
+	if (a == end)
+		a--;
+	*a = '\0';
+	return a;
+}
+
 /* memcopy is like memcpy except it returns a pointer to the byte past
  * the end of the result buffer, set to NULL. This allows fast construction
  * of catenated buffers.  Provided for API consistency with lutil_str*copy().

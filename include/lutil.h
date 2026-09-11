@@ -213,6 +213,9 @@ LDAP_LUTIL_F( char* )
 lutil_strncopy LDAP_P(( char *dst, const char *src, size_t n ));
 
 LDAP_LUTIL_F( char* )
+lutil_strecopy LDAP_P(( char *dst, const char *src, const char *end ));
+
+LDAP_LUTIL_F( char* )
 lutil_memcopy LDAP_P(( char *dst, const char *src, size_t n ));
 
 #define lutil_strbvcopy(a, bv) lutil_memcopy((a),(bv)->bv_val,(bv)->bv_len)
