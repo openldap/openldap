@@ -255,7 +255,8 @@ ldap_parse_entrychange_control(
 	int *chgnumpresentp,
 	long *chgnump )
 {
-	BerElement *ber;
+	BerElementBuffer berbuf;
+	BerElement *ber = (BerElement *)&berbuf;
 	ber_tag_t tag, berTag;
 	ber_len_t berLen;
 	ber_int_t chgtype;
@@ -279,12 +280,7 @@ ldap_parse_entrychange_control(
 	}
 
 	/* Create a BerElement from the berval returned in the control. */
-	ber = ber_init(&ctrl->ldctl_value);
-
-	if (ber == NULL) {
-		ld->ld_errno = LDAP_NO_MEMORY;
-		return(ld->ld_errno);
-	}
+	ber_init2(ber, &ctrl->ldctl_value, 0);
 
 	if ( prevdnp != NULL ) {
 		BER_BVZERO( prevdnp );
@@ -298,7 +294,6 @@ ldap_parse_entrychange_control(
 	tag = ber_scanf(ber, "{e" /*}*/, &chgtype);
 
 	if( tag != LBER_ENUMERATED ) {
-		ber_free(ber, 1);
 		ld->ld_errno = LDAP_DECODING_ERROR;
 		return(ld->ld_errno);
 	}
@@ -309,13 +304,12 @@ ldap_parse_entrychange_control(
 	if ( berLen ) {
 		if (tag == LBER_OCTETSTRING) {
 			if (prevdnp != NULL) {
-				tag = ber_get_stringbv( ber, prevdnp, 0 );
+				tag = ber_get_stringbv( ber, prevdnp, LBER_BV_NOTERM );
 			} else {
 				struct berval bv;
 				tag = ber_skip_element( ber, &bv );
 			}
 			if ( tag == LBER_ERROR ) {
-				ber_free(ber, 1);
 				ld->ld_errno = LDAP_DECODING_ERROR;
 				return(ld->ld_errno);
 			}
@@ -329,7 +323,6 @@ ldap_parse_entrychange_control(
 				present = 1;
 				tag = ber_get_int( ber, &chgnum );
 				if ( tag == LBER_ERROR ) {
-					ber_free(ber, 1);
 					ld->ld_errno = LDAP_DECODING_ERROR;
 					return(ld->ld_errno);
 				}
@@ -340,8 +333,6 @@ ldap_parse_entrychange_control(
 			}
 		}
 	}
-
-	ber_free(ber,1);
 
 	ld->ld_errno = LDAP_SUCCESS;
 	return(ld->ld_errno);
