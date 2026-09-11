@@ -2165,42 +2165,42 @@ print_psearch( LDAP *ld, LDAPControl *ctrl )
 		&chgpres, &chgnum );
 	if ( rc == LDAP_SUCCESS ) {
 		char buf[ BUFSIZ ];
-		char *ptr = buf;
-		int blen = sizeof(buf), len;
+		char *ptr = buf, *end = buf+sizeof(buf);
+		int blen, len;
 		
 		switch( chgtype ) {
 		case LDAP_CONTROL_PERSIST_ENTRY_CHANGE_ADD:
-			len = snprintf( ptr, blen, "add" );
-			ptr += len;
-			blen -= len;
+			ptr = lutil_strecopy( ptr, "add", end );
 			break;
 		case LDAP_CONTROL_PERSIST_ENTRY_CHANGE_DELETE:
-			len = snprintf( ptr, blen, "delete" );
-			ptr += len;
-			blen -= len;
+			ptr = lutil_strecopy( ptr, "delete", end );
 			break;
 		case LDAP_CONTROL_PERSIST_ENTRY_CHANGE_MODIFY:
-			len = snprintf( ptr, blen, "modify" );
-			ptr += len;
-			blen -= len;
+			ptr = lutil_strecopy( ptr, "modify", end );
 			break;
 		case LDAP_CONTROL_PERSIST_ENTRY_CHANGE_RENAME:
-			len = snprintf( ptr, blen, "moddn" );
-			ptr += len;
-			blen -= len;
+			ptr = lutil_strecopy( ptr, "moddn", end );
 			if ( prevdn.bv_val != NULL ) {
-				len = snprintf( ptr, blen, " prevdn %s", prevdn.bv_val );
-				ptr += len;
-				blen -= len;
+				ptr = lutil_strecopy( ptr, " prevdn ", end );
+				len = prevdn.bv_len;
+				blen = end - ptr;
+				if ( len > blen )
+					len = blen;
+				ptr = lutil_strncopy( ptr, prevdn.bv_val, len );
+				if ( ptr == end )
+					ptr--;
+				*ptr = '\0';
 			}
 			break;
 		}
 		if ( chgpres ) {
-			len = snprintf( ptr, blen, " changeNumber %ld", chgnum) ;
-			ptr += len;
-			blen -= len;
+			char ibuf[sizeof("-2147483648")];	/* chgnum is just a ber_int_t */
+			snprintf( ibuf, sizeof(ibuf), "%ld", chgnum );
+			ptr = lutil_strecopy( ptr, " changeNumber ", end );
+			ptr = lutil_strecopy( ptr, ibuf, end );
 		}
 
+		len = ptr - buf;
 		tool_write_ldif( ldif ? LDIF_PUT_COMMENT : LDIF_PUT_VALUE,
 			ldif ? "persistentSearch: " : "persistentSearch", buf, len );
 	}
