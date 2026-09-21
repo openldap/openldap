@@ -75,9 +75,7 @@ typedef struct log_info {
 	int li_cycle;
 	struct re_s *li_task;
 	Filter *li_oldf;
-	Entry *li_old;
 	log_attr *li_oldattrs;
-	struct berval li_uuid;
 	int li_success;
 	log_base *li_bases;
 	BerVarray li_mincsn;
@@ -97,6 +95,13 @@ typedef struct log_info {
 	ldap_pvt_thread_mutex_t li_op_rmutex;
 	ldap_pvt_thread_mutex_t li_log_mutex;
 } log_info;
+
+typedef struct lmodinfo {
+	log_info *lm_info;
+	Entry *lm_old;
+	struct berval lm_uuid;
+	char lm_uuidbuf[LDAP_LUTIL_UUIDSTR_BUFSIZE];
+} lmodinfo;
 
 static ConfigDriver log_cf_gen;
 
@@ -1623,15 +1628,15 @@ static int
 accesslog_response(Operation *op, SlapReply *rs)
 {
 	slap_callback *sc = op->o_callback;
-	slap_overinst *on = (slap_overinst *)sc->sc_private;
-	log_info *li = on->on_bi.bi_private;
+	lmodinfo *lm = sc->sc_private;
+	log_info *li = lm->lm_info;
 	Attribute *a, *last_attr;
 	Modifications *m;
-	struct berval *b, uuid = BER_BVNULL;
+	struct berval *b;
 	int i, success;
 	int logop;
 	slap_verbmasks *lo;
-	Entry *e = NULL, *old = NULL, *e_uuid = NULL;
+	Entry *e = NULL, *e_uuid = NULL;
 	char timebuf[LDAP_LUTIL_GENTIME_BUFSIZE+8];
 	struct berval bv;
 	char *ptr;
@@ -1646,19 +1651,9 @@ accesslog_response(Operation *op, SlapReply *rs)
 		return SLAP_CB_CONTINUE;
 
 	op->o_callback = sc->sc_next;
-	op->o_tmpfree( sc, op->o_tmpmemctx );
 
 	logop = accesslog_op2logop( op );
 	lo = logops+logop+EN_OFFSET;
-
-	/* can't do anything if logDB isn't open */
-	if ( !li->li_db || !SLAP_DBOPEN( li->li_db ) ) {
-		goto skip;
-	}
-
-	/* These internal ops are not logged */
-	if ( op->o_dont_replicate )
-		goto skip;
 
 	/*
 	 * ITS#9051 Technically LDAP_REFERRAL and LDAP_SASL_BIND_IN_PROGRESS
@@ -1669,19 +1664,6 @@ accesslog_response(Operation *op, SlapReply *rs)
 		rs->sr_err == LDAP_COMPARE_FALSE;
 	if ( li->li_success && !success )
 		goto skip;
-
-	if ( !( li->li_ops & lo->mask ) ) {
-		log_base *lb;
-
-		i = 0;
-		for ( lb = li->li_bases; lb; lb=lb->lb_next )
-			if (( lb->lb_ops & lo->mask ) && dnIsSuffix( &op->o_req_ndn, &lb->lb_base )) {
-				i = 1;
-				break;
-			}
-		if ( !i )
-			goto skip;
-	}
 
 	op2.o_hdr = op->o_hdr;
 	op2.o_tag = LDAP_REQ_ADD;
@@ -1712,10 +1694,6 @@ accesslog_response(Operation *op, SlapReply *rs)
 	}
 
 	ldap_pvt_thread_mutex_lock( &li->li_log_mutex );
-	old = li->li_old;
-	uuid = li->li_uuid;
-	li->li_old = NULL;
-	BER_BVZERO( &li->li_uuid );
 	ldap_pvt_thread_mutex_unlock( &li->li_op_rmutex );
 
 	e = accesslog_entry( op, rs, li, logop, &op2 );
@@ -1735,7 +1713,7 @@ accesslog_response(Operation *op, SlapReply *rs)
 
 	last_attr = attr_find( e->e_attrs, ad_reqResult );
 
-	e_uuid = old;
+	e_uuid = lm->lm_old;
 	switch( logop ) {
 	case LOG_EN_ADD:
 	case LOG_EN_DELETE: {
@@ -1748,9 +1726,9 @@ accesslog_response(Operation *op, SlapReply *rs)
 			c_op = '+';
 
 		} else {
-			if ( !old )
+			if ( !lm->lm_old )
 				break;
-			e2 = old;
+			e2 = lm->lm_old;
 			c_op = 0;
 		}
 		/* count all the vals */
@@ -1798,8 +1776,8 @@ accesslog_response(Operation *op, SlapReply *rs)
 		i = 0;
 
 		/* init flags on old entry */
-		if ( old ) {
-			for ( a = old->e_attrs; a; a = a->a_next ) {
+		if ( lm->lm_old ) {
+			for ( a = lm->lm_old->e_attrs; a; a = a->a_next ) {
 				log_attr *la;
 				a->a_flags = 0;
 
@@ -1814,8 +1792,8 @@ accesslog_response(Operation *op, SlapReply *rs)
 
 		for ( m = op->orm_modlist; m; m = m->sml_next ) {
 			/* Mark this attribute as modified */
-			if ( old ) {
-				a = attr_find( old->e_attrs, m->sml_desc );
+			if ( lm->lm_old ) {
+				a = attr_find( lm->lm_old->e_attrs, m->sml_desc );
 				if ( a ) {
 					a->a_flags = 1;
 				}
@@ -1888,10 +1866,10 @@ accesslog_response(Operation *op, SlapReply *rs)
 			ch_free( vals );
 		}
 
-		if ( old ) {
+		if ( lm->lm_old ) {
 			/* count all the vals */
 			i = 0;
-			for ( a = old->e_attrs; a != NULL; a = a->a_next ) {
+			for ( a = lm->lm_old->e_attrs; a != NULL; a = a->a_next ) {
 				if ( a->a_vals && a->a_flags ) {
 					i += a->a_numvals;
 				}
@@ -1899,7 +1877,7 @@ accesslog_response(Operation *op, SlapReply *rs)
 			if ( i ) {
 				vals = ch_malloc( (i + 1) * sizeof( struct berval ) );
 				i = 0;
-				for ( a=old->e_attrs; a; a=a->a_next ) {
+				for ( a=lm->lm_old->e_attrs; a; a=a->a_next ) {
 					if ( a->a_vals && a->a_flags ) {
 						for (b=a->a_vals; !BER_BVISNULL( b ); b++,i++) {
 							accesslog_val2val( a->a_desc, b, 0, &vals[i] );
@@ -2016,11 +1994,11 @@ accesslog_response(Operation *op, SlapReply *rs)
 		break;
 	}
 
-	if ( e_uuid || !BER_BVISNULL( &uuid ) ) {
+	if ( e_uuid || !BER_BVISNULL( &lm->lm_uuid ) ) {
 		struct berval *pbv = NULL;
 
-		if ( !BER_BVISNULL( &uuid ) ) {
-			pbv = &uuid;
+		if ( !BER_BVISNULL( &lm->lm_uuid ) ) {
+			pbv = &lm->lm_uuid;
 
 		} else {
 			a = attr_find( e_uuid->e_attrs, slap_schema.si_ad_entryUUID );
@@ -2031,11 +2009,6 @@ accesslog_response(Operation *op, SlapReply *rs)
 
 		if ( pbv ) {
 			attr_merge_normalize_one( e, ad_reqEntryUUID, pbv, op->o_tmpmemctx );
-		}
-
-		if ( !BER_BVISNULL( &uuid ) ) {
-			ber_memfree( uuid.bv_val );
-			BER_BVZERO( &uuid );
 		}
 	}
 
@@ -2166,39 +2139,69 @@ accesslog_response(Operation *op, SlapReply *rs)
 
 done:
 	ldap_pvt_thread_mutex_unlock( &li->li_log_mutex );
-	if ( old ) entry_free( old );
+	if ( lm->lm_old ) entry_free( lm->lm_old );
+	op->o_tmpfree( sc, op->o_tmpmemctx );
 	return SLAP_CB_CONTINUE;
 
 skip:
-	if ( !BER_BVISNULL( &li->li_uuid ) ) {
-		ber_memfree( li->li_uuid.bv_val );
-		BER_BVZERO( &li->li_uuid );
-	}
+	if ( lm->lm_old ) entry_free( lm->lm_old );
 	if ( lo->mask & LOG_OP_WRITES ) {
 		/* We haven't transitioned to li_log_mutex yet */
 		ldap_pvt_thread_mutex_unlock( &li->li_op_rmutex );
 	}
+	op->o_tmpfree( sc, op->o_tmpmemctx );
 	return SLAP_CB_CONTINUE;
 }
 
 static int
-accesslog_op_misc( Operation *op, SlapReply *rs )
+accesslog_nop( Operation *op, log_info *li )
 {
-	slap_callback *sc;
 	slap_verbmasks *lo;
 	int logop;
+
+	/* can't do anything if logDB isn't open */
+	if ( !SLAP_DBOPEN( li->li_db ))
+		return 1;
 
 	logop = accesslog_op2logop( op );
 	lo = logops+logop+EN_OFFSET;
 
 	/* ignore these internal reads */
-	if (( lo->mask & LOG_OP_READS ) && op->o_do_not_cache ) {
-		return SLAP_CB_CONTINUE;
+	if (( lo->mask & LOG_OP_READS ) && op->o_do_not_cache )
+		return 1;
+
+	if ( !( li->li_ops & lo->mask )) {
+		log_base *lb;
+		int i = 0;
+
+		for ( lb = li->li_bases; lb; lb = lb->lb_next )
+			if (( lb->lb_ops & lo->mask ) && dnIsSuffix( &op->o_req_ndn, &lb->lb_base )) {
+				i = 1;
+				break;
+			}
+		if ( !i )
+			return 1;
 	}
 
-	sc = op->o_tmpcalloc( 1, sizeof(slap_callback), op->o_tmpmemctx );
+	return 0;
+}
+
+static int
+accesslog_op_misc( Operation *op, SlapReply *rs )
+{
+	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
+	log_info *li = on->on_bi.bi_private;
+	slap_callback *sc;
+	lmodinfo *lm;
+
+	if ( accesslog_nop( op, li ))
+		return SLAP_CB_CONTINUE;
+
+	sc = op->o_tmpcalloc( 1, sizeof(slap_callback)+sizeof(lmodinfo), op->o_tmpmemctx );
+	lm = (lmodinfo *)(sc+1);
 	sc->sc_response = accesslog_response;
-	sc->sc_private = op->o_bd->bd_info;
+	sc->sc_private = lm;
+	lm->lm_info = li;
 
 	if ( op->o_callback ) {
 		sc->sc_next = op->o_callback->sc_next;
@@ -2214,40 +2217,24 @@ accesslog_op_mod( Operation *op, SlapReply *rs )
 {
 	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
 	log_info *li = on->on_bi.bi_private;
-	slap_verbmasks *lo;
+	lmodinfo *lm;
 	slap_callback *cb;
-	int logop;
 
 	/* These internal ops are not logged */
 	if ( op->o_dont_replicate )
 		return SLAP_CB_CONTINUE;
 
-	/* can't do anything if logDB isn't open */
-	if ( !SLAP_DBOPEN( li->li_db ))
+	if ( accesslog_nop( op, li ))
 		return SLAP_CB_CONTINUE;
-	
-	logop = accesslog_op2logop( op );
-	lo = logops+logop+EN_OFFSET;
 
-	if ( !( li->li_ops & lo->mask )) {
-		log_base *lb;
-		int i = 0;
-
-		for ( lb = li->li_bases; lb; lb = lb->lb_next )
-			if (( lb->lb_ops & lo->mask ) && dnIsSuffix( &op->o_req_ndn, &lb->lb_base )) {
-				i = 1;
-				break;
-			}
-		if ( !i )
-			return SLAP_CB_CONTINUE;
-	}
-
-	cb = op->o_tmpcalloc( 1, sizeof( slap_callback ), op->o_tmpmemctx );
+	cb = op->o_tmpcalloc( 1, sizeof( slap_callback ) + sizeof( lmodinfo ), op->o_tmpmemctx );
+	lm = (lmodinfo *)(cb+1);
 	cb->sc_cleanup = accesslog_response;
 	cb->sc_response = accesslog_response;
-	cb->sc_private = on;
+	cb->sc_private = lm;
 	cb->sc_next = op->o_callback;
 	op->o_callback = cb;
+	lm->lm_info = li;
 
 	ldap_pvt_thread_mutex_lock( &li->li_op_rmutex );
 
@@ -2262,7 +2249,7 @@ accesslog_op_mod( Operation *op, SlapReply *rs )
 		rc = be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &e );
 		if ( e ) {
 			if ( test_filter( op, e, li->li_oldf ) == LDAP_COMPARE_TRUE )
-				li->li_old = entry_dup( e );
+				lm->lm_old = entry_dup( e );
 			be_entry_release_rw( op, e, 0 );
 		}
 		op->o_bd->bd_info = (BackendInfo *)on;
@@ -2276,7 +2263,13 @@ accesslog_op_mod( Operation *op, SlapReply *rs )
 		if ( e ) {
 			Attribute *a = attr_find( e->e_attrs, slap_schema.si_ad_entryUUID );
 			if ( a ) {
-				ber_dupbv( &li->li_uuid, &a->a_vals[0] );
+				char *ptr;
+				lm->lm_uuid.bv_len = a->a_vals[0].bv_len;
+				if ( lm->lm_uuid.bv_len >= LDAP_LUTIL_UUIDSTR_BUFSIZE )
+					lm->lm_uuid.bv_len = LDAP_LUTIL_UUIDSTR_BUFSIZE-1;
+				ptr = lutil_strncopy( lm->lm_uuidbuf, a->a_vals[0].bv_val, lm->lm_uuid.bv_len );
+				*ptr = '\0';
+				lm->lm_uuid.bv_val = lm->lm_uuidbuf;
 			}
 			be_entry_release_rw( op, e, 0 );
 		}
