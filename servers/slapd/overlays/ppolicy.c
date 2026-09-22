@@ -1428,6 +1428,7 @@ ppolicy_rule( ConfigArgs *c )
 						"<%s> unknown dn style: %s",
 						c->argv[0], c->value_bv.bv_val );
 				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				ch_free( c->value_bv.bv_val );
 				return ARG_BAD_CONF;
 			}
 			ch_free( c->value_bv.bv_val );
@@ -1463,8 +1464,10 @@ ppolicy_rule( ConfigArgs *c )
 						"<%s>: group objectclass \"%s\" unknown",
 						c->argv[0], SLAPD_GROUP_CLASS );
 				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				ch_free( c->value_bv.bv_val );
 				return ARG_BAD_CONF;
 			}
+			ch_free( c->value_string );
 			config_push_cleanup( c, ppolicy_group_finish );
 			break;
 		case PPOLICY_RULE_GROUP_ATTR:
@@ -1490,10 +1493,12 @@ ppolicy_rule( ConfigArgs *c )
 						" (NameUID) or a subtype of labeledURI.",
 						c->argv[0], pr->group_at->ad_cname.bv_val,
 						at_syntax(pr->group_at->ad_type) );
+				ch_free( c->value_bv.bv_val );
 				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
 				return ARG_BAD_CONF;
 			}
 
+			ch_free( c->value_bv.bv_val );
 			config_push_cleanup( c, ppolicy_group_finish );
 			break;
 		case PPOLICY_RULE_POLICY:
@@ -1512,8 +1517,10 @@ ppolicy_rule( ConfigArgs *c )
 						"<%s>: invalid selection configuration \"%s\"",
 						c->argv[0], c->value_bv.bv_val );
 				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				ch_free( c->value_bv.bv_val );
 				return ARG_BAD_CONF;
 			}
+			ch_free( c->value_bv.bv_val );
 		} break;
 
 		default:
@@ -1781,6 +1788,7 @@ ppolicy_cf_checkmod( ConfigArgs *c )
 				rc = 0;
 			}
 		}
+		ch_free( c->value_string );
 		break;
 	default:
 		abort ();
