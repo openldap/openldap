@@ -1561,7 +1561,7 @@ ppolicy_rule_finish( ConfigArgs *c )
 
 	Debug( LDAP_DEBUG_TRACE, "%s ppolicy_rule_finish: "
 			"added a new rule at index %d\n",
-			c->ca_op->o_log_prefix, i );
+			c->ca_op ? c->ca_op->o_log_prefix : "", i );
 
 	return LDAP_SUCCESS;
 }
@@ -1579,7 +1579,8 @@ ppolicy_rule_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 
 	Debug( LDAP_DEBUG_TRACE, "%s ppolicy_rule_ldadd: "
 			"a new rule is being added e=\"%s\"\n",
-			ca->ca_op->o_log_prefix, e->e_name.bv_val );
+			ca->ca_op ? ca->ca_op->o_log_prefix : "",
+			e->e_name.bv_val );
 
 	if ( p->ce_type != Cft_Overlay || !p->ce_bi ||
 			p->ce_bi->bi_cf_ocs != ppolicyocs )
