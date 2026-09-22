@@ -2190,9 +2190,24 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 					ndn = pr->group_ndn;
 				}
 
-				if ( !pr->group_oc || !pr->group_at || backend_group( op, e, &ndn,
-							&e->e_nname, pr->group_oc, pr->group_at ) ) {
+				if ( !pr->group_oc || !pr->group_at ) {
 					goto skip;
+				} else {
+					/* This is not an ACL check, ignore and skip o_groups cache */
+					GroupAssertion *groups = op->o_groups;
+					int rc;
+					char cache = op->o_do_not_cache;
+
+					op->o_groups = NULL;
+					op->o_do_not_cache = 1;
+					rc = backend_group( op, NULL, &ndn, &e->e_nname,
+							pr->group_oc, pr->group_at );
+					assert( op->o_groups == NULL );
+					op->o_groups = groups;
+					op->o_do_not_cache = cache;
+					if ( rc != LDAP_SUCCESS && rc != LDAP_COMPARE_TRUE ) {
+						goto skip;
+					}
 				}
 				if ( !BER_BVISNULL( &tmp ) ) {
 					op->o_tmpfree( tmp.bv_val, op->o_tmpmemctx );
