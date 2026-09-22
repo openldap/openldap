@@ -3549,7 +3549,7 @@ ppolicy_account_usability_entry_cb( Operation *op, SlapReply *rs )
 			}
 		}
 	}
-	if ( !isExpired && pp.pwdMaxIdle && (a = attr_find( e->e_attrs, ad_pwdLastSuccess )) ) {
+	if ( !isExpired && pp.pwdMaxIdle ) {
 		time_t lastbindtime = pwtime;
 
 		if ( (a = attr_find( e->e_attrs, ad_pwdLastSuccess )) != NULL ) {
