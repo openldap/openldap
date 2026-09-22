@@ -78,6 +78,7 @@ slap_verbmasks scopes[] = {
 	{ BER_BVC("subtree"), ACL_STYLE_SUBTREE },
 	{ BER_BVC("children"), ACL_STYLE_CHILDREN },
 	{ BER_BVC("regex"), ACL_STYLE_REGEX },
+	{ BER_BVC("expand"), ACL_STYLE_EXPAND },
 	{ BER_BVNULL, 0 }
 };
 
@@ -548,6 +549,7 @@ enum {
 	PPOLICY_RULE_GROUP,
 	PPOLICY_RULE_GROUP_OC,
 	PPOLICY_RULE_GROUP_ATTR,
+	PPOLICY_RULE_GROUP_SCOPE,
 	PPOLICY_RULE_POLICY,
 	PPOLICY_RULE_ACTION,
 };
@@ -693,6 +695,17 @@ static ConfigTable ppolicycfg[] = {
 	  "SINGLE-VALUE )",
 	  NULL, NULL
 	},
+	{ "", "style", 2, 2, 0,
+	  ARG_BERVAL|ARG_MAGIC|PPOLICY_RULE_GROUP_SCOPE,
+	  &ppolicy_rule,
+	  "( OLcfgOvAt:12.17 "
+	  "NAME 'olcPPolicyRuleGroupScope' "
+	  "DESC 'scope for olcPPolicyRuleGroup DN' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString "
+	  "SINGLE-VALUE )",
+	  NULL, NULL
+	},
 	{ "", "dn/pattern", 2, 2, 0,
 	  ARG_BERVAL|ARG_MAGIC|PPOLICY_RULE_POLICY,
 	  &ppolicy_rule,
@@ -747,14 +760,14 @@ static ConfigOCs ppolicyocs[] = {
 	  "MUST ( cn ) "
 	  "MAY ( description $ olcPPolicyRuleObject $ olcPPolicyRuleRequirePassword $ "
 	  "olcPPolicyRuleFilter $ olcPPolicyRuleGroup $ olcPPolicyRuleGroupOC $ "
-	  "olcPPolicyRuleGroupAttr $ olcPPolicyRulePolicy $ olcPPolicyRuleAction ) )",
+	  "olcPPolicyRuleGroupAttr $ olcPPolicyRulePolicy $ olcPPolicyRuleAction $ "
+	  "olcPPolicyRuleScope ) )",
 	  Cft_Misc, ppolicycfg,
 	},
 	{ "( OLcfgOvOc:12.3 "
 	  "NAME 'olcPPolicyScopedRule' "
 	  "DESC 'Password policy rule scope based definition' "
-	  "SUP olcPPolicyAbstractRule STRUCTURAL "
-	  "MAY ( olcPPolicyRuleScope ) )",
+	  "SUP olcPPolicyAbstractRule STRUCTURAL )",
 	  Cft_Misc, ppolicycfg,
 	  ppolicy_rule_ldadd,
 	  NULL,
@@ -769,7 +782,8 @@ static ConfigOCs ppolicyocs[] = {
 	  "NAME 'olcPPolicyRegexRule' "
 	  "DESC 'Password policy rule regex-based definition' "
 	  "SUP olcPPolicyAbstractRule STRUCTURAL "
-	  "MUST ( olcPPolicyRuleObject ) )",
+	  "MUST ( olcPPolicyRuleObject ) "
+	  "MAY ( olcPPolicyRuleGroupScope ) )",
 	  Cft_Misc, ppolicycfg,
 	  ppolicy_rule_ldadd,
 	  NULL,
@@ -955,8 +969,6 @@ ppolicy_rule_parse( policy_rule **prp, ConfigArgs *c )
 								c->argv[0], value, err );
 						goto done;
 					}
-
-					pr->object_style = ACL_STYLE_REGEX;
 				}
 			}
 			ber_str2bv( value, 0, 1, &pr->object_pat );
@@ -1295,6 +1307,9 @@ ppolicy_rule( ConfigArgs *c )
 				if ( pr->object_style != ACL_STYLE_REGEX ) {
 					enum_to_verb( scopes, pr->object_style, &c->value_bv );
 					return LDAP_SUCCESS;
+				} else if ( pr->policy_dn_style != ACL_STYLE_BASE ) {
+					enum_to_verb( scopes, pr->policy_dn_style, &c->value_bv );
+					return LDAP_SUCCESS;
 				}
 				break;
 			case PPOLICY_RULE_REQUIRE_PASS:
@@ -1317,6 +1332,13 @@ ppolicy_rule( ConfigArgs *c )
 			case PPOLICY_RULE_GROUP_ATTR:
 				c->value_ad = pr->group_at;
 				return LDAP_SUCCESS;
+			case PPOLICY_RULE_GROUP_SCOPE:
+				if ( pr->object_style == ACL_STYLE_REGEX &&
+						pr->group_style == ACL_STYLE_EXPAND ) {
+					enum_to_verb( scopes, pr->group_style, &c->value_bv );
+					return LDAP_SUCCESS;
+				}
+				break;
 			case PPOLICY_RULE_POLICY:
 				c->value_bv = pr->policy_dn;
 				return LDAP_SUCCESS;
@@ -1337,7 +1359,11 @@ ppolicy_rule( ConfigArgs *c )
 				BER_BVZERO( &pr->object_ndn );
 				break;
 			case PPOLICY_RULE_SCOPE:
-				pr->object_style = ACL_STYLE_BASE;
+				if ( pr->object_style == ACL_STYLE_REGEX ) {
+					pr->policy_dn_style = ACL_STYLE_BASE;
+				} else {
+					pr->object_style = ACL_STYLE_BASE;
+				}
 				break;
 			case PPOLICY_RULE_REQUIRE_PASS:
 				pr->require_password = c->ca_desc->arg_default.v_int;
@@ -1362,6 +1388,9 @@ ppolicy_rule( ConfigArgs *c )
 				pr->group_at = ad_member;
 				config_push_cleanup( c, ppolicy_group_finish );
 				break;
+			case PPOLICY_RULE_GROUP_SCOPE:
+				pr->group_style = ACL_STYLE_BASE;
+				break;
 			case PPOLICY_RULE_POLICY:
 				ch_free( pr->policy_dn.bv_val );
 				BER_BVZERO( &pr->policy_dn );
@@ -1384,6 +1413,18 @@ ppolicy_rule( ConfigArgs *c )
 		case PPOLICY_RULE_OBJECT:
 			if ( pr->object_style != ACL_STYLE_REGEX ) {
 				rc = dnNormalize( 0, NULL, NULL, &c->value_bv, &ndn, NULL );
+			} else {
+				int e = regcomp( &pr->object_regex, c->value_bv.bv_val,
+						REG_EXTENDED | REG_ICASE );
+				if ( e ) {
+					char err[SLAP_TEXT_BUFLEN];
+
+					regerror( e, &pr->object_regex, err, sizeof( err ) );
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s> regular expression \"%s\" bad because of %s",
+							c->argv[0], c->value_bv.bv_val, err );
+					break;
+				}
 			}
 			if ( rc == LDAP_SUCCESS ) {
 				pr->object_pat = c->value_bv;
@@ -1395,11 +1436,24 @@ ppolicy_rule( ConfigArgs *c )
 			if ( BER_BVISNULL( &scopes[i].word ) ||
 				scopes[i].mask == ACL_STYLE_REGEX ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ),
-						"<%s> unknown dn style: %s",
+						"<%s> unknown dn scope: %s",
 						c->argv[0], c->value_bv.bv_val );
 				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
 				ch_free( c->value_bv.bv_val );
 				return ARG_BAD_CONF;
+			}
+			if ( scopes[i].mask == ACL_STYLE_EXPAND ) {
+				if ( pr->object_style != ACL_STYLE_REGEX ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+							"<%s> policy dn expansion requires a regex scope",
+							c->argv[0] );
+					Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+					ch_free( c->value_bv.bv_val );
+					return ARG_BAD_CONF;
+				}
+				pr->policy_dn_style = ACL_STYLE_EXPAND;
+				ch_free( c->value_bv.bv_val );
+				break;
 			}
 			ch_free( c->value_bv.bv_val );
 			pr->object_style = scopes[i].mask;
@@ -1463,6 +1517,22 @@ ppolicy_rule( ConfigArgs *c )
 			ch_free( c->value_bv.bv_val );
 			config_push_cleanup( c, ppolicy_group_finish );
 			} break;
+		case PPOLICY_RULE_GROUP_SCOPE: {
+			int i = bverb_to_mask( &c->value_bv, scopes );
+			if ( BER_BVISNULL( &scopes[i].word ) ||
+				scopes[i].mask != ACL_STYLE_EXPAND ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s> unknown dn style: %s",
+						c->argv[0], c->value_bv.bv_val );
+				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
+				ch_free( c->value_bv.bv_val );
+				return ARG_BAD_CONF;
+			}
+			/* Guaranteed by schema */
+			assert( pr->object_style == ACL_STYLE_REGEX );
+			ch_free( c->value_bv.bv_val );
+			pr->group_style = scopes[i].mask;
+		} break;
 		case PPOLICY_RULE_POLICY:
 			if ( pr->object_style != ACL_STYLE_REGEX ) {
 				rc = dnNormalize( 0, NULL, NULL, &c->value_bv, &ndn, NULL );
@@ -2104,6 +2174,7 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 				struct berval ndn, dn = BER_BVC(buffer);
 
 				if ( pr->group_style == ACL_STYLE_EXPAND ) {
+					assert( pr->object_style == ACL_STYLE_REGEX );
 					if ( acl_string_expand( &dn, &pr->group_pat,
 								&e->e_nname, NULL, matches ) ) {
 						goto skip;
@@ -2139,6 +2210,7 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 				char buffer[1024];
 				struct berval dn = BER_BVC(buffer);
 
+				assert( pr->object_style == ACL_STYLE_REGEX );
 				if ( acl_string_expand( &dn, &pr->policy_dn,
 							&e->e_nname, NULL, matches ) ) {
 					goto skip;
