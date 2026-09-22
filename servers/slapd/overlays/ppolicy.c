@@ -183,6 +183,9 @@ typedef struct pw_hist {
 	struct pw_hist *next;
 } pw_hist;
 
+static AttributeDescription *ad_member;
+static ObjectClass *oc_group;
+
 /* Operational attributes */
 static AttributeDescription *ad_pwdChangedTime, *ad_pwdAccountLockedTime,
 	*ad_pwdFailureTime, *ad_pwdHistory, *ad_pwdGraceUseTime, *ad_pwdReset,
@@ -1055,23 +1058,14 @@ ppolicy_rule_parse( policy_rule **prp, ConfigArgs *c )
 
 			if ( oc_name && *oc_name ) {
 				pr->group_oc = oc_find( oc_name );
-
-				if ( pr->group_oc == NULL ) {
-					snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"<%s>: group objectclass \"%s\" unknown",
-							c->argv[0], oc_name );
-					goto done;
-				}
-
 			} else {
-				pr->group_oc = oc_find( SLAPD_GROUP_CLASS );
-
-				if ( pr->group_oc == NULL ) {
-					snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"<%s>: group default objectclass \"%s\" unknown",
-							c->argv[0], SLAPD_GROUP_CLASS );
-					goto done;
-				}
+				pr->group_oc = oc_group;
+			}
+			if ( pr->group_oc == NULL ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"<%s>: group objectclass \"%s\" unknown",
+						c->argv[0], oc_name );
+				goto done;
 			}
 
 			if ( is_object_subclass( slap_schema.si_oc_referral,
@@ -1261,6 +1255,14 @@ ppolicy_group_finish( ConfigArgs *c )
 	policy_rule *pr = c->ca_private;
 	ObjectClass *ocs[2];
 
+	if ( !pr->group_at && !pr->group_oc ){
+		return LDAP_SUCCESS;
+	}
+
+	if ( !pr->group_at || !pr->group_oc ){
+		return ARG_BAD_CONF;
+	}
+
 	ocs[0] = pr->group_oc;
 	ocs[1] = NULL;
 
@@ -1353,43 +1355,11 @@ ppolicy_rule( ConfigArgs *c )
 				BER_BVZERO( &pr->group_ndn );
 				break;
 			case PPOLICY_RULE_GROUP_OC:
-				pr->group_oc = oc_find( SLAPD_GROUP_CLASS );
-				if ( !pr->group_oc ) {
-					snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"group default objectclass \"%s\" unknown",
-							SLAPD_GROUP_CLASS );
-					Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
-					return rc;
-				}
+				pr->group_oc = oc_group;
 				config_push_cleanup( c, ppolicy_group_finish );
 				break;
 			case PPOLICY_RULE_GROUP_ATTR:
-				rc = slap_str2ad( SLAPD_GROUP_ATTR, &pr->group_at, &text );
-				if ( rc != LDAP_SUCCESS ) {
-					snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"group default attribute \"%s\" unknown: %s.\n",
-							SLAPD_GROUP_ATTR, text );
-					Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
-					return rc;
-				}
-
-				if ( !is_at_syntax( pr->group_at->ad_type,
-							SLAPD_DN_SYNTAX ) /* e.g. "member" */
-						&& !is_at_syntax( pr->group_at->ad_type,
-							SLAPD_NAMEUID_SYNTAX ) /* e.g. memberUID */
-						&& !is_at_subtype( pr->group_at->ad_type,
-							slap_schema.si_ad_labeledURI->ad_type ) /* e.g. memberURL */ )
-				{
-					snprintf( c->cr_msg, sizeof( c->cr_msg ),
-							"<%s> group attr \"%s\": inappropriate syntax %s; "
-							"must be " SLAPD_DN_SYNTAX " (DN), " SLAPD_NAMEUID_SYNTAX
-							" (NameUID) or a subtype of labeledURI.",
-							c->argv[0], pr->group_at->ad_cname.bv_val,
-							at_syntax(pr->group_at->ad_type) );
-					Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
-					return ARG_BAD_CONF;
-				}
-
+				pr->group_at = ad_member;
 				config_push_cleanup( c, ppolicy_group_finish );
 				break;
 			case PPOLICY_RULE_POLICY:
@@ -1462,7 +1432,7 @@ ppolicy_rule( ConfigArgs *c )
 			if ( !pr->group_oc ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"<%s>: group objectclass \"%s\" unknown",
-						c->argv[0], SLAPD_GROUP_CLASS );
+						c->argv[0], c->value_string );
 				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
 				ch_free( c->value_bv.bv_val );
 				return ARG_BAD_CONF;
@@ -1470,37 +1440,29 @@ ppolicy_rule( ConfigArgs *c )
 			ch_free( c->value_string );
 			config_push_cleanup( c, ppolicy_group_finish );
 			break;
-		case PPOLICY_RULE_GROUP_ATTR:
-			rc = slap_str2ad( c->value_string, &pr->group_at, &text );
-			if ( rc != LDAP_SUCCESS ) {
-				snprintf( c->cr_msg, sizeof( c->cr_msg ),
-						"<%s>: group \"%s\": %s.\n",
-						c->argv[0], SLAPD_GROUP_ATTR, text );
-				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
-				return ARG_BAD_CONF;
-			}
-
-			if ( !is_at_syntax( pr->group_at->ad_type,
+		case PPOLICY_RULE_GROUP_ATTR: {
+			if ( !is_at_syntax( c->values.v_ad->ad_type,
 						SLAPD_DN_SYNTAX ) /* e.g. "member" */
-					&& !is_at_syntax( pr->group_at->ad_type,
+					&& !is_at_syntax( c->values.v_ad->ad_type,
 						SLAPD_NAMEUID_SYNTAX ) /* e.g. memberUID */
-					&& !is_at_subtype( pr->group_at->ad_type,
+					&& !is_at_subtype( c->values.v_ad->ad_type,
 						slap_schema.si_ad_labeledURI->ad_type ) /* e.g. memberURL */ )
 			{
 				snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"<%s> group attr \"%s\": inappropriate syntax %s; "
 						"must be " SLAPD_DN_SYNTAX " (DN), " SLAPD_NAMEUID_SYNTAX
 						" (NameUID) or a subtype of labeledURI.",
-						c->argv[0], pr->group_at->ad_cname.bv_val,
-						at_syntax(pr->group_at->ad_type) );
+						c->argv[0], c->values.v_ad->ad_cname.bv_val,
+						at_syntax(c->values.v_ad->ad_type) );
 				ch_free( c->value_bv.bv_val );
 				Debug( LDAP_DEBUG_ANY, "%s: %s\n", c->log, c->cr_msg );
 				return ARG_BAD_CONF;
 			}
 
+			pr->group_at = c->values.v_ad;
 			ch_free( c->value_bv.bv_val );
 			config_push_cleanup( c, ppolicy_group_finish );
-			break;
+			} break;
 		case PPOLICY_RULE_POLICY:
 			if ( pr->object_style != ACL_STYLE_REGEX ) {
 				rc = dnNormalize( 0, NULL, NULL, &c->value_bv, &ndn, NULL );
@@ -1621,23 +1583,8 @@ ppolicy_rule_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 		pr->object_style = ACL_STYLE_BASE;
 	}
 
-	pr->group_oc = oc_find( SLAPD_GROUP_CLASS );
-	if ( pr->group_oc == NULL ) {
-		snprintf( ca->cr_msg, sizeof( ca->cr_msg ),
-				"<%s>: group default objectclass \"%s\" unknown",
-				ca->argv[0], SLAPD_GROUP_CLASS );
-		ch_free( pr );
-		return LDAP_OTHER;
-	}
-
-	if ( slap_str2ad( SLAPD_GROUP_ATTR, &pr->group_at, &text ) ) {
-		snprintf( ca->cr_msg, sizeof( ca->cr_msg ),
-				"group default attribute \"%s\" unknown: %s.\n",
-				SLAPD_GROUP_ATTR, text );
-		Debug( LDAP_DEBUG_ANY, "%s: %s\n", ca->log, ca->cr_msg );
-		ch_free( pr );
-		return LDAP_OTHER;
-	}
+	pr->group_oc = oc_group;
+	pr->group_at = ad_member;
 
 	ca->bi = p->ce_bi;
 	ca->ca_entry = e;
@@ -2172,8 +2119,8 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 					ndn = pr->group_ndn;
 				}
 
-				if ( backend_group( op, e, &ndn, &e->e_nname, pr->group_oc,
-							pr->group_at ) ) {
+				if ( !pr->group_oc || !pr->group_at || backend_group( op, e, &ndn,
+							&e->e_nname, pr->group_oc, pr->group_at ) ) {
 					goto skip;
 				}
 				if ( !BER_BVISNULL( &tmp ) ) {
@@ -4786,6 +4733,7 @@ ppolicy_db_init(
 {
 	slap_overinst *on = (slap_overinst *) be->bd_info;
 	pp_info *pi;
+	const char *text;
 
 	if ( SLAP_ISGLOBALOVERLAY( be ) ) {
 		/* do not allow slapo-ppolicy to be global by now (ITS#5858) */
@@ -4795,6 +4743,18 @@ ppolicy_db_init(
 			Debug( LDAP_DEBUG_ANY, "%s\n", cr->msg );
 		}
 		return 1;
+	}
+
+	if ( !ad_member && slap_str2ad( SLAPD_GROUP_ATTR, &ad_member,
+				&text ) != LDAP_SUCCESS ) {
+		Debug( LDAP_DEBUG_ANY, "Failed to resolve attribute " SLAPD_GROUP_ATTR
+				" from schema, group matching might not be available\n" );
+	}
+
+	if ( !(oc_group = oc_find( SLAPD_GROUP_CLASS )) ) {
+		Debug( LDAP_DEBUG_ANY,
+				"Failed to resolve group " SLAPD_GROUP_CLASS
+				" from schema, group matching might not be available\n" );
 	}
 
 	pi = on->on_bi.bi_private = ch_calloc( sizeof(pp_info), 1 );
