@@ -342,23 +342,6 @@ static int pack_sss_response_control(
 }
 
 /* Return the session id or -1 if unknown */
-static int find_session_by_so(
-	int svi_max_percon,
-	int conn_id,
-	sort_op *so )
-{
-	int sess_id;
-	if (so == NULL) {
-		return -1;
-	}
-	for (sess_id = 0; sess_id < svi_max_percon; sess_id++) {
-		if ( sort_conns[conn_id] && sort_conns[conn_id][sess_id] == so )
-			return sess_id;
-	}
-	return -1;
-}
-
-/* Return the session id or -1 if unknown */
 static int find_session_by_context(
 	int svi_max_percon,
 	int conn_id,
@@ -396,35 +379,35 @@ static int find_next_session(
 static void free_sort_op( Connection *conn, sort_op *so )
 {
 	int sess_id;
-		
+
+	if ( so == NULL )
+		return;
+
 	ldap_pvt_thread_mutex_lock( &sort_conns_mutex );
-	sess_id = find_session_by_so( so->so_info->svi_max_percon, conn->c_conn_idx, so );
-	if ( sess_id > -1 ) {
-	    sort_conns[conn->c_conn_idx][sess_id] = NULL;
-	    so->so_info->svi_num--;
-	}
+	assert( so->so_running == 1 );
+	sess_id = so->so_session;
+	assert( so == sort_conns[conn->c_conn_idx][sess_id] );
+	sort_conns[conn->c_conn_idx][sess_id] = NULL;
+	so->so_info->svi_num--;
 	ldap_pvt_thread_mutex_unlock( &sort_conns_mutex );
 	
-	if ( sess_id > -1 ){
-	    if ( so->so_tree ) {
-		    if ( so->so_paged > SLAP_CONTROL_IGNORED ) {
-			    TAvlnode *cur_node, *next_node;
-			    cur_node = so->so_tree;
-			    while ( cur_node ) {
-				    next_node = ldap_tavl_next( cur_node, TAVL_DIR_RIGHT );
-				    ch_free( cur_node->avl_data );
-				    ber_memfree( cur_node );
+	if ( so->so_tree ) {
+		if ( so->so_paged > SLAP_CONTROL_IGNORED ) {
+			TAvlnode *cur_node, *next_node;
+			cur_node = so->so_tree;
+			while ( cur_node ) {
+				next_node = ldap_tavl_next( cur_node, TAVL_DIR_RIGHT );
+				ch_free( cur_node->avl_data );
+				ber_memfree( cur_node );
 
-				    cur_node = next_node;
-			    }
-		    } else {
-			    ldap_tavl_free( so->so_tree, ch_free );
-		    }
-		    so->so_tree = NULL;
-	    }
-
-	    ch_free( so );
+				cur_node = next_node;
+			}
+		} else {
+			ldap_tavl_free( so->so_tree, ch_free );
+		}
+		so->so_tree = NULL;
 	}
+	ch_free( so );
 }
 
 static void free_sort_ops( Connection *conn, sort_op **sos, int svi_max_percon )
@@ -433,10 +416,11 @@ static void free_sort_ops( Connection *conn, sort_op **sos, int svi_max_percon )
 	sort_op *so;
 
 	for( sess_id = 0; sess_id < svi_max_percon ; sess_id++ ) {
-		so = sort_conns[conn->c_conn_idx][sess_id];
+		so = sos[sess_id];
 		if ( so ) {
+			/* Claim this session */
+			so->so_running++;
 			free_sort_op( conn, so );
-			sort_conns[conn->c_conn_idx][sess_id] = NULL;
 		}
 	}
 }
@@ -525,7 +509,7 @@ range_err:
 			sc->sc_nkeys * sizeof(struct berval), op->o_tmpmemctx );
 		sn->sn_vals = (struct berval *)(sn+1);
 		sn->sn_conn = op->o_conn->c_conn_idx;
-		sn->sn_session = find_session_by_so( so->so_info->svi_max_percon, op->o_conn->c_conn_idx, so );
+		sn->sn_session = so->so_session;
 		sn->sn_vals[0] = bv;
 		for (i=1; i<sc->sc_nkeys; i++) {
 			BER_BVZERO( &sn->sn_vals[i] );
@@ -712,8 +696,28 @@ static void send_result(
 		/* Search finished, so clean up */
 		free_sort_op( op->o_conn, so );
 	} else {
-	    so->so_running = 0;
+		ldap_pvt_thread_mutex_lock( &sort_conns_mutex );
+		so->so_running = 0;
+		ldap_pvt_thread_mutex_unlock( &sort_conns_mutex );
 	}
+}
+
+static int sssvlv_op_cleanup(
+	Operation	*op,
+	SlapReply	*rs )
+{
+	sort_op *so = op->o_callback->sc_private;
+
+	if ( rs->sr_type == REP_RESULT || op->o_abandon ||
+		rs->sr_err == SLAPD_ABANDON ) {
+		/*
+		 * RFC 2696 Allows us to just forget the whole context on abandon,
+		 * draft-ietf-ldapext-ldapv3-vlv is silent
+		 */
+		free_sort_op( op->o_conn, so );
+		return slap_freeself_cb( op, rs );
+	}
+	return SLAP_CB_CONTINUE;
 }
 
 static int sssvlv_op_response(
@@ -776,7 +780,7 @@ static int sssvlv_op_response(
 		op->o_tmpfree( sn, op->o_tmpmemctx );
 		sn = sn2;
 		sn->sn_conn = op->o_conn->c_conn_idx;
-		sn->sn_session = find_session_by_so( so->so_info->svi_max_percon, op->o_conn->c_conn_idx, so );
+		sn->sn_session = so->so_session;
 
 		/* Insert into the AVL tree */
 		ldap_tavl_insert(&(so->so_tree), sn, node_insert, ldap_avl_dup_error);
@@ -794,7 +798,9 @@ static int sssvlv_op_response(
 		 * processed by serversort response again.
 		 */
 		if ( op->o_callback->sc_response == sssvlv_op_response ) {
+			slap_callback *cb = op->o_callback;
 			op->o_callback = op->o_callback->sc_next;
+			op->o_tmpfree( cb, op->o_tmpmemctx );
 		}
 
 		send_entry( op, rs, so );
@@ -811,8 +817,8 @@ static int sssvlv_op_search(
 	slap_overinst			*on			= (slap_overinst *)op->o_bd->bd_info;
 	sssvlv_info				*si			= on->on_bi.bi_private;
 	int						rc			= SLAP_CB_CONTINUE;
-	int	ok;
-	sort_op *so = NULL, so2;
+	int	ok = 1, resume = 0;
+	sort_op *so = NULL;
 	sort_ctrl *sc;
 	PagedResultsState *ps;
 	vlv_ctrl *vc;
@@ -821,6 +827,7 @@ static int sssvlv_op_search(
 
 	if ( op->o_ctrlflag[sss_cid] <= SLAP_CONTROL_IGNORED ) {
 		if ( op->o_ctrlflag[vlv_cid] > SLAP_CONTROL_IGNORED ) {
+			sort_op so2 = {0};
 			so2.so_vcontext = 0;
 			so2.so_vlv_target = 0;
 			so2.so_nentries = 0;
@@ -861,13 +868,13 @@ static int sssvlv_op_search(
 		goto leave;
 	}
 
-	ok = 1;
 	ldap_pvt_thread_mutex_lock( &sort_conns_mutex );
 	/* Is there already a sort running on this conn? */
 	sess_id = find_session_by_context( si->svi_max_percon, op->o_conn->c_conn_idx, vc ? vc->vc_context : NO_VC_CONTEXT, ps ? ps->ps_cookie : NO_PS_COOKIE );
 	if ( sess_id >= 0 ) {
 		so = sort_conns[op->o_conn->c_conn_idx][sess_id];
-		
+		resume = 1;
+
 		if( so->so_running > 0 ){
 		    /* another thread is handling, response busy to client */
 		    so = NULL;
@@ -896,11 +903,8 @@ static int sssvlv_op_search(
 			    rs->sr_err = LDAP_UNWILLING_TO_PERFORM;
 		    }
 
-		    if ( ok ) {
-			/* occupy before mutex unlock */
-			so->so_running = 1;
-		    }
-		
+		    /* make sure noone takes it, even if we're only freeing it */
+		    so->so_running = 1;
 		}
 	/* Are there too many running overall? */
 	} else if ( si->svi_num >= si->svi_max ) {
@@ -910,22 +914,51 @@ static int sssvlv_op_search(
 	} else {
 		/* OK, this connection now has a sort running */
 		si->svi_num++;
-		sort_conns[op->o_conn->c_conn_idx][sess_id] = &so2;
-		sort_conns[op->o_conn->c_conn_idx][sess_id]->so_session = sess_id;
+		if ( ps || vc ) {
+			so = ch_calloc( 1, sizeof(sort_op) );
+		} else {
+			so = op->o_tmpcalloc( 1, sizeof(sort_op), op->o_tmpmemctx );
+		}
+		so->so_tree = NULL;
+		so->so_ctrl = sc;
+		so->so_info = si;
+		so->so_vlv = op->o_ctrlflag[vlv_cid];
+		if ( ps ) {
+			so->so_paged = op->o_pagedresults;
+			so->so_page_size = ps->ps_size;
+			op->o_pagedresults = SLAP_CONTROL_IGNORED;
+		} else {
+			so->so_paged = 0;
+			so->so_page_size = 0;
+			if ( vc ) {
+				so->so_vlv_target = 0;
+				so->so_vlv_rc = 0;
+			} else {
+				so->so_vlv = SLAP_CONTROL_NONE;
+			}
+		}
+		so->so_session = sess_id;
+		so->so_vcontext = (unsigned long)so;
+		so->so_nentries = 0;
+		so->so_running = 1;
+
+		sort_conns[op->o_conn->c_conn_idx][sess_id] = so;
 	}
 	ldap_pvt_thread_mutex_unlock( &sort_conns_mutex );
 	if ( ok ) {
 		/* If we're a global overlay, this check got bypassed */
-		if ( !op->ors_limit && limits_check( op, rs ))
+		if ( !op->ors_limit && limits_check( op, rs ) ) {
+			free_sort_op( op->o_conn, so );
 			return rs->sr_err;
+		}
 		/* are we continuing a VLV search? */
-		if ( so && vc && vc->vc_context ) {
+		if ( resume && vc && vc->vc_context ) {
 			so->so_ctrl = sc;
 			send_list( op, rs, so );
 			send_result( op, rs, so );
 			rc = LDAP_SUCCESS;
 		/* are we continuing a paged search? */
-		} else if ( so && ps && ps->ps_cookie ) {
+		} else if ( resume && ps && ps->ps_cookie ) {
 			so->so_ctrl = sc;
 			send_page( op, rs, so );
 			send_result( op, rs, so );
@@ -934,47 +967,15 @@ static int sssvlv_op_search(
 			slap_callback *cb = op->o_tmpalloc( sizeof(slap_callback),
 				op->o_tmpmemctx );
 			/* Install serversort response callback to handle a new search */
-			if ( ps || vc ) {
-				so = ch_calloc( 1, sizeof(sort_op));
-			} else {
-				so = op->o_tmpcalloc( 1, sizeof(sort_op), op->o_tmpmemctx );
-			}
-			sort_conns[op->o_conn->c_conn_idx][sess_id] = so;
-
-			cb->sc_cleanup		= NULL;
+			cb->sc_cleanup		= sssvlv_op_cleanup;
 			cb->sc_response		= sssvlv_op_response;
 			cb->sc_next			= op->o_callback;
 			cb->sc_private		= so;
 			cb->sc_writewait	= NULL;
-
-			so->so_tree = NULL;
-			so->so_ctrl = sc;
-			so->so_info = si;
-			if ( ps ) {
-				so->so_paged = op->o_pagedresults;
-				so->so_page_size = ps->ps_size;
-				op->o_pagedresults = SLAP_CONTROL_IGNORED;
-			} else {
-				so->so_paged = 0;
-				so->so_page_size = 0;
-				if ( vc ) {
-					so->so_vlv = op->o_ctrlflag[vlv_cid];
-					so->so_vlv_target = 0;
-					so->so_vlv_rc = 0;
-				} else {
-					so->so_vlv = SLAP_CONTROL_NONE;
-				}
-			}
-			so->so_session = sess_id;
-			so->so_vlv = op->o_ctrlflag[vlv_cid];
-			so->so_vcontext = (unsigned long)so;
-			so->so_nentries = 0;
-			so->so_running = 1;
-
 			op->o_callback		= cb;
 		}
 	} else {
-		if ( so && !so->so_nentries ) {
+		if ( so ) {
 			free_sort_op( op->o_conn, so );
 		} else {
 			rs->sr_text = "Other sort requests already in progress";
