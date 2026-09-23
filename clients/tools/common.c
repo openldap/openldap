@@ -2217,9 +2217,15 @@ print_sss( LDAP *ld, LDAPControl *ctrl )
 
 	rc = ldap_parse_sortresponse_control( ld, ctrl, &err, &attr );
 	if ( rc == LDAP_SUCCESS ) {
-		char buf[ BUFSIZ ];
-		rc = snprintf( buf, sizeof(buf), "(%d) %s%s%s",
-			err, ldap_err2string(err), attr ? " " : "", attr ? attr : "" );
+		char buf[ BUFSIZ ], *end=buf+sizeof(buf), *ptr;
+
+		rc = sprintf( buf, "(%d) ", err );
+		ptr = lutil_strecopy( buf+rc, ldap_err2string( err ), end );
+		if ( attr ) {
+			ptr = lutil_strecopy( ptr, " ", end );
+			ptr = lutil_strecopy( ptr, attr, end );
+		}
+		rc = ptr - buf;
 
 		tool_write_ldif( ldif ? LDIF_PUT_COMMENT : LDIF_PUT_VALUE,
 			ldif ? "sortResult: " : "sortResult", buf, rc );
