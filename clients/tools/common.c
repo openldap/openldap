@@ -2244,7 +2244,8 @@ print_vlv( LDAP *ld, LDAPControl *ctrl )
 	rc = ldap_parse_vlvresponse_control( ld, ctrl, &vlvPos, &vlvCount,
 		&vlvContext, &err );
 	if ( rc == LDAP_SUCCESS ) {
-		char buf[ BUFSIZ ];
+		char buf[ BUFSIZ ], *end = buf+sizeof(buf);
+		char errmsg[ BUFSIZ ], *ptr;
 
 		if ( vlvContext && vlvContext->bv_len > 0 ) {
 			bv.bv_len = LUTIL_BASE64_ENCODE_LEN(
@@ -2260,9 +2261,11 @@ print_vlv( LDAP *ld, LDAPControl *ctrl )
 			bv.bv_len = 0;
 		}
 
-		rc = snprintf( buf, sizeof(buf), "pos=%d count=%d context=%s (%d) %s",
-			vlvPos, vlvCount, bv.bv_val,
-			err, ldap_err2string(err));
+		sprintf( errmsg, " (%d) %s", err, ldap_err2string(err));
+		rc = sprintf( buf, "pos=%d count=%d context=", vlvPos, vlvCount );
+		ptr = lutil_strecopy( buf+rc, bv.bv_val, end );
+		ptr = lutil_strecopy( ptr, errmsg, end );
+		rc = ptr - buf;
 
 		if ( bv.bv_len )
 			ber_memfree( bv.bv_val );
