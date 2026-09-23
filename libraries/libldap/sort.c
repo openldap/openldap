@@ -139,8 +139,12 @@ ldap_sort_entries(
 			char	*dn;
 
 			dn = ldap_get_dn( ld, e );
-			et[i].et_vals = ldap_explode_dn( dn, 1 );
-			LDAP_FREE( dn );
+			if ( dn != NULL ) {
+				et[i].et_vals = ldap_explode_dn( dn, 1 );
+				LDAP_FREE( dn );
+			} else {
+				et[i].et_vals = NULL;
+			}
 		} else {
 			et[i].et_vals = ldap_get_values( ld, e, attr );
 		}
