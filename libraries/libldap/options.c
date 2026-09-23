@@ -722,7 +722,7 @@ ldap_set_option(
 					break;
 				}
 
-			} else if ( ld != NULL ) {
+			} else if ( ld != NULL && ldap_int_global_options.ldo_defbase != NULL ) {
 				defbase = LDAP_STRDUP( ldap_int_global_options.ldo_defbase );
 				if ( defbase == NULL ) {
 					rc = LDAP_NO_MEMORY;
