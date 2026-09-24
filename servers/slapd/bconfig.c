@@ -6519,6 +6519,15 @@ config_back_modify( Operation *op, SlapReply *rs )
 	}
 	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
 
+	/* check again after lock acquired. Concurrent writes may have changed things. */
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
+	if ( !ce ) {
+		if ( last )
+			rs->sr_matched = last->ce_entry->e_name.bv_val;
+		rs->sr_err = LDAP_NO_SUCH_OBJECT;
+		goto out;
+	}
+
 	/* Strategy:
 	 * 1) perform the Modify on the cached Entry.
 	 * 2) verify that the Entry still satisfies the schema.
@@ -6750,6 +6759,15 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 
 	ldap_pvt_thread_rdwr_wlock( &cfb->cb_rwlock );
 
+	/* check again after lock acquired. */
+	ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
+	if ( !ce ) {
+		if ( last )
+			rs->sr_matched = last->ce_entry->e_name.bv_val;
+		rs->sr_err = LDAP_NO_SUCH_OBJECT;
+		goto out;
+	}
+
 	if ( ce->ce_type == Cft_Schema ) {
 		req_modrdn_s modr = op->oq_modrdn;
 		struct berval rdn;
@@ -6947,6 +6965,18 @@ config_back_delete( Operation *op, SlapReply *rs )
 
 		if ( op->o_abandon ) {
 			rs->sr_err = SLAPD_ABANDON;
+			goto out2;
+		}
+
+		/* check again after lock acquired. */
+		ce = config_find_base( cfb->cb_root, &op->o_req_ndn, &last, op );
+		if ( !ce ) {
+			if ( last )
+				rs->sr_matched = last->ce_entry->e_name.bv_val;
+			rs->sr_err = LDAP_NO_SUCH_OBJECT;
+			goto out2;
+		} else if ( ce->ce_kids ) {
+			rs->sr_err = LDAP_NOT_ALLOWED_ON_NONLEAF;
 			goto out2;
 		}
 
