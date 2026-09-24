@@ -59,8 +59,7 @@ mdb_bind( Operation *op, SlapReply *rs )
 	case 0:
 		break;
 	default:
-		rs->sr_text = "internal error";
-		send_ldap_result( op, rs );
+		send_ldap_error( op, rs, LDAP_OTHER, "internal error" );
 		return rs->sr_err;
 	}
 
