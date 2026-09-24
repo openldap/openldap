@@ -376,7 +376,11 @@ mdb_db_close( BackendDB *be, ConfigReply *cr )
 	}
 
 	if ( mdb->mi_dbenv ) {
-		mdb_reader_flush( mdb->mi_dbenv );
+		if ( ( slapMode & SLAP_SERVER_MODE ) &&
+			ldap_pvt_thread_pool_pausing( &connection_pool ) > 0 )
+			ldap_pvt_thread_pool_purgekey( mdb->mi_dbenv );
+		else
+			mdb_reader_flush( mdb->mi_dbenv );
 
 		if ( mdb->mi_dbis[0] ) {
 			int i;
