@@ -308,6 +308,7 @@ remoteauth_cf_gen( ConfigArgs *c )
 					if ( ad->dn ) {
 						ch_free( ad->dn );
 						ad->dn = NULL; /* Don't free AttributeDescription */
+						ad->dn_ad = NULL;
 					}
 					break;
 				case REMOTE_AUTH_DOMAIN_ATTRIBUTE:
