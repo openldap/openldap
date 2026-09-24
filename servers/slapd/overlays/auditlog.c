@@ -140,7 +140,7 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 	}
 #endif
 
-	fd = open(ad->ad_logfile, flags, 0666);
+	fd = open(ad->ad_logfile, flags, 0640);
 	if ( fd == -1 ) goto done;
 
 	f = fdopen(fd, "a");
