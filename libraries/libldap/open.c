@@ -40,7 +40,7 @@
 int ldap_open_defconn( LDAP *ld )
 {
 	ld->ld_defconn = ldap_new_connection( ld,
-		&ld->ld_options.ldo_defludp, 1, 1, NULL, 0, 0 );
+		&ld->ld_options.ldo_defludp, 1, 1, NULL, 0, 0, NULL );
 
 	if( ld->ld_defconn == NULL ) {
 		if ( !ld->ld_errno )
@@ -362,7 +362,7 @@ ldap_init_fd(
 
 	LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
 	/* Attach the passed socket as the LDAP's connection */
-	conn = ldap_new_connection( ld, NULL, 1, 0, NULL, 0, 0 );
+	conn = ldap_new_connection( ld, NULL, 1, 0, NULL, 0, 0, NULL );
 	if( conn == NULL ) {
 		LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		ldap_unbind_ext( ld, NULL, NULL );
@@ -603,7 +603,7 @@ ldap_open_internal_connection( LDAP **ldp, ber_socket_t *fdp )
 
 	LDAP_MUTEX_LOCK( &ld->ld_conn_mutex );
 	/* Attach the passed socket as the *LDAP's connection */
-	c = ldap_new_connection( ld, NULL, 1, 0, NULL, 0, 0 );
+	c = ldap_new_connection( ld, NULL, 1, 0, NULL, 0, 0, NULL );
 	if( c == NULL ) {
 		LDAP_MUTEX_UNLOCK( &ld->ld_conn_mutex );
 		ldap_unbind_ext( ld, NULL, NULL );

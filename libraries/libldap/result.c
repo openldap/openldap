@@ -71,7 +71,7 @@ static int ldap_mark_abandoned LDAP_P(( LDAP *ld, ber_int_t msgid ));
 static int wait4msg LDAP_P(( LDAP *ld, ber_int_t msgid, int all, struct timeval *timeout,
 	LDAPMessage **result ));
 static ber_tag_t try_read1msg LDAP_P(( LDAP *ld, ber_int_t msgid,
-	int all, LDAPConn *lc, LDAPMessage **result ));
+	int all, LDAPConn *lc,  struct timeval *lend, LDAPMessage **result ));
 static ber_tag_t build_result_ber LDAP_P(( LDAP *ld, BerElement **bp, LDAPRequest *lr ));
 static void merge_error_info LDAP_P(( LDAP *ld, LDAPRequest *parentr, LDAPRequest *lr ));
 static LDAPMessage * chkResponseList LDAP_P(( LDAP *ld, int msgid, int all));
@@ -393,10 +393,17 @@ wait4msg(
 					if ( lc->lconn_status == LDAP_CONNST_CONNECTED &&
 						ldap_is_read_ready( ld, lc->lconn_sb ) )
 					{
+						struct timeval lend = start_time_tv;
+						lend.tv_usec += tv.tv_usec;
+						if ( lend.tv_usec >= 1000000 ) {
+							lend.tv_usec -= 1000000;
+							lend.tv_sec += 1;
+						}
+						lend.tv_sec += tv.tv_sec;
 						serviced = 1;
 						/* Don't let it get freed out from under us */
 						++lc->lconn_refcnt;
-						rc = try_read1msg( ld, msgid, all, lc, result );
+						rc = try_read1msg( ld, msgid, all, lc, &lend, result );
 						lnext = lc->lconn_next;
 
 						/* Only take locks if we're really freeing */
@@ -506,6 +513,7 @@ try_read1msg(
 	ber_int_t msgid,
 	int all,
 	LDAPConn *lc,
+	struct timeval *lend,
 	LDAPMessage **result )
 {
 	BerElement	*ber;
@@ -750,7 +758,7 @@ nextresp2:
 				} else {
 					/* Note: refs array is freed by ldap_chase_v3referrals */
 					refer_cnt = ldap_chase_v3referrals( ld, lr, refs,
-						1, &lr->lr_res_error, &hadref );
+						1, lend, &lr->lr_res_error, &hadref );
 					if ( refer_cnt > 0 ) {
 						/* successfully chased reference */
 						/* If haven't got end search, set chasing referrals */
@@ -815,7 +823,7 @@ nextresp2:
 							 * refs array is freed by ldap_chase_v3referrals
 							 */
 							refer_cnt = ldap_chase_v3referrals( ld, lr, refs,
-								0, &lr->lr_res_error, &hadref );
+								0, lend, &lr->lr_res_error, &hadref );
 							lr->lr_status = LDAP_REQST_COMPLETED;
 							Debug3( LDAP_DEBUG_TRACE,
 								"read1msg: referral %s chased, "
@@ -848,7 +856,7 @@ nextresp2:
 
 						/* V2 referrals are in error string */
 						refer_cnt = ldap_chase_referrals( ld, lr,
-							&lr->lr_res_error, -1, &hadref );
+							&lr->lr_res_error, -1, lend, &hadref );
 						lr->lr_status = LDAP_REQST_COMPLETED;
 						Debug1( LDAP_DEBUG_TRACE,
 							"read1msg:  V2 referral chased, "
