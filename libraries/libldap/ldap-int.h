@@ -359,6 +359,14 @@ struct ldapoptions {
 #endif
 };
 
+/*
+ * structure for a queue of deferred referrals
+ */
+typedef struct ldap_refreq {
+	struct ldapreq *lr_origreq;
+	struct ldapreq *lr_lr;
+	char **lr_refarray;
+} LDAPRefreq;
 
 /*
  * structure for representing an LDAP server connection
@@ -374,7 +382,7 @@ typedef struct ldap_conn {
 	time_t		lconn_created;	/* time */
 	time_t		lconn_lastused;	/* time */
 	int			lconn_rebind_inprogress;	/* set if rebind in progress */
-	char		***lconn_rebind_queue;		/* used if rebind in progress */
+	LDAPRefreq	*lconn_rebind_queue;		/* used if rebind in progress */
 	int			lconn_status;
 #define LDAP_CONNST_NEEDSOCKET		1
 #define LDAP_CONNST_CONNECTING		2
