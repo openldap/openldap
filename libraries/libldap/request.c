@@ -819,8 +819,8 @@ ldap_free_connection( LDAP *ld, LDAPConn *lc, int force, int unbind )
 
 		if ( lc->lconn_rebind_queue != NULL) {
 			int i;
-			for( i = 0; lc->lconn_rebind_queue[i] != NULL; i++ ) {
-				LDAP_VFREE( lc->lconn_rebind_queue[i] );
+			for( i = 0; lc->lconn_rebind_queue[i].lr_origreq != NULL; i++ ) {
+				LDAP_VFREE( lc->lconn_rebind_queue[i].lr_refarray );
 			}
 			LDAP_FREE( lc->lconn_rebind_queue );
 		}
@@ -882,11 +882,11 @@ ldap_dump_connection( LDAP *ld, LDAPConn *lconns, int all )
 			if ( lc->lconn_rebind_queue != NULL) {
 				int	i;
 
-				for ( i = 0; lc->lconn_rebind_queue[i] != NULL; i++ ) {
+				for ( i = 0; lc->lconn_rebind_queue[i].lr_origreq != NULL; i++ ) {
 					int	j;
-					for( j = 0; lc->lconn_rebind_queue[i][j] != 0; j++ ) {
+					for( j = 0; lc->lconn_rebind_queue[i].lr_refarray[j] != 0; j++ ) {
 						Debug3( LDAP_DEBUG_TRACE, "    queue %d entry %d - %s\n",
-							i, j, lc->lconn_rebind_queue[i][j] );
+							i, j, lc->lconn_rebind_queue[i].lr_refarray[j] );
 					}
 				}
 			} else {
@@ -1215,7 +1215,7 @@ ldap_chase_v3referrals( LDAP *ld, LDAPRequest *lr, char **refs, int sref, char *
 				if( lc->lconn_rebind_queue == NULL ) {
 					/* Create a referral list */
 					lc->lconn_rebind_queue =
-						(char ***) LDAP_MALLOC( sizeof(void *) * 2);
+						(LDAPRefreq*) LDAP_MALLOC( sizeof(LDAPRefreq) * 2);
 
 					if( lc->lconn_rebind_queue == NULL) {
 						ld->ld_errno = LDAP_NO_MEMORY;
@@ -1223,27 +1223,38 @@ ldap_chase_v3referrals( LDAP *ld, LDAPRequest *lr, char **refs, int sref, char *
 						goto done;
 					}
 
-					lc->lconn_rebind_queue[0] = refarray;
-					lc->lconn_rebind_queue[1] = NULL;
+					lc->lconn_rebind_queue[0].lr_origreq = origreq;
+					lc->lconn_rebind_queue[0].lr_lr = lr;
+					lc->lconn_rebind_queue[0].lr_refarray = refarray;
+					lc->lconn_rebind_queue[1].lr_origreq = NULL;
+					lc->lconn_rebind_queue[1].lr_lr = NULL;
+					lc->lconn_rebind_queue[1].lr_refarray = NULL;
 					refarray = NULL;
 
 				} else {
+					LDAPRefreq *ptr;
 					/* Count how many referral arrays we already have */
-					for( j = 0; lc->lconn_rebind_queue[j] != NULL; j++) {
+					for( j = 0; lc->lconn_rebind_queue[j].lr_origreq != NULL; j++) {
 						/* empty */;
 					}
 
 					/* Add the new referral to the list */
-					lc->lconn_rebind_queue = (char ***) LDAP_REALLOC(
-						lc->lconn_rebind_queue, sizeof(void *) * (j + 2));
+					ptr = (LDAPRefreq *) LDAP_REALLOC(
+						lc->lconn_rebind_queue, sizeof(LDAPRefreq) * (j + 2));
 
-					if( lc->lconn_rebind_queue == NULL ) {
+					if( ptr == NULL ) {
 						ld->ld_errno = LDAP_NO_MEMORY;
+						/* let ldap_free_connection free the queue */
 						rc = -1;
 						goto done;
 					}
-					lc->lconn_rebind_queue[j] = refarray;
-					lc->lconn_rebind_queue[j+1] = NULL;
+					lc->lconn_rebind_queue = ptr;
+					lc->lconn_rebind_queue[j].lr_origreq = origreq;
+					lc->lconn_rebind_queue[j].lr_lr = lr;
+					lc->lconn_rebind_queue[j].lr_refarray = refarray;
+					lc->lconn_rebind_queue[j+1].lr_origreq = NULL;
+					lc->lconn_rebind_queue[j+1].lr_lr = NULL;
+					lc->lconn_rebind_queue[j+1].lr_refarray = NULL;
 					refarray = NULL;
 				}
 
@@ -1316,10 +1327,14 @@ ldap_chase_v3referrals( LDAP *ld, LDAPRequest *lr, char **refs, int sref, char *
 				srv = NULL;
 
 				/* Pull entries off end of queue so list always null terminated */
-				for( j = 0; lc->lconn_rebind_queue[j] != NULL; j++ )
+				for( j = 0; lc->lconn_rebind_queue[j].lr_origreq != NULL; j++ )
 					;
-				refarray = lc->lconn_rebind_queue[j - 1];
-				lc->lconn_rebind_queue[j-1] = NULL;
+				refarray = lc->lconn_rebind_queue[j - 1].lr_refarray;
+				origreq = lc->lconn_rebind_queue[j - 1].lr_origreq;
+				lr = lc->lconn_rebind_queue[j - 1].lr_lr;
+				lc->lconn_rebind_queue[j-1].lr_origreq = NULL;
+				lc->lconn_rebind_queue[j-1].lr_lr = NULL;
+				lc->lconn_rebind_queue[j-1].lr_refarray = NULL;
 				/* we pulled off last entry from queue, free queue */
 				if ( j == 1 ) {
 					LDAP_FREE( lc->lconn_rebind_queue );
