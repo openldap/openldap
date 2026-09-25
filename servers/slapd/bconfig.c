@@ -6525,7 +6525,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 		if ( last )
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
-		goto out;
+		goto out2;
 	}
 
 	/* Strategy:
@@ -6575,6 +6575,7 @@ config_back_modify( Operation *op, SlapReply *rs )
 		}
 	}
 
+out2:
 	ldap_pvt_thread_rdwr_wunlock( &cfb->cb_rwlock );
 unpause:;
 	if ( do_pause )
@@ -6765,7 +6766,7 @@ config_back_modrdn( Operation *op, SlapReply *rs )
 		if ( last )
 			rs->sr_matched = last->ce_entry->e_name.bv_val;
 		rs->sr_err = LDAP_NO_SUCH_OBJECT;
-		goto out;
+		goto out2;
 	}
 
 	if ( ce->ce_type == Cft_Schema ) {
