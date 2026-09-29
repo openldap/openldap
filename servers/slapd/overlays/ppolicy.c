@@ -56,7 +56,8 @@ typedef	int (check_func)( char *passwd, struct berval *errmsg, Entry *ent, struc
 typedef enum policy_action_e {
 	POLICY_RULE_STOP = 0, /* Default, stop if matched and policy entry exists */
 	POLICY_RULE_CONTINUE, /* Keep going, remember policy if exists, can be overriden by later rules */
-	POLICY_RULE_NO_POLICY, /* Decide that no policy should apply to this entry */
+	POLICY_RULE_NO_POLICY, /* Not an action but also a terminal in the rules grammar.
+							* Decide that no policy should apply to this entry */
 
 	POLICY_RULE_LAST
 } policy_action_t;
@@ -922,6 +923,7 @@ ppolicy_rule_parse( policy_rule **prp, ConfigArgs *c )
 					goto done;
 				}
 				have_policy = 1;
+				continue;
 			} else if ( pr->action != POLICY_RULE_LAST ) {
 				snprintf( c->cr_msg, sizeof( c->cr_msg ),
 						"<%s>: more that one action specified: \"%s\"",
@@ -1200,6 +1202,12 @@ ppolicy_rule_parse( policy_rule **prp, ConfigArgs *c )
 		goto done;
 	}
 
+	if ( BER_BVISNULL( &pr->object_pat ) ) {
+		/* No dn= fragment used, assume dn.subtree="", but ACL_STYLE_REGEX == 0
+		 * is wrong in this case */
+		pr->object_style = ACL_STYLE_SUBTREE;
+	}
+
 	if ( !have_policy ) {
 		snprintf( c->cr_msg, sizeof( c->cr_msg ),
 				"<%s> need to specify policy_dn or no_policy",
@@ -1307,7 +1315,8 @@ ppolicy_rule( ConfigArgs *c )
 				if ( pr->object_style != ACL_STYLE_REGEX ) {
 					enum_to_verb( scopes, pr->object_style, &c->value_bv );
 					return LDAP_SUCCESS;
-				} else if ( pr->policy_dn_style != ACL_STYLE_BASE ) {
+				} else if ( !BER_BVISNULL( &pr->object_pat ) &&
+						pr->policy_dn_style != ACL_STYLE_BASE ) {
 					enum_to_verb( scopes, pr->policy_dn_style, &c->value_bv );
 					return LDAP_SUCCESS;
 				}
@@ -1544,7 +1553,8 @@ ppolicy_rule( ConfigArgs *c )
 			break;
 		case PPOLICY_RULE_ACTION: {
 			int i = bverb_to_mask( &c->value_bv, selections );
-			if ( BER_BVISNULL( &selections[i].word ) ) {
+			if ( BER_BVISNULL( &selections[i].word ) ||
+					selections[i].mask > POLICY_RULE_CONTINUE ) {
 				snprintf( c->cr_msg, sizeof(c->cr_msg),
 						"<%s>: invalid selection configuration \"%s\"",
 						c->argv[0], c->value_bv.bv_val );
@@ -1552,6 +1562,7 @@ ppolicy_rule( ConfigArgs *c )
 				ch_free( c->value_bv.bv_val );
 				return ARG_BAD_CONF;
 			}
+			pr->action = selections[i].mask;
 			ch_free( c->value_bv.bv_val );
 		} break;
 
@@ -1655,6 +1666,7 @@ ppolicy_rule_ldadd( CfEntryInfo *p, Entry *e, ConfigArgs *ca )
 
 	pr->group_oc = oc_group;
 	pr->group_at = ad_member;
+	pr->require_password = 1;
 
 	ca->bi = p->ce_bi;
 	ca->ca_entry = e;
