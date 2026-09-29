@@ -3971,7 +3971,7 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 	int			zapReset, send_ctrl = 0, free_txt = 0;
 	Entry			*e;
 	struct berval		newpw = BER_BVNULL, oldpw = BER_BVNULL,
-				*bv, cr[2];
+				scheme = BER_BVNULL, *bv, cr[2];
 	LDAPPasswordPolicyError pErr = PP_noError;
 	LDAPControl		*ctrl = NULL;
 	int			is_pwdexop = 0, is_pwdadmin = 0;
@@ -4664,16 +4664,28 @@ do_modify:
 		 * therefore it makes sense to hash the new password, now
 		 * we know it passes the policy requirements.
 		 *
-		 * Of course, if the password is already hashed, then we
-		 * leave it alone.
+		 * Of course, if the password is already hashed with the same
+		 * hash our policy sets or we don't have access to the unhashed
+		 * password, then we leave it alone.
 		 */
 
-		if ((pi->hash_passwords) && (addmod) && !newpw.bv_val && 
-			(password_scheme( &(addmod->sml_values[0]), NULL ) != LDAP_SUCCESS))
-		{
+		if ( (pi->hash_passwords) && (addmod) && (
+				/* it's not hashed || policy sets a different hash
+				 * and can access the original one */
+				password_scheme( &(addmod->sml_values[0]), &scheme ) != LDAP_SUCCESS || (
+					!BER_BVISNULL( &pp.pwdDefaultHash ) &&
+					ber_bvstrcasecmp( &scheme, &pp.pwdDefaultHash ) != 0 &&
+					!BER_BVISNULL( &newpw ) ) ) ) {
 			struct berval hpw, bv;
-			
-			slap_passwd_hash_type( &(addmod->sml_values[0]), &hpw, pp.pwdDefaultHash.bv_val, &txt );
+
+			if ( !BER_BVISNULL( &newpw ) ) {
+				/* For pwmod extop unhashed password is in newpw */
+				bv = newpw;
+			} else {
+				bv = addmod->sml_values[0];
+			}
+
+			slap_passwd_hash_type( &bv, &hpw, pp.pwdDefaultHash.bv_val, &txt );
 			if (hpw.bv_val == NULL) {
 					/*
 					 * hashing didn't work. Emit an error.
