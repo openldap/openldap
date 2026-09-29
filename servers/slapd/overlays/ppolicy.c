@@ -2136,7 +2136,8 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 		struct berval value = BER_BVNULL;
 		Attribute *a, **ap = NULL;
 		policy_rule *pr;
-		int freeval = 0, matched = 0;
+		int freeval = 0;
+		policy_action_t action = POLICY_RULE_LAST;
 		AclRegexMatches *matches = op->o_tmpalloc(
 				sizeof(AclRegexMatches), op->o_tmpmemctx );
 
@@ -2277,8 +2278,8 @@ ppolicy_operational( Operation *op, SlapReply *rs )
 				op->o_bd = bd_orig;
 			}
 
-			matched = 1;
-			if ( pr->action == POLICY_RULE_STOP ) {
+			action = pr->action;
+			if ( action == POLICY_RULE_STOP ) {
 				pr = NULL;
 			}
 skip:
@@ -2290,7 +2291,7 @@ skip:
 		}
 
 		op->o_tmpfree( matches, op->o_tmpmemctx );
-		if ( matched ) {
+		if ( action != POLICY_RULE_LAST ) {
 			freeval = 1;
 		} else if ( have_password ) {
 			value = pi->def_policy;
