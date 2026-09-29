@@ -1392,7 +1392,7 @@ slap_get_listener_addresses(
 			(sizeof(((struct sockaddr_un *)*sap)->sun_path) - 1) )
 		{
 			Debug( LDAP_DEBUG_ANY,
-				"daemon: domain socket path (%s) too long in URL",
+				"daemon: domain socket path (%s) too long in URL\n",
 				host );
 			goto errexit;
 		}
@@ -1498,6 +1498,7 @@ slap_get_listener_addresses(
 
 errexit:
 	slap_free_listener_addresses(*sal);
+	*sal = NULL;
 	return -1;
 }
 
