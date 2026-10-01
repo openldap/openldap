@@ -15,6 +15,7 @@ OpenLDAP 2.6.16 Engineering
 		ITS#10607
 		ITS#10608
 		ITS#10609
+		ITS#10610
 
 OpenLDAP 2.6.15 Release (2026/09/08)
 	Fixed libldap BER leak on notice of disconnection (ITS#10584)
