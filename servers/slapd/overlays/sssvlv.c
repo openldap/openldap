@@ -1055,12 +1055,17 @@ static int build_key(
 	MatchingRule *ordering = NULL;
 	AttributeDescription *ad = NULL;
 	const char *text;
+	struct berval elem;
+	int slen;
 
-	if (( tag = ber_skip_tag( ber, &len )) != LBER_SEQUENCE ) {
+	if (( tag = ber_peek_element( ber, &elem )) != LBER_SEQUENCE ) {
 		rs->sr_text = "serverSort control: decoding error";
 		rs->sr_err = LDAP_PROTOCOL_ERROR;
 		return rs->sr_err;
 	}
+	tag = ber_skip_tag( ber, &len );
+	/* remember where we started. elem shows where we end. */
+	slen = ber_ptrlen( ber );
 
 	if (( tag = ber_scanf( ber, "m", &attr )) == LBER_ERROR ) {
 		rs->sr_text = "serverSort control: attribute decoding error";
@@ -1086,7 +1091,8 @@ static int build_key(
 		}
 	}
 
-	if (( tag = ber_peek_tag( ber, &len )) != LBER_DEFAULT ) {
+	/* ensure we consumed as many bytes as expected */
+	if ( ber_ptrlen( ber ) != slen + elem.bv_len ) {
 		rs->sr_text = "serverSort control: decoding error";
 		rs->sr_err = LDAP_PROTOCOL_ERROR;
 		return rs->sr_err;
