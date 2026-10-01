@@ -571,7 +571,7 @@ static ConfigTable nsscfg[] = {
 		"pwdmgr_dn", 2, 2, 0,
 		ARG_OFFSET|ARG_BERVAL,
 		(void *)offsetof(struct nssov_info, ni_pam_pwdmgr_dn),
-		"(OLcfgCtAt:3.13 NAME 'olcPamPwdmgrDn' "
+		"(OLcfgCtAt:3.13 NAME 'olcNssPamPwdmgrDn' "
 			"DESC 'Password Manager DN' "
 			"EQUALITY distinguishedNameMatch "
 			"SYNTAX OMsDN SINGLE-VALUE )", NULL, NULL },
@@ -579,7 +579,7 @@ static ConfigTable nsscfg[] = {
 		"pwdmgr_pwd", 2, 2, 0,
 		ARG_OFFSET|ARG_BERVAL,
 		(void *)offsetof(struct nssov_info, ni_pam_pwdmgr_pwd),
-		"(OLcfgCtAt:3.14 NAME 'olcPamPwdmgrPwd' "
+		"(OLcfgCtAt:3.14 NAME 'olcNssPamPwdmgrPwd' "
 			"DESC 'Password Manager Pwd' "
 			"EQUALITY octetStringMatch "
 			"SYNTAX OMsOctetString SINGLE-VALUE )", NULL, NULL },
@@ -594,7 +594,9 @@ static ConfigOCs nssocs[] = {
 		"MAY ( olcNssSsd $ olcNssMap $ olcNssPam $ olcNssPamDefHost $ "
 			"olcNssPamGroupDN $ olcNssPamGroupAD $ "
 			"olcNssPamMinUid $ olcNssPamMaxUid $ olcNssPamSession $ "
-			"olcNssPamTemplateAD $ olcNssPamTemplate ) )",
+			"olcNssPamTemplateAD $ olcNssPamTemplate $ "
+			"olcNssPamPwdProhibitMsg $ olcNssPamPwdmgrDn $ "
+			"olcNssPamPwdmgrPwd ) )",
 		Cft_Overlay, nsscfg },
 	{ NULL, 0, NULL }
 };
