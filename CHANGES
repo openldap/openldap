@@ -5,6 +5,7 @@ OpenLDAP 2.7.2 Engineering
 	Fixed slapo-accesslog handling of per-op info state (ITS#10597)
 	Minor Cleanup
 		ITS#10455
+		ITS#10573
 		ITS#10586
 		ITS#10587
 		ITS#10588
