@@ -4,6 +4,7 @@ OpenLDAP 2.7.2 Engineering
 	Fixed libldap with deeply nested URL filters (ITS#10585)
 	Minor Cleanup
 		ITS#10455
+		ITS#10586
 		ITS#10587
 		ITS#10588
 		ITS#10596
