@@ -1628,7 +1628,7 @@ rwm_operational( Operation *op, SlapReply *rs )
 	 * so we need to select those attributes we are willing
 	 * to return, and remap them accordingly */
 	if ( rs->sr_operational_attrs ) {
-		rwm_attrs( op, rs, &rs->sr_operational_attrs, 1 );
+		rwm_attrs( op, rs, &rs->sr_operational_attrs, 0 );
 	}
 
 	return SLAP_CB_CONTINUE;
