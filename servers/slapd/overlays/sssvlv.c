@@ -1051,11 +1051,11 @@ static int build_key(
 	struct berval matchrule = BER_BVNULL;
 	ber_int_t reverse = 0;
 	ber_tag_t tag;
-	ber_len_t len;
+	ber_len_t len, elen;
 	MatchingRule *ordering = NULL;
 	AttributeDescription *ad = NULL;
 	const char *text;
-	int slen, elen;
+	int slen;
 
 	if (( tag = ber_skip_tag( ber, &elen )) != LBER_SEQUENCE ) {
 		rs->sr_text = "serverSort control: decoding error";
