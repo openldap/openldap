@@ -240,6 +240,20 @@ directive must be configured for this setting to have any effect.
 .B nssov-pam-session <service>
 Specify a PAM service name whose sessions will be recorded. For the
 configured services, logins will be recorded in the
+.B loginStatus
+operational attribute of the user's entry. The attribute's values are
+of the form
+.RS
+.RS
+.B <generalizedTime> <host> <service> <tty> (<ruser@rhost>)
+
+.RE
+Upon logout the corresponding value will be deleted. This feature allows
+a single LDAP Search to be used to check which users are logged in across
+all the hosts of a network. The rootdn of the database is used to perform
+the updates of the loginStatus attribute, so a rootdn must already be
+configured for this feature to work. By default no services are configured.
+.RE
 .TP
 .B nssov-pam-password-prohibit-message <message>
 Disable password change service and return the specified message to
@@ -250,20 +264,6 @@ Specify the dn of the password manager.
 .TP
 .B nssov-pam-pwdmgr-pwd <pwd>
 Specify the pwd of the password manager.
-.TP
-.B loginStatus
-operational attribute of the user's entry. The attribute's values are
-of the form
-.RS
-.RS
-.B <generalizedTime> <host> <service> <tty> (<ruser@rhost>)
-.RE
-.RE
-Upon logout the corresponding value will be deleted. This feature allows
-a single LDAP Search to be used to check which users are logged in across
-all the hosts of a network. The rootdn of the database is used to perform
-the updates of the loginStatus attribute, so a rootdn must already be
-configured for this feature to work. By default no services are configured.
 .LP
 The PAM functions support LDAP Password Policy as well. If the password
 policy overlay is in use (see
