@@ -6,6 +6,7 @@ OpenLDAP 2.7.2 Engineering
 		ITS#10587
 		ITS#10588
 		ITS#10596
+		ITS#10599
 
 OpenLDAP 2.7.1 Release (2026/09/08)
 	Fixed libldap BER leak on notice of disconnection (ITS#10584)
