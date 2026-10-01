@@ -579,6 +579,7 @@ static int pam_sess(nssov_info *ni,TFILE *fp,Operation *op,int action)
 	time_t stamp;
 	Modifications mod;
 	int rc = 0;
+	BackendDB *be;
 
 	READ_STRING(fp,uidc);
 	pi.uid.bv_val = uidc;
@@ -669,15 +670,21 @@ static int pam_sess(nssov_info *ni,TFILE *fp,Operation *op,int action)
 	op->o_dn = op->o_bd->be_rootdn;
 	op->o_ndn = op->o_bd->be_rootndn;
 	op->orm_modlist = &mod;
-	op->orm_no_opattrs = 1;
 	op->o_req_dn = pi.dn;
 	op->o_req_ndn = pi.dn;
+	be = op->o_bd;
+	if ( SLAP_SHADOW( op->o_bd ) && ni->ni_pam_forward_updates ) {
+		op->o_bd = frontendDB;
+	} else {
+		op->orm_no_opattrs = 1;
+	}
 	if (op->o_bd->be_modify( op, &rs ) != LDAP_SUCCESS) {
 		Debug(LDAP_DEBUG_TRACE,
 			"nssov_pam_sess_%c(): modify op failed\n",
 			action==NSLCD_ACTION_PAM_SESS_O ? 'o' : 'c' );
 		rc = -1;
 	}
+	op->o_bd = be;
 
 	if ( mod.sml_next ) {
 		slap_mods_free( mod.sml_next, 1 );

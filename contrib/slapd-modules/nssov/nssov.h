@@ -82,6 +82,7 @@ typedef struct nssov_info
 
 	/* PAM authz support... */
 	slap_mask_t ni_pam_opts;
+	int ni_pam_forward_updates;
 	struct berval ni_pam_group_dn;
 	AttributeDescription *ni_pam_group_ad;
 	int ni_pam_min_uid;

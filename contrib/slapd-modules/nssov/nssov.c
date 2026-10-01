@@ -583,6 +583,14 @@ static ConfigTable nsscfg[] = {
 			"DESC 'Password Manager Pwd' "
 			"EQUALITY octetStringMatch "
 			"SYNTAX OMsOctetString SINGLE-VALUE )", NULL, NULL },
+	{ "nssov-pam-forward-updates",
+		"on|off", 1, 2, 0,
+		ARG_OFFSET|ARG_ON_OFF,
+		(void *)offsetof(struct nssov_info, ni_pam_forward_updates),
+		"(OLcfgCtAt:3.15 NAME 'olcNssPamForwardUpdates' "
+			"DESC 'Allow loginStatus updates to be forwarded via updateref' "
+			"EQUALITY booleanMatch "
+			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 	{ NULL, NULL, 0,0,0, ARG_IGNORED }
 };
 
@@ -596,7 +604,7 @@ static ConfigOCs nssocs[] = {
 			"olcNssPamMinUid $ olcNssPamMaxUid $ olcNssPamSession $ "
 			"olcNssPamTemplateAD $ olcNssPamTemplate $ "
 			"olcNssPamPwdProhibitMsg $ olcNssPamPwdmgrDn $ "
-			"olcNssPamPwdmgrPwd ) )",
+			"olcNssPamPwdmgrPwd $ olcNssPamForwardUpdates ) )",
 		Cft_Overlay, nsscfg },
 	{ NULL, 0, NULL }
 };
