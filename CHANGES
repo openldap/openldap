@@ -2,6 +2,7 @@ OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.16 Engineering
 	Minor Cleanup
+		ITS#10586
 		ITS#10587
 		ITS#10588
 		ITS#10596
