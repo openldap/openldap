@@ -255,6 +255,18 @@ the updates of the loginStatus attribute, so a rootdn must already be
 configured for this feature to work. By default no services are configured.
 .RE
 .TP
+.B nssov-pam-forward-updates
+Specify that
+.B loginStatus
+updates on a consumer should be forwarded to
+a provider instead of being written directly into the consumer's local
+database. This setting is only useful on a replication consumer, and
+also requires the
+.B updateref
+setting and
+.B chain
+overlay to be appropriately configured.
+.TP
 .B nssov-pam-password-prohibit-message <message>
 Disable password change service and return the specified message to
 users.
