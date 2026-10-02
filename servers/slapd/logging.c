@@ -260,38 +260,38 @@ logfile_open( const char *path )
 	struct stat st;
 	int fd, saved_errno;
 
-	/* the logfile is for slapd only, not tools */
-	if ( !( slapMode & SLAP_SERVER_MODE ))
-		return 0;
-
-	fd = open( path, O_CREAT|O_WRONLY|O_APPEND, 0640 );
-	if ( fd < 0 ) {
-		saved_errno = errno;
-fail:
-		logfile_only = 0;	/* make sure something gets output */
-		return saved_errno;
+	if ( !logfile_path[0] ) {
+		logpathlen = strlen( path );
+		if ( logpathlen >= sizeof(logfile_path) )
+			return ENAMETOOLONG;
 	}
 
-	if ( fstat( fd, &st ) ) {
-		saved_errno = errno;
-		close( fd );
-		goto fail;
+	/* the logfile is for slapd only, not tools */
+	if ( slapMode & SLAP_SERVER_MODE ) {
+		fd = open( path, O_CREAT|O_WRONLY|O_APPEND, 0640 );
+		if ( fd < 0 ) {
+			saved_errno = errno;
+fail:
+			logfile_only = 0;	/* make sure something gets output */
+			return saved_errno;
+		}
+
+		if ( fstat( fd, &st ) ) {
+			saved_errno = errno;
+			close( fd );
+			goto fail;
+		}
+
+		logfile_fsize = st.st_size;
+		logfile_fcreated = st.st_ctime;	/* not strictly true but close enough */
+		logfile_fd = fd;
 	}
 
 	if ( !logfile_path[0] ) {
-		logpathlen = strlen( path );
-		if ( logpathlen >= sizeof(logfile_path) ) {
-			saved_errno = ENAMETOOLONG;
-			goto fail;
-		}
 		strcpy( logfile_path, path );
 		strcpy( logpaths[0], path );
 		strcpy( logpaths[1], path );
 	}
-
-	logfile_fsize = st.st_size;
-	logfile_fcreated = st.st_ctime;	/* not strictly true but close enough */
-	logfile_fd = fd;
 
 	return 0;
 }
