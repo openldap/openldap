@@ -43,7 +43,7 @@ man5dir = $(mandir)/man5
 all:		$(PROGRAMS)
 
 pw-sha2.la:	slapd-sha2.lo sha2.lo
-	$(LIBTOOL) --mode=link $(CC) $(LD_FLAGS) -o $@ $? $(LIBS)
+	$(LIBTOOL) --mode=link $(CC) $(LD_FLAGS) -o $@ $^ $(LIBS)
 
 clean:
 	rm -rf *.o *.lo *.la .libs
