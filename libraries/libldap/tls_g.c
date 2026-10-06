@@ -62,6 +62,7 @@ typedef struct tlsg_session {
 	gnutls_session_t session;
 	tlsg_ctx *ctx;
 	struct berval peer_der_dn;
+	int peer_valid;
 } tlsg_session;
 
 static int tlsg_parse_ciphers( tlsg_ctx *ctx, char *suites );
@@ -444,7 +445,9 @@ tlsg_session_accept( tls_session *session )
 			rc = 0;
 		else {
 			rc = tlsg_cert_verify( s );
-			if ( rc && s->ctx->reqcert == LDAP_OPT_X_TLS_ALLOW )
+			if ( !rc )
+				s->peer_valid = 1;
+			else if ( s->ctx->reqcert == LDAP_OPT_X_TLS_ALLOW )
 				rc = 0;
 		}
 	}
@@ -549,6 +552,8 @@ static int
 tlsg_session_peer_dn( tls_session *session, struct berval *der_dn )
 {
 	tlsg_session *s = (tlsg_session *)session;
+	if ( !s->peer_valid )
+		return LDAP_INVALID_CREDENTIALS;
 	if ( !s->peer_der_dn.bv_val ) {
 		const gnutls_datum_t *peer_cert_list;
 		unsigned int list_size;
@@ -891,6 +896,8 @@ tlsg_session_peercert( tls_session *sess, struct berval *der )
 	const gnutls_datum_t *peer_cert_list;
 	unsigned int list_size;
 
+	if (!s->peer_valid)
+		return -1;
 	peer_cert_list = gnutls_certificate_get_peers( s->session, &list_size );
 	if (!peer_cert_list)
 		return -1;
