@@ -523,6 +523,12 @@ static ConfigTable config_back_cf_table[] = {
 			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
 			{ .v_int = SLAP_MAX_FILTER_DEPTH_DEFAULT }
 	},
+	{ "maxQtime", "usec", 2, 2, 0, ARG_UINT,
+		&slap_max_qtime, "( OLcfgGlAt:106 NAME 'olcMaxQtime' "
+			"EQUALITY integerMatch "
+			"SYNTAX OMsInteger SINGLE-VALUE )", NULL,
+			{ .v_uint = 0 }
+	},
 	{ "multiprovider", "on|off", 2, 2, 0, ARG_DB|ARG_ON_OFF|ARG_MAGIC|CFG_MULTIPROVIDER,
 		&config_generic, "( OLcfgDbAt:0.16 NAME ( 'olcMultiProvider' 'olcMirrorMode' ) "
 			"EQUALITY booleanMatch "
@@ -1007,6 +1013,7 @@ static ConfigOCs cf_ocs[] = {
 		 "olcIndexIntLen $ "
 		 "olcListenerThreads $ olcLocalSSF $ olcLogFile $ olcLogFileFormat $ olcLogLevel $ "
 		 "olcLogFileOnly $ olcLogFileRotate $ olcMaxFilterDepth $ "
+		 "olcMaxQtime $ "
 		 "olcPasswordCryptSaltFormat $ olcPasswordHash $ olcPidFile $ "
 		 "olcPluginLogFile $ olcReadOnly $ olcReferral $ "
 		 "olcReplogFile $ olcRequires $ olcRestrict $ olcReverseLookup $ "

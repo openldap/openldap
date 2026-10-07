@@ -1067,6 +1067,14 @@ connection_operation( void *ctx, void *arg_v )
 		op->o_qtime.tv_sec--;
 	}
 	op->o_qtime.tv_sec -= op->o_time;
+	if ( slap_max_qtime && ( op->o_qtime.tv_sec > 0 ||
+		op->o_qtime.tv_usec >= slap_max_qtime )) {
+		send_ldap_error( op, &rs, LDAP_UNWILLING_TO_PERFORM,
+			"Max Qtime exceeded" );
+		rc = LDAP_UNWILLING_TO_PERFORM;
+		goto operations_error;
+	}
+
 	operation_counter_init( op, ctx );
 	ldap_pvt_thread_mutex_lock( &op->o_counters->sc_mutex );
 	/* FIXME: returns 0 in case of failure */
