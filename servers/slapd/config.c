@@ -87,6 +87,7 @@ int	slap_conn_max_pending = SLAP_CONN_MAX_PENDING_DEFAULT;
 int	slap_conn_max_pending_auth = SLAP_CONN_MAX_PENDING_AUTH;
 
 int	slap_max_filter_depth = SLAP_MAX_FILTER_DEPTH_DEFAULT;
+int slap_max_qtime = 0;
 
 char   *slapd_pid_file  = NULL;
 char   *slapd_args_file = NULL;

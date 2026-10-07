@@ -715,6 +715,11 @@ help analyze the logs.
 Specify the maximum depth of nested filters in search requests.
 The default is 1000.
 .TP
+.B olcMaxQtime: <integer>
+Specify the maximum time for operations to be queued before executing,
+in microseconds. Operations that exceed this time are rejected without
+any further processing. The default is 0 which disables the check.
+.TP
 .B olcPasswordCryptSaltFormat: <format>
 Specify the format of the salt passed to
 .BR crypt (3)
