@@ -1896,8 +1896,30 @@ parse_acl(
 				/* plain continue */
 				b->a_type = ACL_BREAK;
 
-			} else if ( strcasecmp( argv[i], "stop" ) != 0 ) {
-				/* gone to far */
+			} else if ( strcasecmp( argv[i], "stop" ) == 0 ) {
+				/* stop is the default */
+			} else if ( strcmp( argv[i], "/*" ) == 0 ) {
+				int j, off;
+				if ( !(BER_BVISNULL( &b->a_comment ))) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"comment already present" );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+				for ( j=i+1; j<argc; j++ )
+					if ( !strcmp( argv[j], "*/" ))
+						break;
+				if ( j == argc ) {
+					snprintf( c->cr_msg, sizeof( c->cr_msg ),
+						"unterminated comment" );
+					Debug( LDAP_DEBUG_ANY, "%s: %s.\n", c->log, c->cr_msg );
+					goto fail;
+				}
+				off = argv[i] - c->tline;
+				ber_str2bv( c->line + off + 4, argv[j] - argv[i] - 2, 1, &b->a_comment );
+				i = j;
+			} else {
+				/* gone too far */
 				i--;
 			}
 
@@ -2392,6 +2414,9 @@ access_free( Access *a )
 	if ( !BER_BVISNULL( &a->a_group_pat ) ) {
 		free( a->a_group_pat.bv_val );
 	}
+	if ( !BER_BVISNULL( &a->a_comment ) ) {
+		free( a->a_comment.bv_val );
+	}
 #ifdef SLAP_DYNACL
 	if ( a->a_dynacl != NULL ) {
 		slap_dynacl_t	*da;
@@ -2788,6 +2813,11 @@ access2text( Access *b, char *ptr )
 		ptr = acl_safe_strcopy( ptr, " unknown-control" );
 	} else {
 		if ( !maskbuf[0] ) ptr = acl_safe_strcopy( ptr, " stop" );
+	}
+	if ( b->a_comment.bv_len ) {
+		ptr = acl_safe_strcopy( ptr, " /*" );
+		ptr = acl_safe_strbvcopy( ptr, &b->a_comment );
+		ptr = acl_safe_strcopy( ptr, "*/" );
 	}
 	ptr = acl_safe_strcopy( ptr, "\n" );
 
