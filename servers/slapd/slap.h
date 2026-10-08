@@ -1605,6 +1605,8 @@ typedef struct Access {
 	ObjectClass		*a_group_oc;
 	AttributeDescription	*a_group_at;
 
+	struct berval	a_comment;
+
 	struct Access		*a_next;
 } Access;
 

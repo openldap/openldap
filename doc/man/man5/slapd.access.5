@@ -73,7 +73,7 @@ brackets <>.
 .SH THE ACCESS DIRECTIVE
 The structure of the access control directives is
 .TP
-.B access to <what> "[ by <who> [ <access> ] [ <control> ] ]+"
+.B access to <what> "[ by <who> [ <access> ] [ <control> ] [ /* comment */ ] ]+"
 Grant access (specified by 
 .BR <access> ) 
 to a set of entries and/or attributes (specified by 
@@ -144,6 +144,15 @@ clause list is implicitly terminated by a
 .LP
 clause that results in granting no access privileges to an otherwise
 unspecified datum.
+
+The optional
+.B comment
+field preserves any text between the
+.B /*
+and
+.B */
+delimiters but is otherwise ignored.
+
 .SH THE <WHAT> FIELD
 The field
 .BR <what>
