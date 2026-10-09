@@ -5,6 +5,8 @@ OpenLDAP 2.7.2 Engineering
 	Fixed libldap with deeply nested URL filters (ITS#10585)
 	Fixed slapo-accesslog handling of per-op info state (ITS#10597)
 	Fixed slapo-sssvlv control parsing (ITS#10590)
+	Contrib
+		Fixed slappw-sha2 pointer aliasing (ITS#10611)
 	Minor Cleanup
 		ITS#8884
 		ITS#10455
