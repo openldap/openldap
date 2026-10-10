@@ -1,6 +1,7 @@
 OpenLDAP 2.7 Change Log
 
 OpenLDAP 2.7.2 Engineering
+	Added slapd support for comments with ACLS (ITS#5500,ITS#10619)
 	Added slapo-nssov option to forward updates (ITS#8149)
 	Fixed libldap with deeply nested URL filters (ITS#10585)
 	Fixed slapd GnuTLS client-cert verification handling (ITS#10616)
