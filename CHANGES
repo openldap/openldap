@@ -3,6 +3,7 @@ OpenLDAP 2.7 Change Log
 OpenLDAP 2.7.2 Engineering
 	Added slapo-nssov option to forward updates (ITS#8149)
 	Fixed libldap with deeply nested URL filters (ITS#10585)
+	Fixed slapd GnuTLS client-cert verification handling (ITS#10616)
 	Fixed slapo-accesslog handling of per-op info state (ITS#10597)
 	Fixed slapo-sssvlv control parsing (ITS#10590)
 	Contrib
