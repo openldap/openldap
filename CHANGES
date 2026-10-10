@@ -1,6 +1,7 @@
 OpenLDAP 2.6 Change Log
 
 OpenLDAP 2.6.16 Engineering
+	Fixed slapd GnuTLS client-cert verification handling (ITS#10616)
 	Fixed slapo-accesslog handling of per-op info state (ITS#10597)
 	Fixed slapo-sssvlv control parsing (ITS#10590)
 	Contrib
