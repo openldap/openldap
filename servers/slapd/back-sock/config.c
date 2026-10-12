@@ -308,7 +308,6 @@ static int sock_over_op(
 {
 	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
 	void *private = op->o_bd->be_private;
-	slap_callback *sc;
 	struct sockinfo	*si;
 	slap_operation_t which;
 
@@ -334,11 +333,8 @@ static int sock_over_op(
 		return SLAP_CB_CONTINUE;
 
 	op->o_bd->be_private = si;
-	sc = op->o_callback;
-	op->o_callback = NULL;
 	sockfuncs[which]( op, rs );
 	op->o_bd->be_private = private;
-	op->o_callback = sc;
 	return rs->sr_err;
 }
 
