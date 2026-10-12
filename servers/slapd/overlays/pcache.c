@@ -4269,7 +4269,6 @@ pc_cf_gen( ConfigArgs *c )
 			}
 			temp = ch_calloc( 1, sizeof( QueryTemplate ));
 			temp->qmnext = qm->templates;
-			qm->templates = temp;
 			temp->t_attrs.attrs = attrs;
 			temp->t_attrs.count = cnt;
 		}
@@ -4281,6 +4280,7 @@ pc_cf_gen( ConfigArgs *c )
 				c->argv[3] );
 			Debug( LDAP_DEBUG_CONFIG, "%s: %s.\n", c->log, c->cr_msg );
 pc_temp_fail:
+			ldap_pvt_thread_rdwr_destroy( &temp->t_rwlock );
 			ch_free( temp->t_attrs.attrs );
 			ch_free( temp );
 			return( 1 );
@@ -4324,6 +4324,7 @@ pc_temp_fail:
 			break;
 		}
 
+		qm->templates = temp;
 		temp->no_of_queries = 0;
 
 		ber_str2bv( c->argv[1], 0, 1, &temp->querystr );
