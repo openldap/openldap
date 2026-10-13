@@ -105,6 +105,13 @@ access to the remote DSA.  The default is FALSE, i.e. consistency
 checks and expirations will be performed.
 
 .TP
+.B pcachePassthruPagedResults { TRUE | FALSE }
+Pass through searches that use the pagedResults control, without
+any caching. Caching is incompatible with pagedResults.
+By default the search request is processed with the pagedResults
+control silently removed.
+
+.TP
 .B pcachePersist { TRUE | FALSE }
 Specify whether the cached queries should be saved across restarts
 of the caching proxy, to provide hot startup of the cache.  Only non-expired

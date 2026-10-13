@@ -206,11 +206,12 @@ typedef struct cache_manager_s {
 	unsigned long	num_cached_queries; 		/* total number of cached queries */
 	unsigned long   max_queries;			/* upper bound on # of cached queries */
 	int		save_queries;			/* save cached queries across restarts */
-	int	check_cacheability;		/* check whether a query is cacheable */
+	int 	check_cacheability;		/* check whether a query is cacheable */
 	int 	numattrsets;			/* number of attribute sets */
 	int 	cur_entries;			/* current number of entries cached */
 	int 	max_entries;			/* max number of entries cached */
 	int 	num_entries_limit;		/* max # of entries in a cacheable query */
+	int 	pass_paged;				/* passthru pagedResults searches */
 
 	char	response_cb;			/* install the response callback
 						 * at the tail of the callback list */
@@ -2570,8 +2571,13 @@ pcache_chk_controls(
 	Operation	*op,
 	SlapReply	*rs )
 {
+	slap_overinst *on = (slap_overinst *)op->o_bd->bd_info;
+	cache_manager *cm = on->on_bi.bi_private;
 	const char	*non = "";
 	const char	*stripped = "";
+
+	if ( cm->pass_paged )
+		return SLAP_CB_CONTINUE;
 
 	switch ( get_pagedresults( op ) ) {
 	case SLAP_CONTROL_NONCRITICAL:
@@ -3026,6 +3032,8 @@ pcache_op_search(
 	}
 
 	/* FIXME: cannot cache/answer requests with pagedResults control */
+	if ( wants_pagedresults( op ) && cm->pass_paged )
+		return SLAP_CB_CONTINUE;
 
 	query.filter = op->ors_filter;
 
@@ -3788,6 +3796,12 @@ static ConfigTable pccfg[] = {
 	{ "pcache-", "private database args",
 		1, 0, STRLENOF("pcache-"), ARG_MAGIC|PC_PRIVATE_DB, pc_cf_gen,
 		NULL, NULL, NULL },
+	{ "pcachePassthruPagedResults", "TRUE|FALSE",
+		2, 2, 0, ARG_ON_OFF|ARG_OFFSET, (void *)offsetof(cache_manager, pass_paged),
+		"( OLcfgOvAt:2.10 NAME 'olcPcachePassthruPagedResults' "
+			"DESC 'Passthru pagedResults searches as-is' "
+			"EQUALITY booleanMatch "
+			"SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
 
 	/* Legacy keywords */
 	{ "proxycache", "backend> <max_entries> <numattrsets> <entry limit> "
@@ -3823,7 +3837,8 @@ static ConfigOCs pcocs[] = {
 		"SUP olcOverlayConfig "
 		"MUST ( olcPcache $ olcPcacheAttrset $ olcPcacheTemplate ) "
 		"MAY ( olcPcachePosition $ olcPcacheMaxQueries $ olcPcachePersist $ "
-			"olcPcacheValidate $ olcPcacheOffline $ olcPcacheBind ) )",
+			"olcPcacheValidate $ olcPcacheOffline $ olcPcacheBind $ "
+			"olcPcachePassthruPagedResults ) )",
 		Cft_Overlay, pccfg, NULL, pc_cfadd },
 	{ "( OLcfgOvOc:2.2 "
 		"NAME 'olcPcacheDatabase' "
@@ -4605,6 +4620,7 @@ pcache_db_init(
 	cm->save_queries = 0;
 	cm->check_cacheability = 0;
 	cm->response_cb = PCACHE_RESPONSE_CB_TAIL;
+	cm->pass_paged = 0;
 	cm->defer_db_open = 1;
 	cm->cache_binds = 0;
 	cm->cc_period = 1000;
