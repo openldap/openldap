@@ -2655,15 +2655,6 @@ rwm_db_init(
 	struct ldaprwmap	*rwmap;
 	int			rc = 0;
 
-	/* ITS#8617: Disallow rwm under back-meta */
-	if ( on->on_info->oi_orig == backend_info("meta") ) {
-		snprintf( cr->msg, sizeof( cr->msg ), "rwm_db_init(): "
-				"rwm overlay incompatible with back-meta which can "
-				"configure rewriting by itself" );
-		Debug( LDAP_DEBUG_ANY, "%s\n", cr->msg );
-		return -1;
-	}
-
 	rwmap = (struct ldaprwmap *)ch_calloc( 1, sizeof( struct ldaprwmap ) );
 
 	/* default */
