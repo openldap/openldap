@@ -104,7 +104,7 @@ denyop_func( Operation *op, SlapReply *rs )
 	send_ldap_error( op, rs, LDAP_UNWILLING_TO_PERFORM,
 			"operation not allowed within namingContext" );
 
-	return 0;
+	return LDAP_UNWILLING_TO_PERFORM;
 }
 
 static int
