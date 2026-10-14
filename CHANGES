@@ -11,6 +11,7 @@ OpenLDAP 2.7.2 Engineering
 	Contrib
 		Fixed slappw-sha2 pointer aliasing (ITS#10611)
 	Minor Cleanup
+		ITS#8617
 		ITS#8884
 		ITS#10455
 		ITS#10581
