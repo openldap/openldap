@@ -1014,8 +1014,11 @@ dynlist_compare( Operation *op, SlapReply *rs )
 				/* If also using static groups, fallback to
 				 * vanilla compare
 				 */
-				if ( dlm->dlm_static_oc )
-					return SLAP_CB_CONTINUE;
+				if ( dlm->dlm_static_oc ) {
+					if ( id ) ber_bvarray_free_x( id, o.o_tmpmemctx );
+					ret = SLAP_CB_CONTINUE;
+					goto release;
+				}
 
 				break;
 			}
@@ -1031,7 +1034,8 @@ done:;
 
 	be = select_backend( &o.o_req_ndn, 1 );
 	if ( !be || !be->be_search ) {
-		return SLAP_CB_CONTINUE;
+		ret = SLAP_CB_CONTINUE;
+		goto release;
 	}
 
 	if ( e == NULL && ( overlay_entry_get_ov( &o, &o.o_req_ndn, NULL, NULL, 0, &e, on ) !=
