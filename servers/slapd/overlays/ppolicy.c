@@ -2454,12 +2454,12 @@ ppolicy_modify( Operation *op, SlapReply *rs )
 	int got_changed = 0, got_history = 0;
 	int have_policy = 0;
 
+	if ( pi->disable_write ) return SLAP_CB_CONTINUE;
+
 	op->o_bd->bd_info = (BackendInfo *)on->on_info;
 	rc = be_entry_get_rw( op, &op->o_req_ndn, NULL, NULL, 0, &e );
 	op->o_bd->bd_info = (BackendInfo *)on;
-
 	if ( rc != LDAP_SUCCESS ) return SLAP_CB_CONTINUE;
-	if ( pi->disable_write ) return SLAP_CB_CONTINUE;
 
 	/* If this is a replica, we may need to tweak some of the
 	 * provider's modifications. Otherwise, just pass it through.
