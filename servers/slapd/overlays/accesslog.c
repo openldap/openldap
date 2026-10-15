@@ -2160,7 +2160,7 @@ accesslog_nop( Operation *op, log_info *li )
 	int logop;
 
 	/* can't do anything if logDB isn't open */
-	if ( !SLAP_DBOPEN( li->li_db ))
+	if ( !li->li_db || !SLAP_DBOPEN( li->li_db ))
 		return 1;
 
 	logop = accesslog_op2logop( op );
