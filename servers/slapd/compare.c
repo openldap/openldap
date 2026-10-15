@@ -249,8 +249,8 @@ fe_op_compare( Operation *op, SlapReply *rs )
 			} else {
 				rc = rs->sr_err = op->o_bd->be_has_subordinates( op,
 						entry, &hasSubordinates );
-				be_entry_release_r( op, entry );
 			}
+			be_entry_release_r( op, entry );
 		}
 
 		if ( rc == 0 ) {
