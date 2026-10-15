@@ -641,6 +641,9 @@ autogroup_add_group( Operation *op, autogroup_info_t *agi, autogroup_def_t *agd,
 		for ( ; *agep ; agep = &(*agep)->age_next ) {
 			if ( dn_match( &e->e_nname, &(*agep)->age_ndn )) {
 				Debug( LDAP_DEBUG_TRACE, "autogroup_add_group: group already exists: <%s>\n", e->e_name.bv_val );
+				if ( null_entry == 1 ) {
+					overlay_entry_release_ov( op, e, 0, on );
+				}
 				return 1;
 			}
 			/* goto last */;
@@ -663,6 +666,7 @@ autogroup_add_group( Operation *op, autogroup_info_t *agi, autogroup_def_t *agd,
 	if ( null_entry == 1 ) {
 		a = attrs_dup( a );
 		overlay_entry_release_ov( op, e, 0, on );
+		e = NULL;
 	}
 
 	if( a == NULL ) {
@@ -1631,6 +1635,7 @@ breakout:
 
 	if ( a == NULL ) {
 		Debug( LDAP_DEBUG_TRACE, "autogroup_modify_entry entry <%s> has no objectClass\n", op->o_req_dn.bv_val );
+		overlay_entry_release_ov( op, e, 0, on );
 		ldap_pvt_thread_mutex_unlock( &agi->agi_mutex );		
 		return SLAP_CB_CONTINUE;
 	}
