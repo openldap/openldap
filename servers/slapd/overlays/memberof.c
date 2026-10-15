@@ -1154,6 +1154,9 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 					if ( !rc ) {
 						rc = rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 						rs->sr_text = "insufficient access to object referenced by memberof";
+						op->o_bd->bd_info = (BackendInfo *)on->on_info;
+						be_entry_release_r( op, target );
+						op->o_bd->bd_info = (BackendInfo *)on;
 						send_ldap_result( op, rs );
 						goto done;
 					}
@@ -1272,6 +1275,9 @@ memberof_op_modify( Operation *op, SlapReply *rs )
 				if ( !rc ) {
 					rc = rs->sr_err = LDAP_INSUFFICIENT_ACCESS;
 					rs->sr_text = "insufficient access to object referenced by memberof";
+					op->o_bd->bd_info = (BackendInfo *)on->on_info;
+					be_entry_release_r( op, target );
+					op->o_bd->bd_info = (BackendInfo *)on;
 					send_ldap_result( op, rs );
 					goto done;
 				}
