@@ -1345,6 +1345,12 @@ static int parsePagedResults (
 		goto done;
 	}
 
+	if ( size == 0 && BER_BVISEMPTY( &cookie ) ) {
+		rs->sr_text = "paged results control size invalid";
+		rc = LDAP_PROTOCOL_ERROR;
+		goto done;
+	}
+
 	ps = op->o_tmpalloc( sizeof(PagedResultsState), op->o_tmpmemctx );
 	*ps = op->o_conn->c_pagedresults_state;
 	ps->ps_size = size;
