@@ -536,8 +536,8 @@ tlsmt_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 					}
 
 					/* Is this a wildcard match? */
-					if (domain && (san_buf->p[0] == '*') && (san_buf->p[1] == '.') &&
-						(len2 == san_buf->len-1) && !strncasecmp(domain, (san_buf->p)+1, len2))
+					if (domain && (len2 == san_buf->len-1) && (san_buf->p[0] == '*') && (san_buf->p[1] == '.') &&
+						!strncasecmp(domain, (san_buf->p)+1, len2))
 					{
 						ret = LDAP_SUCCESS;
 					}
@@ -614,8 +614,8 @@ tlsmt_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 				}
 
 				/* Is this a wildcard match? */
-				if (domain && (cn->p[0] == '*') && (cn->p[1] == '.') &&
-					(len2 == cn->len-1) && !strncasecmp(domain, (cn->p)+1, len2))
+				if (domain && (len2 == cn->len-1) && (cn->p[0] == '*') && (cn->p[1] == '.') &&
+					!strncasecmp(domain, (cn->p)+1, len2))
 				{
 					ret = LDAP_SUCCESS;
 				}

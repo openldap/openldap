@@ -697,8 +697,8 @@ tlsg_session_chkhost( LDAP *ld, tls_session *session, const char *name_in )
 			}
 
 			/* Is this a wildcard match? */
-			if (domain && (altname[0] == '*') && (altname[1] == '.') &&
-				(len2 == altnamesize-1) && !strncasecmp(domain, &altname[1], len2))
+			if (domain && (len2 == altnamesize-1) && (altname[0] == '*') && (altname[1] == '.') &&
+				!strncasecmp(domain, &altname[1], len2))
 			{
 				break;
 			}
@@ -792,10 +792,9 @@ tlsg_session_chkhost( LDAP *ld, tls_session *session, const char *name_in )
 			if ( len1 == altnamesize && strncasecmp(name, altname, altnamesize) == 0 ) {
 				ret = LDAP_SUCCESS;
 
-			} else if (( altname[0] == '*' ) && ( altname[1] == '.' )) {
+			} else if ((len2 == altnamesize-1) && ( altname[0] == '*' ) && ( altname[1] == '.' )) {
 					/* Is this a wildcard match? */
-				if( domain &&
-					(len2 == altnamesize-1) && !strncasecmp(domain, &altname[1], len2)) {
+				if( domain && !strncasecmp(domain, &altname[1], len2)) {
 					ret = LDAP_SUCCESS;
 				}
 			}

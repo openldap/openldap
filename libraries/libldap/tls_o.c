@@ -1079,8 +1079,8 @@ tlso_session_chkhost( LDAP *ld, tls_session *sess, const char *name_in )
 					}
 
 					/* Is this a wildcard match? */
-					if (domain && (sn[0] == '*') && (sn[1] == '.') &&
-						(len2 == sl-1) && !strncasecmp(domain, &sn[1], len2))
+					if (domain && (len2 == sl-1) && (sn[0] == '*') && (sn[1] == '.') &&
+						!strncasecmp(domain, &sn[1], len2))
 					{
 						break;
 					}
@@ -1188,7 +1188,7 @@ no_cn:
 				strncasecmp( name, (char *) cnstr, nlen ) == 0 ) {
 				ret = LDAP_SUCCESS;
 
-			} else if (( cnstr[0] == '*' ) && ( cnstr[1] == '.' )) {
+			} else if (( cnlen > 2 ) && ( cnstr[0] == '*' ) && ( cnstr[1] == '.' )) {
 				char *domain = strchr(name, '.');
 				if( domain ) {
 					int dlen;
