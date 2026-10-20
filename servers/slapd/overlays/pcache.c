@@ -3501,6 +3501,8 @@ refresh_query( Operation *op, CachedQuery *query, slap_overinst *on, QueryTempla
 	attrs[ 0 ].an_name = ad_queryId->ad_cname;
 	op->ors_attrs = attrs;
 	op->ors_attrsonly = 0;
+	op->ors_filter = &filter;
+	op->ors_filterstr.bv_val = filter_str;
 	rs_reinit( &rs, REP_RESULT );
 	rc = op->o_bd->be_search( op, &rs );
 	if ( rc ) goto leave;
