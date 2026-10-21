@@ -1621,7 +1621,7 @@ getNextPage:
 		/* Loop to get the next window when 
 		 * enter is pressed on the terminal.
 		 */
-		printf( _("Press [before/after(/offset/count|:value)] Enter for the next window.\n"));
+		printf( _("Press [before/after(/offset/count|:value)] Enter for the next window or Q to quit.\n"));
 		i = 0;
 		moreEntries = getchar();
 		while ( moreEntries != EOF && moreEntries != '\n' ) { 
@@ -1632,21 +1632,39 @@ getNextPage:
 			moreEntries = getchar();
 		}
 		buf[i] = '\0';
-		if ( buf[0] ) {
+		if ( buf[0] == 'q' || buf[0] == 'Q' ) {
+			/* Asked to stop, pretend we reached the end of the list */
+			vlvInfo.ldvlv_offset = vlvCount + 1;
+			vlvInfo.ldvlv_count = vlvCount;
+			vlvInfo.ldvlv_before_count = 0;
+		} else if ( buf[0] ) {
 			i = parse_vlv( strdup( buf ));
 			if ( i )
 				tool_exit( ld, EXIT_FAILURE );
 		} else {
 			vlvInfo.ldvlv_attrvalue = NULL;
+			vlvInfo.ldvlv_offset = vlvPos;
 			vlvInfo.ldvlv_count = vlvCount;
-			vlvInfo.ldvlv_offset += vlvInfo.ldvlv_after_count;
+			vlvInfo.ldvlv_offset += vlvInfo.ldvlv_before_count + 1 + vlvInfo.ldvlv_after_count;
 		}
 
 		if ( vlvInfo.ldvlv_context )
 			ber_bvfree( vlvInfo.ldvlv_context );
 		vlvInfo.ldvlv_context = vlvContext;
 
-		goto getNextPage;
+		/*
+		 * Is this the last page? If so, we might have pushed offset too
+		 * far and need to backtrack a little so we don't skip it, adjust
+		 * the page so it starts where "before" would and preserve its size.
+		 */
+		if ( vlvInfo.ldvlv_offset > vlvInfo.ldvlv_count ) {
+			vlvInfo.ldvlv_offset -= vlvInfo.ldvlv_before_count;
+			vlvInfo.ldvlv_after_count += vlvInfo.ldvlv_before_count;
+			vlvInfo.ldvlv_before_count = 0;
+		}
+		if ( vlvInfo.ldvlv_offset <= vlvInfo.ldvlv_count ) {
+			goto getNextPage;
+		}
 	}
 
 	if ( sss_keys != NULL ) {
