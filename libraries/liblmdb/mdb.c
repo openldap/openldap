@@ -8561,14 +8561,16 @@ mdb_cursor_touch(MDB_cursor *mc)
 }
 
 static void
-mdb_subdb_adjust(MDB_cursor *mc, MDB_db *old, MDB_db *new)
+mdb_subdb_adjust(MDB_cursor *mc, const void *vold, MDB_db *new)
 {
+	MDB_db old;
 	int delta;
 
-	delta = new->md_branch_pages - old->md_branch_pages;
+	memcpy(&old, vold, sizeof(MDB_db));
+	delta = new->md_branch_pages - old.md_branch_pages;
 	mc->mc_db->md_branch_pages += delta;
 
-	delta = new->md_leaf_pages - old->md_leaf_pages;
+	delta = new->md_leaf_pages - old.md_leaf_pages;
 	mc->mc_db->md_leaf_pages += delta;
 }
 
@@ -9203,10 +9205,14 @@ _mdb_cursor_del(MDB_cursor *mc, unsigned int flags)
 		}
 
 		if (leaf->mn_flags & F_SUBDATA) {
+			MDB_db tmp;
 			/* add all the child DB's pages to the free list */
 			rc = mdb_drop0(&mc->mc_xcursor->mx_cursor, 0);
 			if (rc)
 				goto fail;
+			memcpy(&tmp, NODEDATA(leaf), sizeof(MDB_db));
+			mc->mc_db->md_branch_pages -= tmp.md_branch_pages;
+			mc->mc_db->md_leaf_pages -= tmp.md_leaf_pages;
 		}
 	}
 	/* LMDB passes F_SUBDATA in 'flags' to delete a DB record */
