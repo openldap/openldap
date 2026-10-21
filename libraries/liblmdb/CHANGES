@@ -1,6 +1,6 @@
 LMDB 0.9 Change Log
 
-LMDB 0.9.37 Engineering
+LMDB 0.9.37 Release (2026/10/21)
 	ITS#10615 - fix cache coherency on OpenBSD
 	ITS#10642 - fix mdb_subdb_adjust alignment
 	ITS#10643 - fix DUPSORT page adjustment
