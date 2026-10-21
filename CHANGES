@@ -10,6 +10,7 @@ OpenLDAP 2.7.2 Engineering
 	Fixed slapo-sssvlv control parsing (ITS#10590)
 	Contrib
 		Fixed slappw-sha2 pointer aliasing (ITS#10611)
+		Fixed denyop rejection handling (ITS#10635)
 	Minor Cleanup
 		ITS#8617
 		ITS#8884
