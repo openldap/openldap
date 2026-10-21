@@ -83,6 +83,15 @@
 #define CACHEFLUSH(addr, bytes, cache)
 #endif
 
+#if defined(__OpenBSD__)
+/* OpenBSD lacks a Unified Buffer Cache so it requires an explicit
+ * msync to make writes appear in the mmap.
+ */
+#define MDB_Invalidate(env, pos, len)	msync((char *)env->me_map + pos, len, MS_INVALIDATE)
+#else
+#define MDB_Invalidate(env, pos, len)
+#endif
+
 #if defined(__linux) && !defined(MDB_FDATASYNC_WORKS)
 /** fdatasync is broken on ext3/ext4fs on older kernels, see
  *	description in #mdb_env_open2 comments. You can safely
@@ -3473,14 +3482,16 @@ retry_write:
 						wsize -= MAX_WRITE;
 						wres = pwrite(env->me_fd, iov[0].iov_base, MAX_WRITE, wpos);
 						if (wres != MAX_WRITE)
-							goto bad_write;;
+							goto bad_write;
+						MDB_Invalidate(env, wpos, wres);
 						wpos += MAX_WRITE;
 						iov[0].iov_base += MAX_WRITE;
 					}
 					wres = pwrite(env->me_fd, iov[0].iov_base, wsize, wpos);
+					MDB_Invalidate(env, wpos, wsize);
 				} else {
 #ifdef MDB_USE_PWRITEV
-				wres = pwritev(env->me_fd, iov, n, wpos);
+					wres = pwritev(env->me_fd, iov, n, wpos);
 #else
 retry_seek:
 					if (lseek(env->me_fd, wpos, SEEK_SET) == -1) {
@@ -3491,8 +3502,8 @@ retry_seek:
 						return rc;
 					}
 					wres = writev(env->me_fd, iov, n);
-				}
 #endif
+				}
 bad_write:
 				if (wres != wsize) {
 					if (wres < 0) {
@@ -3506,6 +3517,7 @@ bad_write:
 					}
 					return rc;
 				}
+				MDB_Invalidate(env, wpos, wsize);
 				n = 0;
 			}
 			if (i > pagecount)
@@ -4042,6 +4054,7 @@ fail:
 		return rc;
 	}
 #endif
+	MDB_Invalidate(env, toggle * env->me_psize, env->me_psize);
 	/* MIPS has cache coherency issues, this is a no-op everywhere else */
 	CACHEFLUSH(env->me_map + off, len, DCACHE);
 done:
@@ -6661,14 +6674,16 @@ mdb_cursor_touch(MDB_cursor *mc)
 }
 
 static void
-mdb_subdb_adjust(MDB_cursor *mc, MDB_db *old, MDB_db *new)
+mdb_subdb_adjust(MDB_cursor *mc, const void *vold, MDB_db *new)
 {
+	MDB_db old;
 	int delta;
 
-	delta = new->md_branch_pages - old->md_branch_pages;
+	memcpy(&old, vold, sizeof(MDB_db));
+	delta = new->md_branch_pages - old.md_branch_pages;
 	mc->mc_db->md_branch_pages += delta;
 
-	delta = new->md_leaf_pages - old->md_leaf_pages;
+	delta = new->md_leaf_pages - old.md_leaf_pages;
 	mc->mc_db->md_leaf_pages += delta;
 }
 
@@ -7311,10 +7326,14 @@ _mdb_cursor_del(MDB_cursor *mc, unsigned int flags)
 		}
 
 		if (leaf->mn_flags & F_SUBDATA) {
+			MDB_db tmp;
 			/* add all the child DB's pages to the free list */
 			rc = mdb_drop0(&mc->mc_xcursor->mx_cursor, 0);
 			if (rc)
 				goto fail;
+			memcpy(&tmp, NODEDATA(leaf), sizeof(MDB_db));
+			mc->mc_db->md_branch_pages -= tmp.md_branch_pages;
+			mc->mc_db->md_leaf_pages -= tmp.md_leaf_pages;
 		}
 	}
 	/* LMDB passes F_SUBDATA in 'flags' to delete a DB record */
