@@ -163,7 +163,100 @@ if test $RC != 0 ; then
     exit $RC
 fi
 
+# ITS#10647
+echo "Testing adding a backend server"
+$LDAPADD -D cn=config -H $URI6 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: cn=fails,cn={0}tier 1,olcBackend={0}lload,cn=config
+objectClass: olcBkLloadBackendConfig
+cn: fails
+olcBkLloadBackendUri: $URI3
+olcBkLloadBindconns: 2
+olcBkLloadMaxPendingConns: 3
+olcBkLloadMaxPendingOps: 5
+olcBkLloadNumconns: 0
+olcBkLloadRetry: 5000
+EOF
+RC=$?
+case $RC in
+19|80)
+    ;;
+0)
+    echo "ldapadd should have failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+    ;;
+*)
+    echo "ldapadd failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+    ;;
+esac
+
+$LDAPADD -D cn=config -H $URI6 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: cn=temporary,cn={0}tier 1,olcBackend={0}lload,cn=config
+objectClass: olcBkLloadBackendConfig
+cn: temporary
+olcBkLloadBackendUri: $URI3
+olcBkLloadBindconns: 2
+olcBkLloadMaxPendingConns: 3
+olcBkLloadMaxPendingOps: 5
+olcBkLloadNumconns: 3
+olcBkLloadRetry: 5000
+EOF
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapadd failed for cn=temporary ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Modifying backends"
+
+$LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: cn={0}temporary,cn={0}tier 1,olcBackend={0}lload,cn=config
+changetype: modify
+replace: olcBkLloadRetry
+olcBkLloadRetry: 5000
+EOF
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapmodify failed for cn=temporary ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+$LDAPMODIFY -D cn=config -H $URI6 -y $CONFIGPWF <<EOF > $TESTOUT 2>&1
+dn: cn={0}temporary,cn={0}tier 1,olcBackend={0}lload,cn=config
+changetype: modify
+replace: olcBkLloadNumconns
+olcBkLloadNumconns: 0
+EOF
+RC=$?
+case $RC in
+19|80)
+    ;;
+0)
+    echo "ldapmodify should have failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit 1
+    ;;
+*)
+    echo "ldapmodify failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+    ;;
+esac
+
 echo "Deleting backends"
+
+$LDAPDELETE -H $URI6 -D cn=config -y $CONFIGPWF \
+        "cn={0}temporary,cn={0}tier 1,olcBackend={0}lload,cn=config" > /dev/null 2>&1
+RC=$?
+if test $RC != 0 ; then
+       echo "deleting temporary server failed ($RC)!"
+       test $KILLSERVERS != no && kill -HUP $KILLPIDS
+       exit $RC
+fi
 
 # weighted backends are sorted before we get to _cfadd to create their entries
 for i in 3 2 4 1 ; do
@@ -181,6 +274,22 @@ done
 echo "Testing cn=config searching..."
 $LDAPSEARCH -H $URI6 -D cn=config -y $CONFIGPWF \
         -s sub -b "olcBackend={0}lload,cn=config" '(objectclass=*)' > /dev/null 2>&1
+RC=$?
+if test $RC != 0 ; then
+    echo "ldapsearch failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
+
+echo "Testing searching..."
+$LDAPSEARCH -S "" -b "$BASEDN" -H $URI1 \
+    '(sn=jENSEN)' >> $SEARCHOUT 2>&1
+RC=$?
+if test $RC != 52 ; then
+    echo "ldapsearch failed ($RC)!"
+    test $KILLSERVERS != no && kill -HUP $KILLPIDS
+    exit $RC
+fi
 
 echo "Deleting tiers"
 
