@@ -1,5 +1,7 @@
 OpenLDAP 2.7 Change Log
 
+OpenLDAP 2.7.3 Engineering
+
 OpenLDAP 2.7.2 Release (2026/10/21)
 	Added slapd support for comments with ACLS (ITS#5500,ITS#10619)
 	Added slapd-config option to throttle when qtime exceeds threshold (ITS#10617)
