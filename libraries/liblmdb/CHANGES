@@ -1,5 +1,7 @@
 LMDB 1.0 Change Log
 
+LMDB 1.0.4 Engineering
+
 LMDB 1.0.3 Release (2026/10/21)
 	ITS#10615 - fix cache coherency on OpenBSD
 	ITS#10642 - fix mdb_subdb_adjust alignment
