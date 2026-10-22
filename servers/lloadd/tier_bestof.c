@@ -111,6 +111,10 @@ bestof_add_backend( LloadTier *tier, LloadBackend *b )
 {
     assert( b->b_tier == tier );
 
+    if ( LDAP_CIRCLEQ_NEXT( b, b_next ) ) {
+        return LDAP_SUCCESS;
+    }
+
     LDAP_CIRCLEQ_INSERT_TAIL( &tier->t_backends, b, b_next );
     if ( !tier->t_private ) {
         tier->t_private = b;

@@ -42,6 +42,11 @@ static int
 roundrobin_add_backend( LloadTier *tier, LloadBackend *b )
 {
     assert( b->b_tier == tier );
+
+    if ( LDAP_CIRCLEQ_NEXT( b, b_next ) ) {
+        return LDAP_SUCCESS;
+    }
+
     LDAP_CIRCLEQ_INSERT_TAIL( &tier->t_backends, b, b_next );
     if ( !tier->t_private ) {
         tier->t_private = b;
@@ -60,6 +65,7 @@ roundrobin_remove_backend( LloadTier *tier, LloadBackend *b )
 
     assert( b->b_tier == tier );
 
+    tier->t_nbackends--;
     LDAP_CIRCLEQ_REMOVE( &tier->t_backends, b, b_next );
     if ( b == tier->t_private ) {
         if ( tier->t_nbackends ) {
@@ -69,7 +75,7 @@ roundrobin_remove_backend( LloadTier *tier, LloadBackend *b )
             tier->t_private = NULL;
         }
     }
-    tier->t_nbackends--;
+
     return LDAP_SUCCESS;
 }
 

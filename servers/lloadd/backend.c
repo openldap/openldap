@@ -760,9 +760,12 @@ lload_backend_destroy( LloadBackend *b )
             b->b_uri.bv_val, b->b_numconns, b->b_numbindconns );
 
     checked_lock( &b->b_mutex );
-    b->b_tier->t_type.tier_remove_backend( b->b_tier, b );
+    if ( LDAP_CIRCLEQ_NEXT( b, b_next ) ) {
+        b->b_tier->t_type.tier_remove_backend( b->b_tier, b );
+    }
     b->b_numconns = b->b_numbindconns = 0;
     backend_reset( b, 0 );
+    checked_unlock( &b->b_mutex );
 
 #ifdef BALANCER_MODULE
     if ( b->b_monitor ) {
@@ -779,7 +782,6 @@ lload_backend_destroy( LloadBackend *b )
     }
 #endif /* BALANCER_MODULE */
 
-    checked_unlock( &b->b_mutex );
     ldap_pvt_thread_mutex_destroy( &b->b_mutex );
 
     if ( b->b_retry_event ) {

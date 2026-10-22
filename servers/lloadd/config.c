@@ -1167,7 +1167,6 @@ lload_backend_finish( ConfigArgs *ca )
     LloadBackend *b = ca->ca_private;
 
     if ( ca->reply.err != LDAP_SUCCESS ) {
-        /* Not reached since cleanup is only called on success */
         goto fail;
     }
 
@@ -1228,7 +1227,6 @@ fail:
         lload_change.type = LLOAD_CHANGE_DEL;
     }
 
-    lload_backend_destroy( b );
     return -1;
 }
 
@@ -1329,7 +1327,8 @@ config_backend( ConfigArgs *c )
                 Debug( LDAP_DEBUG_ANY, "config_backend: "
                         "error parsing backend configuration item '%s'\n",
                         c->argv[i] );
-                return -1;
+                rc = -1;
+                goto done;
             }
         }
     }
