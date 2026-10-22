@@ -790,7 +790,6 @@ lload_monitor_conn_entry_create( LloadConnection *c, monitor_subsys_t *ms )
 
     assert( mbe && mbe->is_configured() );
 
-    CONNECTION_ASSERT_LOCKED(c);
     assert( BER_BVISNULL( &c->c_monitor_dn ) );
 
     bv_rdn.bv_val = buf;

@@ -189,7 +189,9 @@ request_process( LloadConnection *client, LloadOperation *op )
         }
         checked_unlock( &b->b_mutex );
     } else if ( b ) {
+        checked_lock( &b->b_mutex );
         backend_select( b, op, &upstream, &res, &message );
+        checked_unlock( &b->b_mutex );
     } else {
         upstream_select( op, &upstream, &res, &message );
     }

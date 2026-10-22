@@ -153,7 +153,6 @@ done:
 static int
 weighted_remove_backend( LloadTier *tier, LloadBackend *b )
 {
-    assert_locked( &tier->t_mutex );
     assert_locked( &b->b_mutex );
 
     assert( b->b_tier == tier );

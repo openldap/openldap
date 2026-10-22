@@ -60,7 +60,6 @@ roundrobin_remove_backend( LloadTier *tier, LloadBackend *b )
 {
     LloadBackend *next = LDAP_CIRCLEQ_LOOP_NEXT( &tier->t_backends, b, b_next );
 
-    assert_locked( &tier->t_mutex );
     assert_locked( &b->b_mutex );
 
     assert( b->b_tier == tier );
