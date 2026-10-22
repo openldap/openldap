@@ -793,7 +793,7 @@ url2query(
 		qt = qm->attr_sets[attrset].templates;
 		for ( ; qt; qt = qt->qtnext ) {
 			/* find if template i can potentially answer tempstr */
-			if ( ber_bvstrcasecmp( &qt->querystr, &tempstr ) ) {
+			if ( !ber_bvstrcasecmp( &qt->querystr, &tempstr ) ) {
 				break;
 			}
 		}
