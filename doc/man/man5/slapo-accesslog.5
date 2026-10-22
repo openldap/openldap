@@ -102,6 +102,11 @@ If set to TRUE then log records will only be generated for successful
 requests, i.e., requests that produce a result code of 0 (LDAP_SUCCESS).
 If FALSE, log records are generated for all requests whether they
 succeed or not. The default is FALSE.
+.TP
+.B logpurgebatch <operations>
+If set to a non-zero number, it will issue a short delay every specified
+number of operations. In busy sites, setting this might help if purge task
+starves running operations for access to the accesslog database.
 
 .SH EXAMPLES
 .LP
