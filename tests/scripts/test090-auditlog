@@ -104,6 +104,7 @@ objectClass: olcOverlayConfig
 objectClass: olcAuditlogConfig
 olcOverlay: {0}auditlog
 olcAuditlogFile: $AUDITLOGFILE
+olcAuditlogMask: userPassword
 
 EOF
 RC=$?
@@ -270,6 +271,106 @@ grep "# delete " "$AUDITLOGFILE" > /dev/null
 RC=$?
 if test $RC != 0 ; then
 	echo "Auditlog does not contain DELETE operations!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+echo "Testing masked attributes are not logged..."
+$LDAPADD -H $URI1 \
+	-D "cn=Manager,$BASEDN" -w secret \
+	>> $TESTOUT 2>&1 << EOF
+dn: cn=Mask Test,ou=People,$BASEDN
+objectClass: inetOrgPerson
+cn: Mask Test
+sn: Test
+userPassword: auditlogaddsecret
+
+EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapadd failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPMODIFY -H $URI1 \
+	-D "cn=Manager,$BASEDN" -w secret \
+	>> $TESTOUT 2>&1 << EOF
+dn: cn=John Doe,ou=People,$BASEDN
+changetype: modify
+replace: userPassword
+userPassword: auditlogmodsecret
+
+EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPPASSWD -H $URI1 \
+	-D "cn=Manager,$BASEDN" -w secret -s auditlogextopsecret \
+	"cn=Jane Brown,ou=People,$BASEDN" >> $TESTOUT 2>&1
+RC=$?
+if test $RC != 0 ; then
+	echo "ldappasswd failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Verifying masked values were not logged..."
+grep -i "^userPassword:" "$AUDITLOGFILE" > /dev/null
+RC=$?
+if test $RC = 0 ; then
+	echo "Auditlog contains userPassword values!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+COUNT=`grep -c "^# userPassword: (masked)$" "$AUDITLOGFILE"`
+if test "$COUNT" != 3 ; then
+	echo "Auditlog contains $COUNT masked userPassword markers, expected 3!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit 1
+fi
+
+echo "Testing removal of the mask..."
+$LDAPMODIFY -H $URI1 -D 'cn=config' -y $CONFIGPWF \
+	>> $TESTOUT 2>&1 <<EOF
+dn: olcOverlay={0}auditlog,olcDatabase={1}$BACKEND,cn=config
+changetype: modify
+delete: olcAuditlogMask
+olcAuditlogMask: userPassword
+
+EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed to remove olcAuditlogMask ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+$LDAPMODIFY -H $URI1 \
+	-D "cn=Manager,$BASEDN" -w secret \
+	>> $TESTOUT 2>&1 << EOF
+dn: cn=Mask Test,ou=People,$BASEDN
+changetype: modify
+replace: userPassword
+userPassword: auditlogunmasked
+
+EOF
+RC=$?
+if test $RC != 0 ; then
+	echo "ldapmodify failed ($RC)!"
+	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+	exit $RC
+fi
+
+echo "Verifying values are logged again..."
+grep "^userPassword:: YXVkaXRsb2d1bm1hc2tlZA==$" "$AUDITLOGFILE" > /dev/null
+RC=$?
+if test $RC != 0 ; then
+	echo "Auditlog does not contain userPassword after removing the mask!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
 	exit 1
 fi

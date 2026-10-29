@@ -37,7 +37,15 @@ typedef struct auditlog_data {
 	ldap_pvt_thread_mutex_t ad_mutex;
 	char *ad_logfile;
 	int ad_nonblocking;
+	AttributeDescription **ad_mask;
+	int ad_nmask;
 } auditlog_data;
+
+enum {
+	AUDIT_MASK = 1
+};
+
+static ConfigDriver auditlog_cf_gen;
 
 static ConfigTable auditlogcfg[] = {
 	{ "auditlog", "filename", 2, 2, 0,
@@ -54,6 +62,13 @@ static ConfigTable auditlogcfg[] = {
 	  "DESC 'Set audit log file descriptor to non-blocking mode' "
 	  "EQUALITY booleanMatch "
 	  "SYNTAX OMsBoolean SINGLE-VALUE )", NULL, NULL },
+	{ "auditlogmask", "attrs", 2, 0, 0,
+	  ARG_MAGIC|AUDIT_MASK,
+	  auditlog_cf_gen,
+	  "( OLcfgOvAt:15.3 NAME 'olcAuditlogMask' "
+	  "DESC 'Attributes whose values are not written to the audit log' "
+	  "EQUALITY caseIgnoreMatch "
+	  "SYNTAX OMsDirectoryString )", NULL, NULL },
 	{ NULL, NULL, 0, 0, 0, ARG_IGNORED }
 };
 
@@ -62,10 +77,79 @@ static ConfigOCs auditlogocs[] = {
 	  "NAME 'olcAuditlogConfig' "
 	  "DESC 'Auditlog configuration' "
 	  "SUP olcOverlayConfig "
-	  "MAY ( olcAuditlogFile $ olcAuditlogNonBlocking ) )",
+	  "MAY ( olcAuditlogFile $ olcAuditlogNonBlocking $ "
+	  "olcAuditlogMask ) )",
 	  Cft_Overlay, auditlogcfg },
 	{ NULL, 0, NULL }
 };
+
+static int
+auditlog_cf_gen( ConfigArgs *c )
+{
+	slap_overinst *on = (slap_overinst *)c->bi;
+	auditlog_data *ad = on->on_bi.bi_private;
+	AttributeDescription *desc;
+	const char *text;
+	int i, rc = 0;
+
+	switch ( c->op ) {
+	case SLAP_CONFIG_EMIT:
+		if ( !ad->ad_nmask )
+			return 1;
+		for ( i = 0; i < ad->ad_nmask; i++ )
+			value_add_one( &c->rvalue_vals, &ad->ad_mask[i]->ad_cname );
+		break;
+
+	case LDAP_MOD_DELETE:
+		if ( c->valx < 0 ) {
+			ch_free( ad->ad_mask );
+			ad->ad_mask = NULL;
+			ad->ad_nmask = 0;
+		} else {
+			ad->ad_nmask--;
+			for ( i = c->valx; i < ad->ad_nmask; i++ )
+				ad->ad_mask[i] = ad->ad_mask[i+1];
+		}
+		break;
+
+	default:
+		if ( c->op != SLAP_CONFIG_ADD && c->argc > 2 ) {
+			/* We wouldn't know how to delete these values later */
+			snprintf( c->cr_msg, sizeof( c->cr_msg ),
+				"Please insert multiple names as separate %s values",
+				c->argv[0] );
+			Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
+				"%s: %s\n", c->log, c->cr_msg );
+			return LDAP_INVALID_SYNTAX;
+		}
+		for ( i = 1; i < c->argc; i++ ) {
+			desc = NULL;
+			if ( slap_str2ad( c->argv[i], &desc, &text ) != LDAP_SUCCESS ) {
+				snprintf( c->cr_msg, sizeof( c->cr_msg ),
+					"%s <%s>: %s", c->argv[0], c->argv[i], text );
+				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
+					"%s: %s\n", c->log, c->cr_msg );
+				return ARG_BAD_CONF;
+			}
+			ad->ad_mask = ch_realloc( ad->ad_mask,
+				( ad->ad_nmask + 1 ) * sizeof( AttributeDescription * ));
+			ad->ad_mask[ad->ad_nmask++] = desc;
+		}
+		break;
+	}
+	return rc;
+}
+
+static int
+auditlog_masked( auditlog_data *ad, AttributeDescription *desc )
+{
+	int i;
+
+	for ( i = 0; i < ad->ad_nmask; i++ )
+		if ( is_ad_subtype( desc, ad->ad_mask[i] ))
+			return 1;
+	return 0;
+}
 
 static int fprint_ldif(FILE *f, char *name, char *val, ber_len_t len) {
 	char *s;
@@ -172,9 +256,14 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 	switch(op->o_tag) {
 	  case LDAP_REQ_ADD:
 		for(a = op->ora_e->e_attrs; a; a = a->a_next)
-		  if((b = a->a_vals) != NULL)
+		  if((b = a->a_vals) != NULL) {
+			if(auditlog_masked(ad, a->a_desc)) {
+				fprintf(f, "# %s: (masked)\n", a->a_desc->ad_cname.bv_val);
+				continue;
+			}
 			for(i = 0; b[i].bv_val; i++)
 				fprint_ldif(f, a->a_desc->ad_cname.bv_val, b[i].bv_val, b[i].bv_len);
+		  }
 		break;
 
 	  case LDAP_REQ_MODIFY:
@@ -189,7 +278,9 @@ static int auditlog_response(Operation *op, SlapReply *rs) {
 					continue;
 			}
 			fprintf(f, "%s: %s\n", whatm, m->sml_desc->ad_cname.bv_val);
-			if((b = m->sml_values) != NULL)
+			if((b = m->sml_values) != NULL && auditlog_masked(ad, m->sml_desc))
+				fprintf(f, "# %s: (masked)\n", m->sml_desc->ad_cname.bv_val);
+			else if(b != NULL)
 			  for(i = 0; b[i].bv_val; i++)
 				fprint_ldif(f, m->sml_desc->ad_cname.bv_val, b[i].bv_val, b[i].bv_len);
 			fprintf(f, "-\n");
@@ -241,6 +332,7 @@ auditlog_db_destroy(
 	auditlog_data *ad = on->on_bi.bi_private;
 
 	ldap_pvt_thread_mutex_destroy( &ad->ad_mutex );
+	ch_free( ad->ad_mask );
 	free( ad->ad_logfile );
 	free( ad );
 	return 0;

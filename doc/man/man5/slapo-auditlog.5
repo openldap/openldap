@@ -34,6 +34,22 @@ Specify the fully qualified path for the log file.
 .B olcAuditlogNonBlocking: {on|off}
 Open <filename> in non-blocking mode.  Useful if <filename> is a named pipe
 and slapd should not block if no reader is available.
+.TP
+.B auditlogmask <attr> [...]
+.TP
+.B olcAuditlogMask: <attr>
+Do not write the values of the specified attributes, or of their subtypes,
+to the log file. The attribute name is still logged, and the values are
+replaced by a single comment line of the form
+.BR "# <attr>: (masked)" .
+This is intended for attributes holding credentials, such as
+.B userPassword
+and
+.BR authPassword ,
+whose values (hashed or, if the client supplied them, cleartext) would
+otherwise be recorded in the log. Note that changes to masked attributes
+can no longer be replayed from the log.
+In back-config, specify one attribute per value.
 .SH COMMENT FIELD INFORMATION
 The first field is the operation type.
 .br
@@ -60,6 +76,7 @@ objectClass: olcOverlayConfig
 objectClass: olcAuditLogConfig
 olcOverlay: auditlog
 olcAuditlogFile: /tmp/auditlog.ldif
+olcAuditlogMask: userPassword
 .fi
 .RE
 .LP
