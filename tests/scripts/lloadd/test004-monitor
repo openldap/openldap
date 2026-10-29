@@ -163,7 +163,7 @@ RC=$?
 if test $RC != 52 ; then
     echo "ldapsearch should have failed ($RC != 52)!"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 echo "Retrieving data from cn=monitor..."
@@ -231,7 +231,7 @@ done
 if test $RC != 6 ; then
     echo "ldapcompare failed ($RC)!"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 echo "Retrieving data from cn=monitor again..."
@@ -282,7 +282,7 @@ done
 if test $RC != 6 ; then
     echo "ldapcompare failed ($RC)!"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 echo "Sending another search request..."
@@ -319,7 +319,7 @@ done
 if test $RC != 6 ; then
     echo "ldapcompare failed ($RC)!"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 echo "Retrieving data from cn=monitor again..."

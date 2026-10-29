@@ -141,7 +141,7 @@ RC=$?
 if test $RC != 21 ; then
 	echo "Modify with an incorrect value failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 cat /dev/null > $SEARCHOUT
@@ -228,7 +228,7 @@ RC=$?
 if test $RC != 53 ; then
 	echo "Modify failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }

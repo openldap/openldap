@@ -134,7 +134,7 @@ case $RC in
 0)
 	echo "ldapsearch should have failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 	;;
 52)
 	echo "ldapsearch failed ($RC)"
@@ -154,7 +154,7 @@ case $RC in
 0)
 	echo "ldapsearch should have failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 	;;
 52)
 	echo "ldapsearch failed ($RC)"

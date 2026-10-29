@@ -501,7 +501,7 @@ EOF
 	if test $RC != 124 ; then
 		echo "Blocking mode result: $BLOCKING_RC (should be timeout/error)"
 		test $KILLSERVERS != no && kill -HUP $KILLPIDS
-		exit $RC
+		exit 1
 	fi
 
 	# Briefly open the pipe, so that blocking writes are unblocked, and we can kill slapd cleanly

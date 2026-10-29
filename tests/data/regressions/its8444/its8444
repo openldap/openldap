@@ -228,7 +228,7 @@ EOF
 			if test $RC != 1 ; then
 				echo "User delete failed on one or more consumer."
 				test $KILLSERVERS != no && kill -HUP $KILLPIDS
-				exit $RC
+				exit 1
 			fi
 			n=`expr $n + 1`
 		done
@@ -273,7 +273,7 @@ EOF
 	if test $RC != 1 ; then
 		echo "Group delete failed on one or more consumer."
 		test $KILLSERVERS != no && kill -HUP $KILLPIDS
-		exit $RC
+		exit 1
 	fi
 
 	echo "Running ldapmodify to add the group back..."

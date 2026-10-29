@@ -155,7 +155,7 @@ if test $RC = 10 ; then
 else
 	echo "ldapsearch did not error as expected ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }

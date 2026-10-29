@@ -292,7 +292,7 @@ RC=$?
 if test $RC != 50; then
         echo "ldapmodify should have failed with result code 50, got ($RC)!"
         test $KILLSERVERS != no && kill -HUP $KILLPIDS
-        exit $RC
+        exit 1
 fi
 
 test $KILLSERVERS != no && { kill -HUP $KILLPIDS 2>/dev/null || exit $?; }

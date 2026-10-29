@@ -168,7 +168,7 @@ RC=$?
 if test $RC != 12 ; then
 	echo "ldapsearch should have failed with Critical extension is unavailable (12)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 else
 	echo "Failed with \"Critical extension is unavailable (12)\". Ok."
 fi

@@ -230,7 +230,7 @@ test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }
 
 if test "$EARLIEST_QUARANTINE_END" -gt "$MEASURED_END" ; then
 	echo "Quarantine lifted $(( $EARLIEST_QUARANTINE_END - $MEASURED_END ))s too early"
-	exit $RC
+	exit 1
 fi
 
 echo ">>>>> Test succeeded"

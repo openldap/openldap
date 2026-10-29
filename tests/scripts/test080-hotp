@@ -264,7 +264,7 @@ RC=$?
 if test $RC != 6 ; then
     echo "ldapcompare failed ($RC)!"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 echo "Retrieving token status..."

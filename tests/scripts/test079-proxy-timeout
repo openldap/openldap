@@ -179,7 +179,7 @@ RC=$?
 if test $RC != 1 ; then
     echo "Error: LDAP connection to remote LDAP server was not closed"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 $LDAPSEARCH -b "cn=Connections,cn=database 3,cn=databases,cn=monitor" -s one -LLL \
@@ -190,7 +190,7 @@ RC=$?
 if test $RC != 1 ; then
     echo "Error: LDAP connection to remote LDAP server was not closed"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 
@@ -263,7 +263,7 @@ RC=$?
 if test $RC != 1 ; then
     echo "Error: LDAP connection to remote LDAP server was not closed"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS $LDAPSEARCHPIDS
-    exit $RC
+    exit 1
 fi
 
 $LDAPSEARCH -b "cn=Connections,cn=database 3,cn=databases,cn=monitor" -s one -LLL \
@@ -274,7 +274,7 @@ RC=$?
 if test $RC != 1 ; then
     echo "Error: LDAP connection to remote LDAP server was not closed"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS $LDAPSEARCHPIDS
-    exit $RC
+    exit 1
 fi
 
 ##############################################################################
@@ -344,7 +344,7 @@ RC=$?
 if test $RC != 1 ; then
     echo "Error: LDAP connection to remote LDAP server was not closed"
     test $KILLSERVERS != no && kill -HUP $KILLPIDS
-    exit $RC
+    exit 1
 fi
 
 test $KILLSERVERS != no && { kill -HUP $KILLPIDS || exit $?; }

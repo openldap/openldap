@@ -300,7 +300,7 @@ RC=$?
 if test $RC != 49; then
 	echo "ldapwhoami unexpected result ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 ID=babs
@@ -349,7 +349,7 @@ RC=$?
 if test $RC != 49; then
 	echo "ldapwhoami failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 ID=biff
@@ -394,7 +394,7 @@ RC=$?
 if test $RC != 49; then
 	echo "ldapwhoami failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 echo
@@ -545,7 +545,7 @@ RC=$?
 if test $RC != 49; then
 	echo "ldapwhoami unexpected result ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 ID=babs
@@ -594,7 +594,7 @@ RC=$?
 if test $RC != 49; then
 	echo "ldapwhoami failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 ID=biff
@@ -639,7 +639,7 @@ RC=$?
 if test $RC != 49; then
 	echo "ldapwhoami failed ($RC)!"
 	test $KILLSERVERS != no && kill -HUP $KILLPIDS
-	exit $RC
+	exit 1
 fi
 
 echo
