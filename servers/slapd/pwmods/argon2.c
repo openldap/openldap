@@ -112,9 +112,10 @@ slapd_argon2_hash(
 				passwd->bv_val, passwd->bv_len,
 				salt.bv_val, salt_length, hash_length,
 				p, encoded_length ) == 0 ) {
+		/* encoded_length includes the terminating NUL */
+		hash->bv_len = scheme->bv_len + strlen( p );
 		rc = LUTIL_PASSWD_OK;
 	}
-	hash->bv_len = scheme->bv_len + encoded_length;
 	ber_memfree( salt.bv_val );
 
 #else /* !HAVE_LIBARGON2 */
