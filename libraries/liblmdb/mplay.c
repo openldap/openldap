@@ -323,6 +323,12 @@ void child()
 			ep = findenv(tenv);
 			E(mdb_txn_begin(ep->renv, NULL, flags, &rtxn));
 			addtxn(tenv, ttxn, rtxn);
+		} else if (!strncmp(ptr, SCMP("mdb_txn_commit2"))) {
+			void *ttxn;
+			txnpair *tp;
+			sscanf(ptr+SOFF("mdb_txn_commit2"), "%p", &ttxn);
+			tp = findtxn(ttxn);
+			E(mdb_txn_commit(tp->rtxn));
 		} else if (!strncmp(ptr, SCMP("mdb_txn_commit"))) {
 			void *ttxn;
 			txnpair *tp;
@@ -330,6 +336,12 @@ void child()
 			tp = findtxn(ttxn);
 			E(mdb_txn_commit(tp->rtxn));
 			deltxn(tp);
+		} else if (!strncmp(ptr, SCMP("mdb_txn_prepare"))) {
+			void *ttxn;
+			txnpair *tp;
+			sscanf(ptr+SOFF("mdb_txn_prepare"), "%p", &ttxn);
+			tp = findtxn(ttxn);
+			E(mdb_txn_prepare(tp->rtxn));
 		} else if (!strncmp(ptr, SCMP("mdb_txn_abort"))) {
 			void *ttxn;
 			txnpair *tp;
