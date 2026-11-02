@@ -172,7 +172,11 @@ ldap_pvt_connect(LDAP *ld, ber_socket_t s, struct sockaddr_un *sa, int async)
 	if ( connect(s, (struct sockaddr *) sa, sizeof(struct sockaddr_un))
 		!= AC_SOCKET_ERROR )
 	{
-		if ( ldap_pvt_ndelay_off(ld, s) == -1 ) return -1;
+		/*
+		 * With LDAP_OPT_CONNECT_ASYNC the caller expects the
+		 * socket to be non-blocking, so leave it that way.
+		 */
+		if ( !async && ldap_pvt_ndelay_off(ld, s) == -1 ) return -1;
 
 #ifdef LDAP_PF_LOCAL_SENDMSG
 	/* Send a dummy message with access rights. Remote side will
@@ -260,7 +264,7 @@ sendcred:
 
 		if( fd.revents & POLL_WRITE ) {
 			if ( ldap_pvt_is_socket_ready(ld, s) == -1 ) return -1;
-			if ( ldap_pvt_ndelay_off(ld, s) == -1 ) return -1;
+			if ( !async && ldap_pvt_ndelay_off(ld, s) == -1 ) return -1;
 #ifdef LDAP_PF_LOCAL_SENDMSG
 			goto sendcred;
 #else
@@ -291,7 +295,7 @@ sendcred:
 
 		if ( FD_ISSET(s, &wfds) ) {
 			if ( ldap_pvt_is_socket_ready(ld, s) == -1 ) return -1;
-			if ( ldap_pvt_ndelay_off(ld, s) == -1 ) return -1;
+			if ( !async && ldap_pvt_ndelay_off(ld, s) == -1 ) return -1;
 #ifdef LDAP_PF_LOCAL_SENDMSG
 			goto sendcred;
 #else

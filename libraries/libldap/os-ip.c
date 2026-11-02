@@ -322,7 +322,12 @@ ldap_int_poll(
 				return -1;
 			}
 
-			if ( ldap_pvt_ndelay_off( ld, s ) == -1 ) {
+			/*
+			 * With LDAP_OPT_CONNECT_ASYNC the caller expects the
+			 * socket to be non-blocking, so leave it that way.
+			 */
+			if ( !LDAP_BOOL_GET( &ld->ld_options, LDAP_BOOL_CONNECT_ASYNC ) &&
+				ldap_pvt_ndelay_off( ld, s ) == -1 ) {
 				return -1;
 			}
 			return 0;
@@ -400,7 +405,8 @@ ldap_int_poll(
 				return -1;
 			}
 #endif
-			if ( ldap_pvt_ndelay_off(ld, s) == -1 ) {
+			if ( !LDAP_BOOL_GET( &ld->ld_options, LDAP_BOOL_CONNECT_ASYNC ) &&
+				ldap_pvt_ndelay_off( ld, s ) == -1 ) {
 				return -1;
 			}
 			return 0;
