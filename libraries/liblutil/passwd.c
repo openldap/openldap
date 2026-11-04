@@ -318,10 +318,15 @@ int lutil_passwd_generate( struct berval *pw, ber_len_t len )
 	pw->bv_val = ber_memalloc( len + 1 );
 
 	if( pw->bv_val == NULL ) {
+		pw->bv_len = 0;
 		return -1;
 	}
 
 	if( lutil_entropy( (unsigned char *) pw->bv_val, pw->bv_len) < 0 ) {
+		/* callers only check bv_len, do not leave uninitialized memory
+		 * behind as the "generated" password */
+		ber_memfree( pw->bv_val );
+		BER_BVZERO( pw );
 		return -1; 
 	}
 
