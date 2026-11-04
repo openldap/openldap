@@ -365,6 +365,9 @@ deref_response( Operation *op, SlapReply *rs )
 
 					rc = overlay_entry_get_ov( op, &a->a_nvals[ i ], NULL, NULL, 0, &e, dc->dc_on );
 					if ( rc == LDAP_SUCCESS && e != NULL ) {
+						/* the ACL state caches the result per attribute,
+						 * not per entry; don't share it with other entries */
+						AccessControlState e_acl_state = ACL_STATE_INIT;
 						int j;
 
 						if ( access_allowed( op, e, slap_schema.si_ad_entry,
@@ -374,7 +377,7 @@ deref_response( Operation *op, SlapReply *rs )
 								Attribute *aa;
 
 								if ( !access_allowed( op, e, ds->ds_attributes[ j ], NULL,
-									ACL_READ, &acl_state ) )
+									ACL_READ, &e_acl_state ) )
 								{
 									continue;
 								}
@@ -392,7 +395,7 @@ deref_response( Operation *op, SlapReply *rs )
 										if ( !access_allowed( op, e,
 											aa->a_desc,
 											&aa->a_nvals[ k ],
-											ACL_READ, &acl_state ) )
+											ACL_READ, &e_acl_state ) )
 										{
 											op->o_tmpfree( dv[ i ].dv_attrVals[ j ][ h ].bv_val,
 												op->o_tmpmemctx );
