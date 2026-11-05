@@ -638,13 +638,43 @@ generate(
 	out->bv_len = snprintf( out->bv_val, out->bv_len, "%0*d", digits, otp );
 }
 
+/* Compare the OTPs in constant time */
 static int
-otp_bind_response( Operation *op, SlapReply *rs )
+otp_equal( BerValue *a, BerValue *b )
 {
-	if ( rs->sr_err == LDAP_SUCCESS ) {
-		/* If the bind succeeded, return our result */
-		rs->sr_err = LDAP_INVALID_CREDENTIALS;
+	unsigned char diff = 0;
+	ber_len_t i;
+
+	if ( a->bv_len != b->bv_len ) {
+		return 0;
 	}
+	for ( i = 0; i < a->bv_len; i++ ) {
+		diff |= a->bv_val[i] ^ b->bv_val[i];
+	}
+	return diff == 0;
+}
+
+/* The client failed the OTP check, but we still pass the Bind over to the
+ * backend (so that it takes about as long, and the failure is handled as
+ * any failed Bind). Replace the credentials with random ones that do not
+ * match: the frontend authenticates the connection as soon as the backend
+ * accepts them, so changing the result afterwards is not enough.
+ */
+static int
+otp_fail_bind( Operation *op, SlapReply *rs )
+{
+	BerValue cred;
+
+	cred.bv_len = 32;
+	cred.bv_val = op->o_tmpalloc( cred.bv_len + 1, op->o_tmpmemctx );
+	if ( lutil_entropy( (unsigned char *)cred.bv_val, cred.bv_len ) ) {
+		op->o_tmpfree( cred.bv_val, op->o_tmpmemctx );
+		send_ldap_error( op, rs, LDAP_INVALID_CREDENTIALS, NULL );
+		return rs->sr_err;
+	}
+	/* slap_passwd_check() expects the credentials to be NUL terminated */
+	cred.bv_val[cred.bv_len] = '\0';
+	op->orb_cred = cred;
 	return SLAP_CB_CONTINUE;
 }
 
@@ -732,7 +762,7 @@ otp_hotp( Operation *op, Entry *token, BerValue *old_value )
 		BerValue out = { .bv_val = outbuf, .bv_len = sizeof(outbuf) };
 
 		generate( secret, last_step + i, otp_len, &out, mech );
-		if ( !ber_bvcmp( &out, &client_otp ) ) {
+		if ( otp_equal( &out, &client_otp ) ) {
 			found = last_step + i;
 			/* Would we leak information if we stopped right now? */
 		}
@@ -860,7 +890,7 @@ otp_totp( Operation *op, Entry *token, BerValue *old_value, long *drift )
 		if ( t + i <= last_step ) continue;
 
 		generate( secret, t + i, otp_len, &out, mech );
-		if ( !ber_bvcmp( &out, &client_otp ) ) {
+		if ( otp_equal( &out, &client_otp ) ) {
 			found = t + i;
 			*drift = old_drift + i;
 			/* Would we leak information if we stopped right now? */
@@ -1043,13 +1073,7 @@ otp_op_bind( Operation *op, SlapReply *rs )
 	be_entry_release_r( op, user );
 
 	if ( otp_check_and_update( op, &totpdn, &hotpdn, NULL ) ) {
-		/* Client failed the bind, but we still have to pass it over to the
-		 * backend and fail the Bind later */
-		slap_callback *cb;
-		cb = op->o_tmpcalloc( 1, sizeof(slap_callback), op->o_tmpmemctx );
-		cb->sc_response = otp_bind_response;
-		cb->sc_next = op->o_callback;
-		op->o_callback = cb;
+		rc = otp_fail_bind( op, rs );
 	}
 
 done:
