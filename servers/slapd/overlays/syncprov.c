@@ -3414,6 +3414,8 @@ no_change:	if ( !(op->o_sync_mode & SLAP_SYNC_PERSIST) ) {
 				rs->sr_err = LDAP_SUCCESS;
 				send_ldap_result( op, rs );
 				rs->sr_ctrls = NULL;
+				/* not REP_CTRLS_MUSTBEFREED, free the control ourselves */
+				op->o_tmpfree( ctrls[0], op->o_tmpmemctx );
 				if ( numcsns ) {
 					ber_bvarray_free_x( ctxcsn, op->o_tmpmemctx );
 					op->o_tmpfree( sids, op->o_tmpmemctx );
