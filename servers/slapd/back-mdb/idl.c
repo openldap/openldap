@@ -272,6 +272,11 @@ mdb_show_key(
 		unsigned char *c = val;
 		sprintf( buf, "[%02x%02x%02x%02x]", c[0], c[1], c[2], c[3] );
 		return buf;
+	} else if ( len == 8 /* LUTIL_HASH_BYTES */ ) {
+		unsigned char *c = val;
+		sprintf( buf, "[%02x%02x%02x%02x%02x%02x%02x%02x]",
+			c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7] );
+		return buf;
 	} else {
 		return val;
 	}
