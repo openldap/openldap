@@ -328,7 +328,7 @@ void child()
 			txnpair *tp;
 			sscanf(ptr+SOFF("mdb_txn_commit2"), "%p", &ttxn);
 			tp = findtxn(ttxn);
-			E(mdb_txn_commit(tp->rtxn));
+			E(mdb_txn_commit2(tp->rtxn));
 		} else if (!strncmp(ptr, SCMP("mdb_txn_commit"))) {
 			void *ttxn;
 			txnpair *tp;
