@@ -299,7 +299,7 @@ mdb_idl_fetch_key(
 	int rc;
 	MDB_cursor_op opflag;
 
-	char keybuf[16];
+	char keybuf[20];
 
 	Debug( LDAP_DEBUG_ARGS,
 		"mdb_idl_fetch_key: %s\n", 
@@ -431,7 +431,7 @@ mdb_idl_insert_keys(
 #endif
 
 	{
-		char buf[16];
+		char buf[20];
 		Debug( LDAP_DEBUG_ARGS,
 			"mdb_idl_insert_keys: %lx %s\n", 
 			(long) id, mdb_show_key( buf, keys->bv_val, keys->bv_len ) );
@@ -590,7 +590,7 @@ mdb_idl_delete_keys(
 #endif
 
 	{
-		char buf[16];
+		char buf[20];
 		Debug( LDAP_DEBUG_ARGS,
 			"mdb_idl_delete_keys: %lx %s\n", 
 			(long) id, mdb_show_key( buf, keys->bv_val, keys->bv_len ) );
