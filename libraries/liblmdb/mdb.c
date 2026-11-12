@@ -1214,7 +1214,7 @@ struct MDB_txn {
 #define MDB_TXN_DIRTY		0x04		/**< must write, even if dirty list is empty */
 #define MDB_TXN_SPILLS		0x08		/**< txn or a parent has spilled pages */
 #define MDB_TXN_HAS_CHILD	0x10		/**< txn has an #MDB_txn.%mt_child */
-#define MDB_TXN_KEEP		0x40		/**< commit but don't unlock */
+#define MDB_TXN_KEEP		0x40		/**< keep txn on commit failure */
 	/** most operations on the txn are currently illegal */
 #define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD)
 /** @} */
@@ -1422,7 +1422,6 @@ enum {
 #define MDB_END_OPMASK	0x0F	/**< mask for #mdb_txn_end() operation number */
 #define MDB_END_UPDATE	0x10	/**< update env state (DBIs) */
 #define MDB_END_FREE	0x20	/**< free txn unless it is #MDB_env.%me_txn0 */
-#define MDB_END_KEEP	0x40	/**< keep txn handle and write mutex */
 #define MDB_END_SLOT MDB_NOTLS	/**< release any reader slot if #MDB_NOTLS */
 static void mdb_txn_end(MDB_txn *txn, unsigned mode);
 
@@ -3112,14 +3111,11 @@ mdb_txn_end(MDB_txn *txn, unsigned mode)
 			env->me_pglast = 0;
 
 			env->me_txn = NULL;
+			mode = 0;	/* txn == env->me_txn0, do not free() it */
 
 			/* The writer mutex was locked in mdb_txn_begin. */
-			if (mode & MDB_END_KEEP)
-				txn->mt_flags |= MDB_TXN_KEEP;
-			else if (env->me_txns)
+			if (env->me_txns)
 				UNLOCK_MUTEX(env->me_wmutex);
-
-			mode = 0;	/* txn == env->me_txn0, do not free() it */
 		} else {
 			txn->mt_parent->mt_child = NULL;
 			txn->mt_parent->mt_flags &= ~MDB_TXN_HAS_CHILD;
@@ -3129,17 +3125,10 @@ mdb_txn_end(MDB_txn *txn, unsigned mode)
 		}
 
 		mdb_midl_free(pghead);
-	} else if (F_ISSET(txn->mt_flags, MDB_TXN_KEEP)) {
-		/* we kept the lock before, unlock it now */
-		if (env->me_txns)
-			UNLOCK_MUTEX(env->me_wmutex);
-
-		goto done;
 	}
 
 	if (mode & MDB_END_FREE)
 		free(txn);
-done:
 }
 
 void
@@ -3789,15 +3778,14 @@ _mdb_txn_commit(MDB_txn *txn, int flag)
 		(rc = mdb_env_write_meta(txn)))
 		goto fail;
 	end_mode = MDB_END_COMMITTED|MDB_END_UPDATE;
-	if (F_ISSET(flag, MDB_TXN_KEEP))
-		end_mode |= MDB_END_KEEP;
 
 done:
 	mdb_txn_end(txn, end_mode);
 	return MDB_SUCCESS;
 
 fail:
-	_mdb_txn_abort(txn);
+	if (!F_ISSET(flag, MDB_TXN_KEEP))
+		_mdb_txn_abort(txn);
 	return rc;
 }
 
@@ -3808,7 +3796,8 @@ mdb_txn_commit(MDB_txn *txn)
 	return _mdb_txn_commit(txn, 0);
 }
 
-int mdb_txn_commit2(MDB_txn *txn)
+int
+mdb_txn_commit2(MDB_txn *txn)
 {
 	MDB_TRACE(("%p", txn));
 	return _mdb_txn_commit(txn, MDB_TXN_KEEP);
