@@ -1717,6 +1717,10 @@ tcp_buffer_parse(
     }
 
     i = 0;
+	if ( argv[i] == NULL ) {
+		rc = LDAP_INVALID_SYNTAX;
+		goto done;
+	}
     if ( strncasecmp( argv[i], "listener=", STRLENOF("listener=") ) == 0 ) {
         char *url = argv[i] + STRLENOF("listener=");
 
@@ -1735,6 +1739,10 @@ tcp_buffer_parse(
     }
 
     ptr = argv[i];
+	if ( ptr == NULL ) {
+		rc = LDAP_INVALID_SYNTAX;
+		goto done;
+	}
     if ( strncasecmp( ptr, "read=", STRLENOF("read=") ) == 0 ) {
         *rw |= SLAP_TCP_RMEM;
         ptr += STRLENOF("read=");

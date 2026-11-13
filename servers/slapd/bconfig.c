@@ -3128,6 +3128,10 @@ tcp_buffer_parse( struct berval *val, int argc, char **argv,
 	}
 
 	i = 0;
+	if ( !argv[ i ] ) {
+		rc = LDAP_INVALID_SYNTAX;
+		goto done;
+	}
 	if ( strncasecmp( argv[ i ], "listener=", STRLENOF( "listener=" ) )
 		== 0 )
 	{
@@ -3148,6 +3152,10 @@ tcp_buffer_parse( struct berval *val, int argc, char **argv,
 	}
 
 	ptr = argv[ i ];
+	if ( !ptr ) {
+		rc = LDAP_INVALID_SYNTAX;
+		goto done;
+	}
 	if ( strncasecmp( ptr, "read=", STRLENOF( "read=" ) ) == 0 ) {
 		*rw |= SLAP_TCP_RMEM;
 		ptr += STRLENOF( "read=" );
