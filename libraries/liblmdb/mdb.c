@@ -1540,8 +1540,6 @@ struct MDB_txn {
 #define MDB_TXN_SPILLS		0x08		/**< txn or a parent has spilled pages */
 #define MDB_TXN_HAS_CHILD	0x10		/**< txn has an #MDB_txn.%mt_child */
 #define MDB_TXN_DIRTYNUM	0x20		/**< dirty list uses nump list */
-#define MDB_TXN_KEEP		0x40		/**< keep txn on commit failure */
-#define MDB_TXN_PREPARE		0x80		/**< prepare txn, don't fully commit */
 	/** most operations on the txn are currently illegal */
 #define MDB_TXN_BLOCKED		(MDB_TXN_FINISHED|MDB_TXN_ERROR|MDB_TXN_HAS_CHILD|MDB_TXN_PREPARE)
 /** @} */
@@ -1554,6 +1552,9 @@ struct MDB_txn {
 	 */
 	unsigned int	mt_dirty_room;
 };
+
+	/** #mdb_txn_commit2() flags */
+#define MDB_TXN_COMMIT_FLAGS	(MDB_TXN_KEEP|MDB_TXN_PREPARE)
 
 /** Enough space for 2^32 nodes with minimum of 2 keys per node. I.e., plenty.
  * At 4 keys per node, enough for 2^64 nodes, so there's probably no need to
@@ -4403,6 +4404,10 @@ _mdb_txn_commit(MDB_txn *txn, int flag)
 	if (txn == NULL)
 		return EINVAL;
 
+	if (F_ISSET(flag, MDB_TXN_PREPARE) &&
+		F_ISSET(txn->mt_flags, MDB_TXN_PREPARE))
+		return MDB_TXN_PENDING;
+
 	/* mdb_txn_end() mode for a commit which writes nothing */
 	end_mode = MDB_END_EMPTY_COMMIT|MDB_END_UPDATE|MDB_END_SLOT|MDB_END_FREE;
 
@@ -4658,18 +4663,17 @@ mdb_txn_commit(MDB_txn *txn)
 }
 
 int
-mdb_txn_commit2(MDB_txn *txn)
+mdb_txn_commit2(MDB_txn *txn, unsigned int flags)
 {
-	MDB_TRACE(("%p", txn));
-	return _mdb_txn_commit(txn, MDB_TXN_KEEP);
+	MDB_TRACE(("%p %u", txn, flags));
+	flags &= MDB_TXN_COMMIT_FLAGS;
+	return _mdb_txn_commit(txn, flags);
 }
 
 int
 mdb_txn_prepare(MDB_txn *txn)
 {
 	MDB_TRACE(("%p", txn));
-	if (F_ISSET(txn->mt_flags, MDB_TXN_PREPARE))
-		return MDB_TXN_PENDING;
 	return _mdb_txn_commit(txn, MDB_TXN_PREPARE);
 }
 

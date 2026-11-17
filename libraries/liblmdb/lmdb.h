@@ -374,6 +374,15 @@ typedef void (MDB_sum_func)(const MDB_val *src, MDB_val *dst, const MDB_val *key
 #define MDB_REMAP_CHUNKS	0x4000000
 /** @} */
 
+/** @defgroup	mdb_txn	Transaction Commit Flags
+ *	@{
+ */
+	/** keep txn on commit failure */
+#define MDB_TXN_KEEP	0x40
+	/** prepare txn, don't fully commit */
+#define MDB_TXN_PREPARE	0x80
+/** @} */
+
 /**	@defgroup	mdb_dbi_open	Database Flags
  *	@{
  */
@@ -1260,6 +1269,16 @@ int  mdb_env_rollback(MDB_env *env, mdb_size_t txnid);
 	 * transaction handle is not freed and must be freed using
 	 * #mdb_txn_abort().
 	 * @param[in] txn A transaction handle returned by #mdb_txn_begin()
+	 * @param[in] flags Special options for this commit. This parameter must
+	 * be set to 0 or by bitwise OR'ing together one or more of the values
+	 * described here.
+	 * <ul>
+	 *	<li>#MDB_TXN_KEEP
+	 *		Normal behavior if the commit succeeds. On failure, the
+	 *		transaction handle is not freed and must be freed using #mdb_txn_abort().
+	 *	<li>#MDB_TXN_PREPARE
+	 *		Prepare to commit, same as #mdb_txn_prepare().
+	 * </ul>
 	 * @return A non-zero error value on failure and 0 on success. Some possible
 	 * errors are:
 	 * <ul>
@@ -1269,7 +1288,7 @@ int  mdb_env_rollback(MDB_env *env, mdb_size_t txnid);
 	 *	<li>ENOMEM - out of memory.
 	 * </ul>
 	 */
-int  mdb_txn_commit2(MDB_txn *txn);
+int  mdb_txn_commit2(MDB_txn *txn, unsigned int flags);
 
 	/** @brief Abandon all the operations of the transaction instead of saving them.
 	 *
