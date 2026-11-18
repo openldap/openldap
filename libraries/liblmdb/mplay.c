@@ -326,9 +326,10 @@ void child()
 		} else if (!strncmp(ptr, SCMP("mdb_txn_commit2"))) {
 			void *ttxn;
 			txnpair *tp;
-			sscanf(ptr+SOFF("mdb_txn_commit2"), "%p", &ttxn);
+			unsigned int flags;
+			sscanf(ptr+SOFF("mdb_txn_commit2"), "%p, %u", &ttxn, &flags);
 			tp = findtxn(ttxn);
-			E(mdb_txn_commit2(tp->rtxn));
+			E(mdb_txn_commit2(tp->rtxn, flags));
 		} else if (!strncmp(ptr, SCMP("mdb_txn_commit"))) {
 			void *ttxn;
 			txnpair *tp;
