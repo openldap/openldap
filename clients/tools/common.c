@@ -2829,7 +2829,7 @@ tool_is_oid( const char *s )
 			return 0;
 		}
 
-		if ( first == 1 && s[ 0 ] == '0' && s[ 1 ] != '.' ) {
+		if ( first == 1 && s[ 0 ] == '0' && s[ 1 ] != '.' && s[ 1 ] != '\0' ) {
 			return 0;
 		}
 		first = 0;
