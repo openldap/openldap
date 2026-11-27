@@ -7779,7 +7779,7 @@ add_syncrepl(
 			si->si_cookieState = c->be->be_syncinfo->si_cookieState;
 
 			for ( i = 0, sip = &c->be->be_syncinfo;
-				(*sip)->si_next && ( c->valx < 0 || i < c->valx );
+				*sip && ( c->valx < 0 || i < c->valx );
 				sip = &(*sip)->si_next, i++ )
 				/* advance to the desired position */ ;
 			si->si_next = *sip;
